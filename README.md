@@ -1,2 +1,2 @@
 # spikeinterface-gui
-GUI for spikeinterface objects
+GUI for spikeinterface objects withoput copy

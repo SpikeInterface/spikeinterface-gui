@@ -1,3 +1,7 @@
+spikeinterface_gui/tests/*/*
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
