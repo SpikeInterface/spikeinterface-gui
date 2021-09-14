@@ -5,11 +5,6 @@ import numpy as np
 
 from .base import WidgetBase
 
-#~ from .peelercontroller import spike_visible_modes
-#~ from .tools import ParamDialog
-
-#~ from .. import labelcodes
-
 class SpikeModel(QT.QAbstractItemModel):
     def __init__(self, parent =None, controller=None):
         QT.QAbstractItemModel.__init__(self,parent)
@@ -17,15 +12,12 @@ class SpikeModel(QT.QAbstractItemModel):
         self.refresh_colors()
     
     def columnCount(self , parentIndex):
-        return 6
+        return 4
     
     def rowCount(self, parentIndex):
-        return 0
-        #~ if not parentIndex.isValid() and self.cc.peak_label is not None:
         if not parentIndex.isValid():
             self.visible_ind, = np.nonzero(self.controller.spikes['visible'])
             return self.visible_ind.size
-            
         else :
             return 0
     
@@ -50,35 +42,26 @@ class SpikeModel(QT.QAbstractItemModel):
         col = index.column()
         row = index.row()
         
-        #~ t_start = 0.
-        
         abs_ind = self.visible_ind[row]
         spike = self.controller.spikes[abs_ind]
-        
-        if np.isnan(spike['jitter']):
-            spike_time = (spike['index'])/self.controller.dataio.sample_rate
-        else:
-            spike_time = (spike['index']+ spike['jitter'])/self.controller.dataio.sample_rate
+        unit_id = self.controller.unit_ids[spike['unit_index']]
         
         if role ==QT.Qt.DisplayRole :
             if col == 0:
                 return '{}'.format(abs_ind)
             elif col == 1:
-                return '{}'.format(spike['segment'])
+                return '{}'.format(spike['segment_index'])
             elif col == 2:
-                return '{}'.format(spike['index'])
+                return '{}'.format(spike['sample_index'])
             elif col == 3:
-                return '{:.2f}'.format(spike['jitter'])
-            elif col == 4:
-                return '{:.4f}'.format(spike_time)
-            elif col == 5:
-                return '{}'.format(spike['cluster_label'])
+                return '{}'.format(unit_id)
             else:
                 return None
         elif role == QT.Qt.DecorationRole :
-            if col != 0: return None
-            if spike['cluster_label'] in self.icons:
-                return self.icons[spike['cluster_label']]
+            if col != 0:
+                return None
+            if unit_id in self.icons:
+                return self.icons[unit_id]
             else:
                 return None
         else :
@@ -91,17 +74,15 @@ class SpikeModel(QT.QAbstractItemModel):
 
     def headerData(self, section, orientation, role):
         if orientation == QT.Qt.Horizontal and role == QT.Qt.DisplayRole:
-            return  ['num', 'seg_num', 'index', 'jitter', 'time', 'cluster_label'][section]
+            return  ['num', 'segment', 'sample_index', 'unit_id'][section]
         return
-    
+
     def refresh_colors(self):
-        pass
-        #~ self.icons = { }
-        #~ for k, color in self.controller.qcolors.items():
-            #~ pix = QT.QPixmap(10,10 )
-            #~ pix.fill(color)
-            #~ self.icons[k] = QT.QIcon(pix)
-        #~ self.refresh()
+        self.icons = { }
+        for unit_id, qcolor in self.controller.qcolors.items():
+            pix = QT.QPixmap(10,10 )
+            pix.fill(qcolor)
+            self.icons[unit_id] = QT.QIcon(pix)
     
     def refresh(self):
         self.layoutChanged.emit()
@@ -117,17 +98,11 @@ class SpikeListView(WidgetBase):
         
         self.layout.addWidget(QT.QLabel('<b>All spikes</b>') )
         
-        #~ self.combo = QT.QComboBox()
-        #~ self.layout.addWidget(self.combo)
-        #~ self.combo.addItems(spike_visible_modes)
-        #~ self.combo.currentTextChanged.connect(self.change_visible_mode)
-        
         self.tree = QT.QTreeView(minimumWidth = 100, uniformRowHeights = True,
                     selectionMode= QT.QAbstractItemView.ExtendedSelection, selectionBehavior = QT.QTreeView.SelectRows,
                     contextMenuPolicy = QT.Qt.CustomContextMenu,)
         
         self.layout.addWidget(self.tree)
-        #~ self.tree.customContextMenuRequested.connect(self.open_context_menu)
         
         self.model = SpikeModel(controller=self.controller)
         self.tree.setModel(self.model)
@@ -139,6 +114,7 @@ class SpikeListView(WidgetBase):
     
     def refresh(self):
         self.model.refresh_colors()
+        self.model.refresh()
     
     def on_tree_selection(self):
         self.controller.spikes['selected'][:] = False

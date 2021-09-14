@@ -16,26 +16,14 @@ def setup_module():
 def teardown_module():
     clean_all()
 
-def test_mainwindow(interactive=False):
-    app = sigui.mkQApp()
-    
+def test_controller(interactive=False):
     we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
-    
-    win = sigui.MainWindow(we)
-    
-    if interactive:
-        win.show()
-        app.exec_()
-    else:
-        # close thread properly
-        win.close()
+    controller = sigui.SpikeinterfaceController(we)
+    #~ print(controller)
 
-    
 if __name__ == '__main__':
     
     #~ setup_module()
     
     
-    test_mainwindow(interactive=True)
-    
-    
+    test_controller(interactive=True)
