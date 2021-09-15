@@ -125,4 +125,6 @@ class  SpikeinterfaceController(ControllerBase):
         unit_indexes = [list(self.unit_ids).index(u) for u in unit_ids]
         chan_inds, = np.nonzero(self.sparsity_mask[unit_indexes, :].sum(axis=0))
         return chan_inds
-        
+    
+    def detect_high_similarity(self, threshold=0.9):
+        return

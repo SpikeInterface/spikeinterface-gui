@@ -6,6 +6,7 @@ from .controller import SpikeinterfaceController
 # 
 from .unitlist import UnitListView
 from .spikelist import SpikeListView
+from .pairlist import PairListView
 from .traceview import TraceView
 from .waveformview import WaveformView
 from .waveformheatmapview import WaveformHeatMapView
@@ -21,6 +22,7 @@ class MainWindow(QT.QMainWindow):
     
         self.spikelist = SpikeListView(controller=self.controller)
         self.unitlist = UnitListView(controller=self.controller)
+        self.pairlist = PairListView(controller=self.controller)
         self.traceview = TraceView(controller=self.controller)
         self.waveformview = WaveformView(controller=self.controller)
         self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
@@ -34,10 +36,17 @@ class MainWindow(QT.QMainWindow):
         docks['spikelist'].setWidget(self.spikelist)
         self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['spikelist'])
         
+        docks['pairlist'] = QT.QDockWidget('pairlist',self)
+        docks['pairlist'].setWidget(self.pairlist)
+        #~ self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
+        self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['pairlist'])
+
         docks['unitlist'] = QT.QDockWidget('unitlist',self)
         docks['unitlist'].setWidget(self.unitlist)
-        #~ self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
-        self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['unitlist'])
+        self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
+        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['unitlist'])
+        
+        
 
 
         docks['traceview'] = QT.QDockWidget('traceview',self)

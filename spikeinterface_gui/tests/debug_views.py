@@ -17,21 +17,18 @@ def debug_one_view():
     we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
     controller = sigui.SpikeinterfaceController(we)
     
-    controller.cluster_visible = {k: False for k in controller.cluster_visible}
-    controller.cluster_visible = {k: True for k in list(controller.cluster_visible.keys())[:2]}
+    #~ controller.cluster_visible = {k: False for k in controller.cluster_visible}
+    #~ controller.cluster_visible[list(controller.cluster_visible.keys())[0]] = True
+    #~ controller.cluster_visible[list(controller.cluster_visible.keys())[1]] = True
     
     app = sigui.mkQApp()
     
     #~ view = sigui.UnitListView(controller=controller)
     #~ view = sigui.SpikeListView(controller=controller)
+    view = sigui.PairListView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)
     #~ view = sigui.WaveformView(controller=controller)
-    view = sigui.WaveformHeatMapView(controller=controller)
-    
-    
-    
-    
-    
+    #~ view = sigui.WaveformHeatMapView(controller=controller)
     
     view.show()
     app.exec_()
