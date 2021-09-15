@@ -11,10 +11,10 @@ test_folder = Path('my_dataset')
 
 
 def setup_module():
-    make_one_folder()
+    make_one_folder(test_folder)
 
 def teardown_module():
-    clean_all()
+    clean_all(test_folder)
 
 def test_mainwindow(interactive=False):
     app = sigui.mkQApp()
@@ -33,9 +33,11 @@ def test_mainwindow(interactive=False):
     
 if __name__ == '__main__':
     
-    #~ setup_module()
-    
+    setup_module()
     
     test_mainwindow(interactive=True)
-    
+
+
+
+
     

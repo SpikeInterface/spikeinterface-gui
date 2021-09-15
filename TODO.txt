@@ -1,0 +1,4 @@
+rename signal
+traceview : handle channel selection
+get_template_channel_sparsity with threshold
+handle return_scaled=True

@@ -7,3 +7,10 @@ from .version import version as __version__
 from .myqt import QT, mkQApp
 from .mainwindow import MainWindow
 from .controller import SpikeinterfaceController
+
+# views
+from .unitlist import UnitListView
+from .spikelist import SpikeListView
+from .traceview import TraceView
+from .waveformview import WaveformView
+from .waveformheatmapview import WaveformHeatMapView
