@@ -12,6 +12,7 @@ from .waveformview import WaveformView
 from .waveformheatmapview import WaveformHeatMapView
 from .isiview import ISIView
 from .crosscorrelogramview import CrossCorrelogramView
+from .probeview import ProbeView
 
 
 class MainWindow(QT.QMainWindow):
@@ -30,6 +31,7 @@ class MainWindow(QT.QMainWindow):
         self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
         self.isiview = ISIView(controller=self.controller)
         self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
+        self.probeview  = ProbeView(controller=self.controller)
         
         
         docks = {}
@@ -47,6 +49,12 @@ class MainWindow(QT.QMainWindow):
         docks['unitlist'].setWidget(self.unitlist)
         self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
         #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['unitlist'])
+
+        docks['probeview'] = QT.QDockWidget('probeview',self)
+        docks['probeview'].setWidget(self.probeview)
+        self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
+        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['unitlist'])
+        
         
         docks['traceview'] = QT.QDockWidget('traceview',self)
         docks['traceview'].setWidget(self.traceview)

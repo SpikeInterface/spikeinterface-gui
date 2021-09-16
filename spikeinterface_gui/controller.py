@@ -132,7 +132,9 @@ class  SpikeinterfaceController(ControllerBase):
     def compute_correlograms(self, window_ms, bin_ms, symmetrize):
         correlograms, bins = compute_correlograms(self.we.sorting, window_ms=window_ms, bin_ms=bin_ms, symmetrize=symmetrize)
         return correlograms, bins
-
+    
+    def get_probe(self):
+        return self.we.recording.get_probe()
 
 
 

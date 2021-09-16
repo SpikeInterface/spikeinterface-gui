@@ -30,7 +30,9 @@ def debug_one_view():
     #~ view = sigui.WaveformView(controller=controller)
     #~ view = sigui.WaveformHeatMapView(controller=controller)
     #~ view = sigui.ISIView(controller=controller)
-    view = sigui.CrossCorrelogramView(controller=controller)
+    #~ view = sigui.CrossCorrelogramView(controller=controller)
+    view = sigui.ProbeView(controller=controller)
+    
     
     
     view.show()
