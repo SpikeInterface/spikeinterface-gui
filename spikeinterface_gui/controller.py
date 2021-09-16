@@ -1,8 +1,9 @@
 from .base import ControllerBase
 from .myqt import QT
+
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.toolkit import get_template_extremum_channel, get_template_channel_sparsity
-
+from spikeinterface.toolkit import compute_correlograms
 
 import numpy as np
 
@@ -34,7 +35,8 @@ class  SpikeinterfaceController(ControllerBase):
             r, g, b, a = color
             self.qcolors[unit_id] = QT.QColor(r*255, g*255, b*255)
         
-        self.cluster_visible = {unit_id:True for unit_id in self.unit_ids}
+        self.cluster_visible = {unit_id:False for unit_id in self.unit_ids}
+        self.cluster_visible[self.unit_ids[0]] = True
         
         all_spikes = self.we.sorting.get_all_spike_trains(outputs='unit_index')
         
@@ -54,10 +56,9 @@ class  SpikeinterfaceController(ControllerBase):
             self.spikes[sl]['selected'] = False
         
         # extremum channel
-        self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
+        #~ self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
-        
         
         sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
                                 peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
@@ -75,7 +76,6 @@ class  SpikeinterfaceController(ControllerBase):
     @property
     def unit_ids(self):
         return self.we.sorting.unit_ids
-    
     
     def get_extremum_channel(self, unit_id):
         chan_ind = self._extremum_channel[unit_id]
@@ -128,3 +128,11 @@ class  SpikeinterfaceController(ControllerBase):
     
     def detect_high_similarity(self, threshold=0.9):
         return
+    
+    def compute_correlograms(self, window_ms, bin_ms, symmetrize):
+        correlograms, bins = compute_correlograms(self.we.sorting, window_ms=window_ms, bin_ms=bin_ms, symmetrize=symmetrize)
+        return correlograms, bins
+
+
+
+

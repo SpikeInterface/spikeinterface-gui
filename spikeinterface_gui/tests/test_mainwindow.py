@@ -20,6 +20,8 @@ def test_mainwindow(interactive=False):
     app = sigui.mkQApp()
     
     we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
+    #~ we = WaveformExtractor.load_from_folder('/home/samuel/Bureau/bug_si_synaptic_sage/waveforms/')
+    
     
     win = sigui.MainWindow(we)
     
@@ -33,7 +35,7 @@ def test_mainwindow(interactive=False):
     
 if __name__ == '__main__':
     
-    setup_module()
+    #~ setup_module()
     
     test_mainwindow(interactive=True)
 

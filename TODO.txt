@@ -4,12 +4,10 @@ get_template_channel_sparsity with threshold
 handle return_scaled=True
 count spike per cluster for unit list
 cluster_similarity
+check max_spikes_per_unit in inti of controller to avoid too much spikes!!!
 
 views:
-  * pair unit
-  * corss core
-  * ISI
   * features
   * similarity
   * probeview
-
+  * trace heatmap

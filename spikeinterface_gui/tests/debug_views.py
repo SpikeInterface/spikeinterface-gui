@@ -25,10 +25,13 @@ def debug_one_view():
     
     #~ view = sigui.UnitListView(controller=controller)
     #~ view = sigui.SpikeListView(controller=controller)
-    view = sigui.PairListView(controller=controller)
+    #~ view = sigui.PairListView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)
     #~ view = sigui.WaveformView(controller=controller)
     #~ view = sigui.WaveformHeatMapView(controller=controller)
+    #~ view = sigui.ISIView(controller=controller)
+    view = sigui.CrossCorrelogramView(controller=controller)
+    
     
     view.show()
     app.exec_()
@@ -36,5 +39,3 @@ def debug_one_view():
     
 if __name__ == '__main__':
     debug_one_view()
-    
-    

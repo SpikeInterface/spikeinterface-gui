@@ -20,7 +20,7 @@ def teardown_module():
 def test_controller(interactive=False):
     we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
     controller = sigui.SpikeinterfaceController(we)
-    #~ print(controller)
+    print(controller)
 
 if __name__ == '__main__':
     
