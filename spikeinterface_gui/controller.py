@@ -3,7 +3,7 @@ from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
-    compute_correlograms, compute_unit_centers_of_mass)
+    compute_correlograms, compute_unit_centers_of_mass, compute_num_spikes)
 
 import numpy as np
 
@@ -14,7 +14,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 # TODO rename later
 # cluster_visible > unit_visible
-# cluster_visibility_changed > unit_visibility_changed
+# unit_visibility_changed > unit_visibility_changed
 
 class  SpikeinterfaceController(ControllerBase):
     
@@ -76,7 +76,9 @@ class  SpikeinterfaceController(ControllerBase):
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
         coms = compute_unit_centers_of_mass(self.we, peak_sign='neg', num_channels=10)
-        self.unit_locations = np.vstack([coms[u] for u in self.unit_ids])
+        self.unit_positions = np.vstack([coms[u] for u in self.unit_ids])
+        
+        self.num_spikes = compute_num_spikes(self.we)
 
     @property
     def channel_ids(self):
@@ -90,10 +92,10 @@ class  SpikeinterfaceController(ControllerBase):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-    def on_cluster_visibility_changed(self):
-        #~ print('on_cluster_visibility_changed')
+    def on_unit_visibility_changed(self):
+        #~ print('on_unit_visibility_changed')
         self.update_visible_spikes()
-        ControllerBase.on_cluster_visibility_changed(self)
+        ControllerBase.on_unit_visibility_changed(self)
 
     def update_visible_spikes(self):
         for unit_index, unit_id in enumerate(self.unit_ids):

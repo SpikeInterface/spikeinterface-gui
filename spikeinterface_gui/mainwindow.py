@@ -33,20 +33,6 @@ class MainWindow(QT.QMainWindow):
         self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
         self.probeview  = ProbeView(controller=self.controller)
 
-
-        #~ docks['peaklist'] = QT.QDockWidget('peaklist',self)
-        #~ docks['peaklist'].setWidget(self.peaklist)
-        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['peaklist'])
-        
-        #~ docks['pairlist'] = QT.QDockWidget('pairlist',self)
-        #~ docks['pairlist'].setWidget(self.pairlist)
-        #~ self.splitDockWidget(docks['peaklist'], docks['pairlist'], QT.Qt.Horizontal)
-        
-        #~ docks['clusterlist'] = QT.QDockWidget('clusterlist',self)
-        #~ docks['clusterlist'].setWidget(self.clusterlist)
-        #~ self.tabifyDockWidget(docks['pairlist'], docks['clusterlist'])
-        
-        
         docks = {}
         
         # top left

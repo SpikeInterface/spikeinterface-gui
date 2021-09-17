@@ -27,7 +27,7 @@ class ProbeView(WidgetBase):
             {'name': 'show_channel_id', 'type': 'bool', 'value': True},
             {'name': 'radius', 'type': 'float', 'value': 40.},
             {'name': 'change_channel_visibility', 'type': 'bool', 'value': True},
-            {'name': 'change_unit_visibility', 'type': 'bool', 'value': False},
+            {'name': 'change_unit_visibility', 'type': 'bool', 'value': True},
         ]
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
@@ -95,10 +95,10 @@ class ProbeView(WidgetBase):
         self.roi.sigRegionChanged.connect(self.on_roi_change)
         
         # units
-        #~ self.unit_locations
-        unit_locations = self.controller.unit_locations
+        #~ self.unit_positions
+        unit_positions = self.controller.unit_positions
         brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
-        self.scatter = pg.ScatterPlotItem(pos=unit_locations, pxMode=False, size=10, brush=brush)
+        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
         self.plot.addItem(self.scatter)
 
 
@@ -143,7 +143,7 @@ class ProbeView(WidgetBase):
         self.params['radius'] = r
         self.params.blockSignals(False)
         
-        
+
         if self.params['change_channel_visibility']:
             dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
             visible_channel_inds,  = np.nonzero(dist < r)
@@ -151,35 +151,42 @@ class ProbeView(WidgetBase):
             visible_channel_inds = visible_channel_inds[order]
             self.controller.set_channel_visibility(visible_channel_inds)
             self.channel_visibility_changed.emit()
-        
+
         if self.params['change_unit_visibility']:
-            dist = np.sqrt(np.sum((self.controller.unit_locations - np.array([[x, y]]))**2, axis=1))
+            self.roi.blockSignals(True)
+            dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
             #~ visible_unit_inds,  = np.nonzero(dist < r)
             for unit_index, unit_id in enumerate(self.controller.unit_ids):
                 self.controller.cluster_visible[unit_id] = (dist[unit_index] < r)
-                self.cluster_visibility_changed.emit()
-            
+            self.unit_visibility_changed.emit()
+            self.roi.blockSignals(False)
+
     
-    def on_cluster_visibility_changed(self):
+    def on_unit_visibility_changed(self):
+        print('probeview.on_unit_visibility_changed')
         # this change the ROI and so change also channel_visibility
         visible_mask = list(self.controller.cluster_visible.values())
         n = np.sum(visible_mask)
         if n == 1:
             unit_index  = np.nonzero(visible_mask)[0][0]
-            x, y = self.controller.unit_locations[unit_index, :]
+            x, y = self.controller.unit_positions[unit_index, :]
             radius = self.params['radius']
             self.roi.setPos(x - radius, y - radius)
         
     def on_pick_unit(self, x, y):
-        unit_locations = self.controller.unit_locations
+        unit_positions = self.controller.unit_positions
         pos = np.array([x, y])[None, :]
-        distances = np.sum((unit_locations - pos) **2, axis=1) ** 0.5
+        distances = np.sum((unit_positions - pos) **2, axis=1) ** 0.5
         ind = np.argmin(distances)
         if distances[ind] < 5.:
+            radius = self.params['radius']
+            self.roi.blockSignals(True)
+            self.roi.setPos(x - radius, y - radius)
+            self.roi.blockSignals(False)
             unit_id = self.controller.unit_ids[ind]
             self.controller.cluster_visible = {unit_id:False for unit_id in self.controller.unit_ids}
             self.controller.cluster_visible[unit_id] = True
-            self.cluster_visibility_changed.emit()
+            self.unit_visibility_changed.emit()
             
             
             

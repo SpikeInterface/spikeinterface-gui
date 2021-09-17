@@ -5,11 +5,9 @@ import time
 
 
 class ControllerBase(QT.QObject):
-    spike_selection_changed = QT.pyqtSignal()
-    spike_label_changed = QT.pyqtSignal()
-    colors_changed = QT.pyqtSignal()
-    cluster_visibility_changed = QT.pyqtSignal()
-    cluster_tag_changed = QT.pyqtSignal()
+    # spike_selection_changed = QT.pyqtSignal()
+    # spike_label_changed = QT.pyqtSignal()
+    # unit_visibility_changed = QT.pyqtSignal()
 
     
     def __init__(self, parent=None):
@@ -22,9 +20,7 @@ class ControllerBase(QT.QObject):
         
         new_view.spike_selection_changed.connect(self.on_spike_selection_changed)
         new_view.spike_label_changed.connect(self.on_spike_label_changed)
-        new_view.colors_changed.connect(self.on_colors_changed)
-        new_view.cluster_visibility_changed.connect(self.on_cluster_visibility_changed)
-        new_view.cluster_tag_changed.connect(self.on_cluster_tag_changed)
+        new_view.unit_visibility_changed.connect(self.on_unit_visibility_changed)
         new_view.channel_visibility_changed.connect(self.on_channel_visibility_changed)
         
         
@@ -44,38 +40,22 @@ class ControllerBase(QT.QObject):
             #~ t2 = time.perf_counter()
             #~ print('on_spike_label_changed',view,  t2-t1)
     
-    def on_colors_changed(self):
+    def on_unit_visibility_changed(self):
+        #~ print('on_unit_visibility_changed')
         for view in self.views:
             if view==self.sender(): continue
             #~ t1 = time.perf_counter()
-            view.on_colors_changed()
+            view.on_unit_visibility_changed()
             #~ t2 = time.perf_counter()
-            #~ print('on_colors_changed',view,  t2-t1)
-    
-    def on_cluster_visibility_changed(self):
-        #~ print('on_cluster_visibility_changed')
-        for view in self.views:
-            if view==self.sender(): continue
-            #~ t1 = time.perf_counter()
-            view.on_cluster_visibility_changed()
-            #~ t2 = time.perf_counter()
-            #~ print('on_cluster_visibility_changed',view,  t2-t1)
+            #~ print('on_unit_visibility_changed',view,  t2-t1)
 
-    def on_cluster_tag_changed(self):
-        for view in self.views:
-            if view==self.sender(): continue
-            #~ t1 = time.perf_counter()
-            view.on_cluster_tag_changed()
-            #~ t2 = time.perf_counter()
-            #~ print('on_cluster_tag_changed',view,  t2-t1)
-    
     def on_channel_visibility_changed(self):
         for view in self.views:
             if view==self.sender(): continue
             #~ t1 = time.perf_counter()
             view.on_channel_visibility_changed()
             #~ t2 = time.perf_counter()
-            #~ print('on_cluster_tag_changed',view,  t2-t1)
+            #~ print('on_channel_visibility_changed',view,  t2-t1)
 
 
 
@@ -85,9 +65,7 @@ class ControllerBase(QT.QObject):
 class WidgetBase(QT.QWidget):
     spike_selection_changed = QT.pyqtSignal()
     spike_label_changed = QT.pyqtSignal()
-    colors_changed = QT.pyqtSignal()
-    cluster_visibility_changed = QT.pyqtSignal()
-    cluster_tag_changed = QT.pyqtSignal()
+    unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
     
     _params = None
@@ -130,15 +108,9 @@ class WidgetBase(QT.QWidget):
     def on_spike_label_changed(self):
         self.refresh()
         
-    def on_colors_changed(self):
+    def on_unit_visibility_changed(self):
         self.refresh()
     
-    def on_cluster_visibility_changed(self):
-        self.refresh()
-    
-    def on_cluster_tag_changed(self):
-        pass
-        
     def on_channel_visibility_changed(self):
         pass
 

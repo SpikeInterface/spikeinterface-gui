@@ -427,7 +427,7 @@ class WaveformHeatMapView(WidgetBase):
     def on_colors_changed(self):
         self.refresh()
     
-    def on_cluster_visibility_changed(self):
+    def on_unit_visibility_changed(self):
         self.refresh()
     
     def on_cluster_tag_changed(self):
