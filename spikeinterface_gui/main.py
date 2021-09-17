@@ -25,13 +25,10 @@ def run_mainwindow_cli():
     
     
     args = parser.parse_args(argv)
-    print(sys.argv)
-    print(args)
-
 
     waveform_folder = args.waveform_folder
     if waveform_folder is None:
-        print('Should must specify the waveform folder')
+        print('Should must specify the waveform folder like this: sigui /path/to/mywaveform/folder')
         exit()
     
     run_mainwindow(waveform_folder)

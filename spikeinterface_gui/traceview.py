@@ -46,6 +46,9 @@ class TraceView(WidgetBase):
                       {'name': 'plot_threshold', 'type': 'bool', 'value':  True },
                       {'name': 'alpha', 'type': 'float', 'value' : 0.8, 'limits':(0, 1.), 'step':0.05 },
                       {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
+                      {'name': 'max_visible_channel', 'type': 'int', 'value':  16},
+                      
+                      
                       ]
     
     def __init__(self,controller=None, parent=None):
@@ -63,9 +66,9 @@ class TraceView(WidgetBase):
         # create graphic view and 2 scroll bar
         g = QT.QGridLayout()
         self.layout.addLayout(g)
-        self.scroll_chan = QT.QScrollBar()
-        g.addWidget(self.scroll_chan, 0,0)
-        self.scroll_chan.valueChanged.connect(self.on_scroll_chan)
+        #~ self.scroll_chan = QT.QScrollBar()
+        #~ g.addWidget(self.scroll_chan, 0,0)
+        #~ self.scroll_chan.valueChanged.connect(self.on_scroll_chan)
         self.graphicsview = pg.GraphicsView()
         g.addWidget(self.graphicsview, 0,1)
         self.initialize_plot()
@@ -141,7 +144,16 @@ class TraceView(WidgetBase):
             if name in ['signals', 'prediction']:
                 but.setChecked(True)
     
-
+    @property
+    def visible_channel_inds(self):
+        # TODO add option to order by depth
+        inds = self.controller.visible_channel_inds
+        n_max =self.params['max_visible_channel']
+        if inds.size > n_max:
+            inds = inds[:n_max]
+        return inds
+        
+    
     def initialize_plot(self):
         self.viewBox = MyViewBox()
         self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -152,18 +164,20 @@ class TraceView(WidgetBase):
         self.viewBox.gain_zoom.connect(self.gain_zoom)
         self.viewBox.xsize_zoom.connect(self.xsize_zoom)
         
-        n = len(self.controller.channel_ids)
-        self.visible_channels = np.zeros(n, dtype='bool')
-        self.max_channel = min(16, n)
-        if n > self.max_channel:
-            self.visible_channels[:self.max_channel] = True
-            self.scroll_chan.show()
-            self.scroll_chan.setMinimum(0)
-            self.scroll_chan.setMaximum(n - self.max_channel)
-            self.scroll_chan.setPageStep(self.max_channel)
-        else:
-            self.visible_channels[:] = True
-            self.scroll_chan.hide()
+        #~ n = len(self.controller.channel_ids)
+        #~ self.visible_channels = np.zeros(n, dtype='bool')
+        #~ self.max_channel = min(16, n)
+        #~ if n > self.max_channel:
+            #~ self.visible_channels[:self.max_channel] = True
+            #~ self.scroll_chan.show()
+            #~ self.scroll_chan.setMinimum(0)
+            #~ self.scroll_chan.setMaximum(n - self.max_channel)
+            #~ self.scroll_chan.setPageStep(self.max_channel)
+        #~ else:
+            #~ self.visible_channels[:] = True
+            #~ self.scroll_chan.hide()
+        
+        # TODO scroll chan
             
         self.signals_curve = pg.PlotCurveItem(pen='#7FFF00', connect='finite')
         self.plot.addItem(self.signals_curve)
@@ -181,12 +195,12 @@ class TraceView(WidgetBase):
             self.channel_labels.append(label)
         
         
-        for i in range(self.max_channel):
-            tc = pg.InfiniteLine(angle = 0., movable = False, pen = pg.mkPen(color=(128,128,128, 120)))
-            tc.setPos(0.)
-            self.threshold_lines.append(tc)
-            self.plot.addItem(tc)
-            tc.hide()
+        #~ for i in range(self.max_channel):
+            #~ tc = pg.InfiniteLine(angle = 0., movable = False, pen = pg.mkPen(color=(128,128,128, 120)))
+            #~ tc.setPos(0.)
+            #~ self.threshold_lines.append(tc)
+            #~ self.plot.addItem(tc)
+            #~ tc.hide()
         
         pen = pg.mkPen(color=(128,0,128, 120), width=3, style=QT.Qt.DashLine)
         self.selection_line = pg.InfiniteLine(pos = 0., angle=90, movable=False, pen = pen)
@@ -235,6 +249,7 @@ class TraceView(WidgetBase):
             self.xsize = self.params['xsize_max']
             self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
         
+        self.reset_gain_and_offset()
         self.refresh()
     
     def on_combo_seg_changed(self):
@@ -298,34 +313,42 @@ class TraceView(WidgetBase):
     
     def gain_zoom(self, factor_ratio):
         self.factor *= factor_ratio
+        self.reset_gain_and_offset()
+        self.refresh()
+        
+    def reset_gain_and_offset(self):
         num_chans = len(self.controller.channel_ids)
         self.gains = np.zeros(num_chans, dtype='float32')
         self.offsets = np.zeros(num_chans, dtype='float32')
-        n = np.sum(self.visible_channels)
-        self.gains[self.visible_channels] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
-        self.offsets[self.visible_channels] = np.arange(n)[::-1] - self.med[self.visible_channels]*self.gains[self.visible_channels]
-        self.refresh()
+        
+        #~ n = np.sum(self.visible_channels)
+        #~ self.gains[self.visible_channels] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
+        #~ self.offsets[self.visible_channels] = np.arange(n)[::-1] - self.med[self.visible_channels]*self.gains[self.visible_channels]
 
+        n = self.visible_channel_inds.size
+        self.gains[self.visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
+        self.offsets[self.visible_channel_inds] = np.arange(n)[::-1] - self.med[self.visible_channel_inds]*self.gains[self.visible_channel_inds]
+        
     def on_scroll_time(self, val):
         sr = self.controller.sampling_frequency
         self.timeseeker.seek(val/sr)
     
-    def on_scroll_chan(self, val):
-        self.visible_channels[:] = False
-        self.visible_channels[val:val+self.max_channel] = True
-        self.gain_zoom(1)
-        self.refresh()
+    #~ def on_scroll_chan(self, val):
+        #~ self.visible_channels[:] = False
+        #~ self.visible_channels[val:val+self.max_channel] = True
+        #~ self.gain_zoom(1)
+        #~ self.refresh()
     
-    def center_scrollbar_on_channel(self, c):
-        c = c - self.max_channel//2
-        c = min(max(c, 0), len(self.controller.channel_ids) - self.max_channel)
-        self.scroll_chan.valueChanged.disconnect(self.on_scroll_chan)
-        self.scroll_chan.setValue(c)
-        self.scroll_chan.valueChanged.connect(self.on_scroll_chan)
+    #~ def center_scrollbar_on_channel(self, c):
+        #~ c = c - self.max_channel//2
+        #~ c = min(max(c, 0), len(self.controller.channel_ids) - self.max_channel)
+        #~ self.scroll_chan.valueChanged.disconnect(self.on_scroll_chan)
+        #~ self.scroll_chan.setValue(c)
+        #~ self.scroll_chan.valueChanged.connect(self.on_scroll_chan)
         
-        self.visible_channels[:] = False
-        self.visible_channels[c:c+self.max_channel] = True
-        self.gain_zoom(1)
+        #~ self.visible_channels[:] = False
+        #~ self.visible_channels[c:c+self.max_channel] = True
+        #~ self.gain_zoom(1)
     
     def scatter_item_clicked(self, plot, points):
         if self.select_button.isChecked()and len(points)==1:
@@ -343,6 +366,9 @@ class TraceView(WidgetBase):
             self.refresh()
     
     def on_spike_selection_changed(self):
+        # TODO
+        
+        
         
         ind_selected, = np.nonzero(self.controller.spikes['selected'])
         n_selected = ind_selected.size
@@ -375,13 +401,18 @@ class TraceView(WidgetBase):
                         #~ trace_source='processed')
                 #~ c = np.argmax(np.abs(wf))
             
-            max_chan = self.controller.get_extremum_channel(unit_id)
-            self.center_scrollbar_on_channel(max_chan)
+            # TODO
+            #~ max_chan = self.controller.get_extremum_channel(unit_id)
+            #~ self.center_scrollbar_on_channel(max_chan)
             
             self.seek(peak_time)
             
         else:
             self.refresh()
+
+    def on_channel_visibility_changed(self):
+        self.reset_gain_and_offset()
+        self.refresh()
     
     def seek(self, t):
         #~ tp1 = time.perf_counter()
@@ -418,14 +449,23 @@ class TraceView(WidgetBase):
             self.estimate_auto_scale()
 
         
-        nb_visible = np.sum(self.visible_channels)
+        #~ nb_visible = np.sum(self.visible_channels)
+        nb_visible = self.visible_channel_inds.size
         
-        data_curves = sigs_chunk[:, self.visible_channels].T.copy()
+        
+        #~ data_curves = sigs_chunk[:, self.visible_channels].T.copy()
+        data_curves = sigs_chunk[:, self.visible_channel_inds].T.copy()
+        
+        
+        
         if data_curves.dtype!='float32':
             data_curves = data_curves.astype('float32')
         
-        data_curves *= self.gains[self.visible_channels, None]
-        data_curves += self.offsets[self.visible_channels, None]
+        #~ data_curves *= self.gains[self.visible_channels, None]
+        #~ data_curves += self.offsets[self.visible_channels, None]
+        data_curves *= self.gains[self.visible_channel_inds, None]
+        data_curves += self.offsets[self.visible_channel_inds, None]
+        
         #~ data_curves[:,0] = np.nan
         
         connect = np.ones(data_curves.shape, dtype='bool')
@@ -439,7 +479,8 @@ class TraceView(WidgetBase):
         #channel labels
         i = 1
         for c in range(len(self.controller.channel_ids)):
-            if self.visible_channels[c]:
+            #~ if self.visible_channels[c]:
+            if c in self.visible_channel_inds:
                 self.channel_labels[c].setPos(t1, nb_visible-i)
                 self.channel_labels[c].show()
                 i +=1
@@ -460,81 +501,64 @@ class TraceView(WidgetBase):
         
         # plot peak on signal
         all_spikes = self.controller.spikes
-        if len(all_spikes)>0:
-            keep = (all_spikes['segment_index']==self.seg_num) & (all_spikes['sample_index']>=ind1) & (all_spikes['sample_index']<ind2)
-            spikes_chunk = all_spikes[keep].copy()
-            spikes_chunk['sample_index'] -= ind1
-            inwindow_ind = spikes_chunk['sample_index']
-            inwindow_unit_index = spikes_chunk['unit_index']
-            inwindow_chan = spikes_chunk['channel_index']
-            if np.any(inwindow_chan==-1):
-                inwindow_chan = None
-            inwindow_selected = np.array(self.controller.spikes['selected'][keep])
 
-            self.scatter.clear()
-            all_x = []
-            all_y = []
-            all_brush = []
-            #~ for k in self.controller.cluster_labels:
-            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+        keep = (all_spikes['segment_index']==self.seg_num) & (all_spikes['sample_index']>=ind1) & (all_spikes['sample_index']<ind2)
+        spikes_chunk = all_spikes[keep].copy()
+        spikes_chunk['sample_index'] -= ind1
+        
+        self.scatter.clear()
+        all_x = []
+        all_y = []
+        all_brush = []
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if not self.controller.cluster_visible[unit_id]:
+                continue
+            
+            unit_mask = (spikes_chunk['unit_index'] == unit_index)
+            if np.sum(unit_mask)==0:
+                continue
+            
+            channel_inds = spikes_chunk['channel_index'][unit_mask]
+            sample_inds = spikes_chunk['sample_index'][unit_mask]
+            
+            chan_mask = np.in1d(channel_inds, self.visible_channel_inds)
+            if not np.any(chan_mask):
+                continue
+            channel_inds = channel_inds[chan_mask]
+            sample_inds = sample_inds[chan_mask]
+            
+            x = times_chunk[sample_inds]
+            y = sigs_chunk[sample_inds, channel_inds] * self.gains[channel_inds] + self.offsets[channel_inds]
 
-                if not self.controller.cluster_visible[unit_id]:
-                    continue
-                
-                #~ mask = inwindow_unit_index==k
-                mask = (inwindow_unit_index == unit_index)
-                if np.sum(mask)==0:
-                    continue
-                
-                color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
-                color.setAlpha(int(self.params['alpha']*255))
-                
-                x = times_chunk[inwindow_ind[mask]]
-                sigs_chunk_in = sigs_chunk[inwindow_ind[mask], :]
-                chan_inds = None
-
-                c = self.controller.get_extremum_channel(unit_id)
-                if c is not None:
-                    chan_inds = np.array([c]*np.sum(mask), dtype='int64')
-                    
-                #~ if chan_inds is None:
-                    #~ if inwindow_chan is None:
-                        #~ chan_inds = np.argmax(np.abs(sigs_chunk_in), axis=1)
-                    #~ else:
-                        #~ chan_inds = inwindow_chan[mask]
-                        
-                mask_visible = self.visible_channels[chan_inds]
-                if np.sum(mask_visible)==0:
-                    continue
-                
-                chan_inds = chan_inds[mask_visible]
-                x = x[mask_visible]
-                y = sigs_chunk_in[mask_visible, :][np.arange(chan_inds.size), chan_inds]*self.gains[chan_inds]+self.offsets[chan_inds]
-                
-                all_x.append(x)
-                all_y.append(y)
-                all_brush.append(np.array([pg.mkBrush(color)]*len(x)))
-            #~ print()
-            #~ print(all_x)
-            #~ print(all_y)
-            if len(all_x) > 0:
-                all_x = np.concatenate(all_x)
-                all_y = np.concatenate(all_y)
-                all_brush = np.concatenate(all_brush)
-                self.scatter.setData(x=all_x, y=all_y, brush=all_brush)
+            color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
+            color.setAlpha(int(self.params['alpha']*255))
+            
+            all_x.append(x)
+            all_y.append(y)
+            all_brush.append(np.array([pg.mkBrush(color)]*len(x)))
+            
+        if len(all_x) > 0:
+            all_x = np.concatenate(all_x)
+            all_y = np.concatenate(all_y)
+            all_brush = np.concatenate(all_brush)
+            self.scatter.setData(x=all_x, y=all_y, brush=all_brush)
             
             
-            if np.sum(inwindow_selected)==1:
-                t = times_chunk[inwindow_ind[inwindow_selected]][0]
+            #~ if np.sum(inwindow_selected)==1:
+            if np.sum(spikes_chunk['selected']) == 1:
+                #~ t = times_chunk[inwindow_ind[inwindow_selected]][0]
+                sample_index = spikes_chunk['sample_index'][spikes_chunk['selected']][0]
+                t = times_chunk[sample_index]
                 self.selection_line.setPos(t)
                 self.selection_line.show()
             else:
                 self.selection_line.hide()            
-        else:
-            spikes_chunk = None
+                
+        #~ else:
+            #~ spikes_chunk = None
         
         # plot prediction or residuals ...
-        self._plot_specific_items(sigs_chunk, times_chunk, spikes_chunk)
+        #~ self._plot_specific_items(sigs_chunk, times_chunk, spikes_chunk)
         
         #ranges
         self.plot.setXRange( t1, t2, padding = 0.0)
@@ -555,6 +579,9 @@ class TraceView(WidgetBase):
         self.plot.addItem(self.curve_residuals)
    
     def _plot_specific_items(self, sigs_chunk, times_chunk, spikes_chunk):
+        #TODO
+        return
+        
         if spikes_chunk is None: return
         
         #prediction
@@ -590,4 +617,5 @@ class TraceView(WidgetBase):
         
         if not self.plot_buttons['signals'].isChecked():
             self.signals_curve.setData([], [])
+    
 

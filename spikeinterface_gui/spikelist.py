@@ -5,6 +5,9 @@ import numpy as np
 
 from .base import WidgetBase
 
+
+_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index']
+
 class SpikeModel(QT.QAbstractItemModel):
     def __init__(self, parent =None, controller=None):
         QT.QAbstractItemModel.__init__(self,parent)
@@ -12,7 +15,7 @@ class SpikeModel(QT.QAbstractItemModel):
         self.refresh_colors()
     
     def columnCount(self , parentIndex):
-        return 4
+        return len(_columns)
     
     def rowCount(self, parentIndex):
         if not parentIndex.isValid():
@@ -50,11 +53,13 @@ class SpikeModel(QT.QAbstractItemModel):
             if col == 0:
                 return '{}'.format(abs_ind)
             elif col == 1:
-                return '{}'.format(spike['segment_index'])
-            elif col == 2:
-                return '{}'.format(spike['sample_index'])
-            elif col == 3:
                 return '{}'.format(unit_id)
+            elif col == 2:
+                return '{}'.format(spike['segment_index'])
+            elif col == 3:
+                return '{}'.format(spike['sample_index'])
+            elif col == 4:
+                return '{}'.format(spike['channel_index'])
             else:
                 return None
         elif role == QT.Qt.DecorationRole :
@@ -74,7 +79,7 @@ class SpikeModel(QT.QAbstractItemModel):
 
     def headerData(self, section, orientation, role):
         if orientation == QT.Qt.Horizontal and role == QT.Qt.DisplayRole:
-            return  ['num', 'segment', 'sample_index', 'unit_id'][section]
+            return  _columns[section]
         return
 
     def refresh_colors(self):
@@ -124,6 +129,14 @@ class SpikeListView(WidgetBase):
                 self.controller.spikes['selected'][ind] = True
         self.spike_selection_changed.emit()
     
+    def on_cluster_visibility_changed(self):
+        
+        if np.any(self.controller.spikes['selected']):
+            self.controller.spikes['selected'][:] = False
+            self.spike_selection_changed.emit()
+        
+        self.refresh()
+
     def on_spike_selection_changed(self):
         self.tree.selectionModel().selectionChanged.disconnect(self.on_tree_selection)
         
@@ -148,7 +161,7 @@ class SpikeListView(WidgetBase):
             index = self.tree.model().index(row_selected[0],0,QT.QModelIndex())
             self.tree.scrollTo(index)
 
-        self.tree.selectionModel().selectionChanged.connect(self.on_tree_selection)        
+        self.tree.selectionModel().selectionChanged.connect(self.on_tree_selection)
 
     def change_visible_mode(self, mode):
         self.controller.change_spike_visible_mode(mode)

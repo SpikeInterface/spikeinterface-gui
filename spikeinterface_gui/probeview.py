@@ -9,10 +9,13 @@ from .base import WidgetBase
 
 
 class MyViewBox(pg.ViewBox):
-    doubleclicked = QT.pyqtSignal()
+    doubleclicked = QT.pyqtSignal(float, float)
     def mouseDoubleClickEvent(self, ev):
-        self.doubleclicked.emit()
+        pos = self.mapToView(ev.pos())
+        x, y = pos.x(), pos.y()
+        self.doubleclicked.emit(x, y)
         ev.accept()
+
     def raiseContextMenu(self, ev):
         #for some reasons enableMenu=False is not taken (bug ????)
         pass
@@ -23,7 +26,8 @@ class ProbeView(WidgetBase):
             #~ {'name': 'colormap', 'type': 'list', 'value': 'inferno', 'values': ['inferno', 'summer', 'viridis', 'jet'] },
             {'name': 'show_channel_id', 'type': 'bool', 'value': True},
             {'name': 'radius', 'type': 'float', 'value': 40.},
-            
+            {'name': 'change_channel_visibility', 'type': 'bool', 'value': True},
+            {'name': 'change_unit_visibility', 'type': 'bool', 'value': False},
         ]
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
@@ -38,7 +42,8 @@ class ProbeView(WidgetBase):
         
     def initialize_plot(self):
         self.viewBox = MyViewBox()
-        self.viewBox.doubleclicked.connect(self.open_settings)
+        #~ self.viewBox.doubleclicked.connect(self.open_settings)
+        self.viewBox.doubleclicked.connect(self.on_pick_unit)
         #~ self.viewBox.disableAutoRange()
         
         #~ self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -53,7 +58,7 @@ class ProbeView(WidgetBase):
         #~ self.plot.showAxis('left', False)
         #~ self.plot.showAxis('bottom', False)
     
-        # retrieve probe info
+        # probe
         probe = self.controller.get_probe()
         contact_vertices = probe.get_contact_vertices()
         planar_contour = probe.probe_planar_contour
@@ -73,7 +78,7 @@ class ProbeView(WidgetBase):
             self.contour = pg.PlotCurveItem(planar_contour[:, 0], planar_contour[:, 1], pen='#7FFF00')
             self.plot.addItem(self.contour)
             
-
+        # ROI
         self.channel_labels = []
         for i, channel_id in enumerate(self.controller.channel_ids):
             #TODO label channels
@@ -89,6 +94,16 @@ class ProbeView(WidgetBase):
         
         self.roi.sigRegionChanged.connect(self.on_roi_change)
         
+        # units
+        #~ self.unit_locations
+        unit_locations = self.controller.unit_locations
+        brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
+        self.scatter = pg.ScatterPlotItem(pos=unit_locations, pxMode=False, size=10, brush=brush)
+        self.plot.addItem(self.scatter)
+
+
+        
+        # range
         xlim0 = np.min(self.contact_positions[:, 0]) - 20
         xlim1 = np.max(self.contact_positions[:, 0]) + 20
         ylim0 = np.min(self.contact_positions[:, 1]) - 20
@@ -128,12 +143,44 @@ class ProbeView(WidgetBase):
         self.params['radius'] = r
         self.params.blockSignals(False)
         
-        dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
-        visible_channel_inds,  = np.nonzero(dist < r)
-        order = np.argsort(dist[visible_channel_inds])
-        visible_channel_inds = visible_channel_inds[order]
         
-        self.controller.set_channel_visibility(visible_channel_inds)
-        self.channel_visibility_changed.emit()
+        if self.params['change_channel_visibility']:
+            dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
+            visible_channel_inds,  = np.nonzero(dist < r)
+            order = np.argsort(dist[visible_channel_inds])
+            visible_channel_inds = visible_channel_inds[order]
+            self.controller.set_channel_visibility(visible_channel_inds)
+            self.channel_visibility_changed.emit()
         
-
+        if self.params['change_unit_visibility']:
+            dist = np.sqrt(np.sum((self.controller.unit_locations - np.array([[x, y]]))**2, axis=1))
+            #~ visible_unit_inds,  = np.nonzero(dist < r)
+            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                self.controller.cluster_visible[unit_id] = (dist[unit_index] < r)
+                self.cluster_visibility_changed.emit()
+            
+    
+    def on_cluster_visibility_changed(self):
+        # this change the ROI and so change also channel_visibility
+        visible_mask = list(self.controller.cluster_visible.values())
+        n = np.sum(visible_mask)
+        if n == 1:
+            unit_index  = np.nonzero(visible_mask)[0][0]
+            x, y = self.controller.unit_locations[unit_index, :]
+            radius = self.params['radius']
+            self.roi.setPos(x - radius, y - radius)
+        
+    def on_pick_unit(self, x, y):
+        unit_locations = self.controller.unit_locations
+        pos = np.array([x, y])[None, :]
+        distances = np.sum((unit_locations - pos) **2, axis=1) ** 0.5
+        ind = np.argmin(distances)
+        if distances[ind] < 5.:
+            unit_id = self.controller.unit_ids[ind]
+            self.controller.cluster_visible = {unit_id:False for unit_id in self.controller.unit_ids}
+            self.controller.cluster_visible[unit_id] = True
+            self.cluster_visibility_changed.emit()
+            
+            
+            
+            
