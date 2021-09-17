@@ -20,7 +20,7 @@ class UnitListView(WidgetBase):
         self.layout.addLayout(h)
         h.addWidget(QT.QLabel('sort by'))
         self.combo_sort = QT.QComboBox()
-        self.combo_sort.addItems(['label', 'extremum_channel', 'extremum_amplitude', 'waveform_rms', 'nb_peak'])
+        self.combo_sort.addItems(['unit_id', 'num_spikes', 'depth'])
         self.combo_sort.currentIndexChanged.connect(self.refresh)
         h.addWidget(self.combo_sort)
         h.addStretch()
@@ -47,7 +47,7 @@ class UnitListView(WidgetBase):
         
         self.table.clear()
         #~ labels = ['unit_id', 'show/hide', 'nb_peaks', 'extremum_channel', 'cell_label', 'tag', 'annotations']
-        labels = ['unit_id', 'visible']
+        labels = ['unit_id', 'visible', 'num_spikes', 'channel_index']
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
         #~ self.table.setMinimumWidth(100)
@@ -63,14 +63,13 @@ class UnitListView(WidgetBase):
 
         if sort_mode=='unit_id':
             order =np.arange(unit_ids.size)
-        #~ elif sort_mode=='extremum_channel':
-            #~ order = np.argsort(clusters['extremum_channel'])
-        #~ elif sort_mode=='extremum_amplitude':
-            #~ order = np.argsort(np.abs(clusters['extremum_amplitude']))[::-1]
-        #~ elif sort_mode=='waveform_rms':
-            #~ order = np.argsort(clusters['waveform_rms'])[::-1]
-        #~ elif sort_mode=='nb_peak':
-            #~ order = np.argsort(clusters['nb_peak'])[::-1]
+        elif sort_mode=='num_spikes':
+            order = np.argsort([self.controller.num_spikes[u] for u in unit_ids])[::-1]
+        elif sort_mode=='depth':
+            depths = self.controller.unit_positions[:, 1]
+            order = np.argsort(depths)[::-1]
+        
+        unit_ids = unit_ids[order]
         
         #~ cluster_labels = self._special_label + self.controller.positive_cluster_labels[order].tolist()
         #~ cluster_labels = self._special_label + self.controller.positive_cluster_labels[order].tolist()
@@ -83,27 +82,28 @@ class UnitListView(WidgetBase):
             pix.fill(color)
             icon = QT.QIcon(pix)
             
-            #~ if k<0:
-                #~ name = '{} ({})'.format(k, labelcodes.to_name[k])
-            #~ else:
-                #~ name = '{}'.format(k)
-            name = f'{unit_id}'
-            
-            item = QT.QTableWidgetItem(name)
+            item = QT.QTableWidgetItem( f'{unit_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i,0, item)
             item.setIcon(icon)
             
             item = QT.QTableWidgetItem('')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable|QT.Qt.ItemIsUserCheckable)
-            
             item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.cluster_visible.get(unit_id, False)])
             self.table.setItem(i,1, item)
             item.unit_id = unit_id
+            
+            num_spike = self.controller.num_spikes[unit_id]
+            item = QT.QTableWidgetItem(f'{num_spike}')
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table.setItem(i, 2, item)
+            
+            channel_index = self.controller.get_extremum_channel(unit_id)
+            channel_id = self.controller.channel_ids[channel_index]
+            item = QT.QTableWidgetItem(f'{channel_id}')
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table.setItem(i, 3, item)
 
-            #~ item = QT.QTableWidgetItem('{}'.format(self.controller.cluster_count.get(k, 0)))
-            #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            #~ self.table.setItem(i,2, item)
             
             #~ c = self.controller.get_extremum_channel(k)
             #~ if c is not None:
@@ -135,7 +135,7 @@ class UnitListView(WidgetBase):
         #~ k = self.controller.cluster_labels[item.row()]
         unit_id = item.unit_id
         self.controller.cluster_visible[unit_id] = bool(item.checkState())
-        self.cluster_visibility_changed.emit()
+        self.unit_visibility_changed.emit()
     
     def on_double_clicked(self, row, col):
         for unit_id in self.controller.cluster_visible:
@@ -144,7 +144,7 @@ class UnitListView(WidgetBase):
         unit_id = self.table.item(row, 1).unit_id
         self.controller.cluster_visible[unit_id] = True
         self.refresh()
-        self.cluster_visibility_changed.emit()
+        self.unit_visibility_changed.emit()
     
     def selected_cluster(self):
         selected = []
@@ -165,13 +165,13 @@ class UnitListView(WidgetBase):
         for unit_id in self.controller.cluster_visible:
             self.controller.cluster_visible[unit_id] = True
         self.refresh()
-        self.cluster_visibility_changed.emit()
+        self.unit_visibility_changed.emit()
     
     def hide_all(self):
         for unit_id in self.controller.cluster_visible:
             self.controller.cluster_visible[unit_id] = False
         self.refresh()
-        self.cluster_visibility_changed.emit()
+        self.unit_visibility_changed.emit()
     
     
     

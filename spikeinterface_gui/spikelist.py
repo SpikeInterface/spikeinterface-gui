@@ -129,7 +129,7 @@ class SpikeListView(WidgetBase):
                 self.controller.spikes['selected'][ind] = True
         self.spike_selection_changed.emit()
     
-    def on_cluster_visibility_changed(self):
+    def on_unit_visibility_changed(self):
         
         if np.any(self.controller.spikes['selected']):
             self.controller.spikes['selected'][:] = False
@@ -163,10 +163,10 @@ class SpikeListView(WidgetBase):
 
         self.tree.selectionModel().selectionChanged.connect(self.on_tree_selection)
 
-    def change_visible_mode(self, mode):
-        self.controller.change_spike_visible_mode(mode)
-        self.cluster_visibility_changed.emit()
-        self.model.refresh()
+    #~ def change_visible_mode(self, mode):
+        #~ self.controller.change_spike_visible_mode(mode)
+        #~ self.unit_visibility_changed.emit()
+        #~ self.model.refresh()
 
     def open_context_menu(self):
         pass

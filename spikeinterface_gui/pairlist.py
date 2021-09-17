@@ -70,7 +70,7 @@ class PairListView(WidgetBase):
         for k in self.controller.cluster_visible:
             self.controller.cluster_visible[k] = k in (k1, k2)
         
-        self.cluster_visibility_changed.emit()
+        self.unit_visibility_changed.emit()
 
     def open_context_menu(self):
         self.menu.popup(self.cursor().pos())
@@ -184,6 +184,6 @@ class PairListView(WidgetBase):
     def on_colors_changed(self):
         self.refresh()
     
-    def on_cluster_visibility_changed(self):
+    def on_unit_visibility_changed(self):
         pass
 

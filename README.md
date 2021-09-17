@@ -1,18 +1,27 @@
 # spikeinterface-gui
 
-GUI for spikeinterface objects withoput copy.
+GUI for spikeinterface objects without copy.
 
-This is a corss platform, cross spike sorter viewer to inspect the final results
-and quality of a sorting.
+This is a cross platform viewer to inspect the final results
+and quality of any spike sorter supported by spikeinterface 
+(kilosort, spykingcircus, tridesclous, moutainssort, yass, ironclust, herdinspikes, hdsort, klusta...)
 
-Contrary to other viewer(like  phy), this viewer skip the tedious and long step of
-copying and reformating the entire dataset (filetred signal, waveform, PCA) to a particular
-format. This view is built on top of spike interface object (Recording, Sorting, WaveformExtractor)
-Theses objects are "lazy" and retrieve data on the fly.
+Contrary to other viewers (like  phy), this viewer skip the tedious and long step of
+copying and reformating the entire dataset (filetred signal + waveform + PCA) to a particular
+format or folder organisation. This gui is built on top of spike interface objects
+(Recording, Sorting, WaveformExtractor)
+Theses objects are "lazy" and retrieve data on the fly (no copy!).
 
-This viewer internally use pyqtgraph.
+This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
+
+This viewer is local desktop app (old school!!).
+There is a web based viewer work-in-progres [here](https://github.com/magland/sortingview).
+
+![screenshot](screenshot.png)
 
 ## Launch
+
+You will need this viewer only and only if you known a bit of [spikeinterface](https://spikeinterface.readthedocs.io/)
 
 ### Step 1 : extract waveforms
 
@@ -20,10 +29,11 @@ You first need to "extract waveform" with spikeinterface
 See help [here](https://spikeinterface.readthedocs.io/en/latest/modules/core/plot_4_waveform_extractor.html#sphx-glr-modules-core-plot-4-waveform-extractor-py)
 
 Note that:
-  * not all waveform are extracted here (See max_spikes_per_unit)
-  * this step is cached to a folder (and reloaded)
-  * can be run in parralel
+  * not all waveforms snipet are extracted (See `max_spikes_per_unit`)
+  * this step is cached to a folder (and can be reloaded)
+  * this step can be run in parralel (and so quite fast)
 
+  
 Example:
 
 ```python
@@ -91,4 +101,5 @@ pip install .
 
 Samuel Garcia, CNRS, Lyon, France
 
-This work is a port of the old `tridesclous.gui` submodule o top of spikeinterface.
+This work is a port of the old `tridesclous.gui` submodule of top of
+[spikeinterface](https://github.com/SpikeInterface/spikeinterface).

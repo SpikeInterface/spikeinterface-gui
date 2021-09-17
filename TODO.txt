@@ -1,21 +1,15 @@
-rename signal
-traceview : handle channel selection
 get_template_channel_sparsity with threshold
 handle return_scaled=True
-count spike per cluster for unit list
 cluster_similarity
 check max_spikes_per_unit in inti of controller to avoid too much spikes!!!
 trace view : add option to order channel by depth
-probe view : add unit position
 trace : good handling on on_spike_selection_changed
 have better unit position handling
-prove view : click on unit
-unit_locations > unit_positions
 display channel on waveform heatmap
+settings in dock bar
 
 
 views:
   * features
   * similarity
-  * probeview
   * trace heatmap
