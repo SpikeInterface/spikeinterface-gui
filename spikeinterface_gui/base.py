@@ -70,7 +70,6 @@ class ControllerBase(QT.QObject):
             #~ print('on_cluster_tag_changed',view,  t2-t1)
     
     def on_channel_visibility_changed(self):
-        print(self, 'on_channel_visibility_changed')
         for view in self.views:
             if view==self.sender(): continue
             #~ t1 = time.perf_counter()

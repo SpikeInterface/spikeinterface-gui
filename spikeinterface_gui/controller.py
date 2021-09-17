@@ -2,8 +2,8 @@ from .base import ControllerBase
 from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
-from spikeinterface.toolkit import get_template_extremum_channel, get_template_channel_sparsity
-from spikeinterface.toolkit import compute_correlograms
+from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
+    compute_correlograms, compute_unit_centers_of_mass)
 
 import numpy as np
 
@@ -69,7 +69,14 @@ class  SpikeinterfaceController(ControllerBase):
         
         self._extremum_channel = get_template_extremum_channel(self.we, peak_sign='neg', outputs='index')
         
+        for unit_index, unit_id in enumerate(self.unit_ids):
+            mask = self.spikes['unit_index'] == unit_index
+            self.spikes['channel_index'][mask] = self._extremum_channel[unit_id]
+        
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
+        
+        coms = compute_unit_centers_of_mass(self.we, peak_sign='neg', num_channels=10)
+        self.unit_locations = np.vstack([coms[u] for u in self.unit_ids])
 
     @property
     def channel_ids(self):
@@ -95,7 +102,6 @@ class  SpikeinterfaceController(ControllerBase):
     
     def get_num_samples(self, segment_index):
         return self.we.recording.get_num_samples(segment_index=segment_index)
-    
     
     def get_traces(self, trace_source='preprocessed', **kargs):
         # assert trace_source in ['preprocessed', 'raw']

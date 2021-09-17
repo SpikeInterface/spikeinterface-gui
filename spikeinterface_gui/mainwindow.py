@@ -32,28 +32,43 @@ class MainWindow(QT.QMainWindow):
         self.isiview = ISIView(controller=self.controller)
         self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
         self.probeview  = ProbeView(controller=self.controller)
+
+
+        #~ docks['peaklist'] = QT.QDockWidget('peaklist',self)
+        #~ docks['peaklist'].setWidget(self.peaklist)
+        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['peaklist'])
+        
+        #~ docks['pairlist'] = QT.QDockWidget('pairlist',self)
+        #~ docks['pairlist'].setWidget(self.pairlist)
+        #~ self.splitDockWidget(docks['peaklist'], docks['pairlist'], QT.Qt.Horizontal)
+        
+        #~ docks['clusterlist'] = QT.QDockWidget('clusterlist',self)
+        #~ docks['clusterlist'].setWidget(self.clusterlist)
+        #~ self.tabifyDockWidget(docks['pairlist'], docks['clusterlist'])
         
         
         docks = {}
-
+        
+        # top left
         docks['spikelist'] = QT.QDockWidget('spikelist',self)
         docks['spikelist'].setWidget(self.spikelist)
         self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['spikelist'])
         
         docks['pairlist'] = QT.QDockWidget('pairlist',self)
         docks['pairlist'].setWidget(self.pairlist)
-        #~ self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
-        self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['pairlist'])
+        #~ self.tabifyDockWidget(docks['spikelist'], docks['pairlist'])
+        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['pairlist'])
+        self.splitDockWidget(docks['spikelist'], docks['pairlist'], QT.Qt.Horizontal)
 
         docks['unitlist'] = QT.QDockWidget('unitlist',self)
         docks['unitlist'].setWidget(self.unitlist)
         self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
-        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['unitlist'])
+        
 
         docks['probeview'] = QT.QDockWidget('probeview',self)
         docks['probeview'].setWidget(self.probeview)
-        self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
-        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['unitlist'])
+        #~ self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
+        self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['probeview'])
         
         
         docks['traceview'] = QT.QDockWidget('traceview',self)
@@ -81,4 +96,6 @@ class MainWindow(QT.QMainWindow):
         docks['crosscorrelogramview'].setWidget(self.crosscorrelogramview)
         #~ self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['waveformheatmapview'])
         self.tabifyDockWidget(docks['traceview'], docks['crosscorrelogramview'])
-
+        
+        docks['traceview'].raise_()
+        

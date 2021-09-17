@@ -233,8 +233,10 @@ class WaveformView(WidgetBase):
             cluster_visible = self.controller.cluster_visible
         
         if self.mode=='flatten':
+            self.plot1.setAspectLocked(lock=False, ratio=None)
             self.refresh_mode_flatten(cluster_visible, keep_range)
         elif self.mode=='geometry':
+            self.plot1.setAspectLocked(lock=True, ratio=1)
             self.refresh_mode_geometry(cluster_visible, keep_range)
         
         self._refresh_one_spike(n_selected)
@@ -505,7 +507,7 @@ class WaveformView(WidgetBase):
             #~ for i, (chan, name) in enumerate(self.controller.channel_indexes_and_names):
                 
             
-                x, y = self.contact_location[i, : ]
+                x, y = self.contact_location[chan_ind, : ]
                 itemtxt = pg.TextItem(f'{chan_id}', anchor=(.5,.5), color='#FFFF00')
                 itemtxt.setFont(QT.QFont('', pointSize=12))
                 self.plot1.addItem(itemtxt)
