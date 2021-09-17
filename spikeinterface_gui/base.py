@@ -10,6 +10,7 @@ class ControllerBase(QT.QObject):
     colors_changed = QT.pyqtSignal()
     cluster_visibility_changed = QT.pyqtSignal()
     cluster_tag_changed = QT.pyqtSignal()
+
     
     def __init__(self, parent=None):
         QT.QObject.__init__(self, parent=parent)
@@ -24,6 +25,8 @@ class ControllerBase(QT.QObject):
         new_view.colors_changed.connect(self.on_colors_changed)
         new_view.cluster_visibility_changed.connect(self.on_cluster_visibility_changed)
         new_view.cluster_tag_changed.connect(self.on_cluster_tag_changed)
+        new_view.channel_visibility_changed.connect(self.on_channel_visibility_changed)
+        
         
     def on_spike_selection_changed(self):
         for view in self.views:
@@ -65,6 +68,16 @@ class ControllerBase(QT.QObject):
             view.on_cluster_tag_changed()
             #~ t2 = time.perf_counter()
             #~ print('on_cluster_tag_changed',view,  t2-t1)
+    
+    def on_channel_visibility_changed(self):
+        print(self, 'on_channel_visibility_changed')
+        for view in self.views:
+            if view==self.sender(): continue
+            #~ t1 = time.perf_counter()
+            view.on_channel_visibility_changed()
+            #~ t2 = time.perf_counter()
+            #~ print('on_cluster_tag_changed',view,  t2-t1)
+
 
 
     
@@ -76,6 +89,7 @@ class WidgetBase(QT.QWidget):
     colors_changed = QT.pyqtSignal()
     cluster_visibility_changed = QT.pyqtSignal()
     cluster_tag_changed = QT.pyqtSignal()
+    channel_visibility_changed = QT.pyqtSignal()
     
     _params = None
     
@@ -124,5 +138,8 @@ class WidgetBase(QT.QWidget):
         self.refresh()
     
     def on_cluster_tag_changed(self):
+        pass
+        
+    def on_channel_visibility_changed(self):
         pass
 

@@ -68,6 +68,8 @@ class  SpikeinterfaceController(ControllerBase):
             self.sparsity_mask[unit_index, chan_inds] = True
         
         self._extremum_channel = get_template_extremum_channel(self.we, peak_sign='neg', outputs='index')
+        
+        self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
 
     @property
     def channel_ids(self):
@@ -135,6 +137,9 @@ class  SpikeinterfaceController(ControllerBase):
     
     def get_probe(self):
         return self.we.recording.get_probe()
+        
+    def set_channel_visibility(self, visible_channel_inds):
+        self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
 
 
 
