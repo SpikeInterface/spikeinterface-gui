@@ -69,7 +69,7 @@ class CrossCorrelogramView(WidgetBase):
         
         visible_unit_ids = [ ]
         for unit_id in self.controller.unit_ids:
-            if self.controller.cluster_visible[unit_id]:
+            if self.controller.unit_visible_dict[unit_id]:
                 visible_unit_ids.append(unit_id)
 
         visible_unit_ids = visible_unit_ids[:self.params['max_visible']]

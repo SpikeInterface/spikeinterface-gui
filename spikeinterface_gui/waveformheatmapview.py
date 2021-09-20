@@ -229,12 +229,12 @@ class WaveformHeatMapView(WidgetBase):
         
         
         
-        cluster_visible = self.controller.cluster_visible
+        unit_visible_dict = self.controller.unit_visible_dict
         
-        #~ noise_visible = cluster_visible.get(labelcodes.LABEL_NOISE, False)
+        #~ noise_visible = unit_visible_dict.get(labelcodes.LABEL_NOISE, False)
         
-        #~ visibles = [k for k, v in cluster_visible.items() if v and k>=-1 ]
-        visible_unit_ids = [unit_id for unit_id, v in cluster_visible.items() if v ]
+        #~ visibles = [k for k, v in unit_visible_dict.items() if v and k>=-1 ]
+        visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
         
         #~ sparse = self.controller.have_sparse_template and self.params['sparse_display']
         sparse = self.params['sparse_display']
@@ -356,7 +356,7 @@ class WaveformHeatMapView(WidgetBase):
             hist2d[indexes0, d] += 1
         
         #~ # for catalogue window only
-        #~ if self.controller.cluster_visible.get(labelcodes.LABEL_NOISE, False) and self.controller.some_noise_snippet is not None:
+        #~ if self.controller.unit_visible_dict.get(labelcodes.LABEL_NOISE, False) and self.controller.some_noise_snippet is not None:
             #~ if self.params['data']=='waveforms':
                 #~ noise = self.controller.some_noise_snippet[:, :, common_channels]
                 #~ noise = noise.swapaxes(1,2).reshape(noise.shape[0], -1)

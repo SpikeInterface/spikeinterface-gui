@@ -7,6 +7,7 @@ trace : good handling on on_spike_selection_changed
 have better unit position handling
 display channel on waveform heatmap
 settings in dock bar
+test with PyQt5, PyQt6
 
 
 views:

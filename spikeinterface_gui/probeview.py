@@ -157,7 +157,7 @@ class ProbeView(WidgetBase):
             dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
             #~ visible_unit_inds,  = np.nonzero(dist < r)
             for unit_index, unit_id in enumerate(self.controller.unit_ids):
-                self.controller.cluster_visible[unit_id] = (dist[unit_index] < r)
+                self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
             self.unit_visibility_changed.emit()
             self.roi.blockSignals(False)
 
@@ -165,7 +165,7 @@ class ProbeView(WidgetBase):
     def on_unit_visibility_changed(self):
         print('probeview.on_unit_visibility_changed')
         # this change the ROI and so change also channel_visibility
-        visible_mask = list(self.controller.cluster_visible.values())
+        visible_mask = list(self.controller.unit_visible_dict.values())
         n = np.sum(visible_mask)
         if n == 1:
             unit_index  = np.nonzero(visible_mask)[0][0]
@@ -184,8 +184,8 @@ class ProbeView(WidgetBase):
             self.roi.setPos(x - radius, y - radius)
             self.roi.blockSignals(False)
             unit_id = self.controller.unit_ids[ind]
-            self.controller.cluster_visible = {unit_id:False for unit_id in self.controller.unit_ids}
-            self.controller.cluster_visible[unit_id] = True
+            self.controller.unit_visible_dict = {unit_id:False for unit_id in self.controller.unit_ids}
+            self.controller.unit_visible_dict[unit_id] = True
             self.unit_visibility_changed.emit()
             
             

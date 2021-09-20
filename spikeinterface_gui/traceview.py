@@ -511,7 +511,7 @@ class TraceView(WidgetBase):
         all_y = []
         all_brush = []
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not self.controller.cluster_visible[unit_id]:
+            if not self.controller.unit_visible_dict[unit_id]:
                 continue
             
             unit_mask = (spikes_chunk['unit_index'] == unit_index)

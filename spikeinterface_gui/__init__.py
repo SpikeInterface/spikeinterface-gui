@@ -18,3 +18,4 @@ from .waveformheatmapview import WaveformHeatMapView
 from .isiview import ISIView
 from .crosscorrelogramview import CrossCorrelogramView
 from .probeview import ProbeView
+from .ndscatterview import NDScatterView

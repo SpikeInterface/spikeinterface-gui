@@ -67,8 +67,8 @@ class PairListView(WidgetBase):
         if len(inds)!=self.table.columnCount():
             return
         k1, k2 = self.pairs[inds[0].row()]
-        for k in self.controller.cluster_visible:
-            self.controller.cluster_visible[k] = k in (k1, k2)
+        for k in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[k] = k in (k1, k2)
         
         self.unit_visibility_changed.emit()
 
