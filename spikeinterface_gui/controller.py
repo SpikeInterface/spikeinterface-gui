@@ -9,7 +9,7 @@ import numpy as np
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
-    ('visible', 'bool'), ('selected', 'bool')]
+    ('visible', 'bool'), ('selected', 'bool'), ('have_waveform', 'bool')]
 
 
 class  SpikeinterfaceController(ControllerBase):
@@ -56,6 +56,15 @@ class  SpikeinterfaceController(ControllerBase):
             self.spikes[sl]['segment_index'] = i
             self.spikes[sl]['visible'] = True
             self.spikes[sl]['selected'] = False
+            self.spikes[sl]['have_waveform'] = False
+        
+        #~ for i in range(self.num_segments):
+            #~ for unit_id in self.unit_ids:
+                #~ sampled_index = self.we.get_sampled_index(unit_id)
+                #~ sampled_index[pos:pos + inds.size]['spike_index'] = inds
+                #~ sampled_index[pos:pos + inds.size]['segment_index'] = segment_index            
+            
+            
         
         # extremum channel
         #~ self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
@@ -153,7 +162,8 @@ class  SpikeinterfaceController(ControllerBase):
         
     def handle_principal_components(self):
         return self.pc is not None
-    
-
-
+        
+    def get_all_pcs(self):
+        pc_unit_index, pcs = self.pc.get_all_components(outputs='index')
+        return pc_unit_index, pcs
 

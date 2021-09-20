@@ -78,6 +78,18 @@ class NDScatterView(WidgetBase):
         
         assert self.controller.handle_principal_components()
         
+        self.pc_unit_index, self.pc_data = self.controller.get_all_pcs()
+        self.data = self.pc_data.swapaxes(1,2).reshape(self.pc_data.shape[0], -1)
+        
+        if self.data.shape[1] == 1:
+            # corner case one PC and one channel only
+            data = np.zeros((feat.shape[0], 2), dtype=self.data.dtype)
+            data[:, 0] = self.data[:, 0]
+            data[:, 0] = self.data[:, 0]
+            self.data = data
+
+        
+        
         self.layout = QT.QHBoxLayout()
         self.setLayout(self.layout)
         
@@ -125,9 +137,9 @@ class NDScatterView(WidgetBase):
         but = QT.QPushButton('settings')
         but.clicked.connect(self.open_settings)
         tb.addWidget(but)
-        but = QT.QPushButton('random decimate', icon=QT.QIcon.fromTheme("roll"))
-        but.clicked.connect(self.by_cluster_random_decimate)
-        tb.addWidget(but)
+        #~ but = QT.QPushButton('random decimate', icon=QT.QIcon.fromTheme("roll"))
+        #~ but.clicked.connect(self.by_cluster_random_decimate)
+        #~ tb.addWidget(but)
         #~ but = QT.QPushButton('select component')
         #~ but.clicked.connect(self.open_select_component)
         #~ tb.addWidget(but)
@@ -145,56 +157,56 @@ class NDScatterView(WidgetBase):
             #~ self.refresh()
     
     # this handle data with propties so model change shoudl not affect so much teh code
-    @property
-    def data(self):
+    #~ @property
+    #~ def data(self):
         
-        feat = self.controller.some_features
-        data = ensure_2d(feat)
-        return data
+        #~ feat = self.controller.some_features
+        #~ data = ensure_2d(feat)
+        #~ return data
     
-    def data_by_label(self, k):
-        if len(self.point_visible) != self.data.shape[0]:
-            self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
-            self.by_cluster_random_decimate()
+    #~ def data_by_label(self, k):
+        #~ if len(self.point_visible) != self.data.shape[0]:
+            #~ self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
+            #~ self.by_cluster_random_decimate()
         
-        if k=='sel':
-            data = self.data[self.controller.spike_selection[self.controller.some_peaks_index]]
-        elif k==labelcodes.LABEL_NOISE:
-            feat_noise = self.controller.some_noise_features
-            data = ensure_2d(feat_noise)
-        else:
-            data = self.data[(self.controller.spike_label[self.controller.some_peaks_index]==k) & self.point_visible]
+        #~ if k=='sel':
+            #~ data = self.data[self.controller.spike_selection[self.controller.some_peaks_index]]
+        #~ elif k==labelcodes.LABEL_NOISE:
+            #~ feat_noise = self.controller.some_noise_features
+            #~ data = ensure_2d(feat_noise)
+        #~ else:
+            #~ data = self.data[(self.controller.spike_label[self.controller.some_peaks_index]==k) & self.point_visible]
         
-        return data
+        #~ return data
     
-    def by_cluster_random_decimate(self, clicked=None, refresh=True):
-        m = self.params['max_visible_by_cluster']
-        for k in self.controller.cluster_labels:
-            mask = self.controller.spike_label[self.controller.some_peaks_index]==k
-            if self.controller.cluster_count[k]>m:
-                self.point_visible[mask] = False
-                visible, = np.nonzero(mask)
-                if visible.size>0:
-                    visible = np.random.choice(visible, size=m)
-                    self.point_visible[visible] = True
-            else:
-                self.point_visible[mask] = True
+    #~ def by_cluster_random_decimate(self, clicked=None, refresh=True):
+        #~ m = self.params['max_visible_by_cluster']
+        #~ for k in self.controller.cluster_labels:
+            #~ mask = self.controller.spike_label[self.controller.some_peaks_index]==k
+            #~ if self.controller.cluster_count[k]>m:
+                #~ self.point_visible[mask] = False
+                #~ visible, = np.nonzero(mask)
+                #~ if visible.size>0:
+                    #~ visible = np.random.choice(visible, size=m)
+                    #~ self.point_visible[visible] = True
+            #~ else:
+                #~ self.point_visible[mask] = True
         
-        if refresh:
-            self.refresh()
+        #~ if refresh:
+            #~ self.refresh()
         
-    def get_color(self, k):
-        color = self.controller.qcolors.get(k, QT.QColor( 'white'))
-        return color
+    #~ def get_color(self, k):
+        #~ color = self.controller.qcolors.get(k, QT.QColor( 'white'))
+        #~ return color
     
-    def is_cluster_visible(self, k):
-        return self.controller.cluster_visible[k]
+    #~ def is_cluster_visible(self, k):
+        #~ return self.controller.cluster_visible[k]
 
     
     def initialize(self):
         #~ if self.data is None:
-        if self.controller.some_features is None:
-            return
+        #~ if self.controller.some_features is None:
+            #~ return
         self.viewBox = MyViewBox()
         self.viewBox.gain_zoom.connect(self.gain_zoom)
         #~ self.viewBox.lasso_started.connect(self.on_lasso_started)
@@ -216,9 +228,9 @@ class NDScatterView(WidgetBase):
         self.scatter_select.setZValue(1000)
         
         
-        color = self.controller.qcolors.get(labelcodes.LABEL_NOISE)
-        self.scatter_noise = pg.ScatterPlotItem(pen=pg.mkPen(None), brush=color, size=3, pxMode = True)
-        self.plot.addItem(self.scatter_noise)
+        #~ color = self.controller.qcolors.get(labelcodes.LABEL_NOISE)
+        #~ self.scatter_noise = pg.ScatterPlotItem(pen=pg.mkPen(None), brush=color, size=3, pxMode = True)
+        #~ self.plot.addItem(self.scatter_noise)
         
         self.lasso = pg.PlotCurveItem(pen='#7FFF00')
         self.plot.addItem(self.lasso)
@@ -233,23 +245,21 @@ class NDScatterView(WidgetBase):
         
         #estimate limts
         data = self.data.flatten()
-        if data.size > 1000:
-            data = data.take(np.random.choice(data.size, 1000, replace=False))
+        if data.size > 5000:
+            data = data.take(np.random.choice(data.size, 5000, replace=False))
         min_ = np.min(data)
         max_ = np.max(data)
         m = max(np.abs(min_), np.abs(max_)) * 2.5
         self.limit = m
         
         ndim = self.data.shape[1]
-        if ndim <2:
-            ndim = 2
         self.selected_comp = np.ones( (ndim), dtype='bool')
         self.projection = np.zeros( (ndim, 2))
         self.projection[0,0] = 1.
         self.projection[1,1] = 1.
         
         self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
-        self.by_cluster_random_decimate(refresh=False)
+        #~ self.by_cluster_random_decimate(refresh=False)
         
         self.plot2 = pg.PlotItem(viewBox=MyViewBox(lockAspect=True))
         self.graphicsview2.setCentralItem(self.plot2)
@@ -309,43 +319,56 @@ class NDScatterView(WidgetBase):
     
     def refresh(self):
         #~ if self.data is None:
-        if self.controller.some_features is None:
-            if hasattr(self, 'plot'):
-                self.plot.clear()
-            return
+        #~ if self.controller.some_features is None:
+            #~ if hasattr(self, 'plot'):
+                #~ self.plot.clear()
+            #~ return
 
-        if not hasattr(self, 'viewBox'):
-            self.initialize()
+        #~ if not hasattr(self, 'viewBox'):
+            #~ self.initialize()
         
-        if self.data.shape[1] != self.projection.shape[0]:
-            self.initialize()
+        #~ if self.data.shape[1] != self.projection.shape[0]:
+            #~ self.initialize()
+        
+        # update visible channel
+        n_pc_per_chan = self.pc_data.shape[1]
+        self.selected_comp[:] = False
+        for i in range(n_pc_per_chan):
+            self.selected_comp[self.controller.visible_channel_inds*n_pc_per_chan+i] = True
+        
         
         #ndscatter
         self.scatter.clear()
 
-        for k in self.controller.cluster_labels:
-            if not self.is_cluster_visible(k): continue
-            data = self.data_by_label(k)
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if not self.controller.unit_visible_dict[unit_id]:
+                continue
+            #~ data = self.data_by_label(k)
+            # TODO make slice!!!!!!
+            mask = self.pc_unit_index == unit_index
+            data = self.data[mask, :]
             #~ projected = np.dot(data, self.projection )
             projected = self.apply_dot(data)
-            color = self.get_color(k)
+            #~ color = self.get_color(k)
+            color = self.controller.qcolors[unit_id]
             self.scatter.addPoints(x=projected[:,0], y=projected[:,1],  pen=pg.mkPen(None), brush=color)
         
         #selection scatter
-        data_sel = self.data_by_label('sel')
+        # TODO : selection
+        #~ data_sel = self.data_by_label('sel')
         #~ projected = np.dot(data_sel, self.projection )
-        projected = self.apply_dot(data_sel)
-        self.scatter_select.setData(projected[:,0], projected[:,1])
+        #~ projected = self.apply_dot(data_sel)
+        #~ self.scatter_select.setData(projected[:,0], projected[:,1])
         
         #noise
-        if self.is_cluster_visible(labelcodes.LABEL_NOISE):
-            data_noise = self.data_by_label(labelcodes.LABEL_NOISE)
-            if data_noise is not None:
-                projected = self.apply_dot(data_noise)
-                self.scatter_noise.setData(projected[:,0], projected[:,1])
-                self.scatter_noise.show()
-        else:
-            self.scatter_noise.hide()
+        #~ if self.is_cluster_visible(labelcodes.LABEL_NOISE):
+            #~ data_noise = self.data_by_label(labelcodes.LABEL_NOISE)
+            #~ if data_noise is not None:
+                #~ projected = self.apply_dot(data_noise)
+                #~ self.scatter_noise.setData(projected[:,0], projected[:,1])
+                #~ self.scatter_noise.show()
+        #~ else:
+            #~ self.scatter_noise.hide()
         
         #projection axes
         proj = self.projection.copy()
@@ -375,8 +398,8 @@ class NDScatterView(WidgetBase):
     
     def new_tour_step(self):
         #~ if self.data is None:
-        if self.controller.some_features is None:
-            return
+        #~ if self.controller.some_features is None:
+            #~ return
         nb_step = self.params['nb_step']
         ndim = self.data.shape[1]
         
@@ -425,6 +448,13 @@ class NDScatterView(WidgetBase):
         self.lasso.setData([], [])
         vertices = np.array(points)
         
+        visible = self.controller.spike['visible']
+        selected = self.controller.spike['selected']
+        
+        self.controller.spike['selected'][:] = False
+        
+        #~ ('visible', 'bool'), ('selected', 'bool')]
+        
         self.controller.spike_selection[:] = False
         #~ projected = np.dot(self.data, self.projection )
         projected = self.apply_dot(self.data)
@@ -458,40 +488,17 @@ class NDScatterView(WidgetBase):
         
         #~ print('auto_select_component', self.selected_comp)
 
-    #~ def on_spike_selection_changed(self):
-        #~ self.refresh()
+    def on_spike_selection_changed(self):
+        self.refresh()
 
-    #~ def on_spike_label_changed(self):
-        #~ self.refresh()
-        
-    #~ def on_colors_changed(self):
-        #~ self.refresh()
+    def on_unit_visibility_changed(self):
+        self.refresh()
     
-    def on_cluster_visibility_changed(self):
-        #~ if self.data is None:
-        if self.controller.some_features is None:
-            return
-        
-        if self.params['auto_select_component']:
-            self.auto_select_component()
-        #~ self.refresh()
-        self.random_projection()
-
-
+    def on_channel_visibility_changed(self):
+        self.refresh()
 
 
 def inside_poly(data, vertices):
     return mpl_path(vertices).contains_points(data)
 
 
-def ensure_2d(feat):
-    if feat is None:
-        return None
-    # ensure 2D
-    if feat.shape[1] ==1:
-        data = np.zeros((feat.shape[0], 2), dtype=feat.dtype)
-        data[:, 0] = feat[:, 0]
-    else:
-        data = feat
-    return data
-    

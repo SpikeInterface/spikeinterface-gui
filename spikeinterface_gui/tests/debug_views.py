@@ -27,7 +27,8 @@ def debug_one_view():
     
     app = sigui.mkQApp()
     
-    #~ view = sigui.UnitListView(controller=controller)
+    view0 = sigui.UnitListView(controller=controller)
+    view0.show()
     #~ view = sigui.SpikeListView(controller=controller)
     #~ view = sigui.PairListView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)

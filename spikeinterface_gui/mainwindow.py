@@ -33,6 +33,8 @@ class MainWindow(QT.QMainWindow):
         self.isiview = ISIView(controller=self.controller)
         self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
         self.probeview  = ProbeView(controller=self.controller)
+        self.ndscatterview  = NDScatterView(controller=self.controller)
+        
 
         docks = {}
         
@@ -56,6 +58,10 @@ class MainWindow(QT.QMainWindow):
         docks['probeview'].setWidget(self.probeview)
         #~ self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
         self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['probeview'])
+
+        docks['ndscatterview'] = QT.QDockWidget('probeview',self)
+        docks['ndscatterview'].setWidget(self.ndscatterview)
+        self.splitDockWidget(docks['probeview'], docks['ndscatterview'], QT.Qt.Horizontal)
         
         
         docks['traceview'] = QT.QDockWidget('traceview',self)
