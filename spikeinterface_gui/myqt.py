@@ -14,9 +14,8 @@ class ModuleProxy(object):
 
     def __getattr__(self, name):
         
-        if name == 'pyqtSignal':
+        if QT_MODE == 'PySide6' and name == 'pyqtSignal':
             name = 'Signal'
-        
         
         for prefix in self.prefixes:
             fullname = prefix + name

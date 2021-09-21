@@ -29,11 +29,13 @@ class MainWindow(QT.QMainWindow):
         self.pairlist = PairListView(controller=self.controller)
         self.traceview = TraceView(controller=self.controller)
         self.waveformview = WaveformView(controller=self.controller)
-        self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
+        #~ self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
         self.isiview = ISIView(controller=self.controller)
         self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
         self.probeview  = ProbeView(controller=self.controller)
-        self.ndscatterview  = NDScatterView(controller=self.controller)
+        
+        if self.controller.handle_principal_components():
+            self.ndscatterview  = NDScatterView(controller=self.controller)
         
 
         docks = {}
@@ -58,36 +60,32 @@ class MainWindow(QT.QMainWindow):
         docks['probeview'].setWidget(self.probeview)
         #~ self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
         self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['probeview'])
-
-        docks['ndscatterview'] = QT.QDockWidget('probeview',self)
-        docks['ndscatterview'].setWidget(self.ndscatterview)
-        self.splitDockWidget(docks['probeview'], docks['ndscatterview'], QT.Qt.Horizontal)
+        
+        if self.controller.handle_principal_components():
+            docks['ndscatterview'] = QT.QDockWidget('probeview',self)
+            docks['ndscatterview'].setWidget(self.ndscatterview)
+            self.splitDockWidget(docks['probeview'], docks['ndscatterview'], QT.Qt.Horizontal)
         
         
         docks['traceview'] = QT.QDockWidget('traceview',self)
         docks['traceview'].setWidget(self.traceview)
         self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['traceview'])
-        #~ self.tabifyDockWidget(docks['waveformhistviewer'], docks['traceview'])
 
         docks['waveformview'] = QT.QDockWidget('waveformview',self)
         docks['waveformview'].setWidget(self.waveformview)
-        #~ self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['waveformview'])
         self.tabifyDockWidget(docks['traceview'], docks['waveformview'])
 
-        docks['waveformheatmapview'] = QT.QDockWidget('waveformheatmapview',self)
-        docks['waveformheatmapview'].setWidget(self.waveformheatmapview)
-        #~ self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['waveformheatmapview'])
-        self.tabifyDockWidget(docks['traceview'], docks['waveformheatmapview'])
+        #~ docks['waveformheatmapview'] = QT.QDockWidget('waveformheatmapview',self)
+        #~ docks['waveformheatmapview'].setWidget(self.waveformheatmapview)
+        #~ self.tabifyDockWidget(docks['traceview'], docks['waveformheatmapview'])
 
 
         docks['isiview'] = QT.QDockWidget('isiview',self)
         docks['isiview'].setWidget(self.isiview)
-        #~ self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['waveformheatmapview'])
         self.tabifyDockWidget(docks['traceview'], docks['isiview'])
         
         docks['crosscorrelogramview'] = QT.QDockWidget('crosscorrelogramview',self)
         docks['crosscorrelogramview'].setWidget(self.crosscorrelogramview)
-        #~ self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['waveformheatmapview'])
         self.tabifyDockWidget(docks['traceview'], docks['crosscorrelogramview'])
         
         docks['traceview'].raise_()
