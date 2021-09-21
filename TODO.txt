@@ -11,6 +11,5 @@ test with PyQt5, PyQt6
 
 
 views:
-  * features
   * similarity
   * trace heatmap

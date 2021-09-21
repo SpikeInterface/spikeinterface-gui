@@ -65,7 +65,8 @@ class NDScatterView(WidgetBase):
     """
     _params = [
            {'name': 'refresh_interval', 'type': 'float', 'value': 80 },
-           {'name': 'nb_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
+           {'name': 'num_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
+           {'name': 'num_pc_per_channel', 'type': 'int', 'value':  3, 'limits' : [1, 100] },
         ]
     
     def __init__(self, controller=None, parent=None):
@@ -94,6 +95,7 @@ class NDScatterView(WidgetBase):
 
         
         
+        
         self.layout = QT.QHBoxLayout()
         self.setLayout(self.layout)
         
@@ -112,6 +114,8 @@ class NDScatterView(WidgetBase):
         #~ if self.data is not None:
         self.initialize()
         self.refresh()
+        
+        self.params.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
     
     def create_toolbar(self):
         
@@ -163,7 +167,7 @@ class NDScatterView(WidgetBase):
         self.limit = m
         
         ndim = self.data.shape[1]
-        self.selected_comp = np.ones( (ndim), dtype='bool')
+        self.selected_comp = np.ones((ndim), dtype='bool')
         self.projection = np.zeros( (ndim, 2))
         self.projection[0,0] = 1.
         self.projection[1,1] = 1.
@@ -181,9 +185,14 @@ class NDScatterView(WidgetBase):
         self.plot2.addItem(self.direction_lines)
         self.plot2.setXRange(-1, 1)
         self.plot2.setYRange(-1, 1)
+        
+        n_pc_per_channel = self.pc_data.shape[1]
         self.proj_labels = []
         for i in range(ndim):
-            text = 'PC{}'.format(i)
+            chan_ind = i // n_pc_per_channel
+            chan_id = self.controller.channel_ids[chan_ind]
+            pc = i % n_pc_per_channel
+            text = f'{chan_id}PC{pc}'
             label = pg.TextItem(text, color=(1,1,1), anchor=(0.5, 0.5), border=None, fill=pg.mkColor((128,128,128, 180)))
             self.proj_labels.append(label)
             self.plot2.addItem(label)
@@ -241,11 +250,11 @@ class NDScatterView(WidgetBase):
         
         # update visible channel
         n_pc_per_chan = self.pc_data.shape[1]
+        n = min(self.params['num_pc_per_channel'], n_pc_per_chan)
         self.selected_comp[:] = False
-        for i in range(n_pc_per_chan):
+        for i in range(n):
             self.selected_comp[self.controller.visible_channel_inds*n_pc_per_chan+i] = True
-        
-        
+
         #ndscatter
         self.scatter.clear()
 
@@ -294,15 +303,15 @@ class NDScatterView(WidgetBase):
             self.timer_tour.stop()
     
     def new_tour_step(self):
-        nb_step = self.params['nb_step']
+        num_step = self.params['num_step']
         ndim = self.data.shape[1]
         
         if self.tour_step == 0:
-            self.tour_steps = np.empty( (ndim , 2 ,  nb_step))
+            self.tour_steps = np.empty( (ndim , 2 ,  num_step))
             arrival = self.get_one_random_projection()
             for i in range(ndim):
                 for j in range(2):
-                    self.tour_steps[i,j , : ] = np.linspace(self.projection[i,j] , arrival[i,j] , nb_step)
+                    self.tour_steps[i,j , : ] = np.linspace(self.projection[i,j] , arrival[i,j] , num_step)
             m = np.sqrt(np.sum(self.tour_steps**2, axis=0))
             m = m[np.newaxis, : ,  :]
             self.tour_steps /= m
@@ -310,7 +319,7 @@ class NDScatterView(WidgetBase):
         self.projection = self.tour_steps[:,:,self.tour_step]
         
         self.tour_step+=1
-        if self.tour_step>=nb_step:
+        if self.tour_step>=num_step:
             self.tour_step = 0
             
         self.refresh()
@@ -346,10 +355,14 @@ class NDScatterView(WidgetBase):
         self.refresh()
 
     def on_unit_visibility_changed(self):
-        self.refresh()
+        #~ self.refresh()
+        # this do refreh also
+        self.random_projection()
     
     def on_channel_visibility_changed(self):
-        self.refresh()
+        #~ self.refresh()
+        # this do refreh also
+        self.random_projection()
 
 
 def inside_poly(data, vertices):
