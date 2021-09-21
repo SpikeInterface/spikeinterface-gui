@@ -80,6 +80,12 @@ class NDScatterView(WidgetBase):
         
         self.pc_unit_index, self.pc_data = self.controller.get_all_pcs()
         self.data = self.pc_data.swapaxes(1,2).reshape(self.pc_data.shape[0], -1)
+        # this map self.data to self.controller.spikes
+        self.mapping_index = np.zeros(self.data.shape[0], dtype='int64')
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            ind_global, = np.nonzero((self.controller.spikes['unit_index'] == unit_index) & (self.controller.spikes['included_in_pc']))
+            mask = self.pc_unit_index == unit_index
+            self.mapping_index[mask] = ind_global
         
         if self.data.shape[1] == 1:
             # corner case one PC and one channel only
@@ -314,7 +320,7 @@ class NDScatterView(WidgetBase):
     
     def apply_dot(self, data):
         #~ print(data.shape, self.projection.shape)
-        projected = np.dot(data[:, self.selected_comp ], self.projection[self.selected_comp, :])
+        projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
         return projected
     
     def refresh(self):
@@ -355,10 +361,15 @@ class NDScatterView(WidgetBase):
         
         #selection scatter
         # TODO : selection
-        #~ data_sel = self.data_by_label('sel')
-        #~ projected = np.dot(data_sel, self.projection )
-        #~ projected = self.apply_dot(data_sel)
-        #~ self.scatter_select.setData(projected[:,0], projected[:,1])
+        
+        inds_included_in_pc, = np.nonzero(self.controller.spikes['included_in_pc'])
+        ## assert self.data.shape[0] == inds_included_in_pc.size  ## debug
+        mask = self.controller.spikes[inds_included_in_pc]['selected']
+        data_sel = self.data[mask, :]
+        print('data_sel.shape', data_sel.shape)
+        print(self.controller.spikes[inds_included_in_pc][mask])
+        projected_select = self.apply_dot(data_sel)
+        self.scatter_select.setData(projected_select[:,0], projected_select[:,1])
         
         #noise
         #~ if self.is_cluster_visible(labelcodes.LABEL_NOISE):
@@ -448,21 +459,28 @@ class NDScatterView(WidgetBase):
         self.lasso.setData([], [])
         vertices = np.array(points)
         
-        visible = self.controller.spike['visible']
-        selected = self.controller.spike['selected']
+        print('n visible', np.sum(self.controller.spikes['visible']))
+
+        inds_included_in_pc, = np.nonzero(self.controller.spikes['included_in_pc'])
+        ind_visibles, = np.nonzero(self.controller.spikes[inds_included_in_pc]['visible'])
         
-        self.controller.spike['selected'][:] = False
+        print('inds_included_in_pc', inds_included_in_pc.size, inds_included_in_pc)
+        print('ind_visibles', ind_visibles.size, ind_visibles)
+        print('inds_included_in_pc[ind_visibles]', inds_included_in_pc[ind_visibles])
+        print('self.data', self.data.shape)
         
-        #~ ('visible', 'bool'), ('selected', 'bool')]
         
-        self.controller.spike_selection[:] = False
-        #~ projected = np.dot(self.data, self.projection )
-        projected = self.apply_dot(self.data)
+        projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
-        visibles = self.controller.spike_visible[self.controller.some_peaks_index]
-        self.controller.spike_selection[self.controller.some_peaks_index[inside&visibles]] = True
-        self.refresh()
+        print('on_lasso_finished', np.sum(inside), inside.shape, ind_visibles.shape)
+
         
+        # set on controller.spikes
+        self.controller.spikes['selected'][:] = False
+        inds = inds_included_in_pc[ind_visibles[inside]]
+        self.controller.spikes['selected'][inds] = True
+        
+        self.refresh()
         self.spike_selection_changed.emit()
     
     def auto_select_component(self):

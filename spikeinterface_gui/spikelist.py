@@ -6,7 +6,7 @@ import numpy as np
 from .base import WidgetBase
 
 
-_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index']
+_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'included_in_pc']
 
 class SpikeModel(QT.QAbstractItemModel):
     def __init__(self, parent =None, controller=None):
@@ -60,6 +60,8 @@ class SpikeModel(QT.QAbstractItemModel):
                 return '{}'.format(spike['sample_index'])
             elif col == 4:
                 return '{}'.format(spike['channel_index'])
+            elif col == 5:
+                return '{}'.format(spike['included_in_pc'])
             else:
                 return None
         elif role == QT.Qt.DecorationRole :

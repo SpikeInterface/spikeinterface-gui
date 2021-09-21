@@ -9,7 +9,7 @@ import numpy as np
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
-    ('visible', 'bool'), ('selected', 'bool'), ('have_waveform', 'bool')]
+    ('visible', 'bool'), ('selected', 'bool'), ('included_in_pc', 'bool')]
 
 
 class  SpikeinterfaceController(ControllerBase):
@@ -40,6 +40,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
         
+        
         all_spikes = self.we.sorting.get_all_spike_trains(outputs='unit_index')
         
         num_spikes = np.sum(e[0].size for e in all_spikes)
@@ -47,24 +48,24 @@ class  SpikeinterfaceController(ControllerBase):
         # make internal spike vector
         self.spikes = np.zeros(num_spikes, dtype=spike_dtype)
         pos = 0
-        for i in range(self.num_segments):
-            sample_index, unit_index = all_spikes[i]
+        for segment_index in range(self.num_segments):
+            sample_index, unit_index = all_spikes[segment_index]
             sl = slice(pos, pos+len(sample_index))
             self.spikes[sl]['sample_index'] = sample_index
             self.spikes[sl]['unit_index'] = unit_index
             #~ self.spikes[sl]['channel_index'] = 
-            self.spikes[sl]['segment_index'] = i
+            self.spikes[sl]['segment_index'] = segment_index
             self.spikes[sl]['visible'] = True
             self.spikes[sl]['selected'] = False
-            self.spikes[sl]['have_waveform'] = False
+            self.spikes[sl]['included_in_pc'] = False
         
-        #~ for i in range(self.num_segments):
-            #~ for unit_id in self.unit_ids:
-                #~ sampled_index = self.we.get_sampled_index(unit_id)
-                #~ sampled_index[pos:pos + inds.size]['spike_index'] = inds
-                #~ sampled_index[pos:pos + inds.size]['segment_index'] = segment_index            
-            
-            
+        # create boolean vector of wich spike have been selected by WaveformExtractor
+        for segment_index in range(self.num_segments):
+            for unit_index, unit_id in enumerate(self.unit_ids):
+                global_inds, = np.nonzero((self.spikes['unit_index'] == unit_index) & (self.spikes['segment_index'] == segment_index))
+                sampled_index = self.we.get_sampled_index(unit_id)
+                local_inds = sampled_index[sampled_index['segment_index'] == segment_index]['spike_index']
+                self.spikes['included_in_pc'][global_inds[local_inds]] = True
         
         # extremum channel
         #~ self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
@@ -90,6 +91,8 @@ class  SpikeinterfaceController(ControllerBase):
         self.unit_positions = np.vstack([coms[u] for u in self.unit_ids])
         
         self.num_spikes = compute_num_spikes(self.we)
+
+        self.update_visible_spikes()
         
     @property
     def channel_ids(self):
@@ -103,10 +106,10 @@ class  SpikeinterfaceController(ControllerBase):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-    def on_unit_visibility_changed(self):
-        #~ print('on_unit_visibility_changed')
-        self.update_visible_spikes()
-        ControllerBase.on_unit_visibility_changed(self)
+    # def on_unit_visibility_changed(self):
+    #     #~ print('on_unit_visibility_changed')
+    #     self.update_visible_spikes()
+    #     ControllerBase.on_unit_visibility_changed(self)
 
     def update_visible_spikes(self):
         for unit_index, unit_id in enumerate(self.unit_ids):

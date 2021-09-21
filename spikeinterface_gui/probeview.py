@@ -158,12 +158,13 @@ class ProbeView(WidgetBase):
             #~ visible_unit_inds,  = np.nonzero(dist < r)
             for unit_index, unit_id in enumerate(self.controller.unit_ids):
                 self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
+            
+            self.controller.update_visible_spikes()
             self.unit_visibility_changed.emit()
             self.roi.blockSignals(False)
 
     
     def on_unit_visibility_changed(self):
-        print('probeview.on_unit_visibility_changed')
         # this change the ROI and so change also channel_visibility
         visible_mask = list(self.controller.unit_visible_dict.values())
         n = np.sum(visible_mask)

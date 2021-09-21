@@ -47,7 +47,7 @@ class UnitListView(WidgetBase):
         
         self.table.clear()
         #~ labels = ['unit_id', 'show/hide', 'nb_peaks', 'extremum_channel', 'cell_label', 'tag', 'annotations']
-        labels = ['unit_id', 'visible', 'num_spikes', 'channel_index']
+        labels = ['unit_id', 'visible', 'num_spikes', 'channel_id']
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
         #~ self.table.setMinimumWidth(100)
@@ -104,6 +104,7 @@ class UnitListView(WidgetBase):
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 3, item)
 
+
             
             #~ c = self.controller.get_extremum_channel(k)
             #~ if c is not None:
@@ -135,6 +136,8 @@ class UnitListView(WidgetBase):
         #~ k = self.controller.cluster_labels[item.row()]
         unit_id = item.unit_id
         self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
+
+        self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
     def on_double_clicked(self, row, col):
@@ -144,6 +147,8 @@ class UnitListView(WidgetBase):
         unit_id = self.table.item(row, 1).unit_id
         self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
+
+        self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
     def selected_cluster(self):
@@ -165,13 +170,14 @@ class UnitListView(WidgetBase):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
+
+        self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
     def hide_all(self):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = False
         self.refresh()
+
+        self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
-    
-    
-    

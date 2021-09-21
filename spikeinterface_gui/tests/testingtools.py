@@ -36,7 +36,7 @@ def make_one_folder(test_folder):
     recording, sorting = read_mearec('/home/samuel/ephy_testing_data/mearec/mearec_test_10s.h5')
     
     
-    we = extract_waveforms(recording, sorting, test_folder / 'waveforms', max_spikes_per_unit=500, return_scaled=False)
+    we = extract_waveforms(recording, sorting, test_folder / 'waveforms', max_spikes_per_unit=25, return_scaled=False)
     
     
     pc = compute_principal_components(we, n_components=5, mode='by_channel_local', whiten=True, dtype='float32')
