@@ -20,8 +20,6 @@ from .tools import ParamDialog
 class MyViewBox(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     gain_zoom = QT.pyqtSignal(float)
-    #~ xsize_zoom = QT.pyqtSignal(float)
-    #~ lasso_started = QT.pyqtSignal()
     lasso_drawing = QT.pyqtSignal(object)
     lasso_finished = QT.pyqtSignal(object)
     
@@ -66,11 +64,8 @@ class NDScatterView(WidgetBase):
     This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
     """
     _params = [
-           {'name': 'refresh_interval', 'type': 'float', 'value': 100 },
-           {'name': 'nb_step', 'type': 'int', 'value':  10, 'limits' : [5, 100] },
-           {'name': 'max_visible_by_cluster', 'type': 'int', 'value':  1000, 'limits' : [10, 10000], 'step':50 },
-           {'name': 'auto_select_component', 'type': 'bool', 'value': True},
-           {'name': 'radius_um', 'type': 'float', 'value': 300.},
+           {'name': 'refresh_interval', 'type': 'float', 'value': 80 },
+           {'name': 'nb_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
         ]
     
     def __init__(self, controller=None, parent=None):
@@ -80,7 +75,10 @@ class NDScatterView(WidgetBase):
         
         self.pc_unit_index, self.pc_data = self.controller.get_all_pcs()
         self.data = self.pc_data.swapaxes(1,2).reshape(self.pc_data.shape[0], -1)
+        
+        
         # this map self.data to self.controller.spikes
+        # used for self.scatter_select
         self.mapping_index = np.zeros(self.data.shape[0], dtype='int64')
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
             ind_global, = np.nonzero((self.controller.spikes['unit_index'] == unit_index) & (self.controller.spikes['included_in_pc']))
@@ -108,18 +106,6 @@ class NDScatterView(WidgetBase):
         self.graphicsview2 = pg.GraphicsView()
         self.toolbar.addWidget(self.graphicsview2)
 
-        #~ _params = [{'name': 'refresh_interval', 'type': 'float', 'value': 100 },
-                           #~ {'name': 'nb_step', 'type': 'int', 'value':  10, 'limits' : [5, 100] },
-                           #~ {'name': 'max_visible_by_cluster', 'type': 'int', 'value':  1000, 'limits' : [10, 10000], 'step':50 },
-                           #~ ]
-        #~ self.params = pg.parametertree.Parameter.create( name='Global options', type='group', children = _params)
-        #~ self.tree_params = pg.parametertree.ParameterTree(parent  = self)
-        #~ self.tree_params.header().hide()
-        #~ self.tree_params.setParameters(self.params, showTop=True)
-        #~ self.tree_params.setWindowTitle(u'Options for NDScatter')
-        #~ self.tree_params.setWindowFlags(QT.Qt.Window)
-
-        
         self.timer_tour = QT.QTimer(interval=100)
         self.timer_tour.timeout.connect(self.new_tour_step)
         
@@ -143,79 +129,10 @@ class NDScatterView(WidgetBase):
         but = QT.QPushButton('settings')
         but.clicked.connect(self.open_settings)
         tb.addWidget(but)
-        #~ but = QT.QPushButton('random decimate', icon=QT.QIcon.fromTheme("roll"))
-        #~ but.clicked.connect(self.by_cluster_random_decimate)
-        #~ tb.addWidget(but)
-        #~ but = QT.QPushButton('select component')
-        #~ but.clicked.connect(self.open_select_component)
-        #~ tb.addWidget(but)
-        
-    #~ def open_select_component(self):
-        
-        #~ ndim = self.data.shape[1]
-        #~ params = [{'name' : 'comp {}'.format(i), 'type':'bool', 'value' : self.selected_comp[i]} for i in range(ndim)]
-        
-        #~ dialog = ParamDialog(params, title = 'Select component')
-        #~ if dialog.exec_():
-            #~ p = dialog.get()
-            #~ for i in range(ndim):
-                #~ self.selected_comp[i] = p['comp {}'.format(i)]
-            #~ self.refresh()
-    
-    # this handle data with propties so model change shoudl not affect so much teh code
-    #~ @property
-    #~ def data(self):
-        
-        #~ feat = self.controller.some_features
-        #~ data = ensure_2d(feat)
-        #~ return data
-    
-    #~ def data_by_label(self, k):
-        #~ if len(self.point_visible) != self.data.shape[0]:
-            #~ self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
-            #~ self.by_cluster_random_decimate()
-        
-        #~ if k=='sel':
-            #~ data = self.data[self.controller.spike_selection[self.controller.some_peaks_index]]
-        #~ elif k==labelcodes.LABEL_NOISE:
-            #~ feat_noise = self.controller.some_noise_features
-            #~ data = ensure_2d(feat_noise)
-        #~ else:
-            #~ data = self.data[(self.controller.spike_label[self.controller.some_peaks_index]==k) & self.point_visible]
-        
-        #~ return data
-    
-    #~ def by_cluster_random_decimate(self, clicked=None, refresh=True):
-        #~ m = self.params['max_visible_by_cluster']
-        #~ for k in self.controller.cluster_labels:
-            #~ mask = self.controller.spike_label[self.controller.some_peaks_index]==k
-            #~ if self.controller.cluster_count[k]>m:
-                #~ self.point_visible[mask] = False
-                #~ visible, = np.nonzero(mask)
-                #~ if visible.size>0:
-                    #~ visible = np.random.choice(visible, size=m)
-                    #~ self.point_visible[visible] = True
-            #~ else:
-                #~ self.point_visible[mask] = True
-        
-        #~ if refresh:
-            #~ self.refresh()
-        
-    #~ def get_color(self, k):
-        #~ color = self.controller.qcolors.get(k, QT.QColor( 'white'))
-        #~ return color
-    
-    #~ def is_cluster_visible(self, k):
-        #~ return self.controller.cluster_visible[k]
 
-    
     def initialize(self):
-        #~ if self.data is None:
-        #~ if self.controller.some_features is None:
-            #~ return
         self.viewBox = MyViewBox()
         self.viewBox.gain_zoom.connect(self.gain_zoom)
-        #~ self.viewBox.lasso_started.connect(self.on_lasso_started)
         self.viewBox.lasso_drawing.connect(self.on_lasso_drawing)
         self.viewBox.lasso_finished.connect(self.on_lasso_finished)
         self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -224,30 +141,17 @@ class NDScatterView(WidgetBase):
         
         self.scatter = pg.ScatterPlotItem(size=3, pxMode = True)
         self.plot.addItem(self.scatter)
-        self.scatter.sigClicked.connect(self.on_scatter_clicked)
         
         
         brush = QT.QColor( 'magenta')
-        brush.setAlpha(180)
+        brush.setAlpha(120)
         self.scatter_select = pg.ScatterPlotItem(pen=pg.mkPen(None), brush=brush, size=11, pxMode = True)
         self.plot.addItem(self.scatter_select)
         self.scatter_select.setZValue(1000)
         
         
-        #~ color = self.controller.qcolors.get(labelcodes.LABEL_NOISE)
-        #~ self.scatter_noise = pg.ScatterPlotItem(pen=pg.mkPen(None), brush=color, size=3, pxMode = True)
-        #~ self.plot.addItem(self.scatter_noise)
-        
         self.lasso = pg.PlotCurveItem(pen='#7FFF00')
         self.plot.addItem(self.lasso)
-        
-        #estimate limts
-        #  VERY SLOW
-        #~ med, mad = median_mad(self.data)
-        #~ m = 4.*np.max(mad)
-        #~ self.limit = m
-        #~ self.plot.setXRange(-m, m)
-        #~ self.plot.setYRange(-m, m)
         
         #estimate limts
         data = self.data.flatten()
@@ -255,7 +159,7 @@ class NDScatterView(WidgetBase):
             data = data.take(np.random.choice(data.size, 5000, replace=False))
         min_ = np.min(data)
         max_ = np.max(data)
-        m = max(np.abs(min_), np.abs(max_)) * 2.5
+        m = max(np.abs(min_), np.abs(max_)) * 1.2
         self.limit = m
         
         ndim = self.data.shape[1]
@@ -265,7 +169,6 @@ class NDScatterView(WidgetBase):
         self.projection[1,1] = 1.
         
         self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
-        #~ self.by_cluster_random_decimate(refresh=False)
         
         self.plot2 = pg.PlotItem(viewBox=MyViewBox(lockAspect=True))
         self.graphicsview2.setCentralItem(self.plot2)
@@ -360,32 +263,15 @@ class NDScatterView(WidgetBase):
             self.scatter.addPoints(x=projected[:,0], y=projected[:,1],  pen=pg.mkPen(None), brush=color)
         
         #selection scatter
-        # TODO : selection
-        
-        inds_included_in_pc, = np.nonzero(self.controller.spikes['included_in_pc'])
-        ## assert self.data.shape[0] == inds_included_in_pc.size  ## debug
-        mask = self.controller.spikes[inds_included_in_pc]['selected']
+        mask = self.controller.spikes[self.mapping_index]['selected']
         data_sel = self.data[mask, :]
-        print('data_sel.shape', data_sel.shape)
-        print(self.controller.spikes[inds_included_in_pc][mask])
         projected_select = self.apply_dot(data_sel)
         self.scatter_select.setData(projected_select[:,0], projected_select[:,1])
-        
-        #noise
-        #~ if self.is_cluster_visible(labelcodes.LABEL_NOISE):
-            #~ data_noise = self.data_by_label(labelcodes.LABEL_NOISE)
-            #~ if data_noise is not None:
-                #~ projected = self.apply_dot(data_noise)
-                #~ self.scatter_noise.setData(projected[:,0], projected[:,1])
-                #~ self.scatter_noise.show()
-        #~ else:
-            #~ self.scatter_noise.hide()
         
         #projection axes
         proj = self.projection.copy()
         proj[~self.selected_comp, :] = 0
         self.direction_data[::, :] =0
-        #~ self.direction_data[::2, :] = self.projection
         self.direction_data[::2, :] = proj
         self.direction_lines.setData(self.direction_data[:,0], self.direction_data[:,1])
         
@@ -408,9 +294,6 @@ class NDScatterView(WidgetBase):
             self.timer_tour.stop()
     
     def new_tour_step(self):
-        #~ if self.data is None:
-        #~ if self.controller.some_features is None:
-            #~ return
         nb_step = self.params['nb_step']
         ndim = self.data.shape[1]
         
@@ -438,19 +321,6 @@ class NDScatterView(WidgetBase):
         self.plot.setXRange(-l, l)
         self.plot.setYRange(-l, l)
     
-    def on_scatter_clicked(self,plots, points):
-        self.controller.spike_selection[:] = False
-        if len(points)==1:
-            #~ projected = np.dot(self.data, self.projection )
-            projected = self.apply_dot(self.data)
-            pos = points[0].pos()
-            pos = [pos.x(), pos.y()]
-            ind = np.argmin(np.sum((projected-pos)**2, axis=1))
-            self.controller.spike_selection[self.controller.some_peaks_index[ind]] = True
-            
-        self.refresh()
-        self.spike_selection_changed.emit()
-    
     def on_lasso_drawing(self, points):
         points = np.array(points)
         self.lasso.setData(points[:, 0], points[:, 1])
@@ -459,53 +329,19 @@ class NDScatterView(WidgetBase):
         self.lasso.setData([], [])
         vertices = np.array(points)
         
-        print('n visible', np.sum(self.controller.spikes['visible']))
-
-        inds_included_in_pc, = np.nonzero(self.controller.spikes['included_in_pc'])
-        ind_visibles, = np.nonzero(self.controller.spikes[inds_included_in_pc]['visible'])
-        
-        print('inds_included_in_pc', inds_included_in_pc.size, inds_included_in_pc)
-        print('ind_visibles', ind_visibles.size, ind_visibles)
-        print('inds_included_in_pc[ind_visibles]', inds_included_in_pc[ind_visibles])
-        print('self.data', self.data.shape)
-        
-        
+        # inside lasso and visibles
+        ind_visibles,  = np.nonzero(self.controller.spikes[self.mapping_index]['visible'])
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
-        print('on_lasso_finished', np.sum(inside), inside.shape, ind_visibles.shape)
-
         
-        # set on controller.spikes
+        # set on controller.spikes selected
         self.controller.spikes['selected'][:] = False
-        inds = inds_included_in_pc[ind_visibles[inside]]
+        inds = self.mapping_index[ind_visibles[inside]]
         self.controller.spikes['selected'][inds] = True
         
         self.refresh()
         self.spike_selection_changed.emit()
     
-    def auto_select_component(self):
-        #~ if self.data is None:
-        if self.controller.some_features is None:
-            return
-        
-        # take all component that corespon to a channel max and neighborhood
-        neighborhood = get_neighborhood(self.controller.geometry, self.params['radius_um'])
-        
-        ndim = self.data.shape[1]
-        self.selected_comp = np.zeros( (ndim), dtype='bool')
-        for k, v in self.controller.cluster_visible.items():
-            if not v: continue
-            c = self.controller.get_extremum_channel(k)
-            if c is not None:
-                chan_mask = neighborhood[c,:]
-                #~ print('c', c, chan_mask)
-                feat_mask = np.sum(self.controller.channel_to_features[chan_mask, :], axis=0).astype('bool')
-                #~ print(feat_mask)
-                
-                self.selected_comp |= feat_mask
-        
-        #~ print('auto_select_component', self.selected_comp)
-
     def on_spike_selection_changed(self):
         self.refresh()
 
