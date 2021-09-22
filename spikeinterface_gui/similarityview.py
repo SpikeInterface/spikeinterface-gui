@@ -166,7 +166,6 @@ class SimilarityView(WidgetBase):
         
         unti_id0 = unit_ids[int(np.floor(x))]
         unti_id1 = unit_ids[int(np.floor(y))]
-        print(unti_id0, unti_id1)
         
         for unit_id in unit_ids:
             self.controller.unit_visible_dict[unit_id] = unit_id in (unti_id0, unti_id1)

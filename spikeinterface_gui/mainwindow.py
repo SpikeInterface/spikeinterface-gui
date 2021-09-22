@@ -39,6 +39,9 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('crosscorrelogramview', tabify='isiview')
         
         self.docks['traceview'].raise_()
+        
+        self.docks['traceview'].setGeometry(300, 600, 200, 120)
+        
 
 
     def add_one_view(self, view_name, dock_title=None,
@@ -78,28 +81,47 @@ class MainWindow(QT.QMainWindow):
 class MyDock(QT.QDockWidget):
     def __init__(self, *arg, **kargs):
         QT.QDockWidget.__init__(self, *arg, **kargs)
+        
+        
     
     def make_custum_title_bar(self, title='', view=None):
         # TODO set style with small icons and font
         # TODO link open settings and help
         
-        self._title_bar = QT.QWidget(self)
-        self.setTitleBarWidget(self._title_bar)
+        titlebar = QT.QWidget(self)
+
+        # style = 'QPushButton {padding: 5px;}'
+        # titlebar.setStyleSheet(style)
+
+        
+        titlebar.setMaximumHeight(12)
+        self.setTitleBarWidget(titlebar)
         
         h = QT.QHBoxLayout()
-        self._title_bar.setLayout(h)
+        titlebar.setLayout(h)
+        h.setContentsMargins(0, 0, 0, 0)
         
         label = QT.QLabel(title)
         h.addWidget(label)
         
         h.addStretch()
-
-        but = QT.QPushButton('settings')
-        h.addWidget(but)
-        but.clicked.connect(view.open_settings)
+        
+        if view._params is not None:
+            but = QT.QPushButton('settings')
+            h.addWidget(but)
+            but.clicked.connect(view.open_settings)
         
         but = QT.QPushButton('?')
         h.addWidget(but)
+        but.clicked.connect(view.open_help)
+        but.setFixedSize(12,12)
+        but.setToolTip(view._gui_help_txt)
+
+        but = QT.QPushButton('✕')
+        h.addWidget(but)
+        but.clicked.connect(self.close)
+        but.setFixedSize(12,12)
+        
         
         
 

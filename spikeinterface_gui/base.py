@@ -70,7 +70,7 @@ class WidgetBase(QT.QWidget):
     channel_visibility_changed = QT.pyqtSignal()
     
     _params = None
-    
+    _gui_help_txt = "The help for this view it not done yet"
     def __init__(self, parent = None, controller=None):
         QT.QWidget.__init__(self, parent)
         self.controller = controller
@@ -99,6 +99,10 @@ class WidgetBase(QT.QWidget):
             self.tree_params.show()
         else:
             self.tree_params.hide()
+    
+    def open_help(self):
+        but = self.sender()
+        QT.QToolTip.showText(but.mapToGlobal(QT.QPoint()),self._gui_help_txt, but)
     
     def on_params_changed(self):
         self.refresh()
