@@ -10,3 +10,5 @@ help for widgets
 
 views:
   * trace heatmap
+  * raster plot
+
