@@ -33,12 +33,12 @@ def debug_one_view():
     #~ view = sigui.PairListView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)
     #~ view = sigui.WaveformView(controller=controller)
-    #~ view = sigui.WaveformHeatMapView(controller=controller)
+    view = sigui.WaveformHeatMapView(controller=controller)
     #~ view = sigui.ISIView(controller=controller)
     #~ view = sigui.CrossCorrelogramView(controller=controller)
     #~ view = sigui.ProbeView(controller=controller)
     #~ view = sigui.NDScatterView(controller=controller)
-    view = sigui.SimilarityView(controller=controller)
+    #~ view = sigui.SimilarityView(controller=controller)
     
     
     

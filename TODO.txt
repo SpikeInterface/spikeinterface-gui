@@ -1,14 +1,12 @@
 get_template_channel_sparsity with threshold
 handle return_scaled=True
-cluster_similarity
 check max_spikes_per_unit in inti of controller to avoid too much spikes!!!
 trace view : add option to order channel by depth
 trace : good handling on on_spike_selection_changed
 have better unit position handling
-display channel on waveform heatmap
 settings in dock bar
+waveformheatmap : channel select global or common channel  : have an option
 
 
 views:
-  * similarity
   * trace heatmap
