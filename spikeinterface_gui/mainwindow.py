@@ -3,8 +3,7 @@ from .myqt import QT, QT_MODE
 
 from .controller import SpikeinterfaceController
 
-# 
-from .viewlist import *
+from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
@@ -14,77 +13,72 @@ class MainWindow(QT.QMainWindow):
         self.waveform_extractor = waveform_extractor
         
         self.controller = SpikeinterfaceController(waveform_extractor)
+        
+        self.views = {}
+        self.docks = {}
+        
+        ## main layout
+        
+        # list
+        self.add_one_view('spikelist', area='left')
+        self.add_one_view('pairlist', split='spikelist', orientation='horizontal')
+        self.add_one_view('unitlist', tabify='pairlist')
+
+        # on bottom left
+        self.add_one_view('probeview', area='left')
+        self.add_one_view('similarityview', split='probeview', orientation='horizontal')
+        if self.controller.handle_principal_components():
+            self.add_one_view('ndscatterview', tabify='similarityview')
+            self.docks['ndscatterview'].raise_()
+        
+        # on right
+        self.add_one_view('traceview', area='right')
+        self.add_one_view('waveformview', tabify='traceview')
+        self.add_one_view('waveformheatmapview', tabify='waveformview')
+        self.add_one_view('isiview', tabify='waveformheatmapview')
+        self.add_one_view('crosscorrelogramview', tabify='isiview')
+        
+        self.docks['traceview'].raise_()
+
+
+    def add_one_view(self, view_name, dock_title=None,
+            area=None, orientation=None, tabify=None, split=None):
+        assert view_name not in self.views, 'View is already in window'
+        
+        if dock_title is None:
+            dock_title = view_name
     
-        self.spikelist = SpikeListView(controller=self.controller)
-        self.unitlist = UnitListView(controller=self.controller)
-        self.pairlist = PairListView(controller=self.controller)
-        self.traceview = TraceView(controller=self.controller)
-        self.waveformview = WaveformView(controller=self.controller)
-        self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
-        self.isiview = ISIView(controller=self.controller)
-        self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
-        self.probeview  = ProbeView(controller=self.controller)
-        self.similarityview = SimilarityView(controller=self.controller)
+        dock = QT.QDockWidget(dock_title,self)
+        view_class = possible_class_views[view_name]
+        view = view_class(controller=self.controller)
+        dock.setWidget(view)
         
-        if self.controller.handle_principal_components():
-            self.ndscatterview  = NDScatterView(controller=self.controller)
-        
+        if area is not None:
+            _area = areas.get(area)
+            if orientation is None:
+                self.addDockWidget(_area, dock)
+            else:
+                _orientation = orientations[orientation]
+                self.addDockWidget(dock, _area, _orientation)
 
-        docks = {}
-        
-        # top left
-        docks['spikelist'] = QT.QDockWidget('spikelist',self)
-        docks['spikelist'].setWidget(self.spikelist)
-        self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['spikelist'])
-        
-        docks['pairlist'] = QT.QDockWidget('pairlist',self)
-        docks['pairlist'].setWidget(self.pairlist)
-        #~ self.tabifyDockWidget(docks['spikelist'], docks['pairlist'])
-        #~ self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['pairlist'])
-        self.splitDockWidget(docks['spikelist'], docks['pairlist'], QT.Qt.Horizontal)
+        elif tabify is not None:
+            assert tabify in self.docks
+            self.tabifyDockWidget(self.docks[tabify], dock)
+        elif split is not None:
+            assert split in self.docks
+            _orientation = orientations[orientation]
+            self.splitDockWidget(self.docks[split], dock, _orientation)
 
-        docks['unitlist'] = QT.QDockWidget('unitlist',self)
-        docks['unitlist'].setWidget(self.unitlist)
-        self.tabifyDockWidget(docks['pairlist'], docks['unitlist'])
-        
-
-        docks['probeview'] = QT.QDockWidget('probeview',self)
-        docks['probeview'].setWidget(self.probeview)
-        #~ self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
-        self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['probeview'])
-        
-        
-        docks['similarityview'] = QT.QDockWidget('similarityview',self)
-        docks['similarityview'].setWidget(self.similarityview)
-        self.splitDockWidget(docks['probeview'], docks['similarityview'], QT.Qt.Horizontal)
-
-        if self.controller.handle_principal_components():
-            docks['ndscatterview'] = QT.QDockWidget('ndscatterview',self)
-            docks['ndscatterview'].setWidget(self.ndscatterview)
-            self.tabifyDockWidget(docks['similarityview'], docks['ndscatterview'])
-            docks['ndscatterview'].raise_()
-        
-        
-        docks['traceview'] = QT.QDockWidget('traceview',self)
-        docks['traceview'].setWidget(self.traceview)
-        self.addDockWidget(QT.Qt.RightDockWidgetArea, docks['traceview'])
-
-        docks['waveformview'] = QT.QDockWidget('waveformview',self)
-        docks['waveformview'].setWidget(self.waveformview)
-        self.tabifyDockWidget(docks['traceview'], docks['waveformview'])
-
-        docks['waveformheatmapview'] = QT.QDockWidget('waveformheatmapview',self)
-        docks['waveformheatmapview'].setWidget(self.waveformheatmapview)
-        self.tabifyDockWidget(docks['traceview'], docks['waveformheatmapview'])
+        self.views[view_name] = view
+        self.docks[view_name] = dock
 
 
-        docks['isiview'] = QT.QDockWidget('isiview',self)
-        docks['isiview'].setWidget(self.isiview)
-        self.tabifyDockWidget(docks['traceview'], docks['isiview'])
-        
-        docks['crosscorrelogramview'] = QT.QDockWidget('crosscorrelogramview',self)
-        docks['crosscorrelogramview'].setWidget(self.crosscorrelogramview)
-        self.tabifyDockWidget(docks['traceview'], docks['crosscorrelogramview'])
-        
-        docks['traceview'].raise_()
-        
+areas = {
+    'right' : QT.Qt.RightDockWidgetArea,
+    'left' : QT.Qt.LeftDockWidgetArea,
+}
+
+orientations = {
+    'horizontal' : QT.Qt.Horizontal,
+    'vertical' : QT.Qt.Vertical,
+}
