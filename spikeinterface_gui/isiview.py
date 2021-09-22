@@ -79,7 +79,7 @@ class ISIView(WidgetBase):
         
         n = 0
         for unit_id in self.controller.unit_ids:
-            if not self.controller.cluster_visible[unit_id]:
+            if not self.controller.unit_visible_dict[unit_id]:
                 continue
             
             if unit_id not in self.all_isi:

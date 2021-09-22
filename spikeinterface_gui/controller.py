@@ -3,18 +3,15 @@ from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
-    compute_correlograms, compute_unit_centers_of_mass, compute_num_spikes)
+    compute_correlograms, compute_unit_centers_of_mass, compute_num_spikes, WaveformPrincipalComponent,
+    compute_template_similarity)
 
 import numpy as np
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
-    ('visible', 'bool'), ('selected', 'bool')]
+    ('visible', 'bool'), ('selected', 'bool'), ('included_in_pc', 'bool')]
 
-
-# TODO rename later
-# cluster_visible > unit_visible
-# unit_visibility_changed > unit_visibility_changed
 
 class  SpikeinterfaceController(ControllerBase):
     
@@ -23,6 +20,12 @@ class  SpikeinterfaceController(ControllerBase):
         ControllerBase.__init__(self, parent=parent)
         
         self.we = waveform_extractor
+        
+        if (self.we.folder / 'PCA').is_dir():
+            self.pc = WaveformPrincipalComponent.load_from_folder(self.we.folder)
+        else:
+            self.pc = None
+        
         
         # some direct attribute
         self.num_segments = self.we.recording.get_num_segments()
@@ -35,8 +38,9 @@ class  SpikeinterfaceController(ControllerBase):
             r, g, b, a = color
             self.qcolors[unit_id] = QT.QColor(r*255, g*255, b*255)
         
-        self.cluster_visible = {unit_id:False for unit_id in self.unit_ids}
-        self.cluster_visible[self.unit_ids[0]] = True
+        self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
+        self.unit_visible_dict[self.unit_ids[0]] = True
+        
         
         all_spikes = self.we.sorting.get_all_spike_trains(outputs='unit_index')
         
@@ -45,15 +49,24 @@ class  SpikeinterfaceController(ControllerBase):
         # make internal spike vector
         self.spikes = np.zeros(num_spikes, dtype=spike_dtype)
         pos = 0
-        for i in range(self.num_segments):
-            sample_index, unit_index = all_spikes[i]
+        for segment_index in range(self.num_segments):
+            sample_index, unit_index = all_spikes[segment_index]
             sl = slice(pos, pos+len(sample_index))
             self.spikes[sl]['sample_index'] = sample_index
             self.spikes[sl]['unit_index'] = unit_index
             #~ self.spikes[sl]['channel_index'] = 
-            self.spikes[sl]['segment_index'] = i
+            self.spikes[sl]['segment_index'] = segment_index
             self.spikes[sl]['visible'] = True
             self.spikes[sl]['selected'] = False
+            self.spikes[sl]['included_in_pc'] = False
+        
+        # create boolean vector of wich spike have been selected by WaveformExtractor
+        for segment_index in range(self.num_segments):
+            for unit_index, unit_id in enumerate(self.unit_ids):
+                global_inds, = np.nonzero((self.spikes['unit_index'] == unit_index) & (self.spikes['segment_index'] == segment_index))
+                sampled_index = self.we.get_sampled_index(unit_id)
+                local_inds = sampled_index[sampled_index['segment_index'] == segment_index]['spike_index']
+                self.spikes['included_in_pc'][global_inds[local_inds]] = True
         
         # extremum channel
         #~ self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
@@ -80,6 +93,10 @@ class  SpikeinterfaceController(ControllerBase):
         
         self.num_spikes = compute_num_spikes(self.we)
 
+        self.update_visible_spikes()
+        
+        self._similarity_by_method = {}
+        
     @property
     def channel_ids(self):
         return self.we.recording.channel_ids
@@ -92,15 +109,15 @@ class  SpikeinterfaceController(ControllerBase):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-    def on_unit_visibility_changed(self):
-        #~ print('on_unit_visibility_changed')
-        self.update_visible_spikes()
-        ControllerBase.on_unit_visibility_changed(self)
+    # def on_unit_visibility_changed(self):
+    #     #~ print('on_unit_visibility_changed')
+    #     self.update_visible_spikes()
+    #     ControllerBase.on_unit_visibility_changed(self)
 
     def update_visible_spikes(self):
         for unit_index, unit_id in enumerate(self.unit_ids):
             mask = self.spikes['unit_index'] == unit_index
-            self.spikes['visible'][mask] = self.cluster_visible[unit_id]
+            self.spikes['visible'][mask] = self.unit_visible_dict[unit_id]
     
     def get_num_samples(self, segment_index):
         return self.we.recording.get_num_samples(segment_index=segment_index)
@@ -126,7 +143,7 @@ class  SpikeinterfaceController(ControllerBase):
         return self.we.nbefore, self.we.nafter
         
     def get_waveforms_range(self):
-        return np.min(self.templates_average), np.max(self.templates_average)
+        return np.nanmin(self.templates_average), np.nanmax(self.templates_average)
     
     def get_waveforms(self, unit_id):
         return self.we.get_waveforms(unit_id)
@@ -148,6 +165,20 @@ class  SpikeinterfaceController(ControllerBase):
         
     def set_channel_visibility(self, visible_channel_inds):
         self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
+        
+    def handle_principal_components(self):
+        return self.pc is not None
+        
+    def get_all_pcs(self):
+        pc_unit_index, pcs = self.pc.get_all_components(outputs='index')
+        return pc_unit_index, pcs
+    
+    def get_similarity(self, method='cosine_similarity'):
+        similarity = self._similarity_by_method.get(method, None)
+        if similarity is None:
+            similarity = compute_template_similarity(self.we, method=method)
+            self._similarity_by_method[method] = similarity
+        return similarity
 
 
 

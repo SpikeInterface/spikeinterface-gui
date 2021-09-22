@@ -1,4 +1,4 @@
-import PySide6
+#~ import PySide6
 import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
@@ -35,7 +35,7 @@ def test_mainwindow(interactive=False):
     
 if __name__ == '__main__':
     
-    #~ setup_module()
+    # setup_module()
     
     test_mainwindow(interactive=True)
 

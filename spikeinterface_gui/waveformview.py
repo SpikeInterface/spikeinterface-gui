@@ -37,7 +37,7 @@ class WaveformView(WidgetBase):
                       {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
                       {'name': 'metrics', 'type': 'list', 'values': ['median/mad'] },
                       {'name': 'fillbetween', 'type': 'bool', 'value': True },
-                      {'name': 'show_channel_num', 'type': 'bool', 'value': False},
+                      {'name': 'show_channel_id', 'type': 'bool', 'value': False},
                       {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},
                       {'name': 'display_threshold', 'type': 'bool', 'value' : True },
                       {'name': 'sparse_display', 'type': 'bool', 'value' : True },
@@ -223,26 +223,26 @@ class WaveformView(WidgetBase):
         n_selected = np.sum(self.controller.spikes['selected'])
         
         if self.params['show_only_selected_cluster'] and n_selected==1:
-            cluster_visible = {k:False for k in self.controller.cluster_visible}
+            unit_visible_dict = {k:False for k in self.controller.unit_visible_dict}
             ind, = np.nonzero(self.controller.spikes['selected'])
             ind = ind[0]
             unit_index = self.controller.spikes[ind]['unit_index']
             unit_id = self.controller.unit_ids[unit_index]
-            cluster_visible[unit_id] = True
+            unit_visible_dict[unit_id] = True
         else:
-            cluster_visible = self.controller.cluster_visible
+            unit_visible_dict = self.controller.unit_visible_dict
         
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
-            self.refresh_mode_flatten(cluster_visible, keep_range)
+            self.refresh_mode_flatten(unit_visible_dict, keep_range)
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
-            self.refresh_mode_geometry(cluster_visible, keep_range)
+            self.refresh_mode_geometry(unit_visible_dict, keep_range)
         
         self._refresh_one_spike(n_selected)
     
     
-    def refresh_mode_flatten(self, cluster_visible, keep_range):
+    def refresh_mode_flatten(self, unit_visible_dict, keep_range):
         if self._x_range is not None and keep_range:
             #this may change with pyqtgraph
             self._x_range = tuple(self.viewBox1.state['viewRange'][0])
@@ -268,8 +268,8 @@ class WaveformView(WidgetBase):
         #~ sparse = self.controller.have_sparse_template and self.params['sparse_display']
         sparse = self.params['sparse_display']
         
-        # visibles = [k for k, v in cluster_visible.items() if v and k>=-1 ]
-        visible_unit_ids = [unit_id for unit_id, v in cluster_visible.items() if v ]
+        # visibles = [k for k, v in unit_visible_dict.items() if v and k>=-1 ]
+        visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
         
         
         if sparse:
@@ -328,10 +328,10 @@ class WaveformView(WidgetBase):
         xvect = np.arange(shape[0]*shape[1])
         
         #~ for i,k in enumerate(self.controller.centroids):
-        #~ for unit_id in cluster_visible:
+        #~ for unit_id in unit_visible_dict:
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            #~ if not self.controller.cluster_visible[k]:
-            if not cluster_visible[unit_id]:
+            #~ if not self.controller.unit_visible_dict[k]:
+            if not unit_visible_dict[unit_id]:
                 continue
             
             #~ wf0 = self.controller.centroids[k][key1].T.flatten()
@@ -369,7 +369,7 @@ class WaveformView(WidgetBase):
                 curve = pg.PlotCurveItem(xvect, template_std.T.flatten(), pen=color)
                 self.plot2.addItem(curve)        
 
-        if self.params['show_channel_num']:
+        if self.params['show_channel_id']:
             #~ cn = self.controller.channel_indexes_and_names
             #~ for i, c in enumerate(common_channel_indexes):
             for i, chan_ind in enumerate(common_channel_indexes):
@@ -396,7 +396,7 @@ class WaveformView(WidgetBase):
 
         
 
-    def refresh_mode_geometry(self, cluster_visible, keep_range):
+    def refresh_mode_geometry(self, unit_visible_dict, keep_range):
         if self._x_range is not None and keep_range:
             #this may change with pyqtgraph
             self._x_range = tuple(self.viewBox1.state['viewRange'][0])
@@ -409,8 +409,8 @@ class WaveformView(WidgetBase):
 
         #~ sparse = self.controller.have_sparse_template and self.params['sparse_display']
         sparse = self.params['sparse_display']
-        #~ visibles = [k for k, v in cluster_visible.items() if v and k>=-1 ]
-        visible_unit_ids = [unit_id for unit_id, v in cluster_visible.items() if v ]
+        #~ visibles = [k for k, v in unit_visible_dict.items() if v and k>=-1 ]
+        visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
         
         #~ if sparse:
             #~ if len(visibles) > 0:
@@ -462,9 +462,9 @@ class WaveformView(WidgetBase):
         #~ ypos = self.contact_location[common_channels,1]
         
         #~ xvect = self.xvect.reshape(self.controller.nb_channel, -1)[common_channels, :].flatten()
-        #~ for k in cluster_visible:
+        #~ for k in unit_visible_dict:
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not cluster_visible[unit_id]:
+            if not unit_visible_dict[unit_id]:
                 continue
             
             #~ wf, chans = self.controller.get_waveform_centroid(k, key1, sparse=sparse)
@@ -496,7 +496,7 @@ class WaveformView(WidgetBase):
             curve = pg.PlotCurveItem(xvect.flatten(), wf.T.flatten(), pen=pg.mkPen(color, width=2), connect=connect.T.flatten())
             self.plot1.addItem(curve)
         
-        if self.params['show_channel_num']:
+        if self.params['show_channel_id']:
             #~ chan_grp = self.controller.chan_grp
             #~ channel_group = self.controller.dataio.channel_groups[chan_grp]            
             #~ for i, (chan, name) in enumerate(self.controller.channel_indexes_and_names):
