@@ -326,7 +326,7 @@ class WaveformHeatMapView(WidgetBase):
             waveforms.append(self.controller.get_waveforms(unit_id)[:, :, common_channel_indexes])
         waveforms = np.concatenate(waveforms)
         data  = waveforms.swapaxes(1,2).reshape(waveforms.shape[0], -1)
-        
+        #~ print(data.shape)
         
         #TODO change for PCA
         #~ if self.params['data']=='waveforms':

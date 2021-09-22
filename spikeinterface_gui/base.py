@@ -44,6 +44,7 @@ class ControllerBase(QT.QObject):
         #~ print('on_unit_visibility_changed')
         for view in self.views:
             if view==self.sender(): continue
+            #~ print(view.isVisible())
             #~ t1 = time.perf_counter()
             view.on_unit_visibility_changed()
             #~ t2 = time.perf_counter()

@@ -14,6 +14,7 @@ from .isiview import ISIView
 from .crosscorrelogramview import CrossCorrelogramView
 from .probeview import ProbeView
 from .ndscatterview import NDScatterView
+from .similarityview import SimilarityView
 
 
 class MainWindow(QT.QMainWindow):
@@ -29,10 +30,11 @@ class MainWindow(QT.QMainWindow):
         self.pairlist = PairListView(controller=self.controller)
         self.traceview = TraceView(controller=self.controller)
         self.waveformview = WaveformView(controller=self.controller)
-        #~ self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
+        self.waveformheatmapview = WaveformHeatMapView(controller=self.controller)
         self.isiview = ISIView(controller=self.controller)
         self.crosscorrelogramview = CrossCorrelogramView(controller=self.controller)
         self.probeview  = ProbeView(controller=self.controller)
+        self.similarityview = SimilarityView(controller=self.controller)
         
         if self.controller.handle_principal_components():
             self.ndscatterview  = NDScatterView(controller=self.controller)
@@ -61,10 +63,16 @@ class MainWindow(QT.QMainWindow):
         #~ self.tabifyDockWidget(docks['pairlist'], docks['probeview'])
         self.addDockWidget(QT.Qt.LeftDockWidgetArea, docks['probeview'])
         
+        
+        docks['similarityview'] = QT.QDockWidget('similarityview',self)
+        docks['similarityview'].setWidget(self.similarityview)
+        self.splitDockWidget(docks['probeview'], docks['similarityview'], QT.Qt.Horizontal)
+
         if self.controller.handle_principal_components():
-            docks['ndscatterview'] = QT.QDockWidget('probeview',self)
+            docks['ndscatterview'] = QT.QDockWidget('ndscatterview',self)
             docks['ndscatterview'].setWidget(self.ndscatterview)
-            self.splitDockWidget(docks['probeview'], docks['ndscatterview'], QT.Qt.Horizontal)
+            self.tabifyDockWidget(docks['similarityview'], docks['ndscatterview'])
+            docks['ndscatterview'].raise_()
         
         
         docks['traceview'] = QT.QDockWidget('traceview',self)
@@ -75,9 +83,9 @@ class MainWindow(QT.QMainWindow):
         docks['waveformview'].setWidget(self.waveformview)
         self.tabifyDockWidget(docks['traceview'], docks['waveformview'])
 
-        #~ docks['waveformheatmapview'] = QT.QDockWidget('waveformheatmapview',self)
-        #~ docks['waveformheatmapview'].setWidget(self.waveformheatmapview)
-        #~ self.tabifyDockWidget(docks['traceview'], docks['waveformheatmapview'])
+        docks['waveformheatmapview'] = QT.QDockWidget('waveformheatmapview',self)
+        docks['waveformheatmapview'].setWidget(self.waveformheatmapview)
+        self.tabifyDockWidget(docks['traceview'], docks['waveformheatmapview'])
 
 
         docks['isiview'] = QT.QDockWidget('isiview',self)

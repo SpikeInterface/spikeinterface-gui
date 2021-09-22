@@ -173,7 +173,10 @@ class ProbeView(WidgetBase):
             x, y = self.controller.unit_positions[unit_index, :]
             radius = self.params['radius']
             self.roi.setPos(x - radius, y - radius)
-        
+    
+    def on_channel_visibility_changed(self):
+        pass
+    
     def on_pick_unit(self, x, y):
         unit_positions = self.controller.unit_positions
         pos = np.array([x, y])[None, :]

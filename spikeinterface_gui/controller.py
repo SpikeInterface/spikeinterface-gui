@@ -3,7 +3,8 @@ from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
-    compute_correlograms, compute_unit_centers_of_mass, compute_num_spikes, WaveformPrincipalComponent)
+    compute_correlograms, compute_unit_centers_of_mass, compute_num_spikes, WaveformPrincipalComponent,
+    compute_template_similarity)
 
 import numpy as np
 
@@ -94,6 +95,8 @@ class  SpikeinterfaceController(ControllerBase):
 
         self.update_visible_spikes()
         
+        self._similarity_by_method = {}
+        
     @property
     def channel_ids(self):
         return self.we.recording.channel_ids
@@ -140,7 +143,7 @@ class  SpikeinterfaceController(ControllerBase):
         return self.we.nbefore, self.we.nafter
         
     def get_waveforms_range(self):
-        return np.min(self.templates_average), np.max(self.templates_average)
+        return np.nanmin(self.templates_average), np.nanmax(self.templates_average)
     
     def get_waveforms(self, unit_id):
         return self.we.get_waveforms(unit_id)
@@ -169,4 +172,13 @@ class  SpikeinterfaceController(ControllerBase):
     def get_all_pcs(self):
         pc_unit_index, pcs = self.pc.get_all_components(outputs='index')
         return pc_unit_index, pcs
+    
+    def get_similarity(self, method='cosine_similarity'):
+        similarity = self._similarity_by_method.get(method, None)
+        if similarity is None:
+            similarity = compute_template_similarity(self.we, method=method)
+            self._similarity_by_method[method] = similarity
+        return similarity
+
+
 
