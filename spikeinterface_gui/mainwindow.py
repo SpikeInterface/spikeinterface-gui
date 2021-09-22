@@ -48,7 +48,7 @@ class MainWindow(QT.QMainWindow):
         if dock_title is None:
             dock_title = view_name
     
-        dock = QT.QDockWidget(dock_title,self)
+        dock = MyDock(dock_title,self)
         view_class = possible_class_views[view_name]
         view = view_class(controller=self.controller)
         dock.setWidget(view)
@@ -68,10 +68,40 @@ class MainWindow(QT.QMainWindow):
             assert split in self.docks
             _orientation = orientations[orientation]
             self.splitDockWidget(self.docks[split], dock, _orientation)
-
+        
+        dock.make_custum_title_bar(title=dock_title, view=view)
+        
         self.views[view_name] = view
         self.docks[view_name] = dock
 
+# custum dock with settings button
+class MyDock(QT.QDockWidget):
+    def __init__(self, *arg, **kargs):
+        QT.QDockWidget.__init__(self, *arg, **kargs)
+    
+    def make_custum_title_bar(self, title='', view=None):
+        # TODO set style with small icons and font
+        # TODO link open settings and help
+        
+        self._title_bar = QT.QWidget(self)
+        self.setTitleBarWidget(self._title_bar)
+        
+        h = QT.QHBoxLayout()
+        self._title_bar.setLayout(h)
+        
+        label = QT.QLabel(title)
+        h.addWidget(label)
+        
+        h.addStretch()
+
+        but = QT.QPushButton('settings')
+        h.addWidget(but)
+        but.clicked.connect(view.open_settings)
+        
+        but = QT.QPushButton('?')
+        h.addWidget(but)
+        
+        
 
 areas = {
     'right' : QT.Qt.RightDockWidgetArea,

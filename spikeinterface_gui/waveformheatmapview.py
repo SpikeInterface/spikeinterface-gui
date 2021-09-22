@@ -83,9 +83,11 @@ class WaveformHeatMapView(WidgetBase):
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
-        but = QT.QPushButton('Show 1D dist', checkable=True)
-        h.addWidget(but)
-        but.clicked.connect(self.show_hide_1d_dist)
+        
+        # TODO
+        #~ but = QT.QPushButton('Show 1D dist', checkable=True)
+        #~ h.addWidget(but)
+        #~ but.clicked.connect(self.show_hide_1d_dist)
         
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
