@@ -1,20 +1,23 @@
 # spikeinterface-gui
 
-GUI for spikeinterface objects without copy.
+GUI for spikeinterface objects without data copy.
 
-This is a cross platform viewer to inspect the final results
+This is a cross platform interactive viewer to inspect the final results
 and quality of any spike sorter supported by spikeinterface 
 (kilosort, spykingcircus, tridesclous, moutainssort, yass, ironclust, herdinspikes, hdsort, klusta...)
+
+This interactive GUI offer several views that dynamically refresh other views.
+This allow to very quickly check strenght and wikness of a sorter otuput.
 
 Contrary to other viewers (like  phy), this viewer skip the tedious and long step of
 copying and reformating the entire dataset (filetred signal + waveform + PCA) to a particular
 format or folder organisation. This gui is built on top of spike interface objects
 (Recording, Sorting, WaveformExtractor)
 Theses objects are "lazy" and retrieve data on the fly (no copy!).
+And contrary to phy, this is a view only tool : no manual curation at the moment (split/merge/trash have to be done outside).
 
 This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
-
-This viewer is local desktop app (old school!!).
+And so, this viewer is local desktop app (old school!!).
 There is a web based viewer work-in-progres [here](https://github.com/magland/sortingview).
 
 ![screenshot](screenshot.png)
@@ -29,9 +32,10 @@ You first need to "extract waveform" with spikeinterface
 See help [here](https://spikeinterface.readthedocs.io/en/latest/modules/core/plot_4_waveform_extractor.html#sphx-glr-modules-core-plot-4-waveform-extractor-py)
 
 Note that:
-  * not all waveforms snipet are extracted (See `max_spikes_per_unit`)
+  * not all waveforms snipet are extracted (See `max_spikes_per_unit`) only some of then
   * this step is cached to a folder (and can be reloaded)
   * this step can be run in parralel (and so quite fast)
+  * optionaly PCa can be compute and displayed
 
   
 Example:
@@ -45,10 +49,15 @@ waveform_forlder = '/path/for/my/waveforms'
 we = si.extract_waveforms(
     recording_filtered, sorting, waveform_folder,
     max_spikes_per_unit=500,
-    ms_before=3., ms_after=4.,
+    ms_before=1.5, ms_after=2.5,
     n_jobs=10, total_memory='500M',
     progress_bar=True,
 )
+# and optionally compute principal component
+pc = compute_principal_components(we,
+    n_components=5,
+    mode='by_channel_local',
+    whiten=True)
 ```
 
 ### Step 2 : open the GUI
@@ -77,7 +86,7 @@ sigui /path/for/my/waveforms
 
 ## Install
 
-You need first to install one this 3 packages (by order of preference):
+You need first to install one of this 3 packages (by order of preference):
   * `pip install PySide6`
   * `pip install PyQt6`
   * `pip install PyQt5`
