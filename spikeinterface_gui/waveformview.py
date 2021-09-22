@@ -37,7 +37,7 @@ class WaveformView(WidgetBase):
                       {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
                       {'name': 'metrics', 'type': 'list', 'values': ['median/mad'] },
                       {'name': 'fillbetween', 'type': 'bool', 'value': True },
-                      {'name': 'show_channel_num', 'type': 'bool', 'value': False},
+                      {'name': 'show_channel_id', 'type': 'bool', 'value': False},
                       {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},
                       {'name': 'display_threshold', 'type': 'bool', 'value' : True },
                       {'name': 'sparse_display', 'type': 'bool', 'value' : True },
@@ -369,7 +369,7 @@ class WaveformView(WidgetBase):
                 curve = pg.PlotCurveItem(xvect, template_std.T.flatten(), pen=color)
                 self.plot2.addItem(curve)        
 
-        if self.params['show_channel_num']:
+        if self.params['show_channel_id']:
             #~ cn = self.controller.channel_indexes_and_names
             #~ for i, c in enumerate(common_channel_indexes):
             for i, chan_ind in enumerate(common_channel_indexes):
@@ -496,7 +496,7 @@ class WaveformView(WidgetBase):
             curve = pg.PlotCurveItem(xvect.flatten(), wf.T.flatten(), pen=pg.mkPen(color, width=2), connect=connect.T.flatten())
             self.plot1.addItem(curve)
         
-        if self.params['show_channel_num']:
+        if self.params['show_channel_id']:
             #~ chan_grp = self.controller.chan_grp
             #~ channel_group = self.controller.dataio.channel_groups[chan_grp]            
             #~ for i, (chan, name) in enumerate(self.controller.channel_indexes_and_names):

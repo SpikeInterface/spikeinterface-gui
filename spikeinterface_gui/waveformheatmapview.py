@@ -63,6 +63,7 @@ class WaveformHeatMapView(WidgetBase):
     """
     _params = [
                       {'name': 'colormap', 'type': 'list', 'values' : ['hot', 'viridis', 'jet', 'gray',  ] },
+                      {'name': 'show_channel_id', 'type': 'bool', 'value': True},
                       #~ {'name': 'data', 'type': 'list', 'values' : ['waveforms', 'features', ] },
                       {'name': 'bin_min', 'type': 'float', 'value' : -20. },
                       {'name': 'bin_max', 'type': 'float', 'value' : 8. },
@@ -207,6 +208,17 @@ class WaveformHeatMapView(WidgetBase):
         self.params['bin_size'] = (self.params['bin_max'] - self.params['bin_min']) / 600
         
         self.params.blockSignals(False)
+        
+        
+        self.channel_labels = []
+        for chan_id in self.controller.channel_ids:
+            label = pg.TextItem(f'{chan_id}', anchor=(.5,.5), color='#FFFF00')
+            label.setFont(QT.QFont('', pointSize=12))
+            self.plot.addItem(label)
+            label.hide()
+            label.setZValue(1000)
+            self.channel_labels.append(label)
+            
     
 
     def gain_zoom(self, v):
@@ -214,13 +226,18 @@ class WaveformHeatMapView(WidgetBase):
         levels = self.image.getLevels()
         if levels is not None:
             self.image.setLevels(levels * v, update=True)
-
+    
+    def _hide_all(self):
+        self.image.hide()
+        for label in self.channel_labels:
+            label.hide()
+    
     def refresh(self):
-        if not hasattr(self, 'viewBox'):
-            self.initialize_plot()
+        #~ if not hasattr(self, 'viewBox'):
+            #~ self.initialize_plot()
         
-        if not hasattr(self, 'viewBox'):
-            return
+        #~ if not hasattr(self, 'viewBox'):
+            #~ return
         
         #~ if self._x_range is not None:
             #~ #this may change with pyqtgraph
@@ -253,6 +270,7 @@ class WaveformHeatMapView(WidgetBase):
             if len(visible_unit_ids) > 0:
                 common_channel_indexes = self.controller.get_common_sparse_channels(visible_unit_ids)
             else:
+                self._hide_all()
                 return
         else:
             #~ common_channel_indexes = self.controller.channels
@@ -265,11 +283,11 @@ class WaveformHeatMapView(WidgetBase):
         self.curves = []
         
         if len(visible_unit_ids)>self.params['max_unit'] or (len(visible_unit_ids)==0 and not noise_visible):
-            self.image.hide()
+            self._hide_all()
             return
         
         if len(common_channel_indexes) ==0:
-            self.image.hide()
+            self._hide_all()
             return
         
         #~ keep = np.zeros(self.controller.spikes.size, dtype='bool')
@@ -408,6 +426,17 @@ class WaveformHeatMapView(WidgetBase):
         #~ else:
             #~ self.thresh_line.hide()
         
+        nbefore, nafter = self.controller.get_waveform_sweep()
+        width = nbefore + nafter        
+        pos = 0
+        for chan_ind, chan_id in enumerate(self.controller.channel_ids):
+            label = self.channel_labels[chan_ind]
+            if self.params['show_channel_id'] and chan_ind in common_channel_indexes:
+                label.show()
+                label.setPos(pos * width + nbefore, 0)
+                pos += 1
+            else:
+                label.hide()
         
         #~ if self._x_range is None:
         if True:
