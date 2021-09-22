@@ -10,7 +10,14 @@ from .tools import ParamDialog
 
 
 class MyViewBox(pg.ViewBox):
+    clicked = QT.pyqtSignal(float, float)
     doubleclicked = QT.pyqtSignal()
+    def mouseClickEvent(self, ev):
+        pos = self.mapToView(ev.pos())
+        x, y = pos.x(), pos.y()
+        self.clicked.emit(x, y)
+        ev.accept()
+        
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
         ev.accept()
@@ -22,8 +29,10 @@ class MyViewBox(pg.ViewBox):
 
 class SimilarityView(WidgetBase):
     _params = [
-                      {'name': 'method', 'type': 'list', 'values' : ['cosine_similarity',] },
-                      {'name': 'colormap', 'type': 'list', 'values' : ['viridis', 'jet', 'gray', 'hot', ] },
+      {'name': 'method', 'type': 'list', 'values' : ['cosine_similarity',] },
+      {'name': 'colormap', 'type': 'list', 'values' : ['viridis', 'jet', 'gray', 'hot', ] },
+      {'name': 'show_all', 'type': 'bool', 'value' : True },
+                      
         ]
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
@@ -62,6 +71,7 @@ class SimilarityView(WidgetBase):
     
     def initialize_plot(self):
         self.viewBox = MyViewBox()
+        self.viewBox.clicked.connect(self.select_pair)
         self.viewBox.doubleclicked.connect(self.open_settings)
         self.viewBox.disableAutoRange()
         
@@ -87,10 +97,12 @@ class SimilarityView(WidgetBase):
     def on_colors_changed(self):
         pass
     
-    def on_cluster_visibility_changed(self):
+    def on_unit_visibility_changed(self):
         self.refresh()
 
     def refresh(self):
+        
+        unit_ids = self.controller.unit_ids
         
         similarity = self.controller.get_similarity(method=self.params['method'])
         
@@ -100,14 +112,18 @@ class SimilarityView(WidgetBase):
         
         _max = np.max(similarity)
         
-
-        visible_mask = np.array([self.controller.unit_visible_dict[u] for u in self.controller.unit_ids], dtype='bool')
+        if self.params['show_all']:
+            visible_mask = np.ones(len(unit_ids), dtype='bool')
+            s = similarity
+        else:
+            visible_mask = np.array([self.controller.unit_visible_dict[u] for u in self.controller.unit_ids], dtype='bool')
+            s = similarity[visible_mask, :][:, visible_mask]
+        
         
         if not np.any(visible_mask):
             self.image.hide()
             return
         
-        s = similarity[visible_mask, :][:, visible_mask]
         self.image.setImage(s, lut=self.lut, levels=[0, _max])
         self.image.show()
         self.plot.setXRange(0, s.shape[0])
@@ -118,7 +134,6 @@ class SimilarityView(WidgetBase):
         for item in self._text_items:
             self.plot.removeItem(item)
         
-        n = np.sum(visible_mask)
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
             if not visible_mask[unit_index]:
                 continue
@@ -126,9 +141,36 @@ class SimilarityView(WidgetBase):
                 item = pg.TextItem(text=f'{unit_id}', color='#FFFFFF', anchor=(0.5, 0.5), border=None)
                 self.plot.addItem(item)
                 if i==0:
-                    item.setPos(pos+n/2., 0)
+                    item.setPos(pos + 0.5, 0)
                 else:
-                    item.setPos(0, pos+n/2.)
+                    item.setPos(0, pos + 0.5)
                 self._text_items.append(item)
             pos += 1
+    
+    def select_pair(self, x, y):
+        unit_ids = self.controller.unit_ids
+        
+        if self.params['show_all']:
+            visible_ids = unit_ids
+        else:
+            visible_ids = [u for u, v in self.controller.unit_visible_dict.items() if v]
+        
+        n = len(visible_ids)
+        
+        inside = (0 <= x  <= n) and (0 <= y  <= n)
+
+        if not inside:
+            return
+        
+        
+        
+        unti_id0 = unit_ids[int(np.floor(x))]
+        unti_id1 = unit_ids[int(np.floor(y))]
+        print(unti_id0, unti_id1)
+        
+        for unit_id in unit_ids:
+            self.controller.unit_visible_dict[unit_id] = unit_id in (unti_id0, unti_id1)
+        self.unit_visibility_changed.emit()
+        
+        self.refresh()
 
