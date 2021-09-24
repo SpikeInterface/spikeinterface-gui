@@ -618,4 +618,8 @@ class TraceView(WidgetBase):
         if not self.plot_buttons['signals'].isChecked():
             self.signals_curve.setData([], [])
     
-
+TraceView._gui_help_txt = """Trace view
+Show trace and spike (on best channel) of visible units.
+Mouse right lick : zoom
+Scroll bar at bottom : navigate on time
+channel visibility is done vwith probe view"""

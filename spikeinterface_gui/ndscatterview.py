@@ -66,7 +66,7 @@ class NDScatterView(WidgetBase):
     _params = [
            {'name': 'refresh_interval', 'type': 'float', 'value': 80 },
            {'name': 'num_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
-           {'name': 'num_pc_per_channel', 'type': 'int', 'value':  3, 'limits' : [1, 100] },
+           {'name': 'num_pc_per_channel', 'type': 'int', 'value':  2, 'limits' : [1, 100] },
         ]
     
     def __init__(self, controller=None, parent=None):
@@ -369,3 +369,10 @@ def inside_poly(data, vertices):
     return mpl_path(vertices).contains_points(data)
 
 
+NDScatterView._gui_help_txt = """N-dimential scatter for principal components
+Project (num_chan x num_pc) into 2 dim.
+Button randomtour run dynamic "tour"
+mouse wheel : zoom
+left click: draw a lasso for spike selection
+settings controls : num_pc_per_channel displayed
+"""

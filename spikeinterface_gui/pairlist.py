@@ -188,3 +188,7 @@ class PairListView(WidgetBase):
     def on_unit_visibility_changed(self):
         pass
 
+PairListView._gui_help_txt = """Pair list selection
+Click on on row to make visible a unique pair of unit.
+This combinatory pair list can be order in several way.
+See also similarityview"""
