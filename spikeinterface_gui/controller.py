@@ -14,8 +14,6 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 class  SpikeinterfaceController(ControllerBase):
-    
-    
     def __init__(self, waveform_extractor=None,parent=None):
         ControllerBase.__init__(self, parent=parent)
         
@@ -32,7 +30,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.sampling_frequency = self.we.recording.get_sampling_frequency()
         
         
-        self.colors = get_unit_colors(self.we.sorting, map_name='Dark2', format='RGBA')
+        self.colors = get_unit_colors(self.we.sorting)
         self.qcolors = {}
         for unit_id, color in self.colors.items():
             r, g, b, a = color
@@ -73,8 +71,11 @@ class  SpikeinterfaceController(ControllerBase):
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
         
-        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-                                peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
+        #~ sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
+                                #~ peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
+        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
+                                peak_sign='both', num_channels=10, radius_um=None, outputs='index')
+
         self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
         for unit_index, unit_id in enumerate(self.unit_ids):
             chan_inds = sparsity_dict[unit_id]
