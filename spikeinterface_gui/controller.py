@@ -13,13 +13,19 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
     ('visible', 'bool'), ('selected', 'bool'), ('included_in_pc', 'bool')]
 
 
+_MAX_SPIKE_PER_UNIT_WARNING = 5000
+
 class  SpikeinterfaceController(ControllerBase):
-    
-    
     def __init__(self, waveform_extractor=None,parent=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.we = waveform_extractor
+        
+        max_spikes_per_unit = self.we._params['max_spikes_per_unit']
+        if  max_spikes_per_unit > _MAX_SPIKE_PER_UNIT_WARNING:
+            print(f'You have {max_spikes_per_unit} in your WaveformExtractor, the display can be slow')
+            print(f'You should re run the WaveformExtractor with max_spikes_per_unit=500')
+        
         
         if (self.we.folder / 'PCA').is_dir():
             self.pc = WaveformPrincipalComponent.load_from_folder(self.we.folder)
@@ -32,7 +38,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.sampling_frequency = self.we.recording.get_sampling_frequency()
         
         
-        self.colors = get_unit_colors(self.we.sorting, map_name='Dark2', format='RGBA')
+        self.colors = get_unit_colors(self.we.sorting)
         self.qcolors = {}
         for unit_id, color in self.colors.items():
             r, g, b, a = color
@@ -73,8 +79,11 @@ class  SpikeinterfaceController(ControllerBase):
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
         
-        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-                                peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
+        #~ sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
+                                #~ peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
+        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
+                                peak_sign='both', num_channels=10, radius_um=None, outputs='index')
+
         self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
         for unit_index, unit_id in enumerate(self.unit_ids):
             chan_inds = sparsity_dict[unit_id]
@@ -109,11 +118,6 @@ class  SpikeinterfaceController(ControllerBase):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-    # def on_unit_visibility_changed(self):
-    #     #~ print('on_unit_visibility_changed')
-    #     self.update_visible_spikes()
-    #     ControllerBase.on_unit_visibility_changed(self)
-
     def update_visible_spikes(self):
         for unit_index, unit_id in enumerate(self.unit_ids):
             mask = self.spikes['unit_index'] == unit_index
@@ -129,9 +133,10 @@ class  SpikeinterfaceController(ControllerBase):
         if trace_source == 'preprocessed':
             rec = self.we.recording
         elif trace_source == 'raw':
+            raise NotImplemented
             # TODO get with parent recording the non process recording
             pass
-        
+        kargs['return_scaled'] = self.we.return_scaled
         traces = rec.get_traces(**kargs)
         return traces
 

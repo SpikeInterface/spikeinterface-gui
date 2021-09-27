@@ -181,3 +181,9 @@ class UnitListView(WidgetBase):
 
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
+
+UnitListView._gui_help_txt = """Unit list
+This control the visibility of units
+Check box : make visible or unvisible
+Right click : context menu"""
+

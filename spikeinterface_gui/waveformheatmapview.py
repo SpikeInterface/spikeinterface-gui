@@ -69,7 +69,7 @@ class WaveformHeatMapView(WidgetBase):
                       {'name': 'bin_max', 'type': 'float', 'value' : 8. },
                       {'name': 'bin_size', 'type': 'float', 'value' : .1 },
                       #~ {'name': 'display_threshold', 'type': 'bool', 'value' : True },
-                      {'name': 'max_unit', 'type': 'int', 'value' : 2 },
+                      {'name': 'max_unit', 'type': 'int', 'value' : 4 },
                       #~ {'name': 'n_spike_for_centroid', 'type': 'int', 'value' : 300 },
                       {'name': 'sparse_display', 'type': 'bool', 'value' : True },
                       ]
@@ -473,5 +473,13 @@ class WaveformHeatMapView(WidgetBase):
 
 
 
+WaveformHeatMapView._gui_help_txt = """Unit waveform heat map
+Check density around the average template for each unit.
+Usefull to check overlap ebtween units.
 
+right click : X/Y zoom
+left clik : move
+mouse wheel : color range for density (important!!)
 
+For efficiency : no more than  4 units visible at same time.
+This can be change in settings."""

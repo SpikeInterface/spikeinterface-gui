@@ -173,3 +173,6 @@ class SimilarityView(WidgetBase):
         
         self.refresh()
 
+SimilarityView._gui_help_txt = """Similarity view
+Check similarity between units with several metric
+Mouse lick : make visible one pair of unit."""

@@ -105,3 +105,8 @@ class CrossCorrelogramView(WidgetBase):
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
 
+CrossCorrelogramView._gui_help_txt = """Cross correlogram
+Show only selected units.
+Settings control the bin size in ms.
+No computed at the begning need to be done manually when bin are changed.
+Right mouse : zoom"""
