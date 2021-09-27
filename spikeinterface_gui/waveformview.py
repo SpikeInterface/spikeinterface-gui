@@ -573,5 +573,13 @@ class WaveformView(WidgetBase):
         #~ self._refresh_one_spike(n_selected)
         self.refresh(keep_range=True)
 
+WaveformView._gui_help_txt = """Waveform view
+Display average template for visible units.
+If one spike is selected (in spike list) then the spike is super imposed (white trace).
 
+2 mode :
+  * 'geometry' : snipet are displayed center on contact position
+  * 'flatten' : snipet are concatenated in flatten way (better to check variance)
+
+Please check all settings."""
 

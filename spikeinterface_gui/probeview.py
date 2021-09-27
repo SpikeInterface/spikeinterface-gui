@@ -191,7 +191,13 @@ class ProbeView(WidgetBase):
             self.controller.unit_visible_dict = {unit_id:False for unit_id in self.controller.unit_ids}
             self.controller.unit_visible_dict[unit_id] = True
             self.unit_visibility_changed.emit()
-            
-            
-            
-            
+
+
+
+ProbeView._gui_help_txt = """Probe view
+Show contact and probe shape.
+Units are color coded.
+Mouse drag ROI : change channel visibilty and unit visibility on other views
+Right click on the background : zoom
+Left click on the background : move
+Double click one one unit: select one unique unit"""

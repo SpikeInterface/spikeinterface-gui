@@ -96,4 +96,8 @@ class ISIView(WidgetBase):
             curve = pg.PlotCurveItem(bins[:-1], count, pen=pg.mkPen(qcolor, width=3))
             self.plot.addItem(curve)
 
+ISIView._gui_help_txt = """Inter spike intervals
+Show only selected units.
+Settings control the bin size in ms.
+Right mouse : zoom"""
 

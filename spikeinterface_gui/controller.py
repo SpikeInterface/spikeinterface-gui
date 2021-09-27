@@ -13,11 +13,19 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
     ('visible', 'bool'), ('selected', 'bool'), ('included_in_pc', 'bool')]
 
 
+_MAX_SPIKE_PER_UNIT_WARNING = 5000
+
 class  SpikeinterfaceController(ControllerBase):
     def __init__(self, waveform_extractor=None,parent=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.we = waveform_extractor
+        
+        max_spikes_per_unit = self.we._params['max_spikes_per_unit']
+        if  max_spikes_per_unit > _MAX_SPIKE_PER_UNIT_WARNING:
+            print(f'You have {max_spikes_per_unit} in your WaveformExtractor, the display can be slow')
+            print(f'You should re run the WaveformExtractor with max_spikes_per_unit=500')
+        
         
         if (self.we.folder / 'PCA').is_dir():
             self.pc = WaveformPrincipalComponent.load_from_folder(self.we.folder)
@@ -110,11 +118,6 @@ class  SpikeinterfaceController(ControllerBase):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-    # def on_unit_visibility_changed(self):
-    #     #~ print('on_unit_visibility_changed')
-    #     self.update_visible_spikes()
-    #     ControllerBase.on_unit_visibility_changed(self)
-
     def update_visible_spikes(self):
         for unit_index, unit_id in enumerate(self.unit_ids):
             mask = self.spikes['unit_index'] == unit_index
@@ -130,9 +133,10 @@ class  SpikeinterfaceController(ControllerBase):
         if trace_source == 'preprocessed':
             rec = self.we.recording
         elif trace_source == 'raw':
+            raise NotImplemented
             # TODO get with parent recording the non process recording
             pass
-        
+        kargs['return_scaled'] = self.we.return_scaled
         traces = rec.get_traces(**kargs)
         return traces
 
