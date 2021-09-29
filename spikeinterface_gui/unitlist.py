@@ -4,6 +4,11 @@ import pyqtgraph as pg
 import numpy as np
 
 from .base import WidgetBase
+from .tools import ParamDialog
+
+
+_column_names = ['unit_id', 'visible', 'num_spikes', 'channel_id', 'sparsity']
+
 
 
 class UnitListView(WidgetBase):
@@ -20,7 +25,7 @@ class UnitListView(WidgetBase):
         self.layout.addLayout(h)
         h.addWidget(QT.QLabel('sort by'))
         self.combo_sort = QT.QComboBox()
-        self.combo_sort.addItems(['unit_id', 'num_spikes', 'depth'])
+        self.combo_sort.addItems(['unit_id', 'num_spikes', 'depth',])
         self.combo_sort.currentIndexChanged.connect(self.refresh)
         h.addWidget(self.combo_sort)
         h.addStretch()
@@ -40,14 +45,14 @@ class UnitListView(WidgetBase):
         act.triggered.connect(self.show_all)
         act = self.menu.addAction('Hide all')
         act.triggered.connect(self.hide_all)
-
+        act = self.menu.addAction('Change sparsity')
+        act.triggered.connect(self.change_sparsity)
     
     def refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
         
         self.table.clear()
-        #~ labels = ['unit_id', 'show/hide', 'nb_peaks', 'extremum_channel', 'cell_label', 'tag', 'annotations']
-        labels = ['unit_id', 'visible', 'num_spikes', 'channel_id']
+        labels = _column_names
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
         #~ self.table.setMinimumWidth(100)
@@ -103,6 +108,14 @@ class UnitListView(WidgetBase):
             item = QT.QTableWidgetItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 3, item)
+            
+            num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
+            item = QT.QTableWidgetItem(f'{num_chan}')
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table.setItem(i, 4, item)
+            
+            
+                        
 
 
             
@@ -181,6 +194,23 @@ class UnitListView(WidgetBase):
 
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
+    
+    def change_sparsity(self):
+        
+        #~ num_channels=num_channels, radius_um=radius_um, threshold=threshold,
+        _params = [
+                {'name': 'method', 'type': 'list', 'values' : ['best_channels', 'radius', 'threshold'] },
+                {'name': 'num_channels', 'type': 'int', 'value' : 10 },
+                {'name': 'radius_um', 'type': 'float', 'value' : 90.0 },
+                {'name': 'threshold', 'type': 'float', 'value' : 2.5 },
+            ]        
+        dia = ParamDialog(_params, title = 'Sparsity params', parent = self)
+        if dia.exec_():
+            d = dia.get()
+            self.controller.compute_sparsity(**d)
+            self.channel_visibility_changed.emit()
+            self.refresh()
+
 
 UnitListView._gui_help_txt = """Unit list
 This control the visibility of units

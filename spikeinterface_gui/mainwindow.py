@@ -7,12 +7,12 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,waveform_extractor,  parent=None, ):
+    def __init__(self,waveform_extractor,  parent=None, verbose=False):
         QT.QMainWindow.__init__(self, parent)
         
         self.waveform_extractor = waveform_extractor
         
-        self.controller = SpikeinterfaceController(waveform_extractor)
+        self.controller = SpikeinterfaceController(waveform_extractor, verbose=verbose)
         
         self.views = {}
         self.docks = {}
@@ -42,8 +42,6 @@ class MainWindow(QT.QMainWindow):
         
         self.docks['traceview'].setGeometry(300, 600, 200, 120)
         
-
-
     def add_one_view(self, view_name, dock_title=None,
             area=None, orientation=None, tabify=None, split=None):
         assert view_name not in self.views, 'View is already in window'
@@ -77,23 +75,20 @@ class MainWindow(QT.QMainWindow):
         self.views[view_name] = view
         self.docks[view_name] = dock
 
+
 # custum dock with settings button
 class MyDock(QT.QDockWidget):
     def __init__(self, *arg, **kargs):
         QT.QDockWidget.__init__(self, *arg, **kargs)
-        
-        
-    
+
     def make_custum_title_bar(self, title='', view=None):
         # TODO set style with small icons and font
-        # TODO link open settings and help
         
         titlebar = QT.QWidget(self)
 
         # style = 'QPushButton {padding: 5px;}'
         # titlebar.setStyleSheet(style)
 
-        
         titlebar.setMaximumHeight(12)
         self.setTitleBarWidget(titlebar)
         
@@ -110,6 +105,11 @@ class MyDock(QT.QDockWidget):
             but = QT.QPushButton('settings')
             h.addWidget(but)
             but.clicked.connect(view.open_settings)
+
+        if view._need_compute:
+            but = QT.QPushButton('compute')
+            h.addWidget(but)
+            but.clicked.connect(view.compute)
         
         but = QT.QPushButton('?')
         h.addWidget(but)

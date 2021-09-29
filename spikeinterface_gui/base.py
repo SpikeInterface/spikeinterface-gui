@@ -69,8 +69,11 @@ class WidgetBase(QT.QWidget):
     unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
     
+    _need_compute = False
     _params = None
     _gui_help_txt = "The help for this view it not done yet"
+    
+    
     def __init__(self, parent = None, controller=None):
         QT.QWidget.__init__(self, parent)
         self.controller = controller

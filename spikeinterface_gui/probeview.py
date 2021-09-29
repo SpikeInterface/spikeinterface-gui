@@ -133,7 +133,7 @@ class ProbeView(WidgetBase):
             
         
     
-    def on_roi_change(self):
+    def on_roi_change(self, emit_signals=True):
         
         r = self.roi.state['size'][0] / 2
         x = self.roi.state['pos'].x() + r
@@ -144,7 +144,7 @@ class ProbeView(WidgetBase):
         self.params.blockSignals(False)
         
 
-        if self.params['change_channel_visibility']:
+        if self.params['change_channel_visibility'] and emit_signals:
             dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
             visible_channel_inds,  = np.nonzero(dist < r)
             order = np.argsort(dist[visible_channel_inds])
@@ -152,7 +152,7 @@ class ProbeView(WidgetBase):
             self.controller.set_channel_visibility(visible_channel_inds)
             self.channel_visibility_changed.emit()
 
-        if self.params['change_unit_visibility']:
+        if self.params['change_unit_visibility'] and emit_signals:
             self.roi.blockSignals(True)
             dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
             #~ visible_unit_inds,  = np.nonzero(dist < r)
@@ -172,7 +172,10 @@ class ProbeView(WidgetBase):
             unit_index  = np.nonzero(visible_mask)[0][0]
             x, y = self.controller.unit_positions[unit_index, :]
             radius = self.params['radius']
+            self.roi.blockSignals(True)
             self.roi.setPos(x - radius, y - radius)
+            self.roi.blockSignals(False)
+            self.on_roi_change(emit_signals=False)
     
     def on_channel_visibility_changed(self):
         pass

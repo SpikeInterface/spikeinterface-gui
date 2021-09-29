@@ -29,6 +29,8 @@ class CrossCorrelogramView(WidgetBase):
                       {'name': 'max_visible', 'type': 'int', 'value' : 8 },
                       #~ {'name': 'check_sorted', 'type': 'bool', 'value' : False },
         ]
+    
+    _need_compute = True
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
         
@@ -38,14 +40,6 @@ class CrossCorrelogramView(WidgetBase):
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
 
-        but = QT.QPushButton('settings')
-        but.clicked.connect(self.open_settings)
-        h.addWidget(but)
-
-        but = QT.QPushButton('compute')
-        but.clicked.connect(self.compute_ccg)
-        h.addWidget(but)
-        
         self.grid = pg.GraphicsLayoutWidget()
         self.layout.addWidget(self.grid)
         
@@ -56,7 +50,7 @@ class CrossCorrelogramView(WidgetBase):
         self.ccg = None
         self.refresh()
     
-    def compute_ccg(self):
+    def compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
                 self.params['window_size_ms'],  self.params['bin_size_ms'], self.params['symmetrize'])
         self.refresh()
@@ -104,6 +98,7 @@ class CrossCorrelogramView(WidgetBase):
                 curve = pg.PlotCurveItem(bins, count, stepMode=True, fillLevel=0, brush=color, pen=color)
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
+
 
 CrossCorrelogramView._gui_help_txt = """Cross correlogram
 Show only selected units.
