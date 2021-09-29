@@ -78,10 +78,10 @@ class  SpikeinterfaceController(ControllerBase):
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
         
-        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-                                peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
-        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
-        #                         peak_sign='both', threshold=5, outputs='index')
+        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
+        #                         peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
+        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
+                                peak_sign='both', threshold=5, outputs='index')
         
         self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
         for unit_index, unit_id in enumerate(self.unit_ids):
