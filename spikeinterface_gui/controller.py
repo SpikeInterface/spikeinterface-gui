@@ -47,7 +47,6 @@ class  SpikeinterfaceController(ControllerBase):
         self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
         
-        
         all_spikes = self.we.sorting.get_all_spike_trains(outputs='unit_index')
         
         num_spikes = np.sum(e[0].size for e in all_spikes)
@@ -70,7 +69,7 @@ class  SpikeinterfaceController(ControllerBase):
         for segment_index in range(self.num_segments):
             for unit_index, unit_id in enumerate(self.unit_ids):
                 global_inds, = np.nonzero((self.spikes['unit_index'] == unit_index) & (self.spikes['segment_index'] == segment_index))
-                sampled_index = self.we.get_sampled_index(unit_id)
+                sampled_index = self.we.get_sampled_indices(unit_id)
                 local_inds = sampled_index[sampled_index['segment_index'] == segment_index]['spike_index']
                 self.spikes['included_in_pc'][global_inds[local_inds]] = True
         
@@ -79,11 +78,11 @@ class  SpikeinterfaceController(ControllerBase):
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
         
-        #~ sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-                                #~ peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
+        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
+        #                         peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
         sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
-                                peak_sign='both', num_channels=10, radius_um=None, outputs='index')
-
+                                peak_sign='both', threshold=5, outputs='index')
+        
         self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
         for unit_index, unit_id in enumerate(self.unit_ids):
             chan_inds = sparsity_dict[unit_id]
@@ -101,10 +100,11 @@ class  SpikeinterfaceController(ControllerBase):
         self.unit_positions = np.vstack([coms[u] for u in self.unit_ids])
         
         self.num_spikes = compute_num_spikes(self.we)
-
+        
         self.update_visible_spikes()
         
         self._similarity_by_method = {}
+        
         
     @property
     def channel_ids(self):
