@@ -97,7 +97,7 @@ class PairListView(WidgetBase):
         self.cluster_tag_changed.emit()
         
     
-    def refresh(self):
+    def _refresh(self):
         self.table.clear()
         labels = ['unit_id1', 'unit_id2', 'similarity',]
         self.table.setColumnCount(len(labels))

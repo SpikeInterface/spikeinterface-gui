@@ -29,11 +29,11 @@ class MyViewBox(pg.ViewBox):
 
 class SimilarityView(WidgetBase):
     _params = [
-      {'name': 'method', 'type': 'list', 'values' : ['cosine_similarity',] },
-      {'name': 'colormap', 'type': 'list', 'values' : ['viridis', 'jet', 'gray', 'hot', ] },
-      {'name': 'show_all', 'type': 'bool', 'value' : True },
-                      
+            {'name': 'method', 'type': 'list', 'values' : ['cosine_similarity',] },
+            {'name': 'colormap', 'type': 'list', 'values' : ['viridis', 'jet', 'gray', 'hot', ] },
+            {'name': 'show_all', 'type': 'bool', 'value' : True },
         ]
+    _need_compute = True
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
         
@@ -54,9 +54,14 @@ class SimilarityView(WidgetBase):
         
         self.initialize_plot()
         
+        self.similarity = self.controller.get_similarity(method=self.params['method'], force_compute=False)
         self.on_params_changed()#this do refresh
 
     def on_params_changed(self):
+        
+        # TODO : check if method have changed or not
+        # self.similarity = None
+        
         N = 512
         cmap_name = self.params['colormap']
         cmap = matplotlib.cm.get_cmap(cmap_name , N)
@@ -66,6 +71,7 @@ class SimilarityView(WidgetBase):
             r,g,b,_ =  matplotlib.colors.ColorConverter().to_rgba(cmap(i))
             lut.append([r*255,g*255,b*255])
         self.lut = np.array(lut, dtype='uint8')
+        
         
         self.refresh()
     
@@ -100,24 +106,26 @@ class SimilarityView(WidgetBase):
     def on_unit_visibility_changed(self):
         self.refresh()
 
-    def refresh(self):
+    def compute(self):
+        self.similarity = self.controller.get_similarity(method=self.params['method'])
+        self.refresh()
+
+    def _refresh(self):
         
         unit_ids = self.controller.unit_ids
         
-        similarity = self.controller.get_similarity(method=self.params['method'])
+        if self.similarity is None:
+            self.image.hide()
+            return 
         
-        #~ if self.similarity is None:
-            #~ self.image.hide()
-            #~ return
-        
-        _max = np.max(similarity)
+        _max = np.max(self.similarity)
         
         if self.params['show_all']:
             visible_mask = np.ones(len(unit_ids), dtype='bool')
-            s = similarity
+            s = self.similarity
         else:
             visible_mask = np.array([self.controller.unit_visible_dict[u] for u in self.controller.unit_ids], dtype='bool')
-            s = similarity[visible_mask, :][:, visible_mask]
+            s = self.similarity[visible_mask, :][:, visible_mask]
         
         
         if not np.any(visible_mask):
@@ -172,6 +180,7 @@ class SimilarityView(WidgetBase):
         self.unit_visibility_changed.emit()
         
         self.refresh()
+    
 
 SimilarityView._gui_help_txt = """Similarity view
 Check similarity between units with several metric

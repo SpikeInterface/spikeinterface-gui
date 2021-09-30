@@ -1,3 +1,5 @@
+import time
+
 from .base import ControllerBase
 from .myqt import QT
 
@@ -16,7 +18,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 _MAX_SPIKE_PER_UNIT_WARNING = 5000
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, waveform_extractor=None,parent=None):
+    def __init__(self, waveform_extractor=None,parent=None, verbose=False):
         ControllerBase.__init__(self, parent=parent)
         
         self.we = waveform_extractor
@@ -47,6 +49,10 @@ class  SpikeinterfaceController(ControllerBase):
         self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
         
+        if verbose:
+            t0 = time.perf_counter()
+            print('Gather all spikes')
+        
         all_spikes = self.we.sorting.get_all_spike_trains(outputs='unit_index')
         
         num_spikes = np.sum(e[0].size for e in all_spikes)
@@ -73,38 +79,58 @@ class  SpikeinterfaceController(ControllerBase):
                 local_inds = sampled_index[sampled_index['segment_index'] == segment_index]['spike_index']
                 self.spikes['included_in_pc'][global_inds[local_inds]] = True
         
+        if verbose:
+            t1 = time.perf_counter()
+            print('Gather all spikes', t1 - t0)
+            
+            t0 = time.perf_counter()
+            print('Get template average/std')
+        
         # extremum channel
-        #~ self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
+
+        if verbose:
+            t1 = time.perf_counter()
+            print('Get template average/std', t1 - t0)
+            
+            t0 = time.perf_counter()
+            print('Sparsity and extremum')
+
         
-        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-        #                         peak_sign='neg', num_channels=10, radius_um=None, outputs='index')
-        sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
-                                peak_sign='both', threshold=5, outputs='index')
-        
-        self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
-        for unit_index, unit_id in enumerate(self.unit_ids):
-            chan_inds = sparsity_dict[unit_id]
-            self.sparsity_mask[unit_index, chan_inds] = True
-        
+        # self.compute_sparsity(method='threshold', threshold=2.5)
+        self.compute_sparsity(method='radius', radius_um=90.)
         self._extremum_channel = get_template_extremum_channel(self.we, peak_sign='neg', outputs='index')
         
         for unit_index, unit_id in enumerate(self.unit_ids):
             mask = self.spikes['unit_index'] == unit_index
             self.spikes['channel_index'][mask] = self._extremum_channel[unit_id]
+
+        if verbose:
+            t1 = time.perf_counter()
+            print('Sparsity and extremum', t1 - t0)
+            
+            t0 = time.perf_counter()
+            print('Unit posistion')
+
         
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
         coms = compute_unit_centers_of_mass(self.we, peak_sign='neg', num_channels=10)
         self.unit_positions = np.vstack([coms[u] for u in self.unit_ids])
-        
+
+        if verbose:
+            t1 = time.perf_counter()
+            print('Unit posistion', t1 - t0)
+            
         self.num_spikes = compute_num_spikes(self.we)
         
         self.update_visible_spikes()
         
         self._similarity_by_method = {}
-        
+        if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
+            # precompute similarity when low channel/units countt
+            self.get_similarity(method='cosine_similarity')
         
     @property
     def channel_ids(self):
@@ -178,12 +204,28 @@ class  SpikeinterfaceController(ControllerBase):
         pc_unit_index, pcs = self.pc.get_all_components(outputs='index')
         return pc_unit_index, pcs
     
-    def get_similarity(self, method='cosine_similarity'):
+    def get_similarity(self, method='cosine_similarity', force_compute=True):
         similarity = self._similarity_by_method.get(method, None)
         if similarity is None:
-            similarity = compute_template_similarity(self.we, method=method)
-            self._similarity_by_method[method] = similarity
+            if force_compute:
+                similarity = compute_template_similarity(self.we, method=method)
+                self._similarity_by_method[method] = similarity
+            else:
+                return
         return similarity
-
+    
+    def compute_sparsity(self, method='best_channels', num_channels=10, radius_um=90, threshold=2.5):
+        sparsity_dict = get_template_channel_sparsity(self.we, method=method,
+                               peak_sign='both', 
+                               num_channels=num_channels, radius_um=radius_um, threshold=threshold,
+                               outputs='index')
+        
+        self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
+        for unit_index, unit_id in enumerate(self.unit_ids):
+            chan_inds = sparsity_dict[unit_id]
+            self.sparsity_mask[unit_index, chan_inds] = True
+    
+    def get_sparsity_mask(self):
+        return self.sparsity_mask
 
 

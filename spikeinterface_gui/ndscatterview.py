@@ -235,7 +235,7 @@ class NDScatterView(WidgetBase):
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
         return projected
     
-    def refresh(self):
+    def _refresh(self):
         #~ if self.data is None:
         #~ if self.controller.some_features is None:
             #~ if hasattr(self, 'plot'):

@@ -69,8 +69,11 @@ class WidgetBase(QT.QWidget):
     unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
     
+    _need_compute = False
     _params = None
     _gui_help_txt = "The help for this view it not done yet"
+    
+    
     def __init__(self, parent = None, controller=None):
         QT.QWidget.__init__(self, parent)
         self.controller = controller
@@ -81,6 +84,15 @@ class WidgetBase(QT.QWidget):
             self.create_settings()
     
     def refresh(self):
+        if not self.isVisible():
+            #~ print(self, 'NOT VISIBLE')
+            return
+        #~ t0 = time.perf_counter()
+        self._refresh()
+        #~ t1 = time.perf_counter()
+        #~ print(self, t1-t0)
+
+    def _refresh(self):
         raise(NotImplementedError)
 
     def create_settings(self):
