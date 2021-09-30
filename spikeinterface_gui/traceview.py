@@ -221,7 +221,7 @@ class TraceView(WidgetBase):
         if self.isVisible():
             self.refresh()
     
-    def refresh(self):
+    def _refresh(self):
         self.seek(self.time_by_seg[self.seg_num])
 
     def xsize_zoom(self, xmove):

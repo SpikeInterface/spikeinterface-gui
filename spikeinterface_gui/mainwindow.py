@@ -72,6 +72,8 @@ class MainWindow(QT.QMainWindow):
         
         dock.make_custum_title_bar(title=dock_title, view=view)
         
+        dock.visibilityChanged.connect(view.refresh)
+        
         self.views[view_name] = view
         self.docks[view_name] = dock
 
@@ -89,14 +91,17 @@ class MyDock(QT.QDockWidget):
         # style = 'QPushButton {padding: 5px;}'
         # titlebar.setStyleSheet(style)
 
-        titlebar.setMaximumHeight(12)
+        titlebar.setMaximumHeight(13)
         self.setTitleBarWidget(titlebar)
         
         h = QT.QHBoxLayout()
         titlebar.setLayout(h)
         h.setContentsMargins(0, 0, 0, 0)
         
-        label = QT.QLabel(title)
+        h.addSpacing(10)
+        
+        label = QT.QLabel(f'<b>{title}</b>')
+        
         h.addWidget(label)
         
         h.addStretch()
@@ -110,6 +115,10 @@ class MyDock(QT.QDockWidget):
             but = QT.QPushButton('compute')
             h.addWidget(but)
             but.clicked.connect(view.compute)
+
+        but = QT.QPushButton('refresh')
+        h.addWidget(but)
+        but.clicked.connect(view.refresh)
         
         but = QT.QPushButton('?')
         h.addWidget(but)

@@ -87,7 +87,6 @@ class  SpikeinterfaceController(ControllerBase):
             print('Get template average/std')
         
         # extremum channel
-        #~ self.templates_median = self.we.get_all_templates(unit_ids=None, mode='median')
         self.templates_average = self.we.get_all_templates(unit_ids=None, mode='average')
         self.templates_std = self.we.get_all_templates(unit_ids=None, mode='std')
 
@@ -97,21 +96,10 @@ class  SpikeinterfaceController(ControllerBase):
             
             t0 = time.perf_counter()
             print('Sparsity and extremum')
+
         
-        
-        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-        #                        peak_sign='neg', num_channels=10, outputs='index')
-        #~ sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='radius',
-                                #~ peak_sign='neg', radius_um=90, outputs='index')
-        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
-        #                        peak_sign='both', threshold=3.5, outputs='index')
-        
-        #~ self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
-        #~ for unit_index, unit_id in enumerate(self.unit_ids):
-            #~ chan_inds = sparsity_dict[unit_id]
-            #~ self.sparsity_mask[unit_index, chan_inds] = True
-        
-        self.compute_sparsity(method='threshold', threshold=2.5)
+        # self.compute_sparsity(method='threshold', threshold=2.5)
+        self.compute_sparsity(method='radius', radius_um=90.)
         self._extremum_channel = get_template_extremum_channel(self.we, peak_sign='neg', outputs='index')
         
         for unit_index, unit_id in enumerate(self.unit_ids):
@@ -135,10 +123,6 @@ class  SpikeinterfaceController(ControllerBase):
             t1 = time.perf_counter()
             print('Unit posistion', t1 - t0)
             
-            #~ t0 = time.perf_counter()
-            #~ print('Unit posistion')
-
-        
         self.num_spikes = compute_num_spikes(self.we)
         
         self.update_visible_spikes()
@@ -221,9 +205,6 @@ class  SpikeinterfaceController(ControllerBase):
         return pc_unit_index, pcs
     
     def get_similarity(self, method='cosine_similarity', force_compute=True):
-        #~ print('controller.get_similarity()')
-        #~ import time
-        #~ t0 = time.perf_counter()
         similarity = self._similarity_by_method.get(method, None)
         if similarity is None:
             if force_compute:
@@ -231,18 +212,9 @@ class  SpikeinterfaceController(ControllerBase):
                 self._similarity_by_method[method] = similarity
             else:
                 return
-        #~ t1 = time.perf_counter()
-        #~ print('controller.get_similarity()', t1 - t0)
         return similarity
     
     def compute_sparsity(self, method='best_channels', num_channels=10, radius_um=90, threshold=2.5):
-        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='best_channels',
-        #                        peak_sign='neg', num_channels=10, outputs='index')
-        #~ sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='radius',
-                                #~ peak_sign='neg', radius_um=90, outputs='index')
-        # sparsity_dict = get_template_channel_sparsity(waveform_extractor, method='threshold',
-        #                        peak_sign='both', threshold=3.5, outputs='index')
-
         sparsity_dict = get_template_channel_sparsity(self.we, method=method,
                                peak_sign='both', 
                                num_channels=num_channels, radius_um=radius_um, threshold=threshold,

@@ -119,7 +119,7 @@ class SpikeListView(WidgetBase):
             self.tree.resizeColumnToContents(i)
         self.tree.setColumnWidth(0,80)
     
-    def refresh(self):
+    def _refresh(self):
         self.model.refresh_colors()
         self.model.refresh()
     

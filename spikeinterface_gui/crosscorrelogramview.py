@@ -55,7 +55,7 @@ class CrossCorrelogramView(WidgetBase):
                 self.params['window_size_ms'],  self.params['bin_size_ms'], self.params['symmetrize'])
         self.refresh()
 
-    def refresh(self):
+    def _refresh(self):
         self.grid.clear()
         
         if self.ccg is None:

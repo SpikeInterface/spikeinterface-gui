@@ -84,6 +84,15 @@ class WidgetBase(QT.QWidget):
             self.create_settings()
     
     def refresh(self):
+        if not self.isVisible():
+            #~ print(self, 'NOT VISIBLE')
+            return
+        #~ t0 = time.perf_counter()
+        self._refresh()
+        #~ t1 = time.perf_counter()
+        #~ print(self, t1-t0)
+
+    def _refresh(self):
         raise(NotImplementedError)
 
     def create_settings(self):

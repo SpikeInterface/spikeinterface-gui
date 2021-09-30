@@ -114,7 +114,7 @@ class ProbeView(WidgetBase):
         
 
     
-    def refresh(self):
+    def _refresh(self):
         r = self.roi.state['size'][0] / 2
         x = self.roi.state['pos'].x() + r
         y = self.roi.state['pos'].y() + r
@@ -143,25 +143,27 @@ class ProbeView(WidgetBase):
         self.params['radius'] = r
         self.params.blockSignals(False)
         
-
-        if self.params['change_channel_visibility'] and emit_signals:
-            dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
-            visible_channel_inds,  = np.nonzero(dist < r)
-            order = np.argsort(dist[visible_channel_inds])
-            visible_channel_inds = visible_channel_inds[order]
-            self.controller.set_channel_visibility(visible_channel_inds)
-            self.channel_visibility_changed.emit()
-
-        if self.params['change_unit_visibility'] and emit_signals:
+        if emit_signals:
             self.roi.blockSignals(True)
-            dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
-            #~ visible_unit_inds,  = np.nonzero(dist < r)
-            for unit_index, unit_id in enumerate(self.controller.unit_ids):
-                self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
-            
-            self.controller.update_visible_spikes()
-            self.unit_visibility_changed.emit()
+            if self.params['change_channel_visibility']:
+                dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
+                visible_channel_inds,  = np.nonzero(dist < r)
+                order = np.argsort(dist[visible_channel_inds])
+                visible_channel_inds = visible_channel_inds[order]
+                self.controller.set_channel_visibility(visible_channel_inds)
+                self.channel_visibility_changed.emit()
+
+            if self.params['change_unit_visibility']:
+                dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
+                for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                    self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
+                self.controller.update_visible_spikes()
+                self.unit_visibility_changed.emit()
+                
             self.roi.blockSignals(False)
+        
+        
+            
 
     
     def on_unit_visibility_changed(self):

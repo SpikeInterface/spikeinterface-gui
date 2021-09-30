@@ -107,11 +107,10 @@ class SimilarityView(WidgetBase):
         self.refresh()
 
     def compute(self):
-        print('SimilarityView.compute')
         self.similarity = self.controller.get_similarity(method=self.params['method'])
         self.refresh()
 
-    def refresh(self):
+    def _refresh(self):
         
         unit_ids = self.controller.unit_ids
         

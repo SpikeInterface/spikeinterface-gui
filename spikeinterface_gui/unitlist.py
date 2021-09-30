@@ -48,7 +48,7 @@ class UnitListView(WidgetBase):
         act = self.menu.addAction('Change sparsity')
         act.triggered.connect(self.change_sparsity)
     
-    def refresh(self):
+    def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
         
         self.table.clear()

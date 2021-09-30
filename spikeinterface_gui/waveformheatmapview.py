@@ -234,7 +234,7 @@ class WaveformHeatMapView(WidgetBase):
         for label in self.channel_labels:
             label.hide()
     
-    def refresh(self):
+    def _refresh(self):
         #~ if not hasattr(self, 'viewBox'):
             #~ self.initialize_plot()
         
