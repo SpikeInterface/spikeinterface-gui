@@ -124,6 +124,12 @@ class  SpikeinterfaceController(ControllerBase):
             print('Unit posistion', t1 - t0)
             
         self.num_spikes = compute_num_spikes(self.we)
+
+        # precompute index for each unit
+        self._spike_index_by_units = {}
+        for unit_index, unit_id in enumerate(self.unit_ids):
+            ind,  = np.nonzero(self.spikes['unit_index'] == unit_index)
+            self._spike_index_by_units[unit_id] = ind
         
         self.update_visible_spikes()
         
@@ -145,9 +151,15 @@ class  SpikeinterfaceController(ControllerBase):
         return chan_ind
 
     def update_visible_spikes(self):
+        #~ print('update_visible_spikes')
+        #~ t0 = time.perf_counter()
         for unit_index, unit_id in enumerate(self.unit_ids):
-            mask = self.spikes['unit_index'] == unit_index
-            self.spikes['visible'][mask] = self.unit_visible_dict[unit_id]
+            #~ mask = self.spikes['unit_index'] == unit_index
+            #~ self.spikes['visible'][mask] = self.unit_visible_dict[unit_id]
+            ind = self._spike_index_by_units[unit_id]
+            self.spikes['visible'][ind] = self.unit_visible_dict[unit_id]
+        #~ t1 = time.perf_counter()
+        #~ print('update_visible_spikes', t1-t0, self.spikes.size)
     
     def get_num_samples(self, segment_index):
         return self.we.recording.get_num_samples(segment_index=segment_index)

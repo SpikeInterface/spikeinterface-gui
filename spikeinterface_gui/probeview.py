@@ -6,6 +6,8 @@ import pandas as pd
 
 from .base import WidgetBase
 
+import time
+
 
 
 class MyViewBox(pg.ViewBox):
@@ -146,19 +148,27 @@ class ProbeView(WidgetBase):
         if emit_signals:
             self.roi.blockSignals(True)
             if self.params['change_channel_visibility']:
+                #~ t0 = time.perf_counter()
                 dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
                 visible_channel_inds,  = np.nonzero(dist < r)
                 order = np.argsort(dist[visible_channel_inds])
                 visible_channel_inds = visible_channel_inds[order]
                 self.controller.set_channel_visibility(visible_channel_inds)
                 self.channel_visibility_changed.emit()
+                #~ t1 = time.perf_counter()
+                #~ print(' probe view change_channel_visibility', t1-t0)
 
             if self.params['change_unit_visibility']:
+                #~ t0 = time.perf_counter()
                 dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
                 for unit_index, unit_id in enumerate(self.controller.unit_ids):
                     self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
+                #~ t1 = time.perf_counter()
+                #~ print(' probe view part1 change_unit_visibility', t1-t0)
                 self.controller.update_visible_spikes()
                 self.unit_visibility_changed.emit()
+                #~ t2 = time.perf_counter()
+                #~ print(' probe view part2 change_unit_visibility', t2-t0)
                 
             self.roi.blockSignals(False)
         

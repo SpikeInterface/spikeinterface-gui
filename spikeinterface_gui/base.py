@@ -90,7 +90,7 @@ class WidgetBase(QT.QWidget):
         #~ t0 = time.perf_counter()
         self._refresh()
         #~ t1 = time.perf_counter()
-        #~ print(self, t1-t0)
+        #~ print('refresh', self, t1-t0)
 
     def _refresh(self):
         raise(NotImplementedError)
