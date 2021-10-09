@@ -168,23 +168,23 @@ class WaveformView(WidgetBase):
                 xpos = self.contact_location[:,0]
                 ypos = self.contact_location[:,1]
                 
-                if np.unique(xpos).size>1:
-                    self.delta_x = np.min(np.diff(np.sort(np.unique(xpos))))
+                unique_x = np.sort(np.unique(xpos))
+                if unique_x.size>1:
+                    self.delta_x = np.min(np.diff(unique_x))
                 else:
-                    self.delta_x = np.unique(xpos)[0]
-                if np.unique(ypos).size>1:
-                    self.delta_y = np.min(np.diff(np.sort(np.unique(ypos))))
+                    self.delta_x = 40. # um
+                
+                unique_y = np.sort(np.unique(ypos))
+                if unique_y.size>1:
+                    self.delta_y = np.min(np.diff(unique_y))
                 else:
-                    self.delta_y = max(np.unique(ypos)[0], 1)
+                    self.delta_y = 40. # um
+
                 self.factor_y = .05
-                if self.delta_x>0.:
-                    #~ espx = self.delta_x/2. *.95
-                    espx = self.delta_x/2.5
-                else:
-                    espx = .5
-                #~ for i, chan in enumerate(channel_group['channels']):
+                
+                #~ espx = self.delta_x/2.5
+                espx = self.delta_x / 1.5
                 for chan_ind, chan_id in enumerate(self.controller.channel_ids):
-                    #~ x, y = channel_group['geometry'][chan]
                     x, y = self.contact_location[chan_ind, :]
                     self.xvect[chan_ind, :] = np.linspace(x-espx, x+espx, num=width)
 

@@ -33,8 +33,8 @@ def make_one_folder(test_folder):
     #~ sorting = sorting.save(folder=test_folder/'sorting')
     
     
-    #~ recording, sorting = read_mearec('/home/samuel/ephy_testing_data/mearec/mearec_test_10s.h5')
-    recording, sorting = read_mearec('/home/samuel.garcia/ephy_testing_data/mearec/mearec_test_10s.h5')
+    recording, sorting = read_mearec('/home/samuel/ephy_testing_data/mearec/mearec_test_10s.h5')
+    #~ recording, sorting = read_mearec('/home/samuel.garcia/ephy_testing_data/mearec/mearec_test_10s.h5')
     
     
     we = extract_waveforms(recording, sorting, test_folder / 'waveforms', max_spikes_per_unit=25, return_scaled=False)
