@@ -131,6 +131,9 @@ class  SpikeinterfaceController(ControllerBase):
             ind,  = np.nonzero(self.spikes['unit_index'] == unit_index)
             self._spike_index_by_units[unit_id] = ind
         
+        
+        self._spike_visible_indices = np.array([], dtype='int64')
+        self._spike_selected_indices = np.array([], dtype='int64')
         self.update_visible_spikes()
         
         self._similarity_by_method = {}
@@ -153,14 +156,39 @@ class  SpikeinterfaceController(ControllerBase):
     def update_visible_spikes(self):
         #~ print('update_visible_spikes')
         #~ t0 = time.perf_counter()
+        
+        inds = []
         for unit_index, unit_id in enumerate(self.unit_ids):
             #~ mask = self.spikes['unit_index'] == unit_index
             #~ self.spikes['visible'][mask] = self.unit_visible_dict[unit_id]
             ind = self._spike_index_by_units[unit_id]
-            self.spikes['visible'][ind] = self.unit_visible_dict[unit_id]
+            
+            #~ self.spikes['visible'][ind] = self.unit_visible_dict[unit_id]
+            if self.unit_visible_dict[unit_id]:
+                inds.append(ind)
+        
+        if len(inds) > 0:
+            inds = np.concatenate(inds)
+            inds = np.sort(inds)
+        else:
+            inds = np.array([], dtype='int64')
+        self._spike_visible_indices = inds
+        
+        self._spike_selected_indices = np.array([], dtype='int64')
         #~ t1 = time.perf_counter()
         #~ print('update_visible_spikes', t1-t0, self.spikes.size)
     
+    def get_indices_spike_visible(self):
+        return self._spike_visible_indices
+
+    def get_indices_spike_selected(self):
+        return self._spike_selected_indices
+    
+    def set_indices_spike_selected(self, inds):
+        #~ self.controller.spikes['selected'][:] = False
+        #~ self.controller.spikes['selected'][inds] = True
+        self._spike_selected_indices = np.array(inds)
+
     def get_num_samples(self, segment_index):
         return self.we.recording.get_num_samples(segment_index=segment_index)
     

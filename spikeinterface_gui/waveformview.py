@@ -220,12 +220,15 @@ class WaveformView(WidgetBase):
         if not hasattr(self, 'viewBox1'):
             return
         
-        n_selected = np.sum(self.controller.spikes['selected'])
+        #~ n_selected = np.sum(self.controller.spikes['selected'])
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
         
         if self.params['show_only_selected_cluster'] and n_selected==1:
             unit_visible_dict = {k:False for k in self.controller.unit_visible_dict}
-            ind, = np.nonzero(self.controller.spikes['selected'])
-            ind = ind[0]
+            #~ ind, = np.nonzero(self.controller.spikes['selected'])
+            #~ ind = ind[0]
+            ind = selected_inds[0]
             unit_index = self.controller.spikes[ind]['unit_index']
             unit_id = self.controller.unit_ids[unit_index]
             unit_visible_dict[unit_id] = True
@@ -529,8 +532,11 @@ class WaveformView(WidgetBase):
             self.curve_one_waveform.setData([], [])
             return
         
-        ind, = np.nonzero(self.controller.spikes['selected'])
-        ind = ind[0]
+        #~ ind, = np.nonzero(self.controller.spikes['selected'])
+        #~ ind = ind[0]
+        selected_inds = self.controller.get_indices_spike_selected()
+        ind = selected_inds[0]
+        
         seg_num = self.controller.spikes['segment_index'][ind]
         peak_ind = self.controller.spikes['sample_index'][ind]
         

@@ -344,9 +344,10 @@ class NDScatterView(WidgetBase):
         inside = inside_poly(projected, vertices)
         
         # set on controller.spikes selected
-        self.controller.spikes['selected'][:] = False
         inds = self.mapping_index[ind_visibles[inside]]
-        self.controller.spikes['selected'][inds] = True
+        #~ self.controller.spikes['selected'][:] = False
+        #~ self.controller.spikes['selected'][inds] = True
+        self.controller.set_indices_spike_selected(inds)
         
         self.refresh()
         self.spike_selection_changed.emit()

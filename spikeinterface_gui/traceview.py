@@ -273,24 +273,29 @@ class TraceView(WidgetBase):
         in_seg, = np.nonzero(self.controller.spikes['segment_index'] == self.seg_num)
         nearest = np.argmin(np.abs(self.controller.spikes[in_seg]['sample_index'] - ind_click))
         
-        ind_sike_nearest = in_seg[nearest]
-        sample_index = self.controller.spikes[ind_sike_nearest]['sample_index']
+        ind_spike_nearest = in_seg[nearest]
+        sample_index = self.controller.spikes[ind_spike_nearest]['sample_index']
         
         if np.abs(ind_click - sample_index) > (self.controller.sampling_frequency // 30):
             return
         
-        self.controller.spikes['selected'][:] = False
-        self.controller.spikes['selected'][ind_sike_nearest] = True
+        #~ self.controller.spikes['selected'][:] = False
+        #~ self.controller.spikes['selected'][ind_spike_nearest] = True
+        self.controller.set_indices_spike_selected([ind_spike_nearest])
         
         self.spike_selection_changed.emit()
         self.refresh()
     
     def on_spike_selection_changed(self):
         
-        ind_selected, = np.nonzero(self.controller.spikes['selected'])
+        #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
+        ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
+        
+        print('trace.on_spike_selection_changed', n_selected)
+        
         if self.params['auto_zoom_on_select'] and n_selected==1:
-            ind_selected, = np.nonzero(self.controller.spikes['selected'])
+            #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
             ind = ind_selected[0]
             peak_ind = self.controller.spikes[ind]['sample_index']
             seg_num = self.controller.spikes[ind]['segment_index']
