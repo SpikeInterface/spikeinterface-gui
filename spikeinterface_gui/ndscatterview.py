@@ -272,7 +272,8 @@ class NDScatterView(WidgetBase):
             self.scatter.addPoints(x=projected[:,0], y=projected[:,1],  pen=pg.mkPen(None), brush=color)
         
         #selection scatter
-        mask = self.controller.spikes[self.mapping_index]['selected']
+        # mask = self.controller.spikes[self.mapping_index]['selected']
+        mask = np.in1d(self.mapping_index, self.controller.get_indices_spike_selected())
         data_sel = self.data[mask, :]
         projected_select = self.apply_dot(data_sel)
         self.scatter_select.setData(projected_select[:,0], projected_select[:,1])
@@ -339,7 +340,9 @@ class NDScatterView(WidgetBase):
         vertices = np.array(points)
         
         # inside lasso and visibles
-        ind_visibles,  = np.nonzero(self.controller.spikes[self.mapping_index]['visible'])
+        #~ ind_visibles,  = np.nonzero(self.controller.spikes[self.mapping_index]['visible'])
+        ind_visibles,   = np.nonzero(np.in1d(self.mapping_index, self.controller.get_indices_spike_visible()))
+        
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
         

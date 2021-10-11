@@ -292,8 +292,6 @@ class TraceView(WidgetBase):
         ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
         
-        print('trace.on_spike_selection_changed', n_selected)
-        
         if self.params['auto_zoom_on_select'] and n_selected==1:
             #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
             ind = ind_selected[0]
