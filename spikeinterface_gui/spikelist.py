@@ -170,16 +170,19 @@ class SpikeListView(WidgetBase):
                 inds.append(ind)
         self.controller.set_indices_spike_selected(inds)
         self.spike_selection_changed.emit()
+        if len(inds) == 1:
+            # also change channel for centering trace view.
+            sparsity_mask = self.controller.get_sparsity_mask()
+            unit_index = self.controller.spikes[inds[0]]['unit_index']
+            visible_channel_inds, = np.nonzero(sparsity_mask[unit_index, :])
+            self.controller.set_channel_visibility(visible_channel_inds)
+            self.channel_visibility_changed.emit()
         
         self.refresh_label()
     
     def on_unit_visibility_changed(self):
-        #~ if np.any(self.controller.spikes['selected']):
-            #~ self.controller.spikes['selected'][:] = False
-            #~ self.spike_selection_changed.emit()
-        # DONE in controller.update_visible_spikes
-        
-        #~ self.refresh()
+        # we cannot refresh this list in real time whil moving channel/unit visibility
+        # it is too slow.
         pass
 
     def on_spike_selection_changed(self):
@@ -213,11 +216,6 @@ class SpikeListView(WidgetBase):
         self.tree.selectionModel().selectionChanged.connect(self.on_tree_selection)
         
         self.refresh_label()
-
-    #~ def change_visible_mode(self, mode):
-        #~ self.controller.change_spike_visible_mode(mode)
-        #~ self.unit_visibility_changed.emit()
-        #~ self.model.refresh()
 
     def open_context_menu(self):
         pass
