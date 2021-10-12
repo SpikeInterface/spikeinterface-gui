@@ -35,7 +35,7 @@ def test_mainwindow(interactive=False):
     
 if __name__ == '__main__':
     
-    # setup_module()
+    setup_module()
     
     test_mainwindow(interactive=True)
 

@@ -13,29 +13,29 @@ class SpikeModel(QT.QAbstractItemModel):
         QT.QAbstractItemModel.__init__(self,parent)
         self.controller = controller
         self.refresh_colors()
+        
+        self.visible_ind = self.controller.get_indices_spike_visible()
     
     def columnCount(self , parentIndex):
         return len(_columns)
     
     def rowCount(self, parentIndex):
         if not parentIndex.isValid():
-            self.visible_ind, = np.nonzero(self.controller.spikes['visible'])
-            return self.visible_ind.size
+            return int(self.visible_ind.size)
         else :
             return 0
     
     def index(self, row, column, parentIndex):
         if not parentIndex.isValid():
-            if column==0:
-                childItem = row
             return self.createIndex(row, column, None)
         else:
             return QT.QModelIndex()
-    
+
     def parent(self, index):
         return QT.QModelIndex()
     
     def data(self, index, role):
+        
         if not index.isValid():
             return None
         
@@ -73,6 +73,7 @@ class SpikeModel(QT.QAbstractItemModel):
                 return None
         else :
             return None
+        
     
     def flags(self, index):
         if not index.isValid():
@@ -92,6 +93,7 @@ class SpikeModel(QT.QAbstractItemModel):
             self.icons[unit_id] = QT.QIcon(pix)
     
     def refresh(self):
+        self.visible_ind = self.controller.get_indices_spike_visible()
         self.layoutChanged.emit()
 
 
@@ -103,11 +105,22 @@ class SpikeListView(WidgetBase):
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
         
-        self.layout.addWidget(QT.QLabel('<b>All spikes</b>') )
+        h = QT.QHBoxLayout()
+        self.layout.addLayout(h)
+        
+        self.label = QT.QLabel('') 
+        h.addWidget(self.label)
+        
+        h.addStretch()
+
+        but = QT.QPushButton('show visible')
+        h.addWidget(but)
+        but.clicked.connect(self.refresh)
         
         self.tree = QT.QTreeView(minimumWidth = 100, uniformRowHeights = True,
                     selectionMode= QT.QAbstractItemView.ExtendedSelection, selectionBehavior = QT.QTreeView.SelectRows,
                     contextMenuPolicy = QT.Qt.CustomContextMenu,)
+
         
         self.layout.addWidget(self.tree)
         
@@ -118,31 +131,50 @@ class SpikeListView(WidgetBase):
         for i in range(self.model.columnCount(None)):
             self.tree.resizeColumnToContents(i)
         self.tree.setColumnWidth(0,80)
-    
-    def _refresh(self):
+        
         self.model.refresh_colors()
+    
+    def refresh_label(self):
+        n1 = self.controller.spikes.size
+        n2 = self.model.visible_ind.size
+        n3 = self.controller.get_indices_spike_selected().size
+        txt = f'<b>All spikes</b> : {n1} - <b>visible</b> : {n2} - <b>selected</b> : {n3}'
+        self.label.setText(txt)
+   
+    def _refresh(self):
+        self.refresh_label()
         self.model.refresh()
     
     def on_tree_selection(self):
-        self.controller.spikes['selected'][:] = False
+        inds = []
         for index in self.tree.selectedIndexes():
             if index.column() == 0:
                 ind = self.model.visible_ind[index.row()]
-                self.controller.spikes['selected'][ind] = True
+                inds.append(ind)
+        self.controller.set_indices_spike_selected(inds)
         self.spike_selection_changed.emit()
+        if len(inds) == 1:
+            # also change channel for centering trace view.
+            sparsity_mask = self.controller.get_sparsity_mask()
+            unit_index = self.controller.spikes[inds[0]]['unit_index']
+            visible_channel_inds, = np.nonzero(sparsity_mask[unit_index, :])
+            self.controller.set_channel_visibility(visible_channel_inds)
+            self.channel_visibility_changed.emit()
+        
+        self.refresh_label()
     
     def on_unit_visibility_changed(self):
-        
-        if np.any(self.controller.spikes['selected']):
-            self.controller.spikes['selected'][:] = False
-            self.spike_selection_changed.emit()
-        
-        self.refresh()
+        # we cannot refresh this list in real time whil moving channel/unit visibility
+        # it is too slow.
+        pass
 
     def on_spike_selection_changed(self):
         self.tree.selectionModel().selectionChanged.disconnect(self.on_tree_selection)
         
-        row_selected, = np.nonzero(self.controller.spikes['selected'][self.model.visible_ind])
+        selected_inds  = self.controller.get_indices_spike_selected()
+        visible_inds = self.controller.get_indices_spike_visible()
+        row_selected,  = np.nonzero(np.in1d(visible_inds, selected_inds))
+        
         
         if row_selected.size>100:#otherwise this is verry slow
             row_selected = row_selected[:10]
@@ -164,11 +196,8 @@ class SpikeListView(WidgetBase):
             self.tree.scrollTo(index)
 
         self.tree.selectionModel().selectionChanged.connect(self.on_tree_selection)
-
-    #~ def change_visible_mode(self, mode):
-        #~ self.controller.change_spike_visible_mode(mode)
-        #~ self.unit_visibility_changed.emit()
-        #~ self.model.refresh()
+        
+        self.refresh_label()
 
     def open_context_menu(self):
         pass
