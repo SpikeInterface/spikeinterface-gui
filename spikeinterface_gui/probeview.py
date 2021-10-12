@@ -171,10 +171,6 @@ class ProbeView(WidgetBase):
                 #~ print(' probe view part2 change_unit_visibility', t2-t0)
                 
             self.roi.blockSignals(False)
-        
-        
-            
-
     
     def on_unit_visibility_changed(self):
         # this change the ROI and so change also channel_visibility
@@ -205,6 +201,7 @@ class ProbeView(WidgetBase):
             unit_id = self.controller.unit_ids[ind]
             self.controller.unit_visible_dict = {unit_id:False for unit_id in self.controller.unit_ids}
             self.controller.unit_visible_dict[unit_id] = True
+            self.controller.update_visible_spikes()
             self.unit_visibility_changed.emit()
 
 

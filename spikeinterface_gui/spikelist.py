@@ -15,32 +15,23 @@ class SpikeModel(QT.QAbstractItemModel):
         self.refresh_colors()
         
         self.visible_ind = self.controller.get_indices_spike_visible()
-        #~ self.root_index = QT.QModelIndex()
     
     def columnCount(self , parentIndex):
-        #~ print('SpikeModel.columnCount()', parentIndex)
         return len(_columns)
     
     def rowCount(self, parentIndex):
-        #~ print('SpikeModel.rowCount()', parentIndex, parentIndex.isValid())
         if not parentIndex.isValid():
-            #~ self.visible_ind, = np.nonzero(self.controller.spikes['visible'])
-            #~ self.visible_ind = self.controller.get_indices_spike_visible()
             return int(self.visible_ind.size)
         else :
             return 0
     
     def index(self, row, column, parentIndex):
-        #~ print('SpikeModel.index', parentIndex)
         if not parentIndex.isValid():
-            #~ if column==0:
-                #~ childItem = row
             return self.createIndex(row, column, None)
         else:
             return QT.QModelIndex()
 
     def parent(self, index):
-        #~ return self.root_index
         return QT.QModelIndex()
     
     def data(self, index, role):
@@ -151,18 +142,10 @@ class SpikeListView(WidgetBase):
         self.label.setText(txt)
    
     def _refresh(self):
-        # self.model.refresh_colors()
         self.refresh_label()
-        
         self.model.refresh()
     
     def on_tree_selection(self):
-        #~ self.controller.spikes['selected'][:] = False
-        #~ for index in self.tree.selectedIndexes():
-            #~ if index.column() == 0:
-                #~ ind = self.model.visible_ind[index.row()]
-                #~ self.controller.spikes['selected'][ind] = True
-
         inds = []
         for index in self.tree.selectedIndexes():
             if index.column() == 0:
@@ -188,7 +171,6 @@ class SpikeListView(WidgetBase):
     def on_spike_selection_changed(self):
         self.tree.selectionModel().selectionChanged.disconnect(self.on_tree_selection)
         
-        #~ row_selected, = np.nonzero(self.controller.spikes['selected'][self.model.visible_ind])
         selected_inds  = self.controller.get_indices_spike_selected()
         visible_inds = self.controller.get_indices_spike_visible()
         row_selected,  = np.nonzero(np.in1d(visible_inds, selected_inds))
