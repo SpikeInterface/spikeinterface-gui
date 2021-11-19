@@ -116,9 +116,8 @@ class  SpikeinterfaceController(ControllerBase):
         
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
-        #~ self.unit_positions = localize_unit(self.we, method='center_of_mass',  num_channels=10)
-        self.unit_positions = localize_unit(self.we, method='monopolar_triangulation', radius_um=150)
-        self.unit_positions = self.unit_positions[:, :2]
+        # simple unit position (can be computed later)
+        self.unit_positions = localize_unit(self.we, method='center_of_mass',  num_channels=10)
         
 
         if verbose:
@@ -269,5 +268,9 @@ class  SpikeinterfaceController(ControllerBase):
     
     def get_sparsity_mask(self):
         return self.sparsity_mask
-
+    
+    def compute_unit_positions(self, method, method_kwargs):
+        self.unit_positions = localize_unit(self.we, method=method, **method_kwargs)
+        # 2D only
+        self.unit_positions = self.unit_positions[:, :2]
 
