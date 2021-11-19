@@ -5,7 +5,7 @@ from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
-    compute_correlograms, compute_unit_centers_of_mass, compute_num_spikes, WaveformPrincipalComponent,
+    compute_correlograms, localize_unit, compute_num_spikes, WaveformPrincipalComponent,
     compute_template_similarity)
 
 import numpy as np
@@ -116,8 +116,10 @@ class  SpikeinterfaceController(ControllerBase):
         
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
-        coms = compute_unit_centers_of_mass(self.we, peak_sign='neg', num_channels=10)
-        self.unit_positions = np.vstack([coms[u] for u in self.unit_ids])
+        #~ self.unit_positions = localize_unit(self.we, method='center_of_mass',  num_channels=10)
+        self.unit_positions = localize_unit(self.we, method='monopolar_triangulation', radius_um=150)
+        self.unit_positions = self.unit_positions[:, :2]
+        
 
         if verbose:
             t1 = time.perf_counter()
