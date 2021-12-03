@@ -367,14 +367,12 @@ class TraceView(WidgetBase):
         self.signals_curve.setData(times_chunk_tile, data_curves.flatten(), connect=connect.flatten())
         
         #channel labels
-        i = 1
-        for c in range(len(self.controller.channel_ids)):
-            if c in self.visible_channel_inds:
-                self.channel_labels[c].setPos(t1, nb_visible-i)
-                self.channel_labels[c].show()
-                i +=1
-            else:
-                self.channel_labels[c].hide()
+        for chan_ind, chan_id in enumerate(self.controller.channel_ids):
+            self.channel_labels[chan_ind].hide()
+        
+        for i, chan_ind in enumerate(self.visible_channel_inds):
+            self.channel_labels[chan_ind].setPos(t1, nb_visible - 1 - i)
+            self.channel_labels[chan_ind].show()
         
         # plot peak on signal
         all_spikes = self.controller.spikes

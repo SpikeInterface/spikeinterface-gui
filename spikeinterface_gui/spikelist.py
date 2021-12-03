@@ -158,8 +158,11 @@ class SpikeListView(WidgetBase):
             sparsity_mask = self.controller.get_sparsity_mask()
             unit_index = self.controller.spikes[inds[0]]['unit_index']
             visible_channel_inds, = np.nonzero(sparsity_mask[unit_index, :])
-            self.controller.set_channel_visibility(visible_channel_inds)
-            self.channel_visibility_changed.emit()
+
+            # check ifchannel visibility must be changed
+            if not np.all(np.in1d(visible_channel_inds, self.controller.visible_channel_inds)):
+                self.controller.set_channel_visibility(visible_channel_inds)
+                self.channel_visibility_changed.emit()
         
         self.refresh_label()
     

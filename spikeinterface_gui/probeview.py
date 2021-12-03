@@ -8,6 +8,7 @@ from .base import WidgetBase
 
 import time
 
+from spikeinterface.toolkit.postprocessing.unit_localization import possible_localization_methods
 
 
 class MyViewBox(pg.ViewBox):
@@ -30,7 +31,13 @@ class ProbeView(WidgetBase):
             {'name': 'radius', 'type': 'float', 'value': 40.},
             {'name': 'change_channel_visibility', 'type': 'bool', 'value': True},
             {'name': 'change_unit_visibility', 'type': 'bool', 'value': True},
+            
+            {'name': 'method_localize_unit', 'type': 'list', 'values': possible_localization_methods},
+            
+            
         ]
+    
+    _need_compute = True
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
         
@@ -203,7 +210,19 @@ class ProbeView(WidgetBase):
             self.controller.unit_visible_dict[unit_id] = True
             self.controller.update_visible_spikes()
             self.unit_visibility_changed.emit()
+    
 
+    def compute(self):
+        # TODO : option by method
+        method_kwargs ={} 
+        self.controller.compute_unit_positions(self.params['method_localize_unit'], method_kwargs)
+        unit_positions = self.controller.unit_positions
+        brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
+        self.scatter.setData(pos=unit_positions, pxMode=False, size=10, brush=brush)
+        
+        self.refresh()
+    
+    #~ def compute_unit_positions
 
 
 ProbeView._gui_help_txt = """Probe view
