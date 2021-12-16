@@ -73,6 +73,9 @@ class ProbeView(WidgetBase):
         planar_contour = probe.probe_planar_contour
         self.contact_positions = probe.contact_positions
         
+        # small hack to connect to the first point
+        contact_vertices = [np.concatenate([e, e[:1, :]], axis=0) for e in contact_vertices]
+        
         vertices = np.concatenate(contact_vertices)
         connect = np.ones(vertices.shape[0], dtype='bool')
         pos = 0
