@@ -1,4 +1,3 @@
-import PySide6
 import spikeinterface_gui as sigui
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
 
@@ -27,13 +26,13 @@ def debug_one_view():
     
     app = sigui.mkQApp()
     
-    #~ view0 = sigui.UnitListView(controller=controller)
-    #~ view0.show()
+    view0 = sigui.UnitListView(controller=controller)
+    view0.show()
     #~ view = sigui.SpikeListView(controller=controller)
     #~ view = sigui.PairListView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)
     #~ view = sigui.WaveformView(controller=controller)
-    view = sigui.WaveformHeatMapView(controller=controller)
+    #~ view = sigui.WaveformHeatMapView(controller=controller)
     #~ view = sigui.ISIView(controller=controller)
     #~ view = sigui.CrossCorrelogramView(controller=controller)
     #~ view = sigui.ProbeView(controller=controller)
@@ -42,7 +41,7 @@ def debug_one_view():
     
     
     
-    view.show()
+    #~ view.show()
     app.exec_()
 
     

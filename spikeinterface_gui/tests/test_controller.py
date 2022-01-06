@@ -1,4 +1,3 @@
-import PySide6
 import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
