@@ -475,7 +475,7 @@ class WaveformHeatMapView(WidgetBase):
 
 WaveformHeatMapView._gui_help_txt = """Unit waveform heat map
 Check density around the average template for each unit.
-Usefull to check overlap ebtween units.
+Usefull to check overlap between units.
 
 right click : X/Y zoom
 left clik : move

@@ -41,11 +41,11 @@ Note that:
 Example:
 
 ```python
-from spikeinetrface.full as si
+import spikeinterface.full as si
 recording = si.read_XXXX('/path/to/my/recording')
 recording_filtered = si.bandpass_filter(recording)
 sorting = si.run_sorter('YYYYY', recording_filtered)
-waveform_forlder = '/path/for/my/waveforms'
+waveform_folder = '/path/for/my/waveforms'
 we = si.extract_waveforms(
     recording_filtered, sorting, waveform_folder,
     max_spikes_per_unit=500,
@@ -54,7 +54,7 @@ we = si.extract_waveforms(
     progress_bar=True,
 )
 # and optionally compute principal component
-pc = compute_principal_components(we,
+pc = si.compute_principal_components(we,
     n_components=5,
     mode='by_channel_local',
     whiten=True)
@@ -69,7 +69,7 @@ import spikeinterface_gui
 # This cerate a Qt app
 app = spikeinterface_gui.mkQApp() 
 # reload the waveform folder
-we = WaveformExtractor.load_from_folder(waveform_forlder)
+we = si.WaveformExtractor.load_from_folder(waveform_folder)
 # create the mainwindow and show
 win = spikeinterface_gui.MainWindow(we)
 win.show()
