@@ -38,10 +38,11 @@ def debug_one_view():
     #~ view = sigui.ProbeView(controller=controller)
     #~ view = sigui.NDScatterView(controller=controller)
     #~ view = sigui.SimilarityView(controller=controller)
+    view = sigui.SpikeAmplitudeView(controller=controller)
     
     
     
-    #~ view.show()
+    view.show()
     app.exec_()
 
     

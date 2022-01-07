@@ -9,6 +9,7 @@ from .crosscorrelogramview import CrossCorrelogramView
 from .probeview import ProbeView
 from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
+from .spikeamplitudeview import SpikeAmplitudeView
 
 possible_class_views = dict(
     unitlist = UnitListView,
@@ -22,4 +23,5 @@ possible_class_views = dict(
     probeview = ProbeView,
     ndscatterview = NDScatterView,
     similarityview = SimilarityView,
+    spikeamplitudeview = SpikeAmplitudeView,
 )
