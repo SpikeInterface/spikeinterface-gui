@@ -1,3 +1,5 @@
+import time
+
 from .myqt import QT, QT_MODE
 
 
@@ -9,6 +11,8 @@ from .viewlist import possible_class_views
 class MainWindow(QT.QMainWindow):
     def __init__(self,waveform_extractor,  parent=None, verbose=False):
         QT.QMainWindow.__init__(self, parent)
+        
+        self.verbose = verbose
         
         self.waveform_extractor = waveform_extractor
         
@@ -37,6 +41,7 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('waveformheatmapview', tabify='waveformview')
         self.add_one_view('isiview', tabify='waveformheatmapview')
         self.add_one_view('crosscorrelogramview', tabify='isiview')
+        self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview')
         
         self.docks['traceview'].raise_()
         
@@ -46,6 +51,10 @@ class MainWindow(QT.QMainWindow):
             area=None, orientation=None, tabify=None, split=None):
         assert view_name not in self.views, 'View is already in window'
         
+        if self.verbose:
+            t0 = time.perf_counter()
+            print('view', view_name)
+            
         if dock_title is None:
             dock_title = view_name
     
@@ -76,6 +85,11 @@ class MainWindow(QT.QMainWindow):
         
         self.views[view_name] = view
         self.docks[view_name] = dock
+
+        if self.verbose:
+            t1 = time.perf_counter()
+            print('view', view_name, t1-t0)
+
 
 
 # custum dock with settings button

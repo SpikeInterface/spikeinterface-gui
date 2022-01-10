@@ -29,11 +29,22 @@ class  SpikeinterfaceController(ControllerBase):
             print(f'You should re run the WaveformExtractor with max_spikes_per_unit=500')
         
         
-        if (self.we.folder / 'PCA').is_dir():
-            self.pc = WaveformPrincipalComponent.load_from_folder(self.we.folder)
+        if waveform_extractor.is_extension('principal_components'):
+            self.pc = waveform_extractor.load_extension('principal_components')
         else:
             self.pc = None
-        
+
+        if waveform_extractor.is_extension('quality_metrics'):
+            qmc = waveform_extractor.load_extension('quality_metrics')
+            self.metrics = qmc._metrics
+        else:
+            self.metrics = None
+
+        if waveform_extractor.is_extension('spike_amplitudes'):
+            sac = waveform_extractor.load_extension('spike_amplitudes')
+            self.spike_amplitudes = sac.get_amplitude(outputs='by_unit')
+        else:
+            self.spike_amplitudes = None
         
         # some direct attribute
         self.num_segments = self.we.recording.get_num_segments()

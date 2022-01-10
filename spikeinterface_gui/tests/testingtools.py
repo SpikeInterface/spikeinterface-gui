@@ -4,7 +4,7 @@ from pathlib import Path
 from spikeinterface.core.testing_tools import generate_recording, generate_sorting
 from spikeinterface import WaveformExtractor, extract_waveforms
 from spikeinterface.extractors import toy_example, read_mearec
-from spikeinterface.toolkit import WaveformPrincipalComponent, compute_principal_components
+from spikeinterface.toolkit import compute_principal_components, compute_spike_amplitudes, compute_quality_metrics
 
 
 def clean_all(test_folder):
@@ -39,8 +39,10 @@ def make_one_folder(test_folder):
     
     we = extract_waveforms(recording, sorting, test_folder / 'waveforms', max_spikes_per_unit=25, return_scaled=False)
     
-    
     pc = compute_principal_components(we, n_components=5, mode='by_channel_local', whiten=True, dtype='float32')
+    metrics = compute_quality_metrics(we, load_if_exists=False,  metric_names=None)
+    amplitudes = compute_spike_amplitudes(we,load_if_exists=False)
+    
 
 
     
@@ -57,5 +59,12 @@ if __name__ == '__main__':
     we = WaveformExtractor.load_from_folder(folder)
     print(we)
     
-    pc = WaveformPrincipalComponent.load_from_folder(folder)
+    pc = we.load_extension('principal_components')
     print(pc)
+    
+    sac = we.load_extension('spike_amplitudes')
+    print(sac._amplitudes)
+
+    qmc = we.load_extension('quality_metrics')
+    print(qmc._metrics)
+    

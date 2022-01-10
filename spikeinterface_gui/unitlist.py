@@ -28,6 +28,11 @@ class UnitListView(WidgetBase):
         self.combo_sort.addItems(['unit_id', 'num_spikes', 'depth',])
         self.combo_sort.currentIndexChanged.connect(self.refresh)
         h.addWidget(self.combo_sort)
+        if self.controller.metrics is not None:
+            self.checkbox_metrics = QT.QCheckBox('metrics')
+            h.addWidget(self.checkbox_metrics)
+            self.checkbox_metrics.stateChanged.connect(self.refresh)
+            
         h.addStretch()
         
         self.table = QT.QTableWidget()
@@ -52,7 +57,14 @@ class UnitListView(WidgetBase):
         self.table.itemChanged.disconnect(self.on_item_changed)
         
         self.table.clear()
-        labels = _column_names
+        labels = list(_column_names)
+        
+        with_metrics = self.checkbox_metrics.isChecked()
+        
+        if with_metrics:
+            metrics = self.controller.metrics
+            labels += list(metrics.columns)
+        
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
         #~ self.table.setMinimumWidth(100)
@@ -114,9 +126,14 @@ class UnitListView(WidgetBase):
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 4, item)
             
-            
-                        
-
+            if with_metrics:
+                for m, col in enumerate(metrics.columns):
+                    v = metrics.loc[unit_id, col]
+                    if isinstance(v, float):
+                        item = QT.QTableWidgetItem(f'{v:0.2f}')
+                    else:
+                        item = QT.QTableWidgetItem(f'{v}')
+                    self.table.setItem(i, 5+m, item)
 
             
             #~ c = self.controller.get_extremum_channel(k)
