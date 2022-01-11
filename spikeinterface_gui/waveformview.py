@@ -268,7 +268,8 @@ class WaveformView(WidgetBase):
         
         shape = (width, len(common_channel_indexes))
         xvect = np.arange(shape[0]*shape[1])
-        
+        min_std = 0
+        max_std = 0
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
             if not unit_visible_dict[unit_id]:
                 continue
@@ -293,9 +294,11 @@ class WaveformView(WidgetBase):
                 self.plot1.addItem(fill)
             
             if template_std is not None:
-                curve = pg.PlotCurveItem(xvect, template_std.T.flatten(), pen=color)
-                self.plot2.addItem(curve)        
-
+                template_std_flatten = template_std.T.flatten()
+                curve = pg.PlotCurveItem(xvect, template_std_flatten, pen=color)
+                self.plot2.addItem(curve)
+                min_std = min(min_std,template_std_flatten.min())
+                max_std = max(max_std,template_std_flatten.max())
         if self.params['show_channel_id']:
             for i, chan_ind in enumerate(common_channel_indexes):
                 chan_id = self.controller.channel_ids[chan_ind]
@@ -309,14 +312,14 @@ class WaveformView(WidgetBase):
             if xvect.size>0:
                 self._x_range = xvect[0], xvect[-1]
                 self._y1_range = self.wf_min*1.1, self.wf_max*1.1
-                self._y2_range = 0., 5.
-        
+                self._y2_range = min_std*0.9, max_std*1.1
+                
         if self._x_range is not None:
             self.plot1.setXRange(*self._x_range, padding = 0.0)
             self.plot1.setYRange(*self._y1_range, padding = 0.0)
             self.plot2.setYRange(*self._y2_range, padding = 0.0)
 
-        
+
 
     def refresh_mode_geometry(self, unit_visible_dict, keep_range):
         if self._x_range is not None and keep_range:
