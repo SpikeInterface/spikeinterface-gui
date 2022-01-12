@@ -41,7 +41,8 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('waveformheatmapview', tabify='waveformview')
         self.add_one_view('isiview', tabify='waveformheatmapview')
         self.add_one_view('crosscorrelogramview', tabify='isiview')
-        self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview')
+        if self.controller.handle_spike_amplitudes():
+            self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview')
         
         self.docks['traceview'].raise_()
         
