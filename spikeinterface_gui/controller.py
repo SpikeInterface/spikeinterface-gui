@@ -248,6 +248,12 @@ class  SpikeinterfaceController(ControllerBase):
         
     def set_channel_visibility(self, visible_channel_inds):
         self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
+
+    def handle_metrics(self):
+        return self.metrics is not None
+
+    def handle_spike_amplitudes(self):
+        return self.spike_amplitudes is not None
         
     def handle_principal_components(self):
         return self.pc is not None

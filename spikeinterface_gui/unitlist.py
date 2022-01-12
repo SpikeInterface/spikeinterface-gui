@@ -28,7 +28,7 @@ class UnitListView(WidgetBase):
         self.combo_sort.addItems(['unit_id', 'num_spikes', 'depth',])
         self.combo_sort.currentIndexChanged.connect(self.refresh)
         h.addWidget(self.combo_sort)
-        if self.controller.metrics is not None:
+        if self.controller.handle_metrics():
             self.checkbox_metrics = QT.QCheckBox('metrics')
             h.addWidget(self.checkbox_metrics)
             self.checkbox_metrics.stateChanged.connect(self.refresh)
@@ -59,7 +59,10 @@ class UnitListView(WidgetBase):
         self.table.clear()
         labels = list(_column_names)
         
-        with_metrics = self.checkbox_metrics.isChecked()
+        if self.controller.handle_metrics():
+            with_metrics = self.checkbox_metrics.isChecked()
+        else:
+            with_metrics = False
         
         if with_metrics:
             metrics = self.controller.metrics
