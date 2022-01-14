@@ -42,7 +42,7 @@ class  SpikeinterfaceController(ControllerBase):
 
         if waveform_extractor.is_extension('spike_amplitudes'):
             sac = waveform_extractor.load_extension('spike_amplitudes')
-            self.spike_amplitudes = sac.get_amplitude(outputs='by_unit')
+            self.spike_amplitudes = sac.get_amplitudes(outputs='by_unit')
         else:
             self.spike_amplitudes = None
         
