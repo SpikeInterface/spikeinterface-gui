@@ -5,7 +5,7 @@ from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
-    compute_correlograms, localize_unit, compute_num_spikes, WaveformPrincipalComponent,
+    compute_correlograms, localize_units, compute_num_spikes, WaveformPrincipalComponent,
     compute_template_similarity)
 
 import numpy as np
@@ -128,7 +128,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
         # simple unit position (can be computed later)
-        self.unit_positions = localize_unit(self.we, method='center_of_mass',  num_channels=10)
+        self.unit_positions = localize_units(self.we, method='center_of_mass',  num_channels=10)
         
 
         if verbose:
@@ -287,7 +287,7 @@ class  SpikeinterfaceController(ControllerBase):
         return self.sparsity_mask
     
     def compute_unit_positions(self, method, method_kwargs):
-        self.unit_positions = localize_unit(self.we, method=method, **method_kwargs)
+        self.unit_positions = localize_units(self.we, method=method, **method_kwargs)
         # 2D only
         self.unit_positions = self.unit_positions[:, :2]
 
