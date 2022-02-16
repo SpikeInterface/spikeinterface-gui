@@ -55,7 +55,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.qcolors = {}
         for unit_id, color in self.colors.items():
             r, g, b, a = color
-            self.qcolors[unit_id] = QT.QColor(r*255, g*255, b*255)
+            self.qcolors[unit_id] = QT.QColor(int(r*255), int(g*255), int(b*255))
         
         self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
