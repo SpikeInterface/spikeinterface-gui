@@ -4,7 +4,8 @@ from pathlib import Path
 from spikeinterface.core.testing_tools import generate_recording, generate_sorting
 from spikeinterface import WaveformExtractor, extract_waveforms
 from spikeinterface.extractors import toy_example, read_mearec
-from spikeinterface.toolkit import compute_principal_components, compute_spike_amplitudes, compute_quality_metrics
+from spikeinterface.postprocessing import compute_principal_components, compute_spike_amplitudes
+from spikeinterface.qualitymetrics import compute_quality_metrics
 
 
 def clean_all(test_folder):
@@ -66,5 +67,5 @@ if __name__ == '__main__':
     print(sac._amplitudes)
 
     qmc = we.load_extension('quality_metrics')
-    print(qmc._metrics)
+    print(qmc.compute_unit_locations)
     

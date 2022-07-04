@@ -4,9 +4,10 @@ from .base import ControllerBase
 from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
-from spikeinterface.toolkit import (get_template_extremum_channel, get_template_channel_sparsity,
-    compute_correlograms, localize_units, compute_num_spikes, WaveformPrincipalComponent,
-    compute_template_similarity)
+from spikeinterface.postprocessing import (WaveformPrincipalComponent, get_template_extremum_channel, 
+                                           get_template_channel_sparsity, compute_correlograms, compute_unit_locations,
+                                           compute_template_similarity)
+from spikeinterface.qualitymetrics import compute_num_spikes
 
 import numpy as np
 
@@ -36,13 +37,13 @@ class  SpikeinterfaceController(ControllerBase):
 
         if waveform_extractor.is_extension('quality_metrics'):
             qmc = waveform_extractor.load_extension('quality_metrics')
-            self.metrics = qmc._metrics
+            self.metrics = qmc.quality_metrics
         else:
             self.metrics = None
 
         if waveform_extractor.is_extension('spike_amplitudes'):
             sac = waveform_extractor.load_extension('spike_amplitudes')
-            self.spike_amplitudes = sac.get_amplitudes(outputs='by_unit')
+            self.spike_amplitudes = sac.get_data(outputs='by_unit')
         else:
             self.spike_amplitudes = None
         
@@ -128,7 +129,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
         # simple unit position (can be computed later)
-        self.unit_positions = localize_units(self.we, method='center_of_mass',  num_channels=10)
+        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass',  num_channels=10)
         
 
         if verbose:
@@ -259,7 +260,7 @@ class  SpikeinterfaceController(ControllerBase):
         return self.pc is not None
         
     def get_all_pcs(self):
-        pc_unit_index, pcs = self.pc.get_all_components(outputs='index')
+        pc_unit_index, pcs = self.pc.get_all_projections(outputs='index')
         return pc_unit_index, pcs
     
     def get_similarity(self, method='cosine_similarity', force_compute=True):
@@ -287,7 +288,7 @@ class  SpikeinterfaceController(ControllerBase):
         return self.sparsity_mask
     
     def compute_unit_positions(self, method, method_kwargs):
-        self.unit_positions = localize_units(self.we, method=method, **method_kwargs)
+        self.unit_positions = compute_unit_locations(self.we, method=method, **method_kwargs)
         # 2D only
         self.unit_positions = self.unit_positions[:, :2]
 
