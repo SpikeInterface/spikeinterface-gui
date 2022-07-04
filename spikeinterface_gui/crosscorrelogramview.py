@@ -24,7 +24,7 @@ class CrossCorrelogramView(WidgetBase):
     _params = [
                       {'name': 'window_size_ms', 'type': 'float', 'value' : 100. },
                       {'name': 'bin_size_ms', 'type': 'float', 'value' : 1.0 },
-                      {'name': 'symmetrize', 'type': 'bool', 'value' : False },
+                      {'name': 'symmetrize', 'type': 'bool', 'value' : True },
                       {'name': 'display_axis', 'type': 'bool', 'value' : True },
                       {'name': 'max_visible', 'type': 'int', 'value' : 8 },
                       #~ {'name': 'check_sorted', 'type': 'bool', 'value' : False },
