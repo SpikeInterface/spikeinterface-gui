@@ -23,7 +23,7 @@ def test_controller(interactive=False):
     print(controller.pc)
     
     
-    all_labels, all_components = controller.pc.get_all_components()
+    all_labels, all_components = controller.pc.get_all_projections()
     
     print(all_components.shape)
     

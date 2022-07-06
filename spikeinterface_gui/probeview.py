@@ -8,7 +8,7 @@ from .base import WidgetBase
 
 import time
 
-from spikeinterface.toolkit.postprocessing.unit_localization import possible_localization_methods
+from spikeinterface.postprocessing.unit_localization import possible_localization_methods
 
 
 class MyViewBox(pg.ViewBox):
