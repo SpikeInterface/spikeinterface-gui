@@ -67,7 +67,7 @@ class  SpikeinterfaceController(ControllerBase):
         
         all_spikes = self.we.sorting.get_all_spike_trains(outputs='unit_index')
         
-        num_spikes = np.sum(e[0].size for e in all_spikes)
+        num_spikes = np.sum([e[0].size for e in all_spikes])
         
         # make internal spike vector
         self.spikes = np.zeros(num_spikes, dtype=spike_dtype)

@@ -27,7 +27,7 @@ class MyViewBox(pg.ViewBox):
 class ProbeView(WidgetBase):
     _params = [
             #~ {'name': 'colormap', 'type': 'list', 'value': 'inferno', 'values': ['inferno', 'summer', 'viridis', 'jet'] },
-            {'name': 'show_channel_id', 'type': 'bool', 'value': True},
+            {'name': 'show_channel_id', 'type': 'bool', 'value': False},
             {'name': 'radius', 'type': 'float', 'value': 40.},
             {'name': 'change_channel_visibility', 'type': 'bool', 'value': True},
             {'name': 'change_unit_visibility', 'type': 'bool', 'value': True},
