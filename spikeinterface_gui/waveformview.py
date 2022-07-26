@@ -41,6 +41,7 @@ class WaveformView(WidgetBase):
                       {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},
                       {'name': 'display_threshold', 'type': 'bool', 'value' : True },
                       {'name': 'sparse_display', 'type': 'bool', 'value' : True },
+                      {'name': 'background_color', 'type': 'color', 'value' : 'k' }
                       ]
     
     def __init__(self, controller=None, parent=None):
@@ -208,10 +209,11 @@ class WaveformView(WidgetBase):
             unit_visible_dict[unit_id] = True
         else:
             unit_visible_dict = self.controller.unit_visible_dict
-        
+        self.viewBox1.setBackgroundColor(self.params['background_color'])
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self.refresh_mode_flatten(unit_visible_dict, keep_range)
+            self.viewBox2.setBackgroundColor(self.params['background_color'])
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self.refresh_mode_geometry(unit_visible_dict, keep_range)
