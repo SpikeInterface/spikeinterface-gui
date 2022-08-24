@@ -347,9 +347,7 @@ class TraceView(WidgetBase):
             return
         
         if self.gains is None:
-            print('refres estimate_auto_scale')
             self.estimate_auto_scale()
-            print('done')
 
         nb_visible = self.visible_channel_inds.size
         

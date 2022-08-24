@@ -194,13 +194,13 @@ class ProbeView(WidgetBase):
                 #~ print(' probe view part1 change_unit_visibility', t1-t0)
                 self.controller.update_visible_spikes()
                 self.unit_visibility_changed.emit()
-                self.on_unit_visibility_changed()
+                self.on_unit_visibility_changed(auto_zoom=False)
                 #~ t2 = time.perf_counter()
                 #~ print(' probe view part2 change_unit_visibility', t2-t0)
                 
             self.roi.blockSignals(False)
     
-    def on_unit_visibility_changed(self):
+    def on_unit_visibility_changed(self, auto_zoom=None):
         # this change the ROI and so change also channel_visibility
         visible_mask = list(self.controller.unit_visible_dict.values())
         n = np.sum(visible_mask)
@@ -220,7 +220,10 @@ class ProbeView(WidgetBase):
         self.scatter.setPen(pen)
         
         # auto zoom
-        if self.params['auto_zoom_on_unit_selection']:
+        if auto_zoom is None:
+            auto_zoom = self.params['auto_zoom_on_unit_selection']
+        
+        if auto_zoom:
             visible_pos = self.controller.unit_positions[visible_mask, :]
             x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
             y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
