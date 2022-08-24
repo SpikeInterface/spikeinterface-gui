@@ -218,6 +218,21 @@ class  SpikeinterfaceController(ControllerBase):
         kargs['return_scaled'] = self.we.return_scaled
         traces = rec.get_traces(**kargs)
         return traces
+    
+    def estimate_noise(self):
+        # TODO : make a waveformextention to avoid mutiple computation at each startup!!!!
+        duration_s = 1
+        seg_num = 0
+        end_frame = min(int(duration_s * self.sampling_frequency), self.get_num_samples(seg_num))
+        sigs = self.get_traces(segment_index=seg_num, start_frame=0, end_frame=end_frame)
+
+        self.med = np.median(sigs, axis=0).astype('float32')
+        self.mad = np.median(np.abs(sigs - self.med),axis=0).astype('float32') * 1.4826
+        
+        return self.med, self.mad
+        
+        
+
 
     def get_contact_location(self):
         location = self.we.recording.get_channel_locations()
