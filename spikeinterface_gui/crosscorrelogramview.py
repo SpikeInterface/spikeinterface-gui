@@ -95,7 +95,7 @@ class CrossCorrelogramView(WidgetBase):
                 else:
                     color = (120,120,120,120)
                 
-                curve = pg.PlotCurveItem(bins, count, stepMode=True, fillLevel=0, brush=color, pen=color)
+                curve = pg.PlotCurveItem(bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
 

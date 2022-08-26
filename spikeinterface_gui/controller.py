@@ -255,8 +255,8 @@ class  SpikeinterfaceController(ControllerBase):
     def detect_high_similarity(self, threshold=0.9):
         return
     
-    def compute_correlograms(self, window_ms, bin_ms, symmetrize):
-        correlograms, bins = compute_correlograms(self.we.sorting, window_ms=window_ms, bin_ms=bin_ms, symmetrize=symmetrize)
+    def compute_correlograms(self, window_ms, bin_ms):
+        correlograms, bins = compute_correlograms(self.we.sorting, window_ms=window_ms, bin_ms=bin_ms)
         return correlograms, bins
     
     def get_probe(self):
