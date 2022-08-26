@@ -16,8 +16,17 @@ class MainWindow(QT.QMainWindow):
         
         self.waveform_extractor = waveform_extractor
         
+        if verbose:
+            
+            print('Controller:')
+            t0 = time.perf_counter()
         self.controller = SpikeinterfaceController(waveform_extractor, verbose=verbose)
         
+        if verbose:
+            t1 = time.perf_counter()
+            print('Total controller init', t1 - t0)
+            print()
+
         self.views = {}
         self.docks = {}
         
@@ -38,6 +47,7 @@ class MainWindow(QT.QMainWindow):
         # on right
         self.add_one_view('traceview', area='right')
         self.add_one_view('waveformview', tabify='traceview')
+        #~ self.add_one_view('waveformview', area='right')
         self.add_one_view('waveformheatmapview', tabify='waveformview')
         self.add_one_view('isiview', tabify='waveformheatmapview')
         self.add_one_view('crosscorrelogramview', tabify='isiview')
@@ -90,6 +100,13 @@ class MainWindow(QT.QMainWindow):
         if self.verbose:
             t1 = time.perf_counter()
             print('view', view_name, t1-t0)
+            
+            #~ print('refresh view')
+            #~ view.refresh()
+            #~ t2 = time.perf_counter()
+            #~ print(t2-t1)
+            
+            
 
 
 

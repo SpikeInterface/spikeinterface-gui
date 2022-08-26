@@ -62,9 +62,9 @@ class WaveformHeatMapView(WidgetBase):
     
     """
     _params = [
-                      {'name': 'colormap', 'type': 'list', 'values' : ['hot', 'viridis', 'jet', 'gray',  ] },
+                      {'name': 'colormap', 'type': 'list', 'limits' : ['hot', 'viridis', 'jet', 'gray',  ] },
                       {'name': 'show_channel_id', 'type': 'bool', 'value': True},
-                      #~ {'name': 'data', 'type': 'list', 'values' : ['waveforms', 'features', ] },
+                      #~ {'name': 'data', 'type': 'list', 'limits' : ['waveforms', 'features', ] },
                       {'name': 'bin_min', 'type': 'float', 'value' : -20. },
                       {'name': 'bin_max', 'type': 'float', 'value' : 8. },
                       {'name': 'bin_size', 'type': 'float', 'value' : .1 },

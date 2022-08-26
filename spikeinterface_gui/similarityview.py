@@ -29,8 +29,8 @@ class MyViewBox(pg.ViewBox):
 
 class SimilarityView(WidgetBase):
     _params = [
-            {'name': 'method', 'type': 'list', 'values' : ['cosine_similarity',] },
-            {'name': 'colormap', 'type': 'list', 'values' : ['viridis', 'jet', 'gray', 'hot', ] },
+            {'name': 'method', 'type': 'list', 'limits' : ['cosine_similarity',] },
+            {'name': 'colormap', 'type': 'list', 'limits' : ['viridis', 'jet', 'gray', 'hot', ] },
             {'name': 'show_all', 'type': 'bool', 'value' : True },
         ]
     _need_compute = True

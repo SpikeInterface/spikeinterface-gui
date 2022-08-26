@@ -8,8 +8,8 @@ from .base import WidgetBase
 from .tools import TimeSeeker
 
 
-_trace_sources = ['preprocessed', 'raw']
-
+# _trace_sources = ['preprocessed', 'raw']
+_trace_sources = ['preprocessed']
 
 class MyViewBox(pg.ViewBox):
     doubleclicked = QT.pyqtSignal(float, float)
@@ -91,11 +91,11 @@ class TraceView(WidgetBase):
         self.combo_seg.currentIndexChanged.connect(self.on_combo_seg_changed)
         tb.addSeparator()
         
-        self.combo_type = QT.QComboBox()
-        tb.addWidget(self.combo_type)
-        self.combo_type.addItems([ trace_source for trace_source in _trace_sources ])
-        self.combo_type.setCurrentIndex(_trace_sources.index(self.trace_source))
-        self.combo_type.currentIndexChanged.connect(self.on_combo_type_changed)
+        #~ self.combo_type = QT.QComboBox()
+        #~ tb.addWidget(self.combo_type)
+        #~ self.combo_type.addItems([ trace_source for trace_source in _trace_sources ])
+        #~ self.combo_type.setCurrentIndex(_trace_sources.index(self.trace_source))
+        #~ self.combo_type.currentIndexChanged.connect(self.on_combo_type_changed)
 
         # time slider
         self.timeseeker = TimeSeeker(show_slider=False)
@@ -210,11 +210,11 @@ class TraceView(WidgetBase):
         s =  self.combo_seg.currentIndex()
         self.change_segment(s)
     
-    def on_combo_type_changed(self):
-        s =  self.combo_type.currentIndex()
-        self.trace_source = _trace_sources[s]
-        self.estimate_auto_scale()
-        self.change_segment(self._seg_index)
+    #~ def on_combo_type_changed(self):
+        #~ s =  self.combo_type.currentIndex()
+        #~ self.trace_source = _trace_sources[s]
+        #~ self.estimate_auto_scale()
+        #~ self.change_segment(self._seg_index)
     
     def on_xsize_changed(self):
         self.xsize = self.spinbox_xsize.value()
@@ -237,15 +237,17 @@ class TraceView(WidgetBase):
     
     def estimate_auto_scale(self):
 
-        end_frame = min(int(60. * self.controller.sampling_frequency),
-                self.controller.get_num_samples(self.seg_num))
+        #~ end_frame = min(int(1. * self.controller.sampling_frequency),
+                #~ self.controller.get_num_samples(self.seg_num))
                 
-        sigs = self.controller.get_traces(trace_source=self.trace_source, 
-                segment_index=self.seg_num, 
-                start_frame=0, end_frame=end_frame)
+        #~ sigs = self.controller.get_traces(trace_source=self.trace_source, 
+                #~ segment_index=self.seg_num, 
+                #~ start_frame=0, end_frame=end_frame)
 
-        self.med = np.median(sigs, axis=0).astype('float32')
-        self.mad = np.median(np.abs(sigs - self.med),axis=0).astype('float32') * 1.4826
+        #~ self.med = np.median(sigs, axis=0).astype('float32')
+        #~ self.mad = np.median(np.abs(sigs - self.med),axis=0).astype('float32') * 1.4826
+        
+        self.med, self.mad = self.controller.estimate_noise()
 
         self.factor = 1.
         self.gain_zoom(15.)

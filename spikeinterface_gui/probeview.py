@@ -13,12 +13,27 @@ from spikeinterface.postprocessing.unit_localization import possible_localizatio
 
 class MyViewBox(pg.ViewBox):
     doubleclicked = QT.pyqtSignal(float, float)
+    ctrl_doubleclicked = QT.pyqtSignal(float, float)
+    
     def mouseDoubleClickEvent(self, ev):
         pos = self.mapToView(ev.pos())
         x, y = pos.x(), pos.y()
-        self.doubleclicked.emit(x, y)
+        if ev.modifiers() == QT.ControlModifier:
+            self.ctrl_doubleclicked.emit(x, y)
+        else:
+            self.doubleclicked.emit(x, y)
         ev.accept()
-
+    
+    #~ def mouseClickEvent(self, ev):
+        #~ print('mouseClickEvent', ev.modifiers(), QT.ControlModifier, ev.modifiers() == QT.ControlModifier)
+        #~ if ev.modifiers() == QT.ControlModifier:
+            #~ pos = self.mapToView(ev.pos())
+            #~ x, y = pos.x(), pos.y()
+            #~ self.ctrl_doubleclicked.emit(x, y)
+        #~ ev.accept()
+        #~ else:
+            #~ pg.ViewBox.mouseClickEvent(self, ev)
+    
     def raiseContextMenu(self, ev):
         #for some reasons enableMenu=False is not taken (bug ????)
         pass
@@ -29,10 +44,10 @@ class ProbeView(WidgetBase):
             #~ {'name': 'colormap', 'type': 'list', 'value': 'inferno', 'values': ['inferno', 'summer', 'viridis', 'jet'] },
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
             {'name': 'radius', 'type': 'float', 'value': 40.},
-            {'name': 'change_channel_visibility', 'type': 'bool', 'value': True},
-            {'name': 'change_unit_visibility', 'type': 'bool', 'value': True},
-            
-            {'name': 'method_localize_unit', 'type': 'list', 'values': possible_localization_methods},
+            {'name': 'roi_change_channel_visibility', 'type': 'bool', 'value': True},
+            {'name': 'roi_change_unit_visibility', 'type': 'bool', 'value': True},
+            {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
+            {'name': 'method_localize_unit', 'type': 'list', 'limits': possible_localization_methods},
             
             
         ]
@@ -53,6 +68,8 @@ class ProbeView(WidgetBase):
         self.viewBox = MyViewBox()
         #~ self.viewBox.doubleclicked.connect(self.open_settings)
         self.viewBox.doubleclicked.connect(self.on_pick_unit)
+        self.viewBox.ctrl_doubleclicked.connect(self.on_add_units)
+        
         #~ self.viewBox.disableAutoRange()
         
         #~ self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -157,7 +174,7 @@ class ProbeView(WidgetBase):
         
         if emit_signals:
             self.roi.blockSignals(True)
-            if self.params['change_channel_visibility']:
+            if self.params['roi_change_channel_visibility']:
                 #~ t0 = time.perf_counter()
                 dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
                 visible_channel_inds,  = np.nonzero(dist < r)
@@ -168,7 +185,7 @@ class ProbeView(WidgetBase):
                 #~ t1 = time.perf_counter()
                 #~ print(' probe view change_channel_visibility', t1-t0)
 
-            if self.params['change_unit_visibility']:
+            if self.params['roi_change_unit_visibility']:
                 #~ t0 = time.perf_counter()
                 dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
                 for unit_index, unit_id in enumerate(self.controller.unit_ids):
@@ -177,12 +194,13 @@ class ProbeView(WidgetBase):
                 #~ print(' probe view part1 change_unit_visibility', t1-t0)
                 self.controller.update_visible_spikes()
                 self.unit_visibility_changed.emit()
+                self.on_unit_visibility_changed(auto_zoom=False)
                 #~ t2 = time.perf_counter()
                 #~ print(' probe view part2 change_unit_visibility', t2-t0)
                 
             self.roi.blockSignals(False)
     
-    def on_unit_visibility_changed(self):
+    def on_unit_visibility_changed(self, auto_zoom=None):
         # this change the ROI and so change also channel_visibility
         visible_mask = list(self.controller.unit_visible_dict.values())
         n = np.sum(visible_mask)
@@ -194,25 +212,52 @@ class ProbeView(WidgetBase):
             self.roi.setPos(x - radius, y - radius)
             self.roi.blockSignals(False)
             self.on_roi_change(emit_signals=False)
+        
+        # change scatter pen for selection
+        pen = [pg.mkPen('magenta', width=4)
+                    if self.controller.unit_visible_dict[u] else pg.mkPen('black', width=4)
+                    for u in self.controller.unit_ids]
+        self.scatter.setPen(pen)
+        
+        # auto zoom
+        if auto_zoom is None:
+            auto_zoom = self.params['auto_zoom_on_unit_selection']
+        
+        if auto_zoom:
+            visible_pos = self.controller.unit_positions[visible_mask, :]
+            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+            margin =50
+            self.plot.setXRange(x_min - margin, x_max+ margin)
+            self.plot.setYRange(y_min - margin, y_max+ margin)
+
     
     def on_channel_visibility_changed(self):
         pass
     
-    def on_pick_unit(self, x, y):
+    def on_pick_unit(self, x, y, multi_select=False):
         unit_positions = self.controller.unit_positions
         pos = np.array([x, y])[None, :]
         distances = np.sum((unit_positions - pos) **2, axis=1) ** 0.5
         ind = np.argmin(distances)
         if distances[ind] < 5.:
             radius = self.params['radius']
-            self.roi.blockSignals(True)
-            self.roi.setPos(x - radius, y - radius)
-            self.roi.blockSignals(False)
             unit_id = self.controller.unit_ids[ind]
-            self.controller.unit_visible_dict = {unit_id:False for unit_id in self.controller.unit_ids}
-            self.controller.unit_visible_dict[unit_id] = True
+            if multi_select:
+                self.controller.unit_visible_dict[unit_id] = not(self.controller.unit_visible_dict[unit_id])
+            else:
+                self.controller.unit_visible_dict = {unit_id:False for unit_id in self.controller.unit_ids}
+                self.controller.unit_visible_dict[unit_id] = True
+                self.roi.blockSignals(True)
+                self.roi.setPos(x - radius, y - radius)
+                self.roi.blockSignals(False)
+
             self.controller.update_visible_spikes()
+            self.on_unit_visibility_changed()
             self.unit_visibility_changed.emit()
+    
+    def on_add_units(self, x, y):
+        self.on_pick_unit(x, y, multi_select=True)
     
 
     def compute(self):

@@ -35,13 +35,14 @@ class WaveformView(WidgetBase):
     _params = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
                         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
                       {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-                      {'name': 'metrics', 'type': 'list', 'values': ['median/mad'] },
+                      {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
                       {'name': 'fillbetween', 'type': 'bool', 'value': True },
                       {'name': 'show_channel_id', 'type': 'bool', 'value': False},
                       {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},
                       {'name': 'display_threshold', 'type': 'bool', 'value' : True },
                       {'name': 'sparse_display', 'type': 'bool', 'value' : True },
-                      {'name': 'background_color', 'type': 'color', 'value' : 'k' }
+                      {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
+                      {'name': 'background_color', 'type': 'color', 'value' : 'k' },
                       ]
     
     def __init__(self, controller=None, parent=None):
@@ -388,8 +389,13 @@ class WaveformView(WidgetBase):
                 itemtxt.setPos(x, y)
         
         if self._x_range is None or not keep_range :
-            self._x_range = np.min(self.xvect) - 20 , np.max(self.xvect) + 20
-            self._y1_range = np.min(self.contact_location[:,1]) - 20 , np.max(self.contact_location[:,1]) + 20
+
+            x_margin =50
+            y_margin =150
+            self._x_range = np.min(self.xvect) - x_margin , np.max(self.xvect) + x_margin
+            visible_mask = list(self.controller.unit_visible_dict.values())
+            visible_pos = self.controller.unit_positions[visible_mask, :]
+            self._y1_range = np.min(visible_pos[:,1]) - y_margin , np.max(visible_pos[:,1]) + y_margin
         
         self.plot1.setXRange(*self._x_range, padding = 0.0)
         self.plot1.setYRange(*self._y1_range, padding = 0.0)
@@ -438,6 +444,10 @@ class WaveformView(WidgetBase):
     
     def on_spike_selection_changed(self):
         self.refresh(keep_range=True)
+    
+    def on_unit_visibility_changed(self):
+        keep_range = not(self.params['auto_zoom_on_unit_selection'])
+        self.refresh(keep_range=keep_range)
 
 WaveformView._gui_help_txt = """Waveform view
 Display average template for visible units.
