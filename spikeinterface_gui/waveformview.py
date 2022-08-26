@@ -35,7 +35,7 @@ class WaveformView(WidgetBase):
     _params = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
                         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
                       {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-                      {'name': 'metrics', 'type': 'list', 'values': ['median/mad'] },
+                      {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
                       {'name': 'fillbetween', 'type': 'bool', 'value': True },
                       {'name': 'show_channel_id', 'type': 'bool', 'value': False},
                       {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},

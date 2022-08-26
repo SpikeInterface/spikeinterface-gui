@@ -47,7 +47,7 @@ class ProbeView(WidgetBase):
             {'name': 'roi_change_channel_visibility', 'type': 'bool', 'value': True},
             {'name': 'roi_change_unit_visibility', 'type': 'bool', 'value': True},
             {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
-            {'name': 'method_localize_unit', 'type': 'list', 'values': possible_localization_methods},
+            {'name': 'method_localize_unit', 'type': 'list', 'limits': possible_localization_methods},
             
             
         ]
