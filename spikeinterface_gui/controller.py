@@ -37,7 +37,7 @@ class  SpikeinterfaceController(ControllerBase):
 
         if waveform_extractor.is_extension('quality_metrics'):
             qmc = waveform_extractor.load_extension('quality_metrics')
-            self.metrics = qmc.quality_metrics
+            self.metrics = qmc.get_data()
         else:
             self.metrics = None
 
