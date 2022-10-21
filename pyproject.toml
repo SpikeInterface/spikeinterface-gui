@@ -1,0 +1,47 @@
+[project]
+name = "spikeinterface-gui"
+version = '0.5.1'
+authors = [
+  { name="Samuel Garcia", email="sam.garcia.die@gmail.com" },
+]
+
+description = "Qt GUI for spikeinterface"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "spikeinterface[full]>=0.96.0",
+    "pyqtgraph",
+]
+
+[project.urls]
+Homepage = "https://github.com/SpikeInterface/spikeinterface-gui"
+Repository = "https://github.com/SpikeInterface/spikeinterface-gui"
+
+
+[build-system]
+requires = ["setuptools>=62.0"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.setuptools]
+packages = ["spikeinterface_gui"]
+package-dir = {"spikeinterface_gui" = "spikeinterface_gui"}
+# include_package_data = true
+
+
+[project.scripts]
+sigui = "spikeinterface_gui.main:run_mainwindow_cli"
+
+[project.optional-dependencies]
+
+test = [
+    "pytest",
+    "PySide6",
+]
+

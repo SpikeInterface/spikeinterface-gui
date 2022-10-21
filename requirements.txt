@@ -1,2 +1,0 @@
-spikeinterface[full]>=0.95.0
-pyqtgraph

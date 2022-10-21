@@ -18,18 +18,18 @@ jobs:
           python-version: 3.8
       - name: Install dependencies for testing
         run: |
-          pip install PySide6
-          pip install setuptools wheel twine
-          pip install -r requirements_test.txt
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install setuptools wheel twine build
           pip install -e .
+        # pip install PySide6
+        # pip install .[test]
       #- name: Test core with pytest
       #  run: |
       #    pytest spikeinterface-gui
-      - name: Publish on PyPI
+      - name: Package and Upload
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          python setup.py sdist bdist_wheel
+          python -m build --sdist --wheel
           twine upload dist/*
