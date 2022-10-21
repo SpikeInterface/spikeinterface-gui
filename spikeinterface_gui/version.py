@@ -1,1 +1,2 @@
-version = '0.5.0'
+import importlib.metadata
+version = importlib.metadata.version("spikeinterface_gui")
