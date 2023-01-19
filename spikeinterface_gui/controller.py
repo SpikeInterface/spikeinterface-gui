@@ -71,19 +71,12 @@ class  SpikeinterfaceController(ControllerBase):
         
         # make internal spike vector
         self.spikes = np.zeros(num_spikes, dtype=spike_dtype)
-        pos = 0
-        for segment_index in range(self.num_segments):
-            sample_index, unit_index = all_spikes[segment_index]
-            sl = slice(pos, pos+len(sample_index))
-            self.spikes[sl]['sample_index'] = sample_index
-            self.spikes[sl]['unit_index'] = unit_index
-            #~ self.spikes[sl]['channel_index'] = 
-            self.spikes[sl]['segment_index'] = segment_index
-            self.spikes[sl]['visible'] = True
-            self.spikes[sl]['selected'] = False
-            self.spikes[sl]['included_in_pc'] = False
+        # TODO : align fields with spikeinterface !!!!!!
+        spikes = self.we.sorting.to_spike_vector()
+        self.spikes['sample_index'] = spikes['sample_ind']
+        self.spikes['unit_index'] = spikes['unit_ind']
+        self.spikes['segment_index'] = spikes['segment_ind']
         
-        # create boolean vector of wich spike have been selected by WaveformExtractor
         for segment_index in range(self.num_segments):
             for unit_index, unit_id in enumerate(self.unit_ids):
                 global_inds, = np.nonzero((self.spikes['unit_index'] == unit_index) & (self.spikes['segment_index'] == segment_index))
@@ -129,7 +122,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
         # simple unit position (can be computed later)
-        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass',  num_channels=10)
+        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass')
         
 
         if verbose:
