@@ -5,7 +5,7 @@ from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface.postprocessing import (WaveformPrincipalComponent, get_template_extremum_channel, 
-                                           get_template_channel_sparsity, compute_correlograms, compute_unit_locations,
+                                           get_template_channel_sparsity, compute_noise_levels, compute_correlograms, compute_unit_locations,
                                            compute_template_similarity)
 from spikeinterface.qualitymetrics import compute_num_spikes
 
@@ -27,8 +27,14 @@ class  SpikeinterfaceController(ControllerBase):
         max_spikes_per_unit = self.we._params['max_spikes_per_unit']
         if  max_spikes_per_unit > _MAX_SPIKE_PER_UNIT_WARNING:
             print(f'You have {max_spikes_per_unit} in your WaveformExtractor, the display can be slow')
-            print(f'You should re run the WaveformExtractor with max_spikes_per_unit=500')
-        
+            print(f'You should re run the WaveformExtractor with less units (max_spikes_per_unit=500)')
+
+        if waveform_extractor.is_extension('noise_levels'):
+            nlq = waveform_extractor.load_extension('noise_levels')
+            self.noise_levels = nlq.get_data()
+        else:
+            print('Force compute_noise_levels() this is needed')
+            self.noise_levels = compute_noise_levels(waveform_extractor)
         
         if waveform_extractor.is_extension('principal_components'):
             self.pc = waveform_extractor.load_extension('principal_components')
@@ -46,6 +52,11 @@ class  SpikeinterfaceController(ControllerBase):
             self.spike_amplitudes = sac.get_data(outputs='by_unit')
         else:
             self.spike_amplitudes = None
+
+        # simple unit position (can be computed later)
+        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass',  num_channels=10)
+
+
         
         # some direct attribute
         self.num_segments = self.we.recording.get_num_segments()
@@ -128,8 +139,6 @@ class  SpikeinterfaceController(ControllerBase):
         
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
-        # simple unit position (can be computed later)
-        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass',  num_channels=10)
         
 
         if verbose:
@@ -219,17 +228,16 @@ class  SpikeinterfaceController(ControllerBase):
         traces = rec.get_traces(**kargs)
         return traces
     
-    def estimate_noise(self):
-        # TODO : make a waveformextention to avoid mutiple computation at each startup!!!!
-        duration_s = 1
-        seg_num = 0
-        end_frame = min(int(duration_s * self.sampling_frequency), self.get_num_samples(seg_num))
-        sigs = self.get_traces(segment_index=seg_num, start_frame=0, end_frame=end_frame)
+    #~ def estimate_noise(self):
+        #~ duration_s = 1
+        #~ seg_num = 0
+        #~ end_frame = min(int(duration_s * self.sampling_frequency), self.get_num_samples(seg_num))
+        #~ sigs = self.get_traces(segment_index=seg_num, start_frame=0, end_frame=end_frame)
 
-        self.med = np.median(sigs, axis=0).astype('float32')
-        self.mad = np.median(np.abs(sigs - self.med),axis=0).astype('float32') * 1.4826
+        #~ self.med = np.median(sigs, axis=0).astype('float32')
+        #~ self.mad = np.median(np.abs(sigs - self.med),axis=0).astype('float32') * 1.4826
         
-        return self.med, self.mad
+        #~ return self.med, self.mad
         
         
 
