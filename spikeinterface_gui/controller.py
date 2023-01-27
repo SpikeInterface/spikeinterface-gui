@@ -4,8 +4,9 @@ from .base import ControllerBase
 from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
+from spikeinterface import compute_sparsity
 from spikeinterface.postprocessing import (WaveformPrincipalComponent, get_template_extremum_channel, 
-                                           get_template_channel_sparsity, compute_noise_levels, compute_correlograms, compute_unit_locations,
+                                           compute_noise_levels, compute_correlograms, compute_unit_locations,
                                            compute_template_similarity)
 from spikeinterface.qualitymetrics import compute_num_spikes
 
@@ -54,9 +55,16 @@ class  SpikeinterfaceController(ControllerBase):
             self.spike_amplitudes = None
 
         # simple unit position (can be computed later)
-        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass',  num_channels=10)
-
-
+        self.unit_positions = compute_unit_locations(self.we, method='center_of_mass')
+        
+        if self.we.sparsity is None:
+            self.external_sparsity = compute_sparsity(self.we, method="radius",radius_um=90.)
+            self.we_sparsity = None
+        else:
+            self.external_sparsity = None
+            self.we_sparsity = self.we.sparsity
+        
+        self._extremum_channel = get_template_extremum_channel(self.we, peak_sign='neg', outputs='index')
         
         # some direct attribute
         self.num_segments = self.we.recording.get_num_segments()
@@ -82,19 +90,12 @@ class  SpikeinterfaceController(ControllerBase):
         
         # make internal spike vector
         self.spikes = np.zeros(num_spikes, dtype=spike_dtype)
-        pos = 0
-        for segment_index in range(self.num_segments):
-            sample_index, unit_index = all_spikes[segment_index]
-            sl = slice(pos, pos+len(sample_index))
-            self.spikes[sl]['sample_index'] = sample_index
-            self.spikes[sl]['unit_index'] = unit_index
-            #~ self.spikes[sl]['channel_index'] = 
-            self.spikes[sl]['segment_index'] = segment_index
-            self.spikes[sl]['visible'] = True
-            self.spikes[sl]['selected'] = False
-            self.spikes[sl]['included_in_pc'] = False
+        # TODO : align fields with spikeinterface !!!!!!
+        spikes = self.we.sorting.to_spike_vector()
+        self.spikes['sample_index'] = spikes['sample_ind']
+        self.spikes['unit_index'] = spikes['unit_ind']
+        self.spikes['segment_index'] = spikes['segment_ind']
         
-        # create boolean vector of wich spike have been selected by WaveformExtractor
         for segment_index in range(self.num_segments):
             for unit_index, unit_id in enumerate(self.unit_ids):
                 global_inds, = np.nonzero((self.spikes['unit_index'] == unit_index) & (self.spikes['segment_index'] == segment_index))
@@ -121,9 +122,6 @@ class  SpikeinterfaceController(ControllerBase):
             print('Sparsity and extremum')
 
         
-        # self.compute_sparsity(method='threshold', threshold=2.5)
-        self.compute_sparsity(method='radius', radius_um=90.)
-        self._extremum_channel = get_template_extremum_channel(self.we, peak_sign='neg', outputs='index')
         
         for unit_index, unit_id in enumerate(self.unit_ids):
             mask = self.spikes['unit_index'] == unit_index
@@ -139,7 +137,7 @@ class  SpikeinterfaceController(ControllerBase):
         
         self.visible_channel_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
         
-        
+
 
         if verbose:
             t1 = time.perf_counter()
@@ -253,11 +251,26 @@ class  SpikeinterfaceController(ControllerBase):
         return np.nanmin(self.templates_average), np.nanmax(self.templates_average)
     
     def get_waveforms(self, unit_id):
-        return self.we.get_waveforms(unit_id)
-    
+        if self.we.sparsity is None:
+            # dense waveforms
+            wfs = self.we.get_waveforms(unit_id)
+            chan_inds = np.arange(self.we.recording.get_num_channels(), dtype='int64')
+        else:
+            # sparse waveforms
+            wfs = self.we.get_waveforms(unit_id)
+            chan_inds = self.we.sparsity.unit_id_to_channel_indices[unit_id]
+        return wfs, chan_inds
+
     def get_common_sparse_channels(self, unit_ids):
+        sparsity_mask = self.get_sparsity_mask()
         unit_indexes = [list(self.unit_ids).index(u) for u in unit_ids]
-        chan_inds, = np.nonzero(self.sparsity_mask[unit_indexes, :].sum(axis=0))
+        chan_inds, = np.nonzero(sparsity_mask[unit_indexes, :].sum(axis=0))
+        return chan_inds
+    
+    def get_intersect_sparse_channels(self, unit_ids):
+        sparsity_mask = self.get_sparsity_mask()
+        unit_indexes = [list(self.unit_ids).index(u) for u in unit_ids]
+        chan_inds, = np.nonzero(sparsity_mask[unit_indexes, :].sum(axis=0) == len(unit_ids))
         return chan_inds
     
     def detect_high_similarity(self, threshold=0.9):
@@ -296,19 +309,22 @@ class  SpikeinterfaceController(ControllerBase):
                 return
         return similarity
     
-    def compute_sparsity(self, method='best_channels', num_channels=10, radius_um=90, threshold=2.5):
-        sparsity_dict = get_template_channel_sparsity(self.we, method=method,
-                               peak_sign='both', 
-                               num_channels=num_channels, radius_um=radius_um, threshold=threshold,
-                               outputs='index')
+    #~ def compute_sparsity(self, method='best_channels', num_channels=10, radius_um=90, threshold=2.5):
+        #~ sparsity_dict = get_template_channel_sparsity(self.we, method=method,
+                               #~ peak_sign='both', 
+                               #~ num_channels=num_channels, radius_um=radius_um, threshold=threshold,
+                               #~ outputs='index')
         
-        self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
-        for unit_index, unit_id in enumerate(self.unit_ids):
-            chan_inds = sparsity_dict[unit_id]
-            self.sparsity_mask[unit_index, chan_inds] = True
+        #~ self.sparsity_mask = np.zeros((self.unit_ids.size, self.channel_ids.size), dtype='bool')
+        #~ for unit_index, unit_id in enumerate(self.unit_ids):
+            #~ chan_inds = sparsity_dict[unit_id]
+            #~ self.sparsity_mask[unit_index, chan_inds] = True
     
     def get_sparsity_mask(self):
-        return self.sparsity_mask
+        if self.external_sparsity is not None:
+            return self.external_sparsity.mask
+        else:
+            return self.we_sparsity.mask
     
     def compute_unit_positions(self, method, method_kwargs):
         self.unit_positions = compute_unit_locations(self.we, method=method, **method_kwargs)

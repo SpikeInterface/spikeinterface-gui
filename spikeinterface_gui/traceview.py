@@ -240,7 +240,7 @@ class TraceView(WidgetBase):
         
         # self.med, self.mad = self.controller.estimate_noise()
         
-        self.mad = self.controller.noise_levels.copy(dtype='float32')
+        self.mad = self.controller.noise_levels.astype('float32').copy()
         # we make the assumption that the signal is center on zero (HP filtered)
         self.med = np.zeros(self.mad.shape, dtype='float32')
 
