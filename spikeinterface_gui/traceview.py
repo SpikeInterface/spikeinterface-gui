@@ -236,18 +236,13 @@ class TraceView(WidgetBase):
         self.refresh()
     
     def estimate_auto_scale(self):
-
-        #~ end_frame = min(int(1. * self.controller.sampling_frequency),
-                #~ self.controller.get_num_samples(self.seg_num))
-                
-        #~ sigs = self.controller.get_traces(trace_source=self.trace_source, 
-                #~ segment_index=self.seg_num, 
-                #~ start_frame=0, end_frame=end_frame)
-
-        #~ self.med = np.median(sigs, axis=0).astype('float32')
-        #~ self.mad = np.median(np.abs(sigs - self.med),axis=0).astype('float32') * 1.4826
         
-        self.med, self.mad = self.controller.estimate_noise()
+        
+        # self.med, self.mad = self.controller.estimate_noise()
+        
+        self.mad = self.controller.noise_levels.astype('float32').copy()
+        # we make the assumption that the signal is center on zero (HP filtered)
+        self.med = np.zeros(self.mad.shape, dtype='float32')
 
         self.factor = 1.
         self.gain_zoom(15.)

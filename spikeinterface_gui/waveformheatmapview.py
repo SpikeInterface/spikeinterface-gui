@@ -71,7 +71,7 @@ class WaveformHeatMapView(WidgetBase):
                       #~ {'name': 'display_threshold', 'type': 'bool', 'value' : True },
                       {'name': 'max_unit', 'type': 'int', 'value' : 4 },
                       #~ {'name': 'n_spike_for_centroid', 'type': 'int', 'value' : 300 },
-                      {'name': 'sparse_display', 'type': 'bool', 'value' : True },
+                      #~ {'name': 'sparse_display', 'type': 'bool', 'value' : True },
                       ]
     
     
@@ -256,7 +256,7 @@ class WaveformHeatMapView(WidgetBase):
         visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
         
         #~ sparse = self.controller.have_sparse_template and self.params['sparse_display']
-        sparse = self.params['sparse_display']
+        #~ sparse = self.params['sparse_display']
         # get common visible channels
         #~ if sparse:
             #~ if len(visibles) > 0:
@@ -268,15 +268,15 @@ class WaveformHeatMapView(WidgetBase):
         #~ else:
             #~ common_channels = self.controller.channels
 
-        if sparse:
-            if len(visible_unit_ids) > 0:
-                common_channel_indexes = self.controller.get_common_sparse_channels(visible_unit_ids)
-            else:
-                self._hide_all()
-                return
+        #~ if sparse:
+        if len(visible_unit_ids) > 0:
+            intersect_sparse_indexes = self.controller.get_intersect_sparse_channels(visible_unit_ids)
         else:
-            #~ common_channel_indexes = self.controller.channels
-            common_channel_indexes = np.arange(len(self.controller.channel_ids), dtype='int64')
+            self._hide_all()
+            return
+        #~ else:
+            #~ intersect_sparse_indexes = self.controller.channels
+            #~ intersect_sparse_indexes = np.arange(len(self.controller.channel_ids), dtype='int64')
 
 
         #remove old curves
@@ -288,7 +288,7 @@ class WaveformHeatMapView(WidgetBase):
             self._hide_all()
             return
         
-        if len(common_channel_indexes) ==0:
+        if len(intersect_sparse_indexes) ==0:
             self._hide_all()
             return
         
@@ -343,7 +343,10 @@ class WaveformHeatMapView(WidgetBase):
         
         waveforms = []
         for unit_id in visible_unit_ids:
-            waveforms.append(self.controller.get_waveforms(unit_id)[:, :, common_channel_indexes])
+            wfs, channel_inds = self.controller.get_waveforms(unit_id)
+            wfs, chan_inds = self.controller.get_waveforms(unit_id)
+            keep = np.in1d(chan_inds, intersect_sparse_indexes)
+            waveforms.append(wfs[:, :, keep])
         waveforms = np.concatenate(waveforms)
         data  = waveforms.swapaxes(1,2).reshape(waveforms.shape[0], -1)
         #~ print(data.shape)
@@ -404,7 +407,7 @@ class WaveformHeatMapView(WidgetBase):
             #~ median, chans = self.controller.get_waveform_centroid(k, 'median', channels=common_channels)
             #~ if median is None:
                 #~ continue
-            template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
+            template_avg = self.controller.templates_average[unit_index, :, :][:, intersect_sparse_indexes]
             
             #~ if self.params['data']=='waveforms':
                 #~ y = median.T.flatten()
@@ -433,7 +436,7 @@ class WaveformHeatMapView(WidgetBase):
         pos = 0
         for chan_ind, chan_id in enumerate(self.controller.channel_ids):
             label = self.channel_labels[chan_ind]
-            if self.params['show_channel_id'] and chan_ind in common_channel_indexes:
+            if self.params['show_channel_id'] and chan_ind in intersect_sparse_indexes:
                 label.show()
                 label.setPos(pos * width + nbefore, 0)
                 pos += 1

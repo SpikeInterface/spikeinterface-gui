@@ -50,8 +50,9 @@ class UnitListView(WidgetBase):
         act.triggered.connect(self.show_all)
         act = self.menu.addAction('Hide all')
         act.triggered.connect(self.hide_all)
-        act = self.menu.addAction('Change sparsity')
-        act.triggered.connect(self.change_sparsity)
+        
+        #~ act = self.menu.addAction('Change sparsity')
+        #~ act.triggered.connect(self.change_sparsity)
     
     def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
@@ -215,21 +216,20 @@ class UnitListView(WidgetBase):
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
-    def change_sparsity(self):
+    #~ def change_sparsity(self):
         
-        #~ num_channels=num_channels, radius_um=radius_um, threshold=threshold,
-        _params = [
-                {'name': 'method', 'type': 'list', 'values' : ['best_channels', 'radius', 'threshold'] },
-                {'name': 'num_channels', 'type': 'int', 'value' : 10 },
-                {'name': 'radius_um', 'type': 'float', 'value' : 90.0 },
-                {'name': 'threshold', 'type': 'float', 'value' : 2.5 },
-            ]        
-        dia = ParamDialog(_params, title = 'Sparsity params', parent = self)
-        if dia.exec_():
-            d = dia.get()
-            self.controller.compute_sparsity(**d)
-            self.channel_visibility_changed.emit()
-            self.refresh()
+        #~ _params = [
+                #~ {'name': 'method', 'type': 'list', 'values' : ['best_channels', 'radius', 'threshold'] },
+                #~ {'name': 'num_channels', 'type': 'int', 'value' : 10 },
+                #~ {'name': 'radius_um', 'type': 'float', 'value' : 90.0 },
+                #~ {'name': 'threshold', 'type': 'float', 'value' : 2.5 },
+            #~ ]        
+        #~ dia = ParamDialog(_params, title = 'Sparsity params', parent = self)
+        #~ if dia.exec_():
+            #~ d = dia.get()
+            #~ self.controller.compute_sparsity(**d)
+            #~ self.channel_visibility_changed.emit()
+            #~ self.refresh()
 
 
 UnitListView._gui_help_txt = """Unit list
