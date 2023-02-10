@@ -1,6 +1,6 @@
 [project]
 name = "spikeinterface-gui"
-version = '0.5.1'
+version = '0.6.0'
 authors = [
   { name="Samuel Garcia", email="sam.garcia.die@gmail.com" },
 ]
@@ -15,7 +15,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "spikeinterface[full]>=0.96.0",
+    "spikeinterface[full]>=0.97.0",
     "pyqtgraph",
 ]
 
