@@ -34,8 +34,8 @@ See help [here](https://spikeinterface.readthedocs.io/en/latest/modules/core/plo
 Note that:
   * not all waveform snipets are extracted (See `max_spikes_per_unit`) only some of them
   * this step is cached to a folder (and can be reloaded)
-  * this step can be run in parallel (and so quite fast)
-  * optionaly PCA can be computed and displayed
+  * this step can be run in parallel (and so is quite fast)
+  * optionally PCA can be computed and displayed
 
   
 Example:
@@ -77,7 +77,7 @@ win.show()
 app.exec_()
 ```
 
-With the commend line
+With the command line
 
 ```
 sigui /path/for/my/waveforms
