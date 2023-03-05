@@ -4,7 +4,7 @@ GUI for spikeinterface objects without data copy.
 
 This is a cross platform interactive viewer to inspect the final results
 and quality of any spike sorter supported by spikeinterface 
-(kilosort, spykingcircus, tridesclous, moutainssort, yass, ironclust, herdinspikes, hdsort, klusta...)
+(kilosort, spykingcircus, tridesclous, mountainssort, yass, ironclust, herdingspikes, hdsort, klusta...)
 
 This interactive GUI offer several views that dynamically refresh other views.
 This allows us to very quickly check the strengths and weaknesses of any sorter output.
@@ -32,7 +32,7 @@ You first need to "extract waveform" with spikeinterface
 See help [here](https://spikeinterface.readthedocs.io/en/latest/modules/core/plot_4_waveform_extractor.html#sphx-glr-modules-core-plot-4-waveform-extractor-py)
 
 Note that:
-  * not all waveform snipets are extracted (See `max_spikes_per_unit`) only some of them
+  * not all waveform snippets are extracted (See `max_spikes_per_unit`) only some of them
   * this step is cached to a folder (and can be reloaded)
   * this step can be run in parallel (and so is quite fast)
   * optionally PCA can be computed and displayed
@@ -53,7 +53,7 @@ we = si.extract_waveforms(
     n_jobs=10, total_memory='500M',
     progress_bar=True,
 )
-# and optionally compute principal component
+# and optionally compute principal components
 pc = si.compute_principal_components(we,
     n_components=5,
     mode='by_channel_local',
@@ -98,7 +98,7 @@ From pypi:
 pip install spikeinterface-gui
 ```
 
-From sources:
+From source:
 
 ```bash
 git clone https://github.com/SpikeInterface/spikeinterface-gui.git
@@ -110,5 +110,5 @@ pip install .
 
 Samuel Garcia, CNRS, Lyon, France
 
-This work is a port of the old `tridesclous.gui` submodule of top of
+This work is a port of the old `tridesclous.gui` submodule on top of
 [spikeinterface](https://github.com/SpikeInterface/spikeinterface).
