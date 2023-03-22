@@ -45,7 +45,7 @@ class ProbeView(WidgetBase):
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
             {'name': 'radius', 'type': 'float', 'value': 40.},
             {'name': 'roi_change_channel_visibility', 'type': 'bool', 'value': True},
-            {'name': 'roi_change_unit_visibility', 'type': 'bool', 'value': True},
+            {'name': 'roi_change_unit_visibility', 'type': 'bool', 'value': False},
             {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
             {'name': 'method_localize_unit', 'type': 'list', 'limits': possible_localization_methods},
             
@@ -178,7 +178,10 @@ class ProbeView(WidgetBase):
                 #~ t0 = time.perf_counter()
                 dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
                 visible_channel_inds,  = np.nonzero(dist < r)
-                order = np.argsort(dist[visible_channel_inds])
+                # old behavior order by center distance
+                # order = np.argsort(dist[visible_channel_inds])
+                pos = self.contact_positions[visible_channel_inds, :]
+                order = np.lexsort((-pos[:, 0], pos[:, 1], ))[::-1]
                 visible_channel_inds = visible_channel_inds[order]
                 self.controller.set_channel_visibility(visible_channel_inds)
                 self.channel_visibility_changed.emit()
