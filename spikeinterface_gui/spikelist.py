@@ -9,6 +9,7 @@ from .base import WidgetBase
 _columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'included_in_pc']
 
 class SpikeModel(QT.QAbstractItemModel):
+
     def __init__(self, parent =None, controller=None):
         QT.QAbstractItemModel.__init__(self,parent)
         self.controller = controller
@@ -98,6 +99,11 @@ class SpikeModel(QT.QAbstractItemModel):
 
 
 class SpikeListView(WidgetBase):
+    _params = [
+            {'name': 'select_change_channel_visibility', 'type': 'bool', 'value': False},
+        ]    
+    
+    
     def __init__(self,controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
         self.controller = controller
@@ -153,7 +159,7 @@ class SpikeListView(WidgetBase):
                 inds.append(ind)
         self.controller.set_indices_spike_selected(inds)
         self.spike_selection_changed.emit()
-        if len(inds) == 1:
+        if len(inds) == 1 and self.params['select_change_channel_visibility']:
             # also change channel for centering trace view.
             sparsity_mask = self.controller.get_sparsity_mask()
             unit_index = self.controller.spikes[inds[0]]['unit_index']
