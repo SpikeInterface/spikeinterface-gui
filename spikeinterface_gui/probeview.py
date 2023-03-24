@@ -160,7 +160,21 @@ class ProbeView(WidgetBase):
             for label in self.channel_labels:
                 label.hide()
             
+    
+    def update_channel_visibility_from_roi(self, emit_signals=False):
+            r = self.roi.state['size'][0] / 2
+            x = self.roi.state['pos'].x() + r
+            y = self.roi.state['pos'].y() + r
         
+            dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
+            visible_channel_inds,  = np.nonzero(dist < r)
+            pos = self.contact_positions[visible_channel_inds, :]
+            order = np.lexsort((-pos[:, 0], pos[:, 1], ))[::-1]
+            visible_channel_inds = visible_channel_inds[order]
+            self.controller.set_channel_visibility(visible_channel_inds)
+            if emit_signals:
+                self.channel_visibility_changed.emit()
+
     
     def on_roi_change(self, emit_signals=True):
         
@@ -175,18 +189,7 @@ class ProbeView(WidgetBase):
         if emit_signals:
             self.roi.blockSignals(True)
             if self.params['roi_change_channel_visibility']:
-                #~ t0 = time.perf_counter()
-                dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
-                visible_channel_inds,  = np.nonzero(dist < r)
-                # old behavior order by center distance
-                # order = np.argsort(dist[visible_channel_inds])
-                pos = self.contact_positions[visible_channel_inds, :]
-                order = np.lexsort((-pos[:, 0], pos[:, 1], ))[::-1]
-                visible_channel_inds = visible_channel_inds[order]
-                self.controller.set_channel_visibility(visible_channel_inds)
-                self.channel_visibility_changed.emit()
-                #~ t1 = time.perf_counter()
-                #~ print(' probe view change_channel_visibility', t1-t0)
+                self.update_channel_visibility_from_roi(emit_signals=True)
 
             if self.params['roi_change_unit_visibility']:
                 #~ t0 = time.perf_counter()
@@ -215,6 +218,7 @@ class ProbeView(WidgetBase):
             self.roi.setPos(x - radius, y - radius)
             self.roi.blockSignals(False)
             self.on_roi_change(emit_signals=False)
+            self.update_channel_visibility_from_roi(emit_signals=True)
         
         # change scatter pen for selection
         pen = [pg.mkPen('magenta', width=4)
