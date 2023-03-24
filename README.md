@@ -45,19 +45,30 @@ import spikeinterface.full as si
 recording = si.read_XXXX('/path/to/my/recording')
 recording_filtered = si.bandpass_filter(recording)
 sorting = si.run_sorter('YYYYY', recording_filtered)
+
+# extract waveforms 
+# sparse is important because make everything faster!!!
 waveform_folder = '/path/for/my/waveforms'
+job_kwargs = dict(n_jobs=10, chunk_duration='1s', progress_bar=True,)
 we = si.extract_waveforms(
     recording_filtered, sorting, waveform_folder,
     max_spikes_per_unit=500,
     ms_before=1.5, ms_after=2.5,
-    n_jobs=10, total_memory='500M',
-    progress_bar=True,
+    sparse=True,
+    **job_kwargs
 )
-# and optionally compute principal components
-pc = si.compute_principal_components(we,
-    n_components=5,
+# compute the noise level a faster opening in sigui
+si.compute_noise_levels(we)
+
+# optionally compute more stuff using the spikeinterface.postprocessing module
+# principal components, template similarity, spike amplitudes
+# This will enable to display more views
+si.compute_principal_components(we,
+    n_components=3,
     mode='by_channel_local',
     whiten=True)
+si.compute_template_similarity(we,  method='cosine_similarity',
+si.compute_spike_amplitudes(we, **job_kwargs)
 ```
 
 ### Step 2 : open the GUI
@@ -79,7 +90,7 @@ app.exec_()
 
 With the command line
 
-```
+```bash
 sigui /path/for/my/waveforms
 ```
 
