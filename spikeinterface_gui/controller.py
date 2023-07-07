@@ -112,9 +112,9 @@ class  SpikeinterfaceController(ControllerBase):
         self.spikes = np.zeros(num_spikes, dtype=spike_dtype)
         # TODO : align fields with spikeinterface !!!!!!
         spikes_ = self.we.sorting.to_spike_vector()
-        self.spikes['sample_index'] = spikes_['sample_ind']
-        self.spikes['unit_index'] = spikes_['unit_ind']
-        self.spikes['segment_index'] = spikes_['segment_ind']
+        self.spikes['sample_index'] = spikes_['sample_index']
+        self.spikes['unit_index'] = spikes_['unit_index']
+        self.spikes['segment_index'] = spikes_['segment_index']
         
         self.num_spikes = {unit_id: 0 for unit_id in self.unit_ids}
         self._spike_index_by_units = {unit_id: [] for unit_id in self.unit_ids}
