@@ -1,6 +1,6 @@
 [project]
 name = "spikeinterface-gui"
-version = '0.6.0'
+version = '0.7.0'
 authors = [
   { name="Samuel Garcia", email="sam.garcia.die@gmail.com" },
 ]
