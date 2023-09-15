@@ -9,8 +9,8 @@ and quality of any spike sorter supported by spikeinterface
 This interactive GUI offer several views that dynamically refresh other views.
 This allows us to very quickly check the strengths and weaknesses of any sorter output.
 
-Contrary to other viewers (like  phy), this viewer skips the tedious and long step of
-copying and reformating the entire dataset (filtered signal + waveform + PCA) to a particular
+Contrary to other viewers (like phy), this viewer skips the tedious and long step of
+copying and reformatting the entire dataset (filtered signal + waveform + PCA) to a particular
 format or folder organisation. This gui is built on top of spikeinterface objects
 (Recording, Sorting, WaveformExtractor)
 These objects are "lazy" and retrieve data on the fly (no copy!).
@@ -47,7 +47,7 @@ recording_filtered = si.bandpass_filter(recording)
 sorting = si.run_sorter('YYYYY', recording_filtered)
 
 # extract waveforms 
-# sparse is important because make everything faster!!!
+# sparsity is important because it makes everything faster!!!
 waveform_folder = '/path/for/my/waveforms'
 job_kwargs = dict(n_jobs=10, chunk_duration='1s', progress_bar=True,)
 we = si.extract_waveforms(
@@ -62,12 +62,12 @@ si.compute_noise_levels(we)
 
 # optionally compute more stuff using the spikeinterface.postprocessing module
 # principal components, template similarity, spike amplitudes
-# This will enable to display more views
+# This will enable us to display more views
 si.compute_principal_components(we,
     n_components=3,
     mode='by_channel_local',
     whiten=True)
-si.compute_template_similarity(we,  method='cosine_similarity',
+si.compute_template_similarity(we,  method='cosine_similarity')
 si.compute_spike_amplitudes(we, **job_kwargs)
 ```
 
@@ -97,7 +97,7 @@ sigui /path/for/my/waveforms
 
 ## Install
 
-You need first to install one of these 3 packages (by order of preference):
+You need first to install **one** of these 3 packages (by order of preference):
   * `pip install PySide6`
   * `pip install PyQt6`
   * `pip install PyQt5`
