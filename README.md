@@ -97,11 +97,16 @@ sigui /path/for/my/waveforms
 
 ## Install
 
-You need first to install **one** of these 3 packages (by order of preference):
-  * `pip install PySide6`
-  * `pip install PyQt6`
-  * `pip install PyQt5`
+For beginners or Anaconda users please see our [installation tips](https://github.com/SpikeInterface/spikeinterface/tree/main/installation_tips)
+where we provide a yaml for Mac/Windows/Linux to help properly install `spikeinterface` and `spikeinterface-gui` for you in a dedicated
+conda environment.
 
+Otherwise, 
+
+You need first to install **one** of these 3 packages (by order of preference):
+  * `pip install PySide6` or
+  * `pip install PyQt6` or
+  * `pip install PyQt5`
 
 From pypi:
 
