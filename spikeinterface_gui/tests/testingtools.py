@@ -13,11 +13,19 @@ def clean_all(test_folder):
 def make_one_folder(test_folder):
     clean_all(test_folder)
     
+    job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
+
     recording, sorting = si.generate_ground_truth_recording(
         durations=[300.0, 100.0],
+        num_channels=20,
+        num_units=10,
+
+        # durations=[3600.0*2],
+        # num_channels=380,
+        # num_units=250,
+
         sampling_frequency=30000.0,
-        num_channels=30,
-        num_units=15,
+        
         generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
         generate_unit_locations_kwargs=dict(
             margin_um=5.0,
@@ -33,12 +41,17 @@ def make_one_folder(test_folder):
         seed=2205,
     )
     
-    job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
-    sorting_analyzer = si.create_sorting_analyzer(sorting, recording, format="binary_folder", folder=test_folder / "sorting_analyzer")
-    sorting_analyzer.select_random_spikes()
+    
+    sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
+                                                  format="binary_folder", folder=test_folder / "sorting_analyzer",
+                                                  **job_kwargs)
+    sorting_analyzer.select_random_spikes(method="uniform", max_spikes_per_unit=500)
     sorting_analyzer.compute("waveforms", **job_kwargs)
     sorting_analyzer.compute("templates")
     sorting_analyzer.compute("noise_levels")
+    sorting_analyzer.compute("unit_locations")
+    sorting_analyzer.compute("isi_histograms")
+    sorting_analyzer.compute("correlograms")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
     sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
     sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
