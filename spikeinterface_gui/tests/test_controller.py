@@ -2,7 +2,7 @@ import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
 
-from spikeinterface import WaveformExtractor, extract_waveforms
+import spikeinterface.full as si
 
 from pathlib import Path
 
@@ -16,21 +16,17 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_controller(interactive=False):
-    we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
-    controller = sigui.SpikeinterfaceController(we)
+def test_controller():
+    sorting_analyzer = si.load_sorting_analyzer(test_folder / "sorting_analyzer")
+    print()
+    controller = sigui.SpikeinterfaceController(sorting_analyzer)
     print(controller)
-    print(controller.pc)
     
+    print(controller.segment_slices)
     
-    all_labels, all_components = controller.pc.get_all_projections()
-    
-    print(all_components.shape)
     
 
 if __name__ == '__main__':
     
-    #~ setup_module()
-    
-    
-    test_controller(interactive=True)
+    # setup_module()
+    test_controller()
