@@ -9,18 +9,18 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,waveform_extractor,  parent=None, verbose=False):
+    def __init__(self,sorting_result,  parent=None, verbose=False):
         QT.QMainWindow.__init__(self, parent)
         
         self.verbose = verbose
         
-        self.waveform_extractor = waveform_extractor
+        self.sorting_result = sorting_result
         
         if verbose:
             
             print('Controller:')
             t0 = time.perf_counter()
-        self.controller = SpikeinterfaceController(waveform_extractor, verbose=verbose)
+        self.controller = SpikeinterfaceController(sorting_result, verbose=verbose)
         
         if verbose:
             t1 = time.perf_counter()

@@ -3,7 +3,10 @@ import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
 
-from spikeinterface import WaveformExtractor, extract_waveforms
+from spikeinterface import load_sorting_result
+import spikeinterface.postprocessing
+import spikeinterface.qualitymetrics
+
 
 from pathlib import Path
 
@@ -18,12 +21,9 @@ def teardown_module():
 
 def test_mainwindow(interactive=False):
     app = sigui.mkQApp()
-    
-    we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
-    #~ we = WaveformExtractor.load_from_folder('/home/samuel/Bureau/bug_si_synaptic_sage/waveforms/')
-    
-    
-    win = sigui.MainWindow(we)
+    sorting_result = load_sorting_result(test_folder / "sorting_result")
+    print(sorting_result)
+    win = sigui.MainWindow(sorting_result)
     
     if interactive:
         win.show()
@@ -35,7 +35,7 @@ def test_mainwindow(interactive=False):
     
 if __name__ == '__main__':
     
-    # setup_module()
+    # setup_module()
     
     test_mainwindow(interactive=True)
 
