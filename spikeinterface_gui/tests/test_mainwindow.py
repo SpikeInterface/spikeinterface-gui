@@ -23,7 +23,7 @@ def test_mainwindow(interactive=False):
     app = sigui.mkQApp()
     sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     print(sorting_analyzer)
-    win = sigui.MainWindow(sorting_analyzer)
+    win = sigui.MainWindow(sorting_analyzer, verbose=True)
     
     if interactive:
         win.show()
@@ -37,8 +37,3 @@ if __name__ == '__main__':
     # setup_module()
     
     test_mainwindow(interactive=True)
-
-
-
-
-    

@@ -163,7 +163,6 @@ class SpikeAmplitudeView(WidgetBase):
             # trick to avoid bad borders
             # count[0] = 0
             # count[-1] = 0
-            print(count[:10], bins[:10], count[-10:], bins[-10:])
             
             max_count = max(max_count, np.max(count))
             

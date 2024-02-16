@@ -16,13 +16,13 @@ def make_one_folder(test_folder):
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
     recording, sorting = si.generate_ground_truth_recording(
-        durations=[300.0, 100.0],
-        num_channels=20,
-        num_units=10,
+        # durations=[300.0, 100.0],
+        # num_channels=20,
+        # num_units=10,
 
-        # durations=[3600.0*2],
-        # num_channels=380,
-        # num_units=250,
+        durations=[3600.0 / 10.],
+        num_channels=380,
+        num_units=250,
 
         sampling_frequency=30000.0,
         
