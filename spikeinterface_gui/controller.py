@@ -29,11 +29,11 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, sorting_result=None,parent=None, verbose=False):
+    def __init__(self, analyzer=None,parent=None, verbose=False):
         ControllerBase.__init__(self, parent=parent)
         
-        self.sorting_result = sorting_result
-        assert self.sorting_result.random_spikes_indices is not None
+        self.analyzer = analyzer
+        assert self.analyzer.random_spikes_indices is not None
         
         self.return_scaled = True        
 
@@ -43,56 +43,56 @@ class  SpikeinterfaceController(ControllerBase):
 
         # Mandatory extensions : computation forced
             
-        wf_ext = self.sorting_result.get_extension('waveforms')
+        wf_ext = self.analyzer.get_extension('waveforms')
         if wf_ext is None:
-           wf_ext = sorting_result.compute_one_extension('waveforms')
+           wf_ext = analyzer.compute_one_extension('waveforms')
         self.waveforms_ext = wf_ext
             
 
-        ext = sorting_result.get_extension('noise_levels')
+        ext = analyzer.get_extension('noise_levels')
         if ext is None:
             print('Force compute "noise_levels" is needed')
-            ext = sorting_result.compute_one_extension('noise_levels')
+            ext = analyzer.compute_one_extension('noise_levels')
         self.noise_levels = ext.get_data()
 
-        temp_ext = self.sorting_result.get_extension("templates")
+        temp_ext = self.analyzer.get_extension("templates")
         if temp_ext is None:
-            temp_ext = self.sorting_result.compute_one_extension("templates")
+            temp_ext = self.analyzer.compute_one_extension("templates")
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
 
         self.templates_average = temp_ext.get_templates(operator='average')
         self.templates_std = temp_ext.get_templates(operator='std')
 
-        ext = sorting_result.get_extension('unit_locations')
+        ext = analyzer.get_extension('unit_locations')
         if ext is None:
             print('Force compute "unit_locations" is needed')
-            ext = sorting_result.compute_one_extension('unit_locations')
+            ext = analyzer.compute_one_extension('unit_locations')
         # only 2D
         self.unit_positions = ext.get_data()[:, :2]
 
         # this extension can be None
-        self.pc_ext = sorting_result.get_extension('principal_components')
+        self.pc_ext = analyzer.get_extension('principal_components')
         self._pc_projections = None
 
-        qm_ext = sorting_result.get_extension('quality_metrics')
+        qm_ext = analyzer.get_extension('quality_metrics')
         if qm_ext is not None:
             self.metrics = qm_ext.get_data()
         else:
             self.metrics = None
 
-        sa_ext = sorting_result.get_extension('spike_amplitudes')
+        sa_ext = analyzer.get_extension('spike_amplitudes')
         if sa_ext is not None:
             self.spike_amplitudes = sa_ext.get_data()
         else:
             self.spike_amplitudes = None
 
 
-        if self.sorting_result.sparsity is None:
-            self.external_sparsity = compute_sparsity(self.sorting_result, method="radius",radius_um=90.)
-            self.sorting_result_sparsity = None
+        if self.analyzer.sparsity is None:
+            self.external_sparsity = compute_sparsity(self.analyzer, method="radius",radius_um=90.)
+            self.analyzer_sparsity = None
         else:
             self.external_sparsity = None
-            self.sorting_result_sparsity = self.sorting_result.sparsity
+            self.analyzer_sparsity = self.analyzer.sparsity
 
         if verbose:
             t1 = time.perf_counter()
@@ -100,14 +100,14 @@ class  SpikeinterfaceController(ControllerBase):
 
             t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(self.sorting_result, peak_sign='neg', outputs='index')
+        self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
 
         # some direct attribute
-        self.num_segments = self.sorting_result.recording.get_num_segments()
-        self.sampling_frequency = self.sorting_result.recording.get_sampling_frequency()
+        self.num_segments = self.analyzer.recording.get_num_segments()
+        self.sampling_frequency = self.analyzer.recording.get_sampling_frequency()
 
 
-        self.colors = get_unit_colors(self.sorting_result.sorting, color_engine='matplotlib', map_name='gist_ncar', 
+        self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
         self.qcolors = {}
         for unit_id, color in self.colors.items():
@@ -125,26 +125,26 @@ class  SpikeinterfaceController(ControllerBase):
         
         
         # make internal spike vector
-        unit_ids = self.sorting_result.unit_ids
-        num_seg = self.sorting_result.get_num_segments()
-        self.num_spikes = self.sorting_result.sorting.count_num_spikes_per_unit(outputs="dict")
+        unit_ids = self.analyzer.unit_ids
+        num_seg = self.analyzer.get_num_segments()
+        self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
 
-        spikes_vector = self.sorting_result.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
+        spikes_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
         self.spikes = np.zeros(spikes_vector.size, dtype=spike_dtype)        
         self.spikes['sample_index'] = spikes_vector['sample_index']
         self.spikes['unit_index'] = spikes_vector['unit_index']
         self.spikes['segment_index'] = spikes_vector['segment_index']
         self.spikes['channel_index'] = spikes_vector['channel_index']
         self.spikes['included_in_pc'][:] = False
-        self.spikes['included_in_pc'][self.sorting_result.random_spikes_indices] = True
+        self.spikes['included_in_pc'][self.analyzer.random_spikes_indices] = True
 
-        self.num_spikes = self.sorting_result.sorting.count_num_spikes_per_unit(outputs="dict")
+        self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
         
 
         
-        spikes_vector2 = self.sorting_result.sorting.to_spike_vector(concatenated=False)
+        spikes_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         # this is dict of list because per segment spike_indices[unit_id][segment_index]
         spike_indices = spike_vector_to_indices(spikes_vector2, unit_ids)
         # this is flatten
@@ -160,7 +160,7 @@ class  SpikeinterfaceController(ControllerBase):
             t0 = time.perf_counter()
             print('similarity')
 
-        self.visible_channel_inds = np.arange(self.sorting_result.recording.get_num_channels(), dtype='int64')
+        self.visible_channel_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
 
         self._spike_visible_indices = np.array([], dtype='int64')
         self._spike_selected_indices = np.array([], dtype='int64')
@@ -182,11 +182,11 @@ class  SpikeinterfaceController(ControllerBase):
         
     @property
     def channel_ids(self):
-        return self.sorting_result.recording.channel_ids
+        return self.analyzer.recording.channel_ids
 
     @property
     def unit_ids(self):
-        return self.sorting_result.sorting.unit_ids
+        return self.analyzer.sorting.unit_ids
     
     def get_extremum_channel(self, unit_id):
         chan_ind = self._extremum_channel[unit_id]
@@ -229,14 +229,14 @@ class  SpikeinterfaceController(ControllerBase):
         self._spike_selected_indices = np.array(inds)
 
     def get_num_samples(self, segment_index):
-        return self.sorting_result.recording.get_num_samples(segment_index=segment_index)
+        return self.analyzer.recording.get_num_samples(segment_index=segment_index)
     
     def get_traces(self, trace_source='preprocessed', **kargs):
         # assert trace_source in ['preprocessed', 'raw']
         assert trace_source in ['preprocessed']
         
         if trace_source == 'preprocessed':
-            rec = self.sorting_result.recording
+            rec = self.analyzer.recording
         elif trace_source == 'raw':
             raise NotImplemented
             # TODO get with parent recording the non process recording
@@ -246,7 +246,7 @@ class  SpikeinterfaceController(ControllerBase):
         return traces
     
     def get_contact_location(self):
-        location = self.sorting_result.recording.get_channel_locations()
+        location = self.analyzer.recording.get_channel_locations()
         return location
     
     def get_waveform_sweep(self):
@@ -257,12 +257,12 @@ class  SpikeinterfaceController(ControllerBase):
     
     def get_waveforms(self, unit_id):
         wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=False)
-        if self.sorting_result.sparsity is None:
+        if self.analyzer.sparsity is None:
             # dense waveforms
-            chan_inds = np.arange(self.sorting_result.recording.get_num_channels(), dtype='int64')
+            chan_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
         else:
             # sparse waveforms
-            chan_inds = self.sorting_result.sparsity.unit_id_to_channel_indices[unit_id]
+            chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
         return wfs, chan_inds
 
     def get_common_sparse_channels(self, unit_ids):
@@ -281,7 +281,7 @@ class  SpikeinterfaceController(ControllerBase):
         return
     
     def get_probe(self):
-        return self.sorting_result.get_probe()
+        return self.analyzer.get_probe()
         
     def set_channel_visibility(self, visible_channel_inds):
         self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
@@ -299,8 +299,8 @@ class  SpikeinterfaceController(ControllerBase):
 
         if self._pc_projections is None:
             self._pc_projections, self._pc_indices = self.pc_ext.get_some_projections(
-                channel_ids=self.sorting_result.channel_ids,
-                unit_ids=self.sorting_result.unit_ids
+                channel_ids=self.analyzer.channel_ids,
+                unit_ids=self.analyzer.unit_ids
             )
 
         return self._pc_indices, self._pc_projections
@@ -309,7 +309,7 @@ class  SpikeinterfaceController(ControllerBase):
         similarity = self._similarity_by_method.get(method, None)
         if similarity is None:
             if force_compute:
-                similarity_ext = self.sorting_result.compute("template_similarity", method=method, save=False)
+                similarity_ext = self.analyzer.compute("template_similarity", method=method, save=False)
                 self._similarity_by_method[method] = similarity_ext.get_data()
             else:
                 return
@@ -320,15 +320,15 @@ class  SpikeinterfaceController(ControllerBase):
         if self.external_sparsity is not None:
             return self.external_sparsity.mask
         else:
-            return self.sorting_result_sparsity.mask
+            return self.analyzer_sparsity.mask
     
     def compute_unit_positions(self, method, method_kwargs):
-        ext = self.sorting_result.compute_one_extension('unit_locations', save=False, method=method, **method_kwargs)
+        ext = self.analyzer.compute_one_extension('unit_locations', save=False, method=method, **method_kwargs)
         # 2D only
         self.unit_positions = ext.get_data()[:, :2]
 
     def compute_correlograms(self, window_ms, bin_ms):
-        ext = self.sorting_result.compute("correlograms", save=False, window_ms=window_ms, bin_ms=bin_ms)
+        ext = self.analyzer.compute("correlograms", save=False, window_ms=window_ms, bin_ms=bin_ms)
         correlograms, bins = ext.get_data()
         return correlograms, bins
     

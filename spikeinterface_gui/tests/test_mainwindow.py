@@ -3,7 +3,7 @@ import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
 
-from spikeinterface import load_sorting_result
+from spikeinterface import load_sorting_analyzer
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 
@@ -21,9 +21,9 @@ def teardown_module():
 
 def test_mainwindow(interactive=False):
     app = sigui.mkQApp()
-    sorting_result = load_sorting_result(test_folder / "sorting_result")
-    print(sorting_result)
-    win = sigui.MainWindow(sorting_result)
+    sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    print(sorting_analyzer)
+    win = sigui.MainWindow(sorting_analyzer)
     
     if interactive:
         win.show()
@@ -34,7 +34,6 @@ def test_mainwindow(interactive=False):
 
     
 if __name__ == '__main__':
-    
     # setup_module()
     
     test_mainwindow(interactive=True)

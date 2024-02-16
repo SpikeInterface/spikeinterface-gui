@@ -17,9 +17,9 @@ def teardown_module():
 
 
 def test_controller():
-    sorting_result = si.load_sorting_result(test_folder / "sorting_result")
+    sorting_analyzer = si.load_sorting_analyzer(test_folder / "sorting_analyzer")
     print()
-    controller = sigui.SpikeinterfaceController(sorting_result)
+    controller = sigui.SpikeinterfaceController(sorting_analyzer)
     print(controller)
     
     print(controller.segment_slices)

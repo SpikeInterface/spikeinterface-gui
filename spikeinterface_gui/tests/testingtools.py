@@ -34,14 +34,14 @@ def make_one_folder(test_folder):
     )
     
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
-    sorting_result = si.start_sorting_result(sorting, recording, format="binary_folder", folder=test_folder / "sorting_result")
-    sorting_result.select_random_spikes()
-    sorting_result.compute("waveforms", **job_kwargs)
-    sorting_result.compute("templates")
-    sorting_result.compute("noise_levels")
-    sorting_result.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
-    sorting_result.compute("quality_metrics", metric_names=["snr", "firing_rate"])
-    sorting_result.compute("spike_amplitudes", **job_kwargs)
+    sorting_analyzer = si.create_sorting_analyzer(sorting, recording, format="binary_folder", folder=test_folder / "sorting_analyzer")
+    sorting_analyzer.select_random_spikes()
+    sorting_analyzer.compute("waveforms", **job_kwargs)
+    sorting_analyzer.compute("templates")
+    sorting_analyzer.compute("noise_levels")
+    sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
+    sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
+    sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
 
 
     
@@ -50,25 +50,25 @@ if __name__ == '__main__':
 
     test_folder = Path('my_dataset')
     
-    folder = test_folder / 'sorting_result'
+    folder = test_folder / 'sorting_analyzer'
     
     clean_all(test_folder)
     make_one_folder(test_folder)
     
-    sorting_result = si.load_sorting_result(folder)
-    print(sorting_result)
+    sorting_analyzer = si.load_sorting_analyzer(folder)
+    print(sorting_analyzer)
 
 
 
-    nlq = sorting_result.get_extension('noise_levels')
-    print(nlq.get_data())
+    nlq = sorting_analyzer.get_extension('noise_levels')
+    # print(nlq.get_data())
     
-    pc = sorting_result.get_extension('principal_components')
-    print(pc.get_data())
+    pc = sorting_analyzer.get_extension('principal_components')
+    # print(pc.get_data())
     
-    sac = sorting_result.get_extension('spike_amplitudes')
-    print(sac.get_data())
+    sac = sorting_analyzer.get_extension('spike_amplitudes')
+    # print(sac.get_data())
 
-    qmc = sorting_result.get_extension('quality_metrics')
-    print(qmc.get_data())
+    qmc = sorting_analyzer.get_extension('quality_metrics')
+    # print(qmc.get_data())
     

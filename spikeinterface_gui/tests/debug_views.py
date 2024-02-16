@@ -3,7 +3,7 @@ from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
 
 
 
-from spikeinterface import WaveformExtractor, extract_waveforms
+import spikeinterface.full as si
 
 
 
@@ -15,10 +15,10 @@ test_folder = Path('my_dataset')
 def debug_one_view():
 
     app = sigui.mkQApp()
-    we = WaveformExtractor.load_from_folder(test_folder / 'waveforms')
+    sorting_analyzer = si.load_sorting_analyzer(test_folder / "sorting_analyzer")
     
     
-    controller = sigui.SpikeinterfaceController(we)
+    controller = sigui.SpikeinterfaceController(sorting_analyzer)
     
     #~ controller.unit_visible_dict = {k: False for k in controller.unit_visible_dict}
     #~ controller.unit_visible_dict[list(controller.unit_visible_dict.keys())[0]] = True
