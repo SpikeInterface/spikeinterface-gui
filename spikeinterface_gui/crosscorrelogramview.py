@@ -22,8 +22,8 @@ class MyViewBox(pg.ViewBox):
 
 class CrossCorrelogramView(WidgetBase):
     _params = [
-                      {'name': 'window_size_ms', 'type': 'float', 'value' : 100. },
-                      {'name': 'bin_size_ms', 'type': 'float', 'value' : 1.0 },
+                      {'name': 'window_ms', 'type': 'float', 'value' : 50. },
+                      {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
                       #~ {'name': 'symmetrize', 'type': 'bool', 'value' : True },
                       {'name': 'display_axis', 'type': 'bool', 'value' : True },
                       {'name': 'max_visible', 'type': 'int', 'value' : 8 },
@@ -43,8 +43,7 @@ class CrossCorrelogramView(WidgetBase):
         self.grid = pg.GraphicsLayoutWidget()
         self.layout.addWidget(self.grid)
         
-        self.ccg = None
-
+        self.ccg, self.bins = self.controller.get_correlograms()
 
     def on_params_changed(self):
         self.ccg = None
@@ -52,7 +51,7 @@ class CrossCorrelogramView(WidgetBase):
     
     def compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
-                self.params['window_size_ms'],  self.params['bin_size_ms'])
+                self.params['window_ms'],  self.params['bin_ms'])
         self.refresh()
 
     def _refresh(self):

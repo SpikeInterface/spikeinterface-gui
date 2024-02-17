@@ -16,13 +16,13 @@ def make_one_folder(test_folder):
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
     recording, sorting = si.generate_ground_truth_recording(
-        # durations=[300.0, 100.0],
-        # num_channels=20,
-        # num_units=10,
+        durations=[300.0, 100.0],
+        num_channels=20,
+        num_units=10,
 
-        durations=[3600.0 / 10.],
-        num_channels=380,
-        num_units=250,
+        # durations=[3600.0 / 10.],
+        # num_channels=380,
+        # num_units=250,
 
         sampling_frequency=30000.0,
         
@@ -50,8 +50,9 @@ def make_one_folder(test_folder):
     sorting_analyzer.compute("templates")
     sorting_analyzer.compute("noise_levels")
     sorting_analyzer.compute("unit_locations")
-    sorting_analyzer.compute("isi_histograms")
-    sorting_analyzer.compute("correlograms")
+    ext = sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1.)
+    sorting_analyzer.compute("correlograms", window_ms=50., bin_ms=1.)
+    sorting_analyzer.compute("template_similarity")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
     sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
     sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
