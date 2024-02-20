@@ -166,7 +166,7 @@ class SpikeListView(WidgetBase):
             visible_channel_inds, = np.nonzero(sparsity_mask[unit_index, :])
 
             # check ifchannel visibility must be changed
-            if not np.all(np.in1d(visible_channel_inds, self.controller.visible_channel_inds)):
+            if not np.all(np.isin(visible_channel_inds, self.controller.visible_channel_inds)):
                 self.controller.set_channel_visibility(visible_channel_inds)
                 self.channel_visibility_changed.emit()
         
@@ -182,7 +182,7 @@ class SpikeListView(WidgetBase):
         
         selected_inds  = self.controller.get_indices_spike_selected()
         visible_inds = self.controller.get_indices_spike_visible()
-        row_selected,  = np.nonzero(np.in1d(visible_inds, selected_inds))
+        row_selected,  = np.nonzero(np.isin(visible_inds, selected_inds))
         
         
         if row_selected.size>100:#otherwise this is verry slow

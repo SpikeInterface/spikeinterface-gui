@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 
 from .base import WidgetBase
-#~ from ..tools import compute_cross_correlograms
-
 
 
 class MyViewBox(pg.ViewBox):
@@ -69,10 +67,6 @@ class CrossCorrelogramView(WidgetBase):
         
         n = len(visible_unit_ids)
         
-        #~ bins = self.bins * 1000. #to ms
-        bins = self.bins
-        
-        #~ labels = self.controller.positive_cluster_labels.tolist()
         unit_ids = list(self.controller.unit_ids)
         
         for r in range(n):
@@ -94,7 +88,7 @@ class CrossCorrelogramView(WidgetBase):
                 else:
                     color = (120,120,120,120)
                 
-                curve = pg.PlotCurveItem(bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
+                curve = pg.PlotCurveItem(self.bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
 
@@ -102,5 +96,4 @@ class CrossCorrelogramView(WidgetBase):
 CrossCorrelogramView._gui_help_txt = """Cross correlogram
 Show only selected units.
 Settings control the bin size in ms.
-No computed at the begning need to be done manually when bin are changed.
 Right mouse : zoom"""

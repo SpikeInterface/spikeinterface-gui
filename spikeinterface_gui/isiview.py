@@ -69,8 +69,6 @@ class ISIView(WidgetBase):
                 continue
 
             isi = self.isi_histograms[unit_index, :]
-            print(self.isi_bins)
-            print(isi)
             
             qcolor = self.controller.qcolors[unit_id]
             curve = pg.PlotCurveItem(self.isi_bins[:-1], isi, pen=pg.mkPen(qcolor, width=3))

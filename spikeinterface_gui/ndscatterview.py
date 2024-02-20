@@ -14,8 +14,6 @@ import itertools
 from .base import WidgetBase
 from .tools import ParamDialog
 
-#~ from ..tools import median_mad, get_neighborhood
-
 
 class MyViewBox(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
@@ -45,7 +43,8 @@ class MyViewBox(pg.ViewBox):
         
     def mouseDragEvent(self, ev):
         ev.accept()
-        if ev.button()!=1: return
+        if ev.button() != QT.MouseButton.LeftButton:
+            return
         
         if ev.isStart():
             self.drag_points = []
@@ -87,8 +86,8 @@ class NDScatterView(WidgetBase):
             self.mapping_index[mask] = ind_global
         
         if self.data.shape[1] == 1:
-            # corner case one PC and one channel only
-            data = np.zeros((feat.shape[0], 2), dtype=self.data.dtype)
+            # corner case one PC and one channel only, then force 2D
+            data = np.zeros((self.data.shape[0], 2), dtype=self.data.dtype)
             data[:, 0] = self.data[:, 0]
             data[:, 0] = self.data[:, 0]
             self.data = data
@@ -111,7 +110,6 @@ class NDScatterView(WidgetBase):
         self.timer_tour = QT.QTimer(interval=100)
         self.timer_tour.timeout.connect(self.new_tour_step)
         
-        #~ if self.data is not None:
         self.initialize()
         self.refresh()
         
@@ -147,8 +145,8 @@ class NDScatterView(WidgetBase):
         self.plot.addItem(self.scatter)
         
         
-        brush = QT.QColor( 'magenta')
-        brush.setAlpha(120)
+        brush = QT.QColor('white')
+        brush.setAlpha(200)
         self.scatter_select = pg.ScatterPlotItem(pen=pg.mkPen(None), brush=brush, size=11, pxMode = True)
         self.plot.addItem(self.scatter_select)
         self.scatter_select.setZValue(1000)
@@ -157,20 +155,22 @@ class NDScatterView(WidgetBase):
         self.lasso = pg.PlotCurveItem(pen='#7FFF00')
         self.plot.addItem(self.lasso)
         
-        #estimate limts
-        data = self.data.flatten()
-        if data.size > 5000:
-            data = data.take(np.random.choice(data.size, 5000, replace=False))
-        min_ = np.min(data)
-        max_ = np.max(data)
-        m = max(np.abs(min_), np.abs(max_)) * 1.2
-        self.limit = m
         
         ndim = self.data.shape[1]
         self.selected_comp = np.ones((ndim), dtype='bool')
         self.projection = np.zeros( (ndim, 2))
         self.projection[0,0] = 1.
         self.projection[1,1] = 1.
+
+        #estimate limts
+        data = self.data
+        if data.shape[0] > 1000:
+            inds = np.random.choice(data.shape[0], 1000, replace=False)
+            data = data[inds, :]
+        projected = self.apply_dot(data)
+        self.limit = np.percentile(np.abs(projected), 95) * 1.3
+        self.gain_zoom(1.)
+
         
         self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
         
@@ -262,7 +262,6 @@ class NDScatterView(WidgetBase):
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
             #~ data = self.data_by_label(k)
-            # TODO make slice!!!!!!
             mask = self.pc_unit_index == unit_index
             data = self.data[mask, :]
             #~ projected = np.dot(data, self.projection )
@@ -273,7 +272,7 @@ class NDScatterView(WidgetBase):
         
         #selection scatter
         # mask = self.controller.spikes[self.mapping_index]['selected']
-        mask = np.in1d(self.mapping_index, self.controller.get_indices_spike_selected())
+        mask = np.isin(self.mapping_index, self.controller.get_indices_spike_selected())
         data_sel = self.data[mask, :]
         projected_select = self.apply_dot(data_sel)
         self.scatter_select.setData(projected_select[:,0], projected_select[:,1])
@@ -341,7 +340,7 @@ class NDScatterView(WidgetBase):
         
         # inside lasso and visibles
         #~ ind_visibles,  = np.nonzero(self.controller.spikes[self.mapping_index]['visible'])
-        ind_visibles,   = np.nonzero(np.in1d(self.mapping_index, self.controller.get_indices_spike_visible()))
+        ind_visibles,   = np.nonzero(np.isin(self.mapping_index, self.controller.get_indices_spike_visible()))
         
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)

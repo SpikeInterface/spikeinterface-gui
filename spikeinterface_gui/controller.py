@@ -9,6 +9,7 @@ from spikeinterface.core import get_template_extremum_channel
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
+from spikeinterface.curation import get_potential_auto_merge
 
 import numpy as np
 
@@ -18,25 +19,19 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 
-# TODO spike_amplitudes data
-# TODOmak compute more general case:
-#    similarity
-#    correlogram
-#    unit_locations
-#    isi_histograms
-# TODO handle save=False for extension
 # TODO handle recordingless
 # TODO handle return_scaled
 
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, analyzer=None,parent=None, verbose=False):
+    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
         assert self.analyzer.random_spikes_indices is not None
         
-        self.return_scaled = True        
+        self.return_scaled = True
+        self.save_on_compute = save_on_compute
 
         if verbose:
             t0 = time.perf_counter()
@@ -117,6 +112,8 @@ class  SpikeinterfaceController(ControllerBase):
                 method = 'cosine_similarity'
                 ts_ext = analyzer.compute_one_extension('template_similarity', method=method)
                 self._similarity_by_method[method] = ts_ext.get_data()
+        
+        self._potential_merges = None
 
 
         if verbose:
@@ -147,8 +144,6 @@ class  SpikeinterfaceController(ControllerBase):
             t0 = time.perf_counter()
             print('Gather all spikes')
         
-        
-        
         # make internal spike vector
         unit_ids = self.analyzer.unit_ids
         num_seg = self.analyzer.get_num_segments()
@@ -167,8 +162,6 @@ class  SpikeinterfaceController(ControllerBase):
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
-        
-
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         # this is dict of list because per segment spike_indices[unit_id][segment_index]
@@ -343,13 +336,13 @@ class  SpikeinterfaceController(ControllerBase):
         # have internal cache
         if method in self._similarity_by_method:
             return self._similarity_by_method[method]
-        ext = self.analyzer.compute("template_similarity", method=method, save=False)
+        ext = self.analyzer.compute("template_similarity", method=method, save=self.save_on_compute)
         self._similarity_by_method[method] = ext.get_data()
         return self._similarity_by_method[method]
 
 
     def compute_unit_positions(self, method, method_kwargs):
-        ext = self.analyzer.compute_one_extension('unit_locations', save=False, method=method, **method_kwargs)
+        ext = self.analyzer.compute_one_extension('unit_locations', save=self.save_on_compute, method=method, **method_kwargs)
         # 2D only
         self.unit_positions = ext.get_data()[:, :2]
 
@@ -357,7 +350,7 @@ class  SpikeinterfaceController(ControllerBase):
         return self.correlograms, self.correlograms_bins
 
     def compute_correlograms(self, window_ms, bin_ms):
-        ext = self.analyzer.compute("correlograms", save=False, window_ms=window_ms, bin_ms=bin_ms)
+        ext = self.analyzer.compute("correlograms", save=self.save_on_compute, window_ms=window_ms, bin_ms=bin_ms)
         self.correlograms, self.correlograms_bins = ext.get_data()
         return self.correlograms, self.correlograms_bins
     
@@ -365,6 +358,19 @@ class  SpikeinterfaceController(ControllerBase):
         return self.isi_histograms, self.isi_bins
 
     def compute_isi_histograms(self, window_ms, bin_ms):
-        ext = self.analyzer.compute("isi_histograms", save=False, window_ms=window_ms, bin_ms=bin_ms)
+        ext = self.analyzer.compute("isi_histograms", save=self.save_on_compute, window_ms=window_ms, bin_ms=bin_ms)
         self.isi_histograms, self.isi_bins = ext.get_data()
         return self.isi_histograms, self.isi_bins
+
+    def get_merge_list(self):
+        return self._potential_merges
+
+    def compute_auto_merge(self, **params):
+
+        potential_merges = get_potential_auto_merge(
+            self.analyzer,
+
+            extra_outputs=False,
+            steps=None,
+        )
+        return potential_merges

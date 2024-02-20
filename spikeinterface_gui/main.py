@@ -2,17 +2,19 @@ import sys
 import os
 import argparse
 
-from spikeinterface import WaveformExtractor
+from spikeinterface import load_sorting_analyzer
+import spikeinterface.postprocessing
+import spikeinterface.qualitymetrics
 
 from spikeinterface_gui import MainWindow, mkQApp
 
 
 
 
-def run_mainwindow(waveform_folder):
+def run_mainwindow(analyzer_folder):
     app = mkQApp()
-    we = WaveformExtractor.load_from_folder(waveform_folder)
-    win = MainWindow(we)
+    analyzer = load_sorting_analyzer(analyzer_folder)
+    win = MainWindow(analyzer)
     win.show()
     app.exec_()
 
@@ -21,15 +23,15 @@ def run_mainwindow_cli():
     argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(description='spikeinterface-gui')
-    parser.add_argument('waveform_folder', help='Waveform folder path', default=None, nargs='?')
+    parser.add_argument('analyzer_folder', help='Waveform folder path', default=None, nargs='?')
     
     
     args = parser.parse_args(argv)
 
-    waveform_folder = args.waveform_folder
-    if waveform_folder is None:
+    analyzer_folder = args.analyzer_folder
+    if analyzer_folder is None:
         print('Should must specify the waveform folder like this: sigui /path/to/mywaveform/folder')
         exit()
     
-    run_mainwindow(waveform_folder)
+    run_mainwindow(analyzer_folder)
     
