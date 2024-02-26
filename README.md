@@ -85,6 +85,15 @@ win.show()
 app.exec_()
 ```
 
+Or simpler:
+
+```python
+  import spikeinterface.widgets as sw
+  sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+  sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+```
+
+
 With the command line
 
 ```bash
