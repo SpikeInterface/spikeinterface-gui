@@ -9,6 +9,7 @@ from spikeinterface.core import get_template_extremum_channel
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
+from spikeinterface.curation import get_potential_auto_merge
 
 import numpy as np
 
@@ -18,37 +19,39 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 
-# TODO spike_amplitudes data
-# TODOmak compute more general case:
-#    similarity
-#    correlogram
-#    unit_locations
-# TODO handle save=False for extension
 # TODO handle recordingless
 # TODO handle return_scaled
 
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, analyzer=None,parent=None, verbose=False):
+    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
-        assert self.analyzer.random_spikes_indices is not None
+        assert self.analyzer.get_extension("random_spikes") is not None
         
-        self.return_scaled = True        
+        self.return_scaled = True
+        self.save_on_compute = save_on_compute
 
         if verbose:
             t0 = time.perf_counter()
             print('open/compute extensions')
 
-        # Mandatory extensions : computation forced
-            
+        # sparsity
+        if self.analyzer.sparsity is None:
+            self.external_sparsity = compute_sparsity(self.analyzer, method="radius",radius_um=90.)
+            self.analyzer_sparsity = None
+        else:
+            self.external_sparsity = None
+            self.analyzer_sparsity = self.analyzer.sparsity
+
+
+        # Mandatory extensions : computation forced            
         wf_ext = self.analyzer.get_extension('waveforms')
         if wf_ext is None:
            wf_ext = analyzer.compute_one_extension('waveforms')
         self.waveforms_ext = wf_ext
             
-
         ext = analyzer.get_extension('noise_levels')
         if ext is None:
             print('Force compute "noise_levels" is needed')
@@ -70,7 +73,7 @@ class  SpikeinterfaceController(ControllerBase):
         # only 2D
         self.unit_positions = ext.get_data()[:, :2]
 
-        # this extension can be None
+        # Non mandatory extensions :  can be None
         self.pc_ext = analyzer.get_extension('principal_components')
         self._pc_projections = None
 
@@ -86,13 +89,32 @@ class  SpikeinterfaceController(ControllerBase):
         else:
             self.spike_amplitudes = None
 
-
-        if self.analyzer.sparsity is None:
-            self.external_sparsity = compute_sparsity(self.analyzer, method="radius",radius_um=90.)
-            self.analyzer_sparsity = None
+        ccg_ext = analyzer.get_extension('correlograms')
+        if ccg_ext is not None:
+            self.correlograms, self.correlograms_bins = ccg_ext.get_data()
         else:
-            self.external_sparsity = None
-            self.analyzer_sparsity = self.analyzer.sparsity
+            self.correlograms, self.correlograms_bins = None, None
+
+        isi_ext = analyzer.get_extension('isi_histograms')
+        if isi_ext is not None:
+            self.isi_histograms, self.isi_bins = isi_ext.get_data()
+        else:
+            self.isi_histograms, self.isi_bins = None, None
+
+        self._similarity_by_method = {}
+        ts_ext = analyzer.get_extension('template_similarity')
+        if ts_ext is not None:
+            method = ts_ext.params["method"]
+            self._similarity_by_method[method] = ts_ext.get_data()
+        else:
+            if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
+                # precompute similarity when low channel/units count
+                method = 'cosine_similarity'
+                ts_ext = analyzer.compute_one_extension('template_similarity', method=method)
+                self._similarity_by_method[method] = ts_ext.get_data()
+        
+        self._potential_merges = None
+
 
         if verbose:
             t1 = time.perf_counter()
@@ -122,31 +144,30 @@ class  SpikeinterfaceController(ControllerBase):
             t0 = time.perf_counter()
             print('Gather all spikes')
         
-        
-        
         # make internal spike vector
         unit_ids = self.analyzer.unit_ids
         num_seg = self.analyzer.get_num_segments()
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
 
-        spikes_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
-        self.spikes = np.zeros(spikes_vector.size, dtype=spike_dtype)        
-        self.spikes['sample_index'] = spikes_vector['sample_index']
-        self.spikes['unit_index'] = spikes_vector['unit_index']
-        self.spikes['segment_index'] = spikes_vector['segment_index']
-        self.spikes['channel_index'] = spikes_vector['channel_index']
+        spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
+        
+        random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
+
+        self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
+        self.spikes['sample_index'] = spike_vector['sample_index']
+        self.spikes['unit_index'] = spike_vector['unit_index']
+        self.spikes['segment_index'] = spike_vector['segment_index']
+        self.spikes['channel_index'] = spike_vector['channel_index']
         self.spikes['included_in_pc'][:] = False
-        self.spikes['included_in_pc'][self.analyzer.random_spikes_indices] = True
+        self.spikes['included_in_pc'][random_spikes_indices] = True
 
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
         
-
-        
-        spikes_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
+        spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         # this is dict of list because per segment spike_indices[unit_id][segment_index]
-        spike_indices = spike_vector_to_indices(spikes_vector2, unit_ids)
+        spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
         self._spike_index_by_units = {}
         for unit_id in unit_ids:
@@ -166,10 +187,6 @@ class  SpikeinterfaceController(ControllerBase):
         self._spike_selected_indices = np.array([], dtype='int64')
         self.update_visible_spikes()
 
-        self._similarity_by_method = {}
-        if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
-            # precompute similarity when low channel/units countt
-            self.get_similarity(method='cosine_similarity')
 
         if verbose:
             t1 = time.perf_counter()
@@ -305,15 +322,6 @@ class  SpikeinterfaceController(ControllerBase):
 
         return self._pc_indices, self._pc_projections
     
-    def get_similarity(self, method='cosine_similarity', force_compute=True):
-        similarity = self._similarity_by_method.get(method, None)
-        if similarity is None:
-            if force_compute:
-                similarity_ext = self.analyzer.compute("template_similarity", method=method, save=False)
-                self._similarity_by_method[method] = similarity_ext.get_data()
-            else:
-                return
-        return similarity
     
 
     def get_sparsity_mask(self):
@@ -321,14 +329,50 @@ class  SpikeinterfaceController(ControllerBase):
             return self.external_sparsity.mask
         else:
             return self.analyzer_sparsity.mask
+
+    def get_similarity(self, method='cosine_similarity'):
+        similarity = self._similarity_by_method.get(method, None)
+        return similarity
     
+    def compute_similarity(self, method='cosine_similarity'):
+        # have internal cache
+        if method in self._similarity_by_method:
+            return self._similarity_by_method[method]
+        ext = self.analyzer.compute("template_similarity", method=method, save=self.save_on_compute)
+        self._similarity_by_method[method] = ext.get_data()
+        return self._similarity_by_method[method]
+
+
     def compute_unit_positions(self, method, method_kwargs):
-        ext = self.analyzer.compute_one_extension('unit_locations', save=False, method=method, **method_kwargs)
+        ext = self.analyzer.compute_one_extension('unit_locations', save=self.save_on_compute, method=method, **method_kwargs)
         # 2D only
         self.unit_positions = ext.get_data()[:, :2]
 
+    def get_correlograms(self):
+        return self.correlograms, self.correlograms_bins
+
     def compute_correlograms(self, window_ms, bin_ms):
-        ext = self.analyzer.compute("correlograms", save=False, window_ms=window_ms, bin_ms=bin_ms)
-        correlograms, bins = ext.get_data()
-        return correlograms, bins
+        ext = self.analyzer.compute("correlograms", save=self.save_on_compute, window_ms=window_ms, bin_ms=bin_ms)
+        self.correlograms, self.correlograms_bins = ext.get_data()
+        return self.correlograms, self.correlograms_bins
     
+    def get_isi_histograms(self):
+        return self.isi_histograms, self.isi_bins
+
+    def compute_isi_histograms(self, window_ms, bin_ms):
+        ext = self.analyzer.compute("isi_histograms", save=self.save_on_compute, window_ms=window_ms, bin_ms=bin_ms)
+        self.isi_histograms, self.isi_bins = ext.get_data()
+        return self.isi_histograms, self.isi_bins
+
+    def get_merge_list(self):
+        return self._potential_merges
+
+    def compute_auto_merge(self, **params):
+
+        potential_merges = get_potential_auto_merge(
+            self.analyzer,
+
+            extra_outputs=False,
+            steps=None,
+        )
+        return potential_merges

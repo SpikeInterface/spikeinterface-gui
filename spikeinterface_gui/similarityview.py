@@ -54,7 +54,7 @@ class SimilarityView(WidgetBase):
         
         self.initialize_plot()
         
-        self.similarity = self.controller.get_similarity(method=self.params['method'], force_compute=False)
+        self.similarity = self.controller.get_similarity(method=self.params['method'])
         self.on_params_changed()#this do refresh
 
     def on_params_changed(self):
@@ -107,7 +107,7 @@ class SimilarityView(WidgetBase):
         self.refresh()
 
     def compute(self):
-        self.similarity = self.controller.get_similarity(method=self.params['method'])
+        self.similarity = self.controller.compute_similarity(method=self.params['method'])
         self.refresh()
 
     def _refresh(self):

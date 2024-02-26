@@ -1,4 +1,4 @@
-#~ import PySide6
+# import PySide6
 import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
@@ -23,7 +23,7 @@ def test_mainwindow(interactive=False):
     app = sigui.mkQApp()
     sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     print(sorting_analyzer)
-    win = sigui.MainWindow(sorting_analyzer, verbose=True)
+    win = sigui.MainWindow(sorting_analyzer, verbose=False)
     
     if interactive:
         win.show()
@@ -37,3 +37,7 @@ if __name__ == '__main__':
     # setup_module()
     
     test_mainwindow(interactive=True)
+
+    # import spikeinterface.widgets as sw
+    # sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")

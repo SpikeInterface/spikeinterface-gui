@@ -22,8 +22,8 @@ def test_controller():
     controller = sigui.SpikeinterfaceController(sorting_analyzer)
     print(controller)
     
-    print(controller.segment_slices)
-    
+    # print(controller.segment_slices)
+    print(controller.get_isi_histograms())
     
 
 if __name__ == '__main__':

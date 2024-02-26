@@ -393,7 +393,7 @@ class TraceView(WidgetBase):
             channel_inds = spikes_chunk['channel_index'][unit_mask]
             sample_inds = spikes_chunk['sample_index'][unit_mask]
             
-            chan_mask = np.in1d(channel_inds, self.visible_channel_inds)
+            chan_mask = np.isin(channel_inds, self.visible_channel_inds)
             if not np.any(chan_mask):
                 continue
             channel_inds = channel_inds[chan_mask]
@@ -414,7 +414,6 @@ class TraceView(WidgetBase):
             all_y = np.concatenate(all_y)
             all_brush = np.concatenate(all_brush)
             self.scatter.setData(x=all_x, y=all_y, brush=all_brush)
-            
             
             if np.sum(spikes_chunk['selected']) == 1:
                 sample_index = spikes_chunk['sample_index'][spikes_chunk['selected']][0]

@@ -55,7 +55,7 @@ job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
                                               format="binary_folder", folder="/my_sorting_analyzer",
                                               **job_kwargs)
-sorting_analyzer.select_random_spikes(method="uniform", max_spikes_per_unit=500)
+sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
 sorting_analyzer.compute("waveforms", **job_kwargs)
 sorting_analyzer.compute("templates")
 sorting_analyzer.compute("noise_levels")
@@ -79,11 +79,20 @@ app = spikeinterface_gui.mkQApp()
 # reload the SortingAnalyzer
 sorting_analyzer = si.load_sorting_analyzer("/my_sorting_analyzer")
 # create the mainwindow and show
-win = spikeinterface_gui.MainWindow(we)
+win = spikeinterface_gui.MainWindow(sorting_analyzer)
 win.show()
 # run the main Qt6 loop
 app.exec_()
 ```
+
+Or simpler:
+
+```python
+  import spikeinterface.widgets as sw
+  sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+  sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+```
+
 
 With the command line
 

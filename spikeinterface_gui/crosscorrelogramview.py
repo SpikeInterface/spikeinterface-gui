@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 
 from .base import WidgetBase
-#~ from ..tools import compute_cross_correlograms
-
 
 
 class MyViewBox(pg.ViewBox):
@@ -22,8 +20,8 @@ class MyViewBox(pg.ViewBox):
 
 class CrossCorrelogramView(WidgetBase):
     _params = [
-                      {'name': 'window_size_ms', 'type': 'float', 'value' : 100. },
-                      {'name': 'bin_size_ms', 'type': 'float', 'value' : 1.0 },
+                      {'name': 'window_ms', 'type': 'float', 'value' : 50. },
+                      {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
                       #~ {'name': 'symmetrize', 'type': 'bool', 'value' : True },
                       {'name': 'display_axis', 'type': 'bool', 'value' : True },
                       {'name': 'max_visible', 'type': 'int', 'value' : 8 },
@@ -43,8 +41,7 @@ class CrossCorrelogramView(WidgetBase):
         self.grid = pg.GraphicsLayoutWidget()
         self.layout.addWidget(self.grid)
         
-        self.ccg = None
-
+        self.ccg, self.bins = self.controller.get_correlograms()
 
     def on_params_changed(self):
         self.ccg = None
@@ -52,7 +49,7 @@ class CrossCorrelogramView(WidgetBase):
     
     def compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
-                self.params['window_size_ms'],  self.params['bin_size_ms'])
+                self.params['window_ms'],  self.params['bin_ms'])
         self.refresh()
 
     def _refresh(self):
@@ -70,10 +67,6 @@ class CrossCorrelogramView(WidgetBase):
         
         n = len(visible_unit_ids)
         
-        #~ bins = self.bins * 1000. #to ms
-        bins = self.bins
-        
-        #~ labels = self.controller.positive_cluster_labels.tolist()
         unit_ids = list(self.controller.unit_ids)
         
         for r in range(n):
@@ -95,7 +88,7 @@ class CrossCorrelogramView(WidgetBase):
                 else:
                     color = (120,120,120,120)
                 
-                curve = pg.PlotCurveItem(bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
+                curve = pg.PlotCurveItem(self.bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
 
@@ -103,5 +96,4 @@ class CrossCorrelogramView(WidgetBase):
 CrossCorrelogramView._gui_help_txt = """Cross correlogram
 Show only selected units.
 Settings control the bin size in ms.
-No computed at the begning need to be done manually when bin are changed.
 Right mouse : zoom"""
