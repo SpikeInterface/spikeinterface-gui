@@ -79,7 +79,7 @@ app = spikeinterface_gui.mkQApp()
 # reload the SortingAnalyzer
 sorting_analyzer = si.load_sorting_analyzer("/my_sorting_analyzer")
 # create the mainwindow and show
-win = spikeinterface_gui.MainWindow(we)
+win = spikeinterface_gui.MainWindow(sorting_analyzer)
 win.show()
 # run the main Qt6 loop
 app.exec_()
