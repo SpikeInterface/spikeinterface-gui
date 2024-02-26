@@ -28,7 +28,7 @@ class  SpikeinterfaceController(ControllerBase):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
-        assert self.analyzer.random_spikes_indices is not None
+        assert self.analyzer.get_extension("random_spikes") is not None
         
         self.return_scaled = True
         self.save_on_compute = save_on_compute
@@ -151,13 +151,15 @@ class  SpikeinterfaceController(ControllerBase):
 
         spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
         
+        random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
+
         self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
         self.spikes['sample_index'] = spike_vector['sample_index']
         self.spikes['unit_index'] = spike_vector['unit_index']
         self.spikes['segment_index'] = spike_vector['segment_index']
         self.spikes['channel_index'] = spike_vector['channel_index']
         self.spikes['included_in_pc'][:] = False
-        self.spikes['included_in_pc'][self.analyzer.random_spikes_indices] = True
+        self.spikes['included_in_pc'][random_spikes_indices] = True
 
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
