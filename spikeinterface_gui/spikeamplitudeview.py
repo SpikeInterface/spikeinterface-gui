@@ -171,6 +171,8 @@ class SpikeAmplitudeView(WidgetBase):
             
             # curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=0, fillOutline=True, brush=color, pen=color)
 
+            color = QT.QColor(self.controller.qcolors[unit_id])
+
             curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=None, fillOutline=True, brush=color, pen=color)
             
 
