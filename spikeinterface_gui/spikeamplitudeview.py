@@ -33,7 +33,7 @@ class SpikeAmplitudeView(WidgetBase):
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
             
             {'name': 'scatter_size', 'type': 'float', 'value' : 4., 'step':0.5 },
-            {'name': 'num_bins', 'type': 'int', 'value' : 80, 'step': 1 },
+            {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
             
             
         ]
@@ -113,14 +113,11 @@ class SpikeAmplitudeView(WidgetBase):
         self._text_items = []
         
         
-        self._amp_min = min(np.min(self.controller.spike_amplitudes[seg_index][unit_id])
-                            for seg_index in range(self.controller.num_segments)
-                            for unit_id in self.controller.unit_ids)
+        self._amp_min = np.min(self.controller.spike_amplitudes)
+        self._amp_max = np.max(self.controller.spike_amplitudes)
+        eps = (self._amp_max - self._amp_min) / 100.
+        self._amp_max += eps 
 
-        self._amp_max = max(np.max(self.controller.spike_amplitudes[seg_index][unit_id])
-                            for seg_index in range(self.controller.num_segments)
-                            for unit_id in self.controller.unit_ids)
-        
         self.plot.setYRange(self._amp_min,self._amp_max, padding = 0.0)
 
 
@@ -134,10 +131,9 @@ class SpikeAmplitudeView(WidgetBase):
             return
             
         seg_index =  self.combo_seg.currentIndex()
+        sl = self.controller.segment_slices[seg_index]
         
-        unit_ids = self.controller.unit_ids
-
-        all_spikes = self.controller.spikes
+        spikes_in_seg = self.controller.spikes[sl]
         
         fs = self.controller.sampling_frequency
         
@@ -151,24 +147,33 @@ class SpikeAmplitudeView(WidgetBase):
             color = QT.QColor(self.controller.qcolors[unit_id])
             color.setAlpha(int(self.params['alpha']*255))
 
-            amps = self.controller.spike_amplitudes[seg_index][unit_id]
+            
 
-            keep = (all_spikes['segment_index'] == seg_index) & (all_spikes['unit_index'] == unit_index)
-            spikes = all_spikes[keep]
+            # amps = self.controller.spike_amplitudes[seg_index][unit_id]
+
+            spike_mask = (spikes_in_seg['unit_index'] == unit_index)
+            spikes = spikes_in_seg[spike_mask]
             spike_times = spikes['sample_index'] / fs
+            amps = self.controller.spike_amplitudes[sl][spike_mask]
             
             self.scatter.addPoints(x=spike_times, y=amps,  pen=pg.mkPen(None), brush=color)
             
+
             count, bins = np.histogram(amps, bins = np.linspace(self._amp_min, self._amp_max, self.params['num_bins']))
             # trick to avoid bad borders
-            count[0] = 0
-            count[-1] = 0
+            # count[0] = 0
+            # count[-1] = 0
             
             max_count = max(max_count, np.max(count))
             
             #~ color = QT.QColor(self.controller.qcolors[unit_id])
             # curve = pg.PlotCurveItem(count, bins, stepMode='center', fillLevel=0, brush=color, pen=color)
-            curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=0, fillOutline=True, brush=color, pen=color)
+            
+            # curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=0, fillOutline=True, brush=color, pen=color)
+
+            curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=None, fillOutline=True, brush=color, pen=color)
+            
+
             self.plot2.addItem(curve)
 
             

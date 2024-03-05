@@ -328,7 +328,7 @@ class WaveformHeatMapView(WidgetBase):
                 #~ return
 
             #~ labels = self.controller.spike_label[self.controller.some_peaks_index]
-            #~ keep = np.in1d(labels, visibles)
+            #~ keep = np.isin(labels, visibles)
             #~ ind_keep,  = np.nonzero(keep)
             
             #~ nb_feature_by_channel = data.shape[1] // self.controller.nb_channel
@@ -345,7 +345,7 @@ class WaveformHeatMapView(WidgetBase):
         for unit_id in visible_unit_ids:
             wfs, channel_inds = self.controller.get_waveforms(unit_id)
             wfs, chan_inds = self.controller.get_waveforms(unit_id)
-            keep = np.in1d(chan_inds, intersect_sparse_indexes)
+            keep = np.isin(chan_inds, intersect_sparse_indexes)
             waveforms.append(wfs[:, :, keep])
         waveforms = np.concatenate(waveforms)
         data  = waveforms.swapaxes(1,2).reshape(waveforms.shape[0], -1)

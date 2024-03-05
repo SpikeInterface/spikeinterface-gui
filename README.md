@@ -12,13 +12,13 @@ This allows us to very quickly check the strengths and weaknesses of any sorter 
 Contrary to other viewers (like phy), this viewer skips the tedious and long step of
 copying and reformatting the entire dataset (filtered signal + waveform + PCA) to a particular
 format or folder organisation. This gui is built on top of spikeinterface objects
-(Recording, Sorting, WaveformExtractor)
+(Recording, Sorting, SortingAnalyzer)
 These objects are "lazy" and retrieve data on the fly (no copy!).
 And contrary to phy, this is a view only tool : no manual curation at the moment (split/merge/trash have to be done outside).
 
 This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
 And so, this viewer is a local desktop app (old school!!).
-There is a web based viewer work-in-progress [here](https://github.com/magland/sortingview).
+There is a web based viewer [here](https://github.com/magland/sortingview).
 
 ![screenshot](screenshot.png)
 
@@ -28,14 +28,16 @@ In order to use this viewer you will need to know a bit of [spikeinterface](http
 
 ### Step 1 : extract waveforms
 
-You first need to "extract waveform" with spikeinterface
-See help [here](https://spikeinterface.readthedocs.io/en/latest/modules/core/plot_4_waveform_extractor.html#sphx-glr-modules-core-plot-4-waveform-extractor-py)
+You first need to is to get a `SortingAnalyzer` object with spikeinterface.
+
+See help [here](https://spikeinterface.readthedocs.io)
 
 Note that:
   * not all waveform snippets are extracted (See `max_spikes_per_unit`) only some of them
-  * this step is cached to a folder (and can be reloaded)
+  * this step is cached to a folder or zarr (and can be reloaded)
   * this step can be run in parallel (and so is quite fast)
-  * optionally PCA can be computed and displayed
+  * optionally some extensionn can be computed (principal_components, spike_amplitudes, correlograms, ..)
+    All extension will be rendered in an appropriated view.
 
   
 Example:
@@ -46,29 +48,24 @@ recording = si.read_XXXX('/path/to/my/recording')
 recording_filtered = si.bandpass_filter(recording)
 sorting = si.run_sorter('YYYYY', recording_filtered)
 
-# extract waveforms 
-# sparsity is important because it makes everything faster!!!
-waveform_folder = '/path/for/my/waveforms'
-job_kwargs = dict(n_jobs=10, chunk_duration='1s', progress_bar=True,)
-we = si.extract_waveforms(
-    recording_filtered, sorting, waveform_folder,
-    max_spikes_per_unit=500,
-    ms_before=1.5, ms_after=2.5,
-    sparse=True,
-    **job_kwargs
-)
-# compute the noise level a faster opening in sigui
-si.compute_noise_levels(we)
 
-# optionally compute more stuff using the spikeinterface.postprocessing module
-# principal components, template similarity, spike amplitudes
-# This will enable us to display more views
-si.compute_principal_components(we,
-    n_components=3,
-    mode='by_channel_local',
-    whiten=True)
-si.compute_template_similarity(we,  method='cosine_similarity')
-si.compute_spike_amplitudes(we, **job_kwargs)
+job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
+
+# make the SortingAnalyzer with some optional extensions
+sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
+                                              format="binary_folder", folder="/my_sorting_analyzer",
+                                              **job_kwargs)
+sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
+sorting_analyzer.compute("waveforms", **job_kwargs)
+sorting_analyzer.compute("templates")
+sorting_analyzer.compute("noise_levels")
+sorting_analyzer.compute("unit_locations", method="monopolar_triangulation")
+sorting_analyzer.compute("isi_histograms")
+sorting_analyzer.compute("correlograms", window_ms=100, bin_ms=5.)
+sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
+sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
+sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
+
 ```
 
 ### Step 2 : open the GUI
@@ -79,19 +76,28 @@ With python:
 import spikeinterface_gui
 # This creates a Qt app
 app = spikeinterface_gui.mkQApp() 
-# reload the waveform folder
-we = si.WaveformExtractor.load_from_folder(waveform_folder)
+# reload the SortingAnalyzer
+sorting_analyzer = si.load_sorting_analyzer("/my_sorting_analyzer")
 # create the mainwindow and show
-win = spikeinterface_gui.MainWindow(we)
+win = spikeinterface_gui.MainWindow(sorting_analyzer)
 win.show()
 # run the main Qt6 loop
 app.exec_()
 ```
 
+Or simpler:
+
+```python
+  import spikeinterface.widgets as sw
+  sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+  sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+```
+
+
 With the command line
 
 ```bash
-sigui /path/for/my/waveforms
+sigui /path/for/my/sorting_analyzer
 ```
 
 

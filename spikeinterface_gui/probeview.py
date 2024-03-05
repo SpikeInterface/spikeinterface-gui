@@ -221,7 +221,7 @@ class ProbeView(WidgetBase):
             self.update_channel_visibility_from_roi(emit_signals=True)
         
         # change scatter pen for selection
-        pen = [pg.mkPen('magenta', width=4)
+        pen = [pg.mkPen('white', width=4)
                     if self.controller.unit_visible_dict[u] else pg.mkPen('black', width=4)
                     for u in self.controller.unit_ids]
         self.scatter.setPen(pen)

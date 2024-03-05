@@ -5,18 +5,37 @@ import numpy as np
 import  itertools
 
 from .base import WidgetBase
-from .tools import ParamDialog
+from .tools import ParamDialog, get_dict_from_group_param
 
 
 
 class PairListView(WidgetBase):
     """
     """
-    _params = [{'name': 'threshold_similarity', 'type': 'float', 'value' :.9, 'step' : 0.01},
-                    {'name': 'threshold_ratio_similarity', 'type': 'float', 'value' :.8, 'step' : 0.01},
-                ]
+    _params = [
+        # {'name': 'threshold_similarity', 'type': 'float', 'value' :.9, 'step' : 0.01},
+        # {'name': 'threshold_ratio_similarity', 'type': 'float', 'value' :.8, 'step' : 0.01},
 
-    
+        {'name': 'minimum_spikes', 'type': 'int', 'value' :1000},
+        {'name': 'maximum_distance_um', 'type': 'float', 'value' :150.},
+        {'name': 'peak_sign', 'type': 'list', 'values' : ['neg', 'pos', 'both']},
+        {'name': 'bin_ms', 'type': 'float', 'value' :0.25, 'step' : 0.05},
+        {'name': 'window_ms', 'type': 'float', 'value' :100., 'step' : 1.},
+        {'name': 'corr_diff_thresh', 'type': 'float', 'value' :.16, 'step' : 0.01},
+        {'name': 'template_diff_thresh', 'type': 'float', 'value' :.25, 'step' : 0.01},
+        {'name': 'censored_period_ms', 'type': 'float', 'value' :.3, 'step' : 0.01},
+        {'name': 'refractory_period_ms', 'type': 'float', 'value' :1.0, 'step' : 0.1},
+        {'name': 'sigma_smooth_ms', 'type': 'float', 'value' :0.6, 'step' : 0.1},
+        {'name': 'contamination_threshold', 'type': 'float', 'value' :.2, 'step' : 0.01},
+        {'name': 'adaptative_window_threshold', 'type': 'float', 'value' :.5, 'step' : 0.01},
+        {'name': 'censor_correlograms_ms', 'type': 'float', 'value' :.15, 'step' : 0.01},
+        {'name': 'num_channels', 'type': 'int', 'value' :5},
+        {'name': 'num_shift', 'type': 'int', 'value' : 5},
+        {'name': 'firing_contamination_balance', 'type': 'float', 'value' : 1.5, 'step' : 0.1},
+    ]
+
+    _need_compute = True
+
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
         
@@ -59,7 +78,7 @@ class PairListView(WidgetBase):
 
         #~ act = self.menu.addAction('Tag same cell')
         #~ act.triggered.connect(self.do_tag_same_cell)
-        
+        self.pairs = self.controller.get_merge_list()
         self.refresh()
     
     def on_item_selection_changed(self):
@@ -76,25 +95,25 @@ class PairListView(WidgetBase):
     def open_context_menu(self):
         self.menu.popup(self.cursor().pos())
     
-    def do_merge(self):
-        if len(self.table.selectedIndexes())==0:
-            return
-        ind = self.table.selectedIndexes()[0].row()
+    # def do_merge(self):
+    #     if len(self.table.selectedIndexes())==0:
+    #         return
+    #     ind = self.table.selectedIndexes()[0].row()
         
-        label_to_merge = list(self.pairs[ind])
-        self.controller.merge_cluster(label_to_merge)
-        self.refresh()
-        self.spike_label_changed.emit()
+    #     label_to_merge = list(self.pairs[ind])
+    #     self.controller.merge_cluster(label_to_merge)
+    #     self.refresh()
+    #     self.spike_label_changed.emit()
     
-    def do_tag_same_cell(self):
-        if len(self.table.selectedIndexes())==0:
-            return
-        ind = self.table.selectedIndexes()[0].row()
+    # def do_tag_same_cell(self):
+    #     if len(self.table.selectedIndexes())==0:
+    #         return
+    #     ind = self.table.selectedIndexes()[0].row()
         
-        label_to_merge = list(self.pairs[ind])
-        self.controller.tag_same_cell(label_to_merge)
-        self.refresh()
-        self.cluster_tag_changed.emit()
+    #     label_to_merge = list(self.pairs[ind])
+    #     self.controller.tag_same_cell(label_to_merge)
+    #     self.refresh()
+    #     self.cluster_tag_changed.emit()
         
     
     def _refresh(self):
@@ -104,29 +123,32 @@ class PairListView(WidgetBase):
         self.table.setHorizontalHeaderLabels(labels)
         self.table.setColumnWidth(0, 100)
         self.table.setColumnWidth(1, 100)
-        
+
+        if self.pairs is None:
+            return 
+
         #select
-        mode = self.combo_select.currentText()
-        if mode == 'all pairs':
-            unit_ids = self.controller.unit_ids
-            self.pairs = list(itertools.combinations(unit_ids, 2))
-        elif mode == 'high similarity':
-            self.pairs = self.controller.detect_high_similarity(threshold=self.params['threshold_similarity'])
+        # mode = self.combo_select.currentText()
+        # if mode == 'all pairs':
+        #     unit_ids = self.controller.unit_ids
+        #     self.pairs = list(itertools.combinations(unit_ids, 2))
+        # elif mode == 'high similarity':
+        #     self.pairs = self.controller.detect_high_similarity(threshold=self.params['threshold_similarity'])
         
         #sort
-        mode = self.combo_sort.currentText()
-        order = np.arange(len(self.pairs))
-        if mode == 'label':
-            pass
-        elif mode == 'similarity':
-            if self.controller.cluster_similarity is not None:
-                order = []
-                for r in range(len(self.pairs)):
-                    k1, k2 = self.pairs[r]
-                    ind1 = self.controller.positive_cluster_labels.tolist().index(k1)
-                    ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
-                    order.append(self.controller.cluster_similarity[ind1, ind2])
-                order = np.argsort(order)[::-1]
+        # mode = self.combo_sort.currentText()
+        # order = np.arange(len(self.pairs))
+        # if mode == 'label':
+        #     pass
+        # elif mode == 'similarity':
+        #     if self.controller.cluster_similarity is not None:
+        #         order = []
+        #         for r in range(len(self.pairs)):
+        #             k1, k2 = self.pairs[r]
+        #             ind1 = self.controller.positive_cluster_labels.tolist().index(k1)
+        #             ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
+        #             order.append(self.controller.cluster_similarity[ind1, ind2])
+        #         order = np.argsort(order)[::-1]
         #~ elif mode == 'ratio_similarity':
             #~ if self.controller.cluster_ratio_similarity is not None:
                 #~ order = []
@@ -136,14 +158,14 @@ class PairListView(WidgetBase):
                     #~ ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
                     #~ order.append(self.controller.cluster_ratio_similarity[ind1, ind2])
                 #~ order = np.argsort(order)[::-1]
-        self.pairs = [self.pairs[i] for i in order ]
+        # self.pairs = [self.pairs[i] for i in order ]
         
         self.table.setRowCount(len(self.pairs))
         
         for r in range(len(self.pairs)):
             unit_id1, unit_id2 = self.pairs[r]
-            ind1 = self.controller.unit_ids.tolist().index(unit_id1)
-            ind2 = self.controller.unit_ids.tolist().index(unit_id2)
+            # ind1 = self.controller.unit_ids.tolist().index(unit_id1)
+            # ind2 = self.controller.unit_ids.tolist().index(unit_id2)
             
             for c, unit_id in enumerate((unit_id1, unit_id2)):
                 color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
@@ -153,7 +175,8 @@ class PairListView(WidgetBase):
                 
                 # TODO
                 # name = '{} (n={})'.format(k, self.controller.cluster_count[k])
-                name = f'{unit_id} (n=??)'
+                n = self.controller.num_spikes[unit_id]
+                name = f'{unit_id} n={n}'
                 item = QT.QTableWidgetItem(name)
                 item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
                 self.table.setItem(r,c, item)
@@ -188,7 +211,12 @@ class PairListView(WidgetBase):
     def on_unit_visibility_changed(self):
         pass
 
-PairListView._gui_help_txt = """Pair list selection
+    def compute(self):
+        params = get_dict_from_group_param(self.params)
+        self.pairs = self.controller.compute_auto_merge(**params)
+        self.refresh()
+
+
+PairListView._gui_help_txt = """Auto merge list selection
 Click on on row to make visible a unique pair of unit.
-This combinatory pair list can be order in several way.
-See also similarityview"""
+"""
