@@ -364,7 +364,6 @@ class WaveformView(WidgetBase):
             ypos = self.contact_location[common_channel_indexes,1]
             
             wf = template_avg
-            print("self.factor_y", self.factor_y, "self.delta_y", self.delta_y)
             wf = wf * self.factor_y * self.delta_y + ypos[None, :]
             
             connect = np.ones(wf.shape, dtype='bool')
