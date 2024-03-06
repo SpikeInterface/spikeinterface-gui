@@ -119,7 +119,7 @@ class SpikeListView(WidgetBase):
         
         h.addStretch()
 
-        but = QT.QPushButton('show visible')
+        but = QT.QPushButton('↻ spikes')
         h.addWidget(but)
         but.clicked.connect(self.refresh)
         
