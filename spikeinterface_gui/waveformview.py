@@ -148,13 +148,13 @@ class WaveformView(WidgetBase):
             xpos = self.contact_location[:,0]
             ypos = self.contact_location[:,1]
             
-            unique_x = np.sort(np.unique(xpos))
+            unique_x = np.sort(np.unique(np.round(xpos)))
             if unique_x.size>1:
                 self.delta_x = np.min(np.diff(unique_x))
             else:
                 self.delta_x = 40. # um
             
-            unique_y = np.sort(np.unique(ypos))
+            unique_y = np.sort(np.unique(np.round(ypos)))
             if unique_y.size>1:
                 self.delta_y = np.min(np.diff(unique_y))
             else:
