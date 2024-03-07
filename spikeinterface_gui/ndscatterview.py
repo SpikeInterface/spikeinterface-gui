@@ -81,7 +81,7 @@ class NDScatterView(WidgetBase):
         # used for self.scatter_select
         self.mapping_index = np.zeros(self.data.shape[0], dtype='int64')
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            ind_global, = np.nonzero((self.controller.spikes['unit_index'] == unit_index) & (self.controller.spikes['included_in_pc']))
+            ind_global, = np.nonzero((self.controller.spikes['unit_index'] == unit_index) & (self.controller.spikes['rand_selected']))
             mask = self.pc_unit_index == unit_index
             self.mapping_index[mask] = ind_global
         

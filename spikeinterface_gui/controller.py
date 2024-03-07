@@ -15,7 +15,7 @@ import numpy as np
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
-    ('visible', 'bool'), ('selected', 'bool'), ('included_in_pc', 'bool')]
+    ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
 
 
 
@@ -158,21 +158,24 @@ class  SpikeinterfaceController(ControllerBase):
         self.spikes['unit_index'] = spike_vector['unit_index']
         self.spikes['segment_index'] = spike_vector['segment_index']
         self.spikes['channel_index'] = spike_vector['channel_index']
-        self.spikes['included_in_pc'][:] = False
-        self.spikes['included_in_pc'][random_spikes_indices] = True
+        self.spikes['rand_selected'][:] = False
+        self.spikes['rand_selected'][random_spikes_indices] = True
 
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
-        # this is dict of list because per segment spike_indices[unit_id][segment_index]
+        # this is dict of list because per segment spike_indices[segment_index][unit_id]
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
+        spike_per_seg = [s.size for s in spike_vector2]
         self._spike_index_by_units = {}
         for unit_id in unit_ids:
-            self._spike_index_by_units[unit_id] = np.concatenate([spike_indices[seg_ind][unit_id] for seg_ind in range(num_seg)])
-
+            inds = []
+            for seg_ind in range(num_seg):
+                inds.append(spike_indices[seg_ind][unit_id] + int(np.sum(spike_per_seg[:seg_ind])))
+            self._spike_index_by_units[unit_id] = np.concatenate(inds)
 
         if verbose:
             t1 = time.perf_counter()
@@ -215,13 +218,8 @@ class  SpikeinterfaceController(ControllerBase):
         
         inds = []
         for unit_index, unit_id in enumerate(self.unit_ids):
-            #~ mask = self.spikes['unit_index'] == unit_index
-            #~ self.spikes['visible'][mask] = self.unit_visible_dict[unit_id]
-            ind = self._spike_index_by_units[unit_id]
-            
-            #~ self.spikes['visible'][ind] = self.unit_visible_dict[unit_id]
             if self.unit_visible_dict[unit_id]:
-                inds.append(ind)
+                inds.append(self._spike_index_by_units[unit_id])
         
         if len(inds) > 0:
             inds = np.concatenate(inds)
