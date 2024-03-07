@@ -34,6 +34,9 @@ class SpikeAmplitudeView(WidgetBase):
             
             {'name': 'scatter_size', 'type': 'float', 'value' : 4., 'step':0.5 },
             {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
+            {'name': 'noise_level', 'type': 'bool', 'value' : True },
+            {'name': 'noise_factor', 'type': 'int', 'value' : 5 },
+
             
             
         ]
@@ -178,6 +181,16 @@ class SpikeAmplitudeView(WidgetBase):
 
             self.plot2.addItem(curve)
 
+        # average noise across channels
+        if self.params["noise_level"]:
+            n = self.params["noise_factor"]
+            noise = np.mean(self.controller.noise_levels)
+            alpha_factor = 50 / n
+            for i in range(1, n + 1):
+                self.plot2.addItem(
+                    pg.LinearRegionItem(values=(-i * noise, i * noise), orientation="horizontal",
+                                        brush=(255, 255, 255, int(i * alpha_factor)), pen=(0, 0, 0, 0))
+                )
             
         
         t1 = 0.
