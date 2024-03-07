@@ -6,7 +6,7 @@ import numpy as np
 from .base import WidgetBase
 
 
-_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'included_in_pc']
+_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'rand_selected']
 
 class SpikeModel(QT.QAbstractItemModel):
 
@@ -62,7 +62,7 @@ class SpikeModel(QT.QAbstractItemModel):
             elif col == 4:
                 return '{}'.format(spike['channel_index'])
             elif col == 5:
-                return '{}'.format(spike['included_in_pc'])
+                return '{}'.format(spike['rand_selected'])
             else:
                 return None
         elif role == QT.Qt.DecorationRole :
@@ -119,7 +119,7 @@ class SpikeListView(WidgetBase):
         
         h.addStretch()
 
-        but = QT.QPushButton('show visible')
+        but = QT.QPushButton('↻ spikes')
         h.addWidget(but)
         but.clicked.connect(self.refresh)
         

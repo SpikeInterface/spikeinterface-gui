@@ -30,6 +30,7 @@ class UnitListView(WidgetBase):
         h.addWidget(self.combo_sort)
         if self.controller.handle_metrics():
             self.checkbox_metrics = QT.QCheckBox('metrics')
+            self.checkbox_metrics.setChecked(True)
             h.addWidget(self.checkbox_metrics)
             self.checkbox_metrics.stateChanged.connect(self.refresh)
             
