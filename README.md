@@ -22,6 +22,12 @@ There is a web based viewer [here](https://github.com/magland/sortingview).
 
 ![screenshot](screenshot.png)
 
+## Important note
+
+The actual `main` branch is using the new `SortingAnalyzer` object from spikeinterface which is not released yet.
+You can expect some small bugs.
+If you want visualize the old `WaveformExtractor` from spikeinterface<=0.100.1 you need to go back to version spikeinterface-gui=0.8.0.
+
 ## Launch
 
 In order to use this viewer you will need to know a bit of [spikeinterface](https://spikeinterface.readthedocs.io/)
