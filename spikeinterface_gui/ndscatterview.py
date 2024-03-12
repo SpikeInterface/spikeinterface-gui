@@ -63,7 +63,7 @@ class NDScatterView(WidgetBase):
     This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
     """
     _params = [
-           {'name': 'refresh_interval', 'type': 'float', 'value': 80 },
+           {'name': 'refresh_interval', 'type': 'int', 'value': 80 },
            {'name': 'num_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
            {'name': 'num_pc_per_channel', 'type': 'int', 'value':  2, 'limits' : [1, 100] },
         ]
@@ -297,7 +297,7 @@ class NDScatterView(WidgetBase):
     def start_stop_tour(self, checked):
         if checked:
             self.tour_step = 0
-            self.timer_tour.setInterval(self.params['refresh_interval'])
+            self.timer_tour.setInterval(int(self.params['refresh_interval']))
             self.timer_tour.start()
         else:
             self.timer_tour.stop()
