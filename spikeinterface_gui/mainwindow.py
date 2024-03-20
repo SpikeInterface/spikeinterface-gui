@@ -46,6 +46,8 @@ class MainWindow(QT.QMainWindow):
         
         # on right
         self.add_one_view('traceview', area='right')
+        if self.controller.num_channels >=16:
+            self.add_one_view('tracemapview',  tabify='traceview')
         self.add_one_view('waveformview', tabify='traceview')
         #~ self.add_one_view('waveformview', area='right')
         self.add_one_view('waveformheatmapview', tabify='waveformview')

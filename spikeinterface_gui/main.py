@@ -16,21 +16,21 @@ def run_mainwindow(analyzer_folder):
     analyzer = load_sorting_analyzer(analyzer_folder)
     win = MainWindow(analyzer)
     win.show()
-    app.exec_()
+    app.exec()
 
 
 def run_mainwindow_cli():
     argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(description='spikeinterface-gui')
-    parser.add_argument('analyzer_folder', help='Waveform folder path', default=None, nargs='?')
+    parser.add_argument('analyzer_folder', help='SortingAnalyzer folder path', default=None, nargs='?')
     
     
     args = parser.parse_args(argv)
 
     analyzer_folder = args.analyzer_folder
     if analyzer_folder is None:
-        print('Should must specify the waveform folder like this: sigui /path/to/mywaveform/folder')
+        print('Should must specify the analyzer folder like this: sigui /path/to/my/analyzer/folder')
         exit()
     
     run_mainwindow(analyzer_folder)

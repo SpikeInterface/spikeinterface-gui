@@ -38,47 +38,10 @@ class MyViewBox(pg.ViewBox):
         self.xsize_zoom.emit((ev.pos()-ev.lastPos()).x())
 
 
-class TraceView(WidgetBase):
-    
-    _params = [{'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
-                       {'name': 'zoom_size', 'type': 'float', 'value':  0.08, 'step' : 0.001 },
-                      {'name': 'plot_threshold', 'type': 'bool', 'value':  True },
-                      {'name': 'alpha', 'type': 'float', 'value' : 0.8, 'limits':(0, 1.), 'step':0.05 },
-                      {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
-                      {'name': 'max_visible_channel', 'type': 'int', 'value':  16},
-                      
-                      
-                      ]
-    
-    def __init__(self,controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
-    
-        self.trace_source = _trace_sources[0]
-        
-        self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
-        
-        self.create_toolbar()
-        
-        
-        # create graphic view and 2 scroll bar
-        g = QT.QGridLayout()
-        self.layout.addLayout(g)
-        self.graphicsview = pg.GraphicsView()
-        g.addWidget(self.graphicsview, 0,1)
-        self.initialize_plot()
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self.on_scroll_time)
-        
-        #handle time by segments
-        self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
 
-        self.change_segment(0)
-        self.refresh()
-    
-    _default_color = QT.QColor( 'white')
-    
+
+class MixinViewTrace:
+
     def create_toolbar(self):
         tb = self.toolbar = QT.QToolBar()
         
@@ -118,18 +81,7 @@ class TraceView(WidgetBase):
         tb.addWidget(but)
         
         self.layout.addWidget(self.toolbar)
-        
 
-    @property
-    def visible_channel_inds(self):
-        # TODO add option to order by depth
-        inds = self.controller.visible_channel_inds
-        n_max =self.params['max_visible_channel']
-        if inds.size > n_max:
-            inds = inds[:n_max]
-        return inds
-        
-    
     def initialize_plot(self):
         self.viewBox = MyViewBox()
         self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -193,19 +145,7 @@ class TraceView(WidgetBase):
         
         if self.isVisible():
             self.refresh()
-    
-    def on_params_changed(self):
-        # adjust xsize spinbox bounds, and adjust xsize if out of bounds
-        self.spinbox_xsize.opts['bounds'] = [0.001, self.params['xsize_max']]
-        if self.xsize > self.params['xsize_max']:
-            self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-            self.spinbox_xsize.setValue(self.params['xsize_max'])
-            self.xsize = self.params['xsize_max']
-            self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
-        
-        self.reset_gain_and_offset()
-        self.refresh()
-    
+
     def on_combo_seg_changed(self):
         s =  self.combo_seg.currentIndex()
         self.change_segment(s)
@@ -221,8 +161,6 @@ class TraceView(WidgetBase):
         if self.isVisible():
             self.refresh()
     
-    def _refresh(self):
-        self.seek(self.time_by_seg[self.seg_num])
 
     def xsize_zoom(self, xmove):
         factor = xmove/100.
@@ -234,10 +172,8 @@ class TraceView(WidgetBase):
     def auto_scale(self):
         self.estimate_auto_scale()
         self.refresh()
-    
+
     def estimate_auto_scale(self):
-        
-        
         # self.med, self.mad = self.controller.estimate_noise()
         
         self.mad = self.controller.noise_levels.astype('float32').copy()
@@ -251,7 +187,7 @@ class TraceView(WidgetBase):
         self.factor *= factor_ratio
         self.reset_gain_and_offset()
         self.refresh()
-        
+
     def reset_gain_and_offset(self):
         num_chans = len(self.controller.channel_ids)
         self.gains = np.zeros(num_chans, dtype='float32')
@@ -260,10 +196,79 @@ class TraceView(WidgetBase):
         n = self.visible_channel_inds.size
         self.gains[self.visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
         self.offsets[self.visible_channel_inds] = np.arange(n)[::-1] - self.med[self.visible_channel_inds]*self.gains[self.visible_channel_inds]
-        
+
+
     def on_scroll_time(self, val):
         sr = self.controller.sampling_frequency
         self.timeseeker.seek(val/sr)
+
+
+class TraceView(WidgetBase, MixinViewTrace):
+    
+    _params = [
+        {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
+        {'name': 'zoom_size', 'type': 'float', 'value':  0.08, 'step' : 0.001 },
+        {'name': 'plot_threshold', 'type': 'bool', 'value':  True },
+        {'name': 'alpha', 'type': 'float', 'value' : 0.8, 'limits':(0, 1.), 'step':0.05 },
+        {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
+        {'name': 'max_visible_channel', 'type': 'int', 'value':  16},
+    ]
+    
+    def __init__(self,controller=None, parent=None):
+        WidgetBase.__init__(self, parent=parent, controller=controller)
+        MixinViewTrace.__init__(self)
+    
+        self.trace_source = _trace_sources[0]
+        
+        self.layout = QT.QVBoxLayout()
+        self.setLayout(self.layout)
+        
+        self.create_toolbar()
+        
+        
+        # create graphic view and 2 scroll bar
+        g = QT.QGridLayout()
+        self.layout.addLayout(g)
+        self.graphicsview = pg.GraphicsView()
+        g.addWidget(self.graphicsview, 0,1)
+        self.initialize_plot()
+        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
+        g.addWidget(self.scroll_time, 1,1)
+        self.scroll_time.valueChanged.connect(self.on_scroll_time)
+        
+        #handle time by segments
+        self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
+
+        self.change_segment(0)
+        self.refresh()
+    
+    _default_color = QT.QColor( 'white')
+    
+
+
+    @property
+    def visible_channel_inds(self):
+        # TODO add option to order by depth
+        inds = self.controller.visible_channel_inds
+        n_max =self.params['max_visible_channel']
+        if inds.size > n_max:
+            inds = inds[:n_max]
+        return inds
+    
+    def on_params_changed(self):
+        # adjust xsize spinbox bounds, and adjust xsize if out of bounds
+        self.spinbox_xsize.opts['bounds'] = [0.001, self.params['xsize_max']]
+        if self.xsize > self.params['xsize_max']:
+            self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
+            self.spinbox_xsize.setValue(self.params['xsize_max'])
+            self.xsize = self.params['xsize_max']
+            self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
+        
+        self.reset_gain_and_offset()
+        self.refresh()
+    
+
+        
     
     def scatter_item_clicked(self, x, y):
         ind_click = int(x*self.controller.sampling_frequency )
@@ -310,11 +315,15 @@ class TraceView(WidgetBase):
             
         else:
             self.refresh()
-
+    
+    
     def on_channel_visibility_changed(self):
         self.reset_gain_and_offset()
         self.refresh()
-    
+
+    def _refresh(self):
+        self.seek(self.time_by_seg[self.seg_num])
+
     def seek(self, t):
         if self.sender() is not self.timeseeker:
             self.timeseeker.seek(t, emit = False)
