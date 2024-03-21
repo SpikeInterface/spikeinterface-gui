@@ -41,6 +41,7 @@ class MyViewBox(pg.ViewBox):
 
 
 class MixinViewTrace:
+    _default_color = QT.QColor( 'white')
 
     def create_toolbar(self):
         tb = self.toolbar = QT.QToolBar()
@@ -98,8 +99,6 @@ class MixinViewTrace:
         self.signals_curve = pg.PlotCurveItem(pen='#7FFF00', connect='finite')
         self.plot.addItem(self.signals_curve)
 
-        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
-        self.plot.addItem(self.scatter)
         #~ self.scatter.sigClicked.connect(self.scatter_item_clicked)
         
         self.channel_labels = []
@@ -169,38 +168,42 @@ class MixinViewTrace:
         if newsize>0. and newsize<limits[1]:
             self.spinbox_xsize.setValue(newsize)
     
-    def auto_scale(self):
-        self.estimate_auto_scale()
-        self.refresh()
-
-    def estimate_auto_scale(self):
-        # self.med, self.mad = self.controller.estimate_noise()
-        
-        self.mad = self.controller.noise_levels.astype('float32').copy()
-        # we make the assumption that the signal is center on zero (HP filtered)
-        self.med = np.zeros(self.mad.shape, dtype='float32')
-
-        self.factor = 1.
-        self.gain_zoom(15.)
-    
-    def gain_zoom(self, factor_ratio):
-        self.factor *= factor_ratio
-        self.reset_gain_and_offset()
-        self.refresh()
-
-    def reset_gain_and_offset(self):
-        num_chans = len(self.controller.channel_ids)
-        self.gains = np.zeros(num_chans, dtype='float32')
-        self.offsets = np.zeros(num_chans, dtype='float32')
-        
-        n = self.visible_channel_inds.size
-        self.gains[self.visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
-        self.offsets[self.visible_channel_inds] = np.arange(n)[::-1] - self.med[self.visible_channel_inds]*self.gains[self.visible_channel_inds]
 
 
     def on_scroll_time(self, val):
         sr = self.controller.sampling_frequency
         self.timeseeker.seek(val/sr)
+
+    def seek_with_selected_spike(self):
+        ind_selected = self.controller.get_indices_spike_selected()
+        n_selected = ind_selected.size
+        
+        if self.params['auto_zoom_on_select'] and n_selected==1:
+            #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
+            ind = ind_selected[0]
+            peak_ind = self.controller.spikes[ind]['sample_index']
+            seg_num = self.controller.spikes[ind]['segment_index']
+            peak_time = peak_ind / self.controller.sampling_frequency
+            unit_index = self.controller.spikes[ind]['unit_index']
+            unit_id = self.controller.unit_ids[unit_index ]
+            
+            if seg_num != self.seg_num:
+                self.combo_seg.setCurrentIndex(seg_num)
+            
+            self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
+            self.spinbox_xsize.setValue(self.params['zoom_size'])
+            self.xsize = self.params['zoom_size']
+            self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
+            
+            self.seek(peak_time)
+            
+        else:
+            self.refresh()
+
+
+
+    
+
 
 
 class TraceView(WidgetBase, MixinViewTrace):
@@ -242,7 +245,7 @@ class TraceView(WidgetBase, MixinViewTrace):
         self.change_segment(0)
         self.refresh()
     
-    _default_color = QT.QColor( 'white')
+    
     
 
 
@@ -268,6 +271,36 @@ class TraceView(WidgetBase, MixinViewTrace):
         self.refresh()
     
 
+    def gain_zoom(self, factor_ratio):
+        self.factor *= factor_ratio
+        self.reset_gain_and_offset()
+        self.refresh()
+
+    def auto_scale(self):
+        self.estimate_auto_scale()
+        self.refresh()
+
+    def estimate_auto_scale(self):
+        # self.med, self.mad = self.controller.estimate_noise()
+        
+        self.mad = self.controller.noise_levels.astype('float32').copy()
+        # we make the assumption that the signal is center on zero (HP filtered)
+        self.med = np.zeros(self.mad.shape, dtype='float32')
+
+        self.factor = 1.
+        self.gain_zoom(15.)
+    
+    def reset_gain_and_offset(self):
+        num_chans = len(self.controller.channel_ids)
+        self.gains = np.zeros(num_chans, dtype='float32')
+        self.offsets = np.zeros(num_chans, dtype='float32')
+        
+        n = self.visible_channel_inds.size
+        self.gains[self.visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
+        self.offsets[self.visible_channel_inds] = np.arange(n)[::-1] - self.med[self.visible_channel_inds]*self.gains[self.visible_channel_inds]
+
+    def on_spike_selection_changed(self):
+        self.seek_with_selected_spike()
         
     
     def scatter_item_clicked(self, x, y):
@@ -288,34 +321,7 @@ class TraceView(WidgetBase, MixinViewTrace):
         self.spike_selection_changed.emit()
         self.refresh()
     
-    def on_spike_selection_changed(self):
-        
-        #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
-        ind_selected = self.controller.get_indices_spike_selected()
-        n_selected = ind_selected.size
-        
-        if self.params['auto_zoom_on_select'] and n_selected==1:
-            #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
-            ind = ind_selected[0]
-            peak_ind = self.controller.spikes[ind]['sample_index']
-            seg_num = self.controller.spikes[ind]['segment_index']
-            peak_time = peak_ind / self.controller.sampling_frequency
-            unit_index = self.controller.spikes[ind]['unit_index']
-            unit_id = self.controller.unit_ids[unit_index ]
-            
-            if seg_num != self.seg_num:
-                self.combo_seg.setCurrentIndex(seg_num)
-            
-            self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-            self.spinbox_xsize.setValue(self.params['zoom_size'])
-            self.xsize = self.params['zoom_size']
-            self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
-            
-            self.seek(peak_time)
-            
-        else:
-            self.refresh()
-    
+
     
     def on_channel_visibility_changed(self):
         self.reset_gain_and_offset()
@@ -381,11 +387,12 @@ class TraceView(WidgetBase, MixinViewTrace):
             self.channel_labels[chan_ind].show()
         
         # plot peak on signal
-        all_spikes = self.controller.spikes
-
-        keep = (all_spikes['segment_index']==self.seg_num) & (all_spikes['sample_index']>=ind1) & (all_spikes['sample_index']<ind2)
-        spikes_chunk = all_spikes[keep].copy()
+        sl = self.controller.segment_slices[self.seg_num]
+        spikes_seg = self.controller.spikes[sl]
+        i1, i2 = np.searchsorted(spikes_seg['sample_index'], [ind1, ind2])
+        spikes_chunk = spikes_seg[i1:i2].copy()
         spikes_chunk['sample_index'] -= ind1
+
         
         self.scatter.clear()
         all_x = []
@@ -438,10 +445,13 @@ class TraceView(WidgetBase, MixinViewTrace):
         
     
     def _initialize_plot(self):
-        self.curve_predictions = pg.PlotCurveItem(pen='#FF00FF', connect='finite')
-        self.plot.addItem(self.curve_predictions)
-        self.curve_residuals = pg.PlotCurveItem(pen='#FFFF00', connect='finite')
-        self.plot.addItem(self.curve_residuals)
+        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
+        self.plot.addItem(self.scatter)
+
+        # self.curve_predictions = pg.PlotCurveItem(pen='#FF00FF', connect='finite')
+        # self.plot.addItem(self.curve_predictions)
+        # self.curve_residuals = pg.PlotCurveItem(pen='#FFFF00', connect='finite')
+        # self.plot.addItem(self.curve_residuals)
 
     
 TraceView._gui_help_txt = """Trace view
