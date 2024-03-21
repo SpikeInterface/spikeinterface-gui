@@ -22,9 +22,9 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         {'name': 'alpha', 'type': 'float', 'value' : 0.8, 'limits':(0, 1.), 'step':0.05 },
         {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
         # {'name': 'max_visible_channel', 'type': 'int', 'value':  16},
-        {'name': 'colormap', 'type': 'list', 'limits' : ['bwr', 'gray', 'PiYG', 'jet', 'hot', ] },
+        {'name': 'colormap', 'type': 'list', 'limits' : ['gray', 'bwr',  'PiYG', 'jet', 'hot', ] },
         {'name': 'reverse_colormap', 'type': 'bool', 'value': True },
-
+        {'name': 'show_on_selected_units', 'type': 'bool', 'value': True },
     ]
     
     def __init__(self,controller=None, parent=None):
@@ -148,6 +148,10 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         
         data_curves = sigs_chunk[:, self.channel_order]
 
+        times_chunk = np.arange(sigs_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
+        real_t1 = max(t1, 0)
+        real_t2 = real_t1 + sigs_chunk.shape[0] / self.controller.sampling_frequency
+
         if self.color_limit is None or auto_scale:
             self.color_limit = np.max(np.abs(data_curves))
 
@@ -157,7 +161,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         num_chans = data_curves.shape[1]
 
         self.image.setImage(data_curves, lut=self.lut, levels=[-self.color_limit, self.color_limit])
-        self.image.setRect(QT.QRectF(t1, 0, t2-t1, num_chans))
+        self.image.setRect(QT.QRectF(real_t1, 0, real_t2-real_t1, num_chans))
         self.image.show()
 
         # plot peaks
@@ -167,14 +171,14 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         spikes_chunk = spikes_seg[i1:i2].copy()
         spikes_chunk['sample_index'] -= ind1
 
-        times_chunk = np.arange(sigs_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
+        
 
         self.scatter.clear()
         all_x = []
         all_y = []
         all_brush = []
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not self.controller.unit_visible_dict[unit_id]:
+            if self.params['show_on_selected_units'] and not self.controller.unit_visible_dict[unit_id]:
                 continue
             
             unit_mask = (spikes_chunk['unit_index'] == unit_index)
