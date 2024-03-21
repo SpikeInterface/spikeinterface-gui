@@ -203,7 +203,6 @@ class TraceMapView(WidgetBase, MixinViewTrace):
             all_y.append(y)
             all_brush.append(np.array([pg.mkBrush(color)]*len(x)))
 
-        print(len(all_x))
         if len(all_x) > 0:
             all_x = np.concatenate(all_x)
             all_y = np.concatenate(all_y)
