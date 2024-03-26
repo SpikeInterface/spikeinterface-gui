@@ -136,7 +136,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         self.scroll_time.valueChanged.connect(self.on_scroll_time)
         
         ind1 = max(0, int((t1-t_start)*sr))
-        ind2 = int((t2-t_start)*sr)
+        ind2 = min(self.controller.get_num_samples(self.seg_num), int((t2-t_start)*sr))
 
         sigs_chunk = self.controller.get_traces(trace_source='preprocessed',
                 segment_index=self.seg_num, 
