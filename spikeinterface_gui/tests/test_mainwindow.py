@@ -27,14 +27,14 @@ def test_mainwindow(interactive=False):
     
     if interactive:
         win.show()
-        app.exec_()
+        app.exec()
     else:
         # close thread properly
         win.close()
 
     
 if __name__ == '__main__':
-    # setup_module()
+    # setup_module()
     
     test_mainwindow(interactive=True)
 

@@ -26,8 +26,8 @@ def debug_one_view():
     
     app = sigui.mkQApp()
     
-    view0 = sigui.UnitListView(controller=controller)
-    view0.show()
+    # view0 = sigui.UnitListView(controller=controller)
+    # view0.show()
     #~ view = sigui.SpikeListView(controller=controller)
     #~ view = sigui.PairListView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)
@@ -36,14 +36,14 @@ def debug_one_view():
     #~ view = sigui.ISIView(controller=controller)
     #~ view = sigui.CrossCorrelogramView(controller=controller)
     #~ view = sigui.ProbeView(controller=controller)
-    view = sigui.NDScatterView(controller=controller)
+    # view = sigui.NDScatterView(controller=controller)
     #~ view = sigui.SimilarityView(controller=controller)
     # view = sigui.SpikeAmplitudeView(controller=controller)
-    
-    
+
+    view = sigui.TraceMapView(controller=controller)
     
     view.show()
-    app.exec_()
+    app.exec()
 
     
 if __name__ == '__main__':

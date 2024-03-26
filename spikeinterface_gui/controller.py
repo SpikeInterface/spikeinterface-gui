@@ -66,6 +66,8 @@ class  SpikeinterfaceController(ControllerBase):
         self.templates_average = temp_ext.get_templates(operator='average')
         self.templates_std = temp_ext.get_templates(operator='std')
 
+        self.num_channels = self.analyzer.get_num_channels()
+
         ext = analyzer.get_extension('unit_locations')
         if ext is None:
             print('Force compute "unit_locations" is needed')

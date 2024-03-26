@@ -10,6 +10,7 @@ from .probeview import ProbeView
 from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
 from .spikeamplitudeview import SpikeAmplitudeView
+from .tracemapview import TraceMapView
 
 possible_class_views = dict(
     unitlist = UnitListView,
@@ -24,4 +25,5 @@ possible_class_views = dict(
     ndscatterview = NDScatterView,
     similarityview = SimilarityView,
     spikeamplitudeview = SpikeAmplitudeView,
+    tracemapview = TraceMapView,
 )
