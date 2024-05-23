@@ -29,6 +29,7 @@ class MyViewBox(pg.ViewBox):
 
 
 class SpikeAmplitudeView(WidgetBase):
+    _depend_on = ['spike_amplitudes']
     _params = [
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
             

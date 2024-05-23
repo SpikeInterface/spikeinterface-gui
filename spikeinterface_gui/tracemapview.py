@@ -14,6 +14,7 @@ from .traceview import MixinViewTrace
 
 
 class TraceMapView(WidgetBase, MixinViewTrace):
+    _depend_on = ['recording']
     
     _params = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },

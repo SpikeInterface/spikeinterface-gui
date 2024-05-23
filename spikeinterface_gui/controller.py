@@ -127,8 +127,8 @@ class  SpikeinterfaceController(ControllerBase):
         self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
 
         # some direct attribute
-        self.num_segments = self.analyzer.recording.get_num_segments()
-        self.sampling_frequency = self.analyzer.recording.get_sampling_frequency()
+        self.num_segments = self.analyzer.get_num_segments()
+        self.sampling_frequency = self.analyzer.sampling_frequency
 
 
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
@@ -186,7 +186,7 @@ class  SpikeinterfaceController(ControllerBase):
             t0 = time.perf_counter()
             print('similarity')
 
-        self.visible_channel_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
+        self.visible_channel_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
 
         self._spike_visible_indices = np.array([], dtype='int64')
         self._spike_selected_indices = np.array([], dtype='int64')
@@ -204,7 +204,7 @@ class  SpikeinterfaceController(ControllerBase):
         
     @property
     def channel_ids(self):
-        return self.analyzer.recording.channel_ids
+        return self.analyzer.channel_ids
 
     @property
     def unit_ids(self):
@@ -246,7 +246,7 @@ class  SpikeinterfaceController(ControllerBase):
         self._spike_selected_indices = np.array(inds)
 
     def get_num_samples(self, segment_index):
-        return self.analyzer.recording.get_num_samples(segment_index=segment_index)
+        return self.analyzer.get_num_samples(segment_index=segment_index)
     
     def get_traces(self, trace_source='preprocessed', **kargs):
         # assert trace_source in ['preprocessed', 'raw']
@@ -263,7 +263,7 @@ class  SpikeinterfaceController(ControllerBase):
         return traces
     
     def get_contact_location(self):
-        location = self.analyzer.recording.get_channel_locations()
+        location = self.analyzer.get_channel_locations()
         return location
     
     def get_waveform_sweep(self):
@@ -303,15 +303,15 @@ class  SpikeinterfaceController(ControllerBase):
     def set_channel_visibility(self, visible_channel_inds):
         self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
 
+    def has_extension(self, extension_name):
+        if extension_name == 'recording':
+            return self.analyzer.has_recording()
+        else:
+            return self.analyzer.has_extension(extension_name)
+
     def handle_metrics(self):
         return self.metrics is not None
 
-    def handle_spike_amplitudes(self):
-        return self.spike_amplitudes is not None
-        
-    def handle_principal_components(self):
-        return self.pc_ext is not None
-        
     def get_all_pcs(self):
 
         if self._pc_projections is None:

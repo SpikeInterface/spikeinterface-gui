@@ -40,25 +40,27 @@ class MainWindow(QT.QMainWindow):
         # on bottom left
         self.add_one_view('probeview', area='left')
         self.add_one_view('similarityview', split='probeview', orientation='horizontal')
-        if self.controller.handle_principal_components():
-            self.add_one_view('ndscatterview', tabify='similarityview')
-            self.docks['ndscatterview'].raise_()
+        
+        self.add_one_view('ndscatterview', tabify='similarityview') # optional
         
         # on right
-        self.add_one_view('traceview', area='right')
+        self.add_one_view('traceview', area='right') # optional
         if self.controller.num_channels >=16:
-            self.add_one_view('tracemapview',  tabify='traceview')
-        self.add_one_view('waveformview', tabify='traceview')
-        #~ self.add_one_view('waveformview', area='right')
+            self.add_one_view('tracemapview',  tabify='traceview') # optional
+        
+        if 'tracemapview' in self.docks:
+            self.add_one_view('waveformview', tabify='traceview')
+        else:
+            self.add_one_view('waveformview', area='right')
+        
         self.add_one_view('waveformheatmapview', tabify='waveformview')
         self.add_one_view('isiview', tabify='waveformheatmapview')
         self.add_one_view('crosscorrelogramview', tabify='isiview')
-        if self.controller.handle_spike_amplitudes():
-            self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview')
+        self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview') # optional
         
-        self.docks['traceview'].raise_()
-        
-        self.docks['traceview'].setGeometry(300, 600, 200, 120)
+        if 'traceview' in self.docks:
+            self.docks['traceview'].raise_()
+            self.docks['traceview'].setGeometry(300, 600, 200, 120)
         
     def add_one_view(self, view_name, dock_title=None,
             area=None, orientation=None, tabify=None, split=None):
@@ -70,9 +72,17 @@ class MainWindow(QT.QMainWindow):
             
         if dock_title is None:
             dock_title = view_name
-    
-        dock = MyDock(dock_title,self)
+
         view_class = possible_class_views[view_name]
+        if view_class._depend_on is not None:
+            depencies_ok = all(self.controller.has_extension(k) for k in view_class._depend_on)
+            if not depencies_ok:
+                if self.verbose:
+                    print(view_name, 'do not has all depencies', view_class._depend_on)                
+                return None
+
+        dock = MyDock(dock_title,self)
+        
         view = view_class(controller=self.controller)
         dock.setWidget(view)
         
