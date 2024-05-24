@@ -72,6 +72,7 @@ class WidgetBase(QT.QWidget):
     _need_compute = False
     _params = None
     _gui_help_txt = "The help for this view it not done yet"
+    _depend_on = None
     
     
     def __init__(self, parent = None, controller=None):

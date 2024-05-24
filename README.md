@@ -57,13 +57,13 @@ sorting = si.run_sorter('YYYYY', recording_filtered)
 
 job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
-# make the SortingAnalyzer with some optional extensions
+# make the SortingAnalyzer with necessary and some optional extensions
 sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
                                               format="binary_folder", folder="/my_sorting_analyzer",
                                               **job_kwargs)
 sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
 sorting_analyzer.compute("waveforms", **job_kwargs)
-sorting_analyzer.compute("templates")
+sorting_analyzer.compute("templates", **job_kwargs)
 sorting_analyzer.compute("noise_levels")
 sorting_analyzer.compute("unit_locations", method="monopolar_triangulation")
 sorting_analyzer.compute("isi_histograms")

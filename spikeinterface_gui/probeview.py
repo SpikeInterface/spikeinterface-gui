@@ -16,6 +16,7 @@ class MyViewBox(pg.ViewBox):
     ctrl_doubleclicked = QT.pyqtSignal(float, float)
     
     def mouseDoubleClickEvent(self, ev):
+        print('mouseDoubleClickEvent')
         pos = self.mapToView(ev.pos())
         x, y = pos.x(), pos.y()
         if ev.modifiers() == QT.ControlModifier:
@@ -23,16 +24,17 @@ class MyViewBox(pg.ViewBox):
         else:
             self.doubleclicked.emit(x, y)
         ev.accept()
-    
-    #~ def mouseClickEvent(self, ev):
-        #~ print('mouseClickEvent', ev.modifiers(), QT.ControlModifier, ev.modifiers() == QT.ControlModifier)
-        #~ if ev.modifiers() == QT.ControlModifier:
-            #~ pos = self.mapToView(ev.pos())
-            #~ x, y = pos.x(), pos.y()
-            #~ self.ctrl_doubleclicked.emit(x, y)
-        #~ ev.accept()
-        #~ else:
-            #~ pg.ViewBox.mouseClickEvent(self, ev)
+
+    # this is not working because of the ROI that take it    
+    # def mouseClickEvent(self, ev):
+    #     print('mouseClickEvent', ev.modifiers(), QT.ControlModifier, ev.modifiers() == QT.ControlModifier)
+    #     if ev.modifiers() == QT.ControlModifier:
+    #         pos = self.mapToView(ev.pos())
+    #         x, y = pos.x(), pos.y()
+    #         self.ctrl_doubleclicked.emit(x, y)
+    #         ev.accept()
+    #     else:
+    #         pg.ViewBox.mouseClickEvent(self, ev)
     
     def raiseContextMenu(self, ev):
         #for some reasons enableMenu=False is not taken (bug ????)

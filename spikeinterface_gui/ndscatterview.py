@@ -62,6 +62,7 @@ class NDScatterView(WidgetBase):
     """
     This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
     """
+    _depend_on = ['principal_components']
     _params = [
            {'name': 'refresh_interval', 'type': 'int', 'value': 80 },
            {'name': 'num_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
@@ -71,7 +72,7 @@ class NDScatterView(WidgetBase):
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
         
-        assert self.controller.handle_principal_components()
+        assert self.controller.has_extension('principal_components')
         
         self.pc_unit_index, self.pc_data = self.controller.get_all_pcs()
         self.data = self.pc_data.swapaxes(1,2).reshape(self.pc_data.shape[0], -1)
