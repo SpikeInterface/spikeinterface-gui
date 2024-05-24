@@ -177,6 +177,7 @@ class SimilarityView(WidgetBase):
         
         for unit_id in unit_ids:
             self.controller.unit_visible_dict[unit_id] = unit_id in (unti_id0, unti_id1)
+        self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
         
         self.refresh()

@@ -47,7 +47,7 @@ def make_one_folder(test_folder):
                                                   **job_kwargs)
     sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
     sorting_analyzer.compute("waveforms", **job_kwargs)
-    sorting_analyzer.compute("templates")
+    sorting_analyzer.compute("templates", **job_kwargs)
     sorting_analyzer.compute("noise_levels")
     sorting_analyzer.compute("unit_locations")
     ext = sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1., method="numba")

@@ -18,7 +18,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
     
     _params = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
-        {'name': 'zoom_size', 'type': 'float', 'value':  0.08, 'step' : 0.001 },
+        {'name': 'zoom_size', 'type': 'float', 'value':  0.03, 'step' : 0.001 },
         # {'name': 'plot_threshold', 'type': 'bool', 'value':  True },
         {'name': 'alpha', 'type': 'float', 'value' : 0.8, 'limits':(0, 1.), 'step':0.05 },
         {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
