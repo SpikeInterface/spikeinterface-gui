@@ -135,7 +135,7 @@ class MyDock(QT.QDockWidget):
         # style = 'QPushButton {padding: 5px;}'
         # titlebar.setStyleSheet(style)
 
-        titlebar.setMaximumHeight(13)
+        titlebar.setMaximumHeight(14)
         self.setTitleBarWidget(titlebar)
         
         h = QT.QHBoxLayout()
@@ -149,20 +149,25 @@ class MyDock(QT.QDockWidget):
         h.addWidget(label)
         
         h.addStretch()
-        
+
+        but_style = "QPushButton{border-width: 1px; font: 10px; padding: 10px}"
+
         if view._params is not None:
             but = QT.QPushButton('settings')
             h.addWidget(but)
             but.clicked.connect(view.open_settings)
+            but.setStyleSheet(but_style)
 
         if view._need_compute:
             but = QT.QPushButton('compute')
             h.addWidget(but)
             but.clicked.connect(view.compute)
+            but.setStyleSheet(but_style)
 
         but = QT.QPushButton('refresh')
         h.addWidget(but)
         but.clicked.connect(view.refresh)
+        but.setStyleSheet(but_style)
         
         but = QT.QPushButton('?')
         h.addWidget(but)
