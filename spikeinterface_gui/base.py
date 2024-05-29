@@ -22,7 +22,8 @@ class ControllerBase(QT.QObject):
         new_view.spike_label_changed.connect(self.on_spike_label_changed)
         new_view.unit_visibility_changed.connect(self.on_unit_visibility_changed)
         new_view.channel_visibility_changed.connect(self.on_channel_visibility_changed)
-        
+        new_view.similarity_method_changed.connect(self.on_similarity_method_changed)
+
         
     def on_spike_selection_changed(self):
         for view in self.views:
@@ -58,6 +59,11 @@ class ControllerBase(QT.QObject):
             #~ t2 = time.perf_counter()
             #~ print('on_channel_visibility_changed',view,  t2-t1)
 
+    def on_similarity_method_changed(self):
+        for view in self.views:
+            if view == self.sender(): continue
+            # ~ t1 = time.perf_counter()
+            view.on_similarity_method_changed()
 
 
     
@@ -68,7 +74,8 @@ class WidgetBase(QT.QWidget):
     spike_label_changed = QT.pyqtSignal()
     unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
-    
+    similarity_method_changed = QT.pyqtSignal()
+
     _need_compute = False
     _params = None
     _gui_help_txt = "The help for this view it not done yet"
@@ -130,5 +137,8 @@ class WidgetBase(QT.QWidget):
         self.refresh()
     
     def on_channel_visibility_changed(self):
+        pass
+
+    def on_similarity_method_changed(self):
         pass
 
