@@ -205,7 +205,16 @@ def open_dialog_methods(params_by_method, parent, title='Which method ?', select
             return method, kargs
         else:
             return None, None
-        
+
+
+class CustomItem(QT.QTableWidgetItem):
+    def __lt__(self, other):
+        try:
+            comp = float(self.text()) < float(other.text())
+            return comp
+        except ValueError:
+            super().__lt__(other)
+
 
 
 if __name__=='__main__':
