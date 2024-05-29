@@ -46,29 +46,18 @@ class PairListView(WidgetBase):
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
-        self.sorting_column = 2
-        self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
-        #~ h = QT.QHBoxLayout()
-        #~ self.layout.addLayout(h)
+        # ~ h = QT.QHBoxLayout()
+        # ~ self.layout.addLayout(h)
         self.combo_select = QT.QComboBox()
-        #~ h.addWidget(QT.QLabel('Select'))
-        #~ h.addWidget(self.combo_select)
+        # ~ h.addWidget(QT.QLabel('Select'))
+        # ~ h.addWidget(self.combo_select)
         self.combo_select.addItems(['all pairs', 'high similarity'])  #
-        #~ self.combo_select.currentTextChanged.connect(self.refresh)
-        #~ h.addStretch()
+        # ~ self.combo_select.currentTextChanged.connect(self.refresh)
+        # ~ h.addStretch()
 
-        h = QT.QHBoxLayout()
-        self.layout.addLayout(h)
-        h.addWidget(QT.QLabel('Sort by'))
-        self.combo_sort = QT.QComboBox()
-        self.combo_sort.addItems(['label', 'similarity', 'ratio_similarity'])
-        self.combo_sort.currentIndexChanged.connect(self.refresh)
-        h.addWidget(self.combo_sort)
-        h.addStretch()
-
-        #~ but = QT.QPushButton('settings')
-        #~ self.layout.addWidget(but)
-        #~ but.clicked.connect(self.open_settings)
+        # ~ but = QT.QPushButton('settings')
+        # ~ self.layout.addWidget(but)
+        # ~ but.clicked.connect(self.open_settings)
 
         self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
@@ -76,14 +65,14 @@ class PairListView(WidgetBase):
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
 
-        #~ self.table.customContextMenuRequested.connect(self.open_context_menu)
+        # ~ self.table.customContextMenuRequested.connect(self.open_context_menu)
 
-        #~ self.menu = QT.QMenu()
-        #~ act = self.menu.addAction('Merge')
-        #~ act.triggered.connect(self.do_merge)
+        # ~ self.menu = QT.QMenu()
+        # ~ act = self.menu.addAction('Merge')
+        # ~ act.triggered.connect(self.do_merge)
 
-        #~ act = self.menu.addAction('Tag same cell')
-        #~ act.triggered.connect(self.do_tag_same_cell)
+        # ~ act = self.menu.addAction('Tag same cell')
+        # ~ act.triggered.connect(self.do_tag_same_cell)
         self.pairs = self.controller.get_merge_list()
         self.refresh()
 
@@ -99,7 +88,7 @@ class PairListView(WidgetBase):
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[k1] = True
         self.controller.unit_visible_dict[k2] = True
-        
+
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
 
@@ -142,7 +131,7 @@ class PairListView(WidgetBase):
         if self.pairs is None:
             return
 
-            #select
+            # select
         # mode = self.combo_select.currentText()
         # if mode == 'all pairs':
         #     unit_ids = self.controller.unit_ids
@@ -150,7 +139,7 @@ class PairListView(WidgetBase):
         # elif mode == 'high similarity':
         #     self.pairs = self.controller.detect_high_similarity(threshold=self.params['threshold_similarity'])
 
-        #sort
+        # sort
         # mode = self.combo_sort.currentText()
         # order = np.arange(len(self.pairs))
         # if mode == 'label':
@@ -164,15 +153,15 @@ class PairListView(WidgetBase):
         #             ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
         #             order.append(self.controller.cluster_similarity[ind1, ind2])
         #         order = np.argsort(order)[::-1]
-        #~ elif mode == 'ratio_similarity':
-        #~ if self.controller.cluster_ratio_similarity is not None:
-        #~ order = []
-        #~ for r in range(len(self.pairs)):
-        #~ k1, k2 = self.pairs[r]
-        #~ ind1 = self.controller.positive_cluster_labels.tolist().index(k1)
-        #~ ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
-        #~ order.append(self.controller.cluster_ratio_similarity[ind1, ind2])
-        #~ order = np.argsort(order)[::-1]
+        # ~ elif mode == 'ratio_similarity':
+        # ~ if self.controller.cluster_ratio_similarity is not None:
+        # ~ order = []
+        # ~ for r in range(len(self.pairs)):
+        # ~ k1, k2 = self.pairs[r]
+        # ~ ind1 = self.controller.positive_cluster_labels.tolist().index(k1)
+        # ~ ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
+        # ~ order.append(self.controller.cluster_ratio_similarity[ind1, ind2])
+        # ~ order = np.argsort(order)[::-1]
         # self.pairs = [self.pairs[i] for i in order ]
 
         self.table.setRowCount(len(self.pairs))
@@ -189,7 +178,7 @@ class PairListView(WidgetBase):
                 icon = QT.QIcon(pix)
 
                 # TODO
-                # name = '{} (n={})'.format(k, self.controller.cluster_count[k])
+                #  name = '{} (n={})'.format(k, self.controller.cluster_count[k])
                 n = self.controller.num_spikes[unit_id]
                 name = f'{unit_id} n={n}'
                 item = QT.QTableWidgetItem(name)
@@ -199,31 +188,30 @@ class PairListView(WidgetBase):
                 item.setIcon(icon)
                 item.unit_id_pair = (unit_id1, unit_id2)
 
-
             for c_ix, info_name in enumerate(labels[2:]):
                 info = self.merge_info[info_name][unit_id1][unit_id2]
                 item = CustomItem(f'{info:.2f}')
-                self.table.setItem(r, c_ix+2, item)
+                self.table.setItem(r, c_ix + 2, item)
 
-                #~ cell_label = self.controller.cell_labels[self.controller.cluster_labels==k][0]
-                #~ name = '{}'.format(cell_label)
-                #~ item = QT.QTableWidgetItem(name)
-                #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-                #~ self.table.setItem(r,c+2, item)
+                # ~ cell_label = self.controller.cell_labels[self.controller.cluster_labels==k][0]
+                # ~ name = '{}'.format(cell_label)
+                # ~ item = QT.QTableWidgetItem(name)
+                # ~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+                # ~ self.table.setItem(r,c+2, item)
 
-            #~ if self.controller.cluster_similarity is not None:
-            #~ if self.controller.cluster_similarity.shape[0] == self.controller.positive_cluster_labels.size:
-            #~ name = '{}'.format(self.controller.cluster_similarity[ind1, ind2])
-            #~ item = QT.QTableWidgetItem(name)
-            #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            #~ self.table.setItem(r,4, item)
+            # ~ if self.controller.cluster_similarity is not None:
+            # ~ if self.controller.cluster_similarity.shape[0] == self.controller.positive_cluster_labels.size:
+            # ~ name = '{}'.format(self.controller.cluster_similarity[ind1, ind2])
+            # ~ item = QT.QTableWidgetItem(name)
+            # ~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            # ~ self.table.setItem(r,4, item)
 
-            #~ if self.controller.cluster_ratio_similarity is not None:
-            #~ if self.controller.cluster_ratio_similarity.shape[0] == self.controller.positive_cluster_labels.size:
-            #~ name = '{}'.format(self.controller.cluster_ratio_similarity[ind1, ind2])
-            #~ item = QT.QTableWidgetItem(name)
-            #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            #~ self.table.setItem(r,5, item)
+            # ~ if self.controller.cluster_ratio_similarity is not None:
+            # ~ if self.controller.cluster_ratio_similarity.shape[0] == self.controller.positive_cluster_labels.size:
+            # ~ name = '{}'.format(self.controller.cluster_ratio_similarity[ind1, ind2])
+            # ~ item = QT.QTableWidgetItem(name)
+            # ~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            # ~ self.table.setItem(r,5, item)
         for i in range(self.table.columnCount()):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
