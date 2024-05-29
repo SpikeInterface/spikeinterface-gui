@@ -5,8 +5,7 @@ import numpy as np
 import  itertools
 
 from .base import WidgetBase
-from .tools import ParamDialog, get_dict_from_group_param
-
+from .tools import ParamDialog, get_dict_from_group_param, CustomItem
 
 
 class PairListView(WidgetBase):
@@ -38,10 +37,12 @@ class PairListView(WidgetBase):
 
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
-        
+
+        self.merge_info = {}
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
-
+        self.sorting_column = 2
+        self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
         #~ h = QT.QHBoxLayout()
         #~ self.layout.addLayout(h)
         self.combo_select = QT.QComboBox()
@@ -70,6 +71,7 @@ class PairListView(WidgetBase):
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
+
         #~ self.table.customContextMenuRequested.connect(self.open_context_menu)
         
         #~ self.menu = QT.QMenu()
@@ -80,7 +82,7 @@ class PairListView(WidgetBase):
         #~ act.triggered.connect(self.do_tag_same_cell)
         self.pairs = self.controller.get_merge_list()
         self.refresh()
-    
+
     def on_item_selection_changed(self):
         inds = self.table.selectedIndexes()
         if len(inds)!=self.table.columnCount():
@@ -114,11 +116,15 @@ class PairListView(WidgetBase):
     #     self.controller.tag_same_cell(label_to_merge)
     #     self.refresh()
     #     self.cluster_tag_changed.emit()
-        
-    
+
     def _refresh(self):
         self.table.clear()
-        labels = ['unit_id1', 'unit_id2', 'similarity',]
+        self.table.setSortingEnabled(False)
+        labels = ['unit_id1', 'unit_id2']
+        potential_labels = {'similarity', 'correlogram_diff', 'templates_diff'}
+        for lbl in self.merge_info.keys():
+            if lbl in potential_labels:
+                labels.append(lbl)
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
         self.table.setColumnWidth(0, 100)
@@ -178,10 +184,16 @@ class PairListView(WidgetBase):
                 n = self.controller.num_spikes[unit_id]
                 name = f'{unit_id} n={n}'
                 item = QT.QTableWidgetItem(name)
+                item.setData(QT.Qt.ItemDataRole.UserRole, unit_id)
                 item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-                self.table.setItem(r,c, item)
+                self.table.setItem(r, c, item)
                 item.setIcon(icon)
-                
+
+                for c_ix, info_name in enumerate(labels[2:]):
+                    info = self.merge_info[info_name][unit_id1][unit_id2]
+                    item = CustomItem(f'{info:.2f}')
+                    self.table.setItem(r, c_ix+2, item)
+
                 #~ cell_label = self.controller.cell_labels[self.controller.cluster_labels==k][0]
                 #~ name = '{}'.format(cell_label)
                 #~ item = QT.QTableWidgetItem(name)
@@ -201,6 +213,9 @@ class PairListView(WidgetBase):
                     #~ item = QT.QTableWidgetItem(name)
                     #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
                     #~ self.table.setItem(r,5, item)
+        for i in range(self.table.columnCount()):
+            self.table.resizeColumnToContents(i)
+        self.table.setSortingEnabled(True)
         
     def on_spike_selection_changed(self):
         pass
@@ -213,7 +228,7 @@ class PairListView(WidgetBase):
 
     def compute(self):
         params = get_dict_from_group_param(self.params)
-        self.pairs = self.controller.compute_auto_merge(**params)
+        self.pairs, self.merge_info = self.controller.compute_auto_merge(**params)
         self.refresh()
 
 

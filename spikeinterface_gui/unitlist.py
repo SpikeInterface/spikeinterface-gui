@@ -4,19 +4,10 @@ import pyqtgraph as pg
 import numpy as np
 
 from .base import WidgetBase
-from .tools import ParamDialog
+from .tools import ParamDialog, CustomItem
 
 
 _column_names = ['unit_id', 'visible', 'num_spikes', 'channel_id', 'sparsity']
-
-
-class CustomItem(QT.QTableWidgetItem):
-    def __lt__(self, other):
-        try:
-            comp = float(self.text()) < float(other.text())
-            return comp
-        except ValueError:
-            super().__lt__(other)
 
 
 class UnitListView(WidgetBase):
@@ -32,8 +23,6 @@ class UnitListView(WidgetBase):
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
-        self.sorting_column = 0
-        self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
         if self.controller.handle_metrics():
             self.checkbox_metrics = QT.QCheckBox('metrics')
             self.checkbox_metrics.setChecked(True)
@@ -78,8 +67,7 @@ class UnitListView(WidgetBase):
         
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
-        header = self.table.horizontalHeader()
-        header.sectionClicked.connect(self.column_header_clicked)
+
         #~ self.table.setMinimumWidth(100)
         #~ self.table.setColumnWidth(0,60)
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
@@ -172,17 +160,7 @@ class UnitListView(WidgetBase):
         for i in range(5):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
-        self.table.sortByColumn(self.sorting_column, self.sorting_direction)
         self.table.itemChanged.connect(self.on_item_changed)        
-
-    def column_header_clicked(self, column_ix: int):
-        if column_ix == self.sorting_column:
-            self.sorting_direction = QT.Qt.SortOrder.DescendingOrder if self.sorting_direction == QT.Qt.SortOrder.AscendingOrder else QT.Qt.SortOrder.AscendingOrder
-        else:
-            self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
-
-        self.table.sortByColumn(column_ix, self.sorting_direction)
-        self.sorting_column = column_ix
 
     def on_item_changed(self, item):
         if item.column() != 1: return

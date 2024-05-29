@@ -369,10 +369,11 @@ class  SpikeinterfaceController(ControllerBase):
 
     def compute_auto_merge(self, **params):
 
-        potential_merges = get_potential_auto_merge(
+        potential_merges, extra = get_potential_auto_merge(
             self.analyzer,
 
-            extra_outputs=False,
+            extra_outputs=True,
             steps=None,
+            **params
         )
-        return potential_merges
+        return potential_merges, extra
