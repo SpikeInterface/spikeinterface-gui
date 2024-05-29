@@ -28,17 +28,17 @@ def make_one_folder(test_folder):
         
         generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
         generate_unit_locations_kwargs=dict(
-            margin_um=0.0,
+            margin_um=5.0,
             minimum_z=5.0,
-            maximum_z=5.5,
+            maximum_z=20.0,
         ),
         generate_templates_kwargs=dict(
             unit_params_range=dict(
-                alpha=(9_000.0, 9_100.0),
+                alpha=(9_000.0, 12_000.0),
             )
         ),
         noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
-        seed=1606,
+        seed=2205,
     )
     
     
