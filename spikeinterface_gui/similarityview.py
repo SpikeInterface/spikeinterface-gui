@@ -106,6 +106,9 @@ class SimilarityView(WidgetBase):
     def on_unit_visibility_changed(self):
         self.refresh()
 
+    def on_similarity_method_changed(self):
+        self.refresh()
+
     def compute(self):
         self.similarity = self.controller.compute_similarity(method=self.params['method'])
         self.refresh()

@@ -11,7 +11,7 @@ from .tools import ParamDialog, get_dict_from_group_param, CustomItem
 class PairListView(WidgetBase):
     """
     """
-    _lussac_params = [
+    _automerge_params = [
         # {'name': 'threshold_similarity', 'type': 'float', 'value' :.9, 'step' : 0.01},
         # {'name': 'threshold_ratio_similarity', 'type': 'float', 'value' :.8, 'step' : 0.01},
 
@@ -240,7 +240,7 @@ class PairListView(WidgetBase):
     def compute(self):
         # First we choose the method
 
-        methods = {'name': 'method', 'type': 'list', 'limits': ['similarity', 'lussac']}
+        methods = {'name': 'method', 'type': 'list', 'limits': ['similarity', 'automerge']}
         ch_method_d = ParamDialog([methods], title='Choose your method').get()
         if ch_method_d is None:
             return
@@ -248,14 +248,14 @@ class PairListView(WidgetBase):
 
         params = None
         # Depending on the method we set the parameters
-        if ch_method == 'lussac':
-            params = ParamDialog(self._lussac_params, title='Lussac parameters').get()
+        if ch_method == 'automerge':
+            params = ParamDialog(self._automerge_params, title='Automerge parameters').get()
             self.pairs, self.merge_info = self.controller.compute_auto_merge(**params)
         elif ch_method == 'similarity':
             params = ParamDialog(self._similarity_params, title='Similarity parameters').get()
             similarity = self.controller.compute_similarity(params['method'])
             th_sim = similarity > params['threshold_similarity']
-            self.pairs = [(i, j) for i, j in zip(*np.nonzero(th_sim)) if i != j]
+            self.pairs = [(i, j) for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
         # params = get_dict_from_group_param(self.params)
         #
