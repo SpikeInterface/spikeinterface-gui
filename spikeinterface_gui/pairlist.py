@@ -91,10 +91,15 @@ class PairListView(WidgetBase):
         inds = self.table.selectedIndexes()
         if len(inds) != self.table.columnCount():
             return
-        k1, k2 = self.pairs[inds[0].row()]
-        for k in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[k] = k in (k1, k2)
+        # k1, k2 = self.pairs[inds[0].row()]
+        item = self.table.item(inds[0].row(), 0)
+        k1, k2 = item.unit_id_pair
 
+        for k in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[k] = False
+        self.controller.unit_visible_dict[k1] = True
+        self.controller.unit_visible_dict[k2] = True
+        
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
 
@@ -192,11 +197,13 @@ class PairListView(WidgetBase):
                 item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
                 self.table.setItem(r, c, item)
                 item.setIcon(icon)
+                item.unit_id_pair = (unit_id1, unit_id2)
 
-                for c_ix, info_name in enumerate(labels[2:]):
-                    info = self.merge_info[info_name][unit_id1][unit_id2]
-                    item = CustomItem(f'{info:.2f}')
-                    self.table.setItem(r, c_ix + 2, item)
+
+            for c_ix, info_name in enumerate(labels[2:]):
+                info = self.merge_info[info_name][unit_id1][unit_id2]
+                item = CustomItem(f'{info:.2f}')
+                self.table.setItem(r, c_ix+2, item)
 
                 #~ cell_label = self.controller.cell_labels[self.controller.cluster_labels==k][0]
                 #~ name = '{}'.format(cell_label)
