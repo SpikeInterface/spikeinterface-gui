@@ -10,6 +10,14 @@ from .tools import ParamDialog
 _column_names = ['unit_id', 'visible', 'num_spikes', 'channel_id', 'sparsity']
 
 
+class CustomItem(QT.QTableWidgetItem):
+    def __lt__(self, other):
+        try:
+            comp = float(self.text()) < float(other.text())
+            return comp
+        except ValueError:
+            super().__lt__(other)
+
 
 class UnitListView(WidgetBase):
     """
@@ -17,17 +25,15 @@ class UnitListView(WidgetBase):
     
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
-        
+
+        self.menu = None
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
-        h.addWidget(QT.QLabel('sort by'))
-        self.combo_sort = QT.QComboBox()
-        self.combo_sort.addItems(['unit_id', 'num_spikes', 'depth',])
-        self.combo_sort.currentIndexChanged.connect(self.refresh)
-        h.addWidget(self.combo_sort)
+        self.sorting_column = 0
+        self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
         if self.controller.handle_metrics():
             self.checkbox_metrics = QT.QCheckBox('metrics')
             self.checkbox_metrics.setChecked(True)
@@ -72,32 +78,34 @@ class UnitListView(WidgetBase):
         
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
+        header = self.table.horizontalHeader()
+        header.sectionClicked.connect(self.column_header_clicked)
         #~ self.table.setMinimumWidth(100)
         #~ self.table.setColumnWidth(0,60)
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.open_context_menu)
         self.table.setSelectionMode(QT.QAbstractItemView.ExtendedSelection)
         self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
-        
-        sort_mode = str(self.combo_sort.currentText())
-        
+        #
+        # sort_mode = str(self.combo_sort.currentText())
+        #
         unit_ids = self.controller.unit_ids
-
-        if sort_mode=='unit_id':
-            order =np.arange(unit_ids.size)
-        elif sort_mode=='num_spikes':
-            order = np.argsort([self.controller.num_spikes[u] for u in unit_ids])[::-1]
-        elif sort_mode=='depth':
-            depths = self.controller.unit_positions[:, 1]
-            order = np.argsort(depths)[::-1]
-        
-        unit_ids = unit_ids[order]
-        
+        #
+        # if sort_mode=='unit_id':
+        #     order =np.arange(unit_ids.size)
+        # elif sort_mode=='num_spikes':
+        #     order = np.argsort([self.controller.num_spikes[u] for u in unit_ids])[::-1]
+        # elif sort_mode=='depth':
+        #     depths = self.controller.unit_positions[:, 1]
+        #     order = np.argsort(depths)[::-1]
+        #
+        # unit_ids = unit_ids[order]
+        #
         #~ cluster_labels = self._special_label + self.controller.positive_cluster_labels[order].tolist()
         #~ cluster_labels = self._special_label + self.controller.positive_cluster_labels[order].tolist()
         
         self.table.setRowCount(len(unit_ids))
-        
+        self.table.setSortingEnabled(False)
         for i, unit_id in enumerate(unit_ids):
             color = self.controller.qcolors.get(unit_id, QT.QColor( 'black'))
             pix = QT.QPixmap(16,16)
@@ -116,18 +124,18 @@ class UnitListView(WidgetBase):
             item.unit_id = unit_id
             
             num_spike = self.controller.num_spikes[unit_id]
-            item = QT.QTableWidgetItem(f'{num_spike}')
+            item = CustomItem(f'{num_spike}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 2, item)
             
             channel_index = self.controller.get_extremum_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
-            item = QT.QTableWidgetItem(f'{channel_id}')
+            item = CustomItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 3, item)
             
             num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
-            item = QT.QTableWidgetItem(f'{num_chan}')
+            item = CustomItem(f'{num_chan}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 4, item)
             
@@ -135,9 +143,9 @@ class UnitListView(WidgetBase):
                 for m, col in enumerate(metrics.columns):
                     v = metrics.loc[unit_id, col]
                     if isinstance(v, float):
-                        item = QT.QTableWidgetItem(f'{v:0.2f}')
+                        item = CustomItem(f'{v:0.2f}')
                     else:
-                        item = QT.QTableWidgetItem(f'{v}')
+                        item = CustomItem(f'{v}')
                     self.table.setItem(i, 5+m, item)
 
             
@@ -163,7 +171,18 @@ class UnitListView(WidgetBase):
             
         for i in range(5):
             self.table.resizeColumnToContents(i)
+        self.table.setSortingEnabled(True)
+        self.table.sortByColumn(self.sorting_column, self.sorting_direction)
         self.table.itemChanged.connect(self.on_item_changed)        
+
+    def column_header_clicked(self, column_ix: int):
+        if column_ix == self.sorting_column:
+            self.sorting_direction = QT.Qt.SortOrder.DescendingOrder if self.sorting_direction == QT.Qt.SortOrder.AscendingOrder else QT.Qt.SortOrder.AscendingOrder
+        else:
+            self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
+
+        self.table.sortByColumn(column_ix, self.sorting_direction)
+        self.sorting_column = column_ix
 
     def on_item_changed(self, item):
         if item.column() != 1: return
