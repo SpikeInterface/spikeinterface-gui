@@ -21,6 +21,17 @@ class CurationView(WidgetBase):
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
 
+        h = QT.QHBoxLayout()
+        self.layout.addLayout(h)
+        if self.controller.curation_can_be_saved():
+            but = QT.QPushButton("Save in analyzer")
+            h.addWidget(but)
+            but.clicked.connect(self.save_in_analyzer)
+        but = QT.QPushButton("Export JSON")
+        but.clicked.connect(self.export_json)        
+        h.addWidget(but)
+
+
         self.layout.addWidget(QT.QLabel("Merge"))
         self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
@@ -63,6 +74,13 @@ class CurationView(WidgetBase):
 
     def on_manual_curation_updated(self):
         self._refresh()
+    
+    def save_in_analyzer(self):
+        self.controller.save_curation()
+        pass
+
+    def export_json(self):
+        pass
 
 
 CurationView._gui_help_txt = """

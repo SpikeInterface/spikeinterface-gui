@@ -386,3 +386,15 @@ class  SpikeinterfaceController(ControllerBase):
             **params
         )
         return potential_merges, extra
+    
+    def curation_can_be_saved(self):
+        return self.analyzer.format != "memory"
+
+    def save_curation(self):
+        if self.analyzer.format == "memory":
+            pass
+        elif self.analyzer.format == "binary_folder":
+            print("TODO implement save curation in binary_folder")
+        elif self.analyzer.format == "zarr":
+            print("TODO implement save curation in zarr")
+
