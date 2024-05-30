@@ -218,6 +218,25 @@ class CustomItem(QT.QTableWidgetItem):
             super().__lt__(other)
 
 
+def find_category(categories, category):
+    """
+    Find a category, and its index, by its name
+
+    Parameters
+    ----------
+    categories: List[Dict[str, List]]
+    category: str
+
+    Returns
+    -------
+    ix: int
+    cat: Category
+    """
+    for ix, cat in enumerate(categories):
+        if cat['name'] == category:
+            return ix, cat
+    return None
+
 
 if __name__=='__main__':
     app = pg.mkQApp()

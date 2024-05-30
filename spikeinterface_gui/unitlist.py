@@ -4,16 +4,19 @@ import pyqtgraph as pg
 import numpy as np
 
 from .base import WidgetBase
-from .tools import ParamDialog, CustomItem
+from .tools import ParamDialog, CustomItem, find_category
 
 
 _column_names = ['unit_id', 'visible', 'num_spikes', 'channel_id', 'sparsity']
+
+# TODO: Save categories / labels
 
 
 class UnitListView(WidgetBase):
     """
     """
-    
+    _basic_categories = [{'name': 'quality', 'labels': ['good', 'MUA', 'noise']}]
+
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
 
@@ -28,7 +31,12 @@ class UnitListView(WidgetBase):
             self.checkbox_metrics.setChecked(True)
             h.addWidget(self.checkbox_metrics)
             self.checkbox_metrics.stateChanged.connect(self.refresh)
-            
+        self.labels_btn = QT.QPushButton('Labels')
+        h.addWidget(self.labels_btn)
+        # TODO: RELOAD THE CATEGORIES / LABELS
+        self.categories = self._basic_categories.copy()
+        self.labels_btn.clicked.connect(self.update_labels)
+
         h.addStretch()
         
         self.table = QT.QTableWidget()
@@ -38,6 +46,32 @@ class UnitListView(WidgetBase):
         
         self.make_menu()
         
+        self.refresh()
+
+    def update_labels(self):
+        print(self.categories)
+        label_add = LabelCreator(self)
+        r = label_add.edit_label(self.categories)
+        if r is None:
+            return
+        print(r)
+        cat, old_label, new_label = r
+        cat_info = find_category(self.categories, cat)
+        if cat_info is None:
+            # New category
+            self.categories.append({'name': cat, 'labels': [new_label]})
+            self.refresh()
+            return
+        else:
+            # Renaming a label or adding a new label
+            cat_ix, cat = cat_info
+        if old_label == '':
+            # Creating a new label
+            self.categories[cat_ix]['labels'].append(new_label)
+        else:
+            # Renaming a label
+            self.categories[cat_ix]['labels'] = [lbl for lbl in self.categories[cat_ix]['labels'] if lbl != old_label]
+            self.categories[cat_ix]['labels'].append(new_label)
         self.refresh()
 
     def make_menu(self):
@@ -60,7 +94,8 @@ class UnitListView(WidgetBase):
             with_metrics = self.checkbox_metrics.isChecked()
         else:
             with_metrics = False
-        
+        categories = [cat['name'] for cat in self.categories]
+        labels += categories
         if with_metrics:
             metrics = self.controller.metrics
             labels += list(metrics.columns)
@@ -126,7 +161,12 @@ class UnitListView(WidgetBase):
             item = CustomItem(f'{num_chan}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 4, item)
-            
+            for ix, cat in enumerate(categories):
+                item = QT.QComboBox()
+                item.addItems(self.categories[ix]['labels'])
+                item.addItem('')
+                self.table.setCellWidget(i, 5 + ix, item)
+
             if with_metrics:
                 for m, col in enumerate(metrics.columns):
                     v = metrics.loc[unit_id, col]
@@ -134,7 +174,7 @@ class UnitListView(WidgetBase):
                         item = CustomItem(f'{v:0.2f}')
                     else:
                         item = CustomItem(f'{v}')
-                    self.table.setItem(i, 5+m, item)
+                    self.table.setItem(i, 5+len(categories) + m, item)
 
             
             #~ c = self.controller.get_extremum_channel(k)
@@ -228,6 +268,51 @@ class UnitListView(WidgetBase):
             #~ self.controller.compute_sparsity(**d)
             #~ self.channel_visibility_changed.emit()
             #~ self.refresh()
+
+
+class LabelCreator(QT.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Edit or add a label')
+        self._categories = []  # [{'name': 'category', 'labels': ['label1', 'label2']}, }
+        main_lyt = QT.QVBoxLayout(self)
+        form_lyt = QT.QFormLayout()
+        self.cat_cb = QT.QComboBox(self)
+        self.labels_cb = QT.QComboBox(self)
+        self.label_le = QT.QLineEdit(self)
+        self.cat_cb.currentTextChanged.connect(self.category_changed)
+        self.cat_cb.setEditable(True)
+        form_lyt.addRow('Category', self.cat_cb)
+        form_lyt.addRow('Old label', self.labels_cb)
+        form_lyt.addRow('Label', self.label_le)
+        btn_lyt = QT.QHBoxLayout()
+        self.cancel_btn = QT.QPushButton('&Cancel')
+        self.ok_btn = QT.QPushButton('&Apply')
+        self.ok_btn.setDefault(True)
+        self.cancel_btn.clicked.connect(self.reject)
+        self.ok_btn.clicked.connect(self.accept)
+        btn_lyt.addWidget(self.cancel_btn)
+        btn_lyt.addWidget(self.ok_btn)
+        main_lyt.addLayout(form_lyt)
+        main_lyt.addLayout(btn_lyt)
+
+    def category_changed(self, cat_name):
+        self.labels_cb.clear()
+        self.labels_cb.addItem('')
+        r = find_category(self._categories, cat_name)
+        if r is None:
+            return
+        _, cat = r
+        self.labels_cb.addItems(cat['labels'])
+
+    def edit_label(self, categories):
+        print(categories)
+        self._categories = categories
+        for cat in categories:
+            self.cat_cb.addItem(cat['name'], cat)
+            # self.labels_cb.addItems(cat.labels)
+        if self.exec_():
+            return self.cat_cb.currentText(), self.labels_cb.currentText(), self.label_le.text()
 
 
 UnitListView._gui_help_txt = """Unit list

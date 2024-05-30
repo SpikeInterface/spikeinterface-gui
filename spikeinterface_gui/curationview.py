@@ -8,37 +8,11 @@ from .base import WidgetBase
 from .tools import ParamDialog, get_dict_from_group_param, CustomItem
 
 
-class PairListView(WidgetBase):
+class CurationView(WidgetBase):
     """
     """
-    _automerge_params = [
-        # {'name': 'threshold_similarity', 'type': 'float', 'value' :.9, 'step' : 0.01},
-        # {'name': 'threshold_ratio_similarity', 'type': 'float', 'value' :.8, 'step' : 0.01},
 
-        {'name': 'minimum_spikes', 'type': 'int', 'value': 1000},
-        {'name': 'maximum_distance_um', 'type': 'float', 'value': 150.},
-        {'name': 'peak_sign', 'type': 'list', 'values': ['neg', 'pos', 'both']},
-        {'name': 'bin_ms', 'type': 'float', 'value': 0.25, 'step': 0.05},
-        {'name': 'window_ms', 'type': 'float', 'value': 100., 'step': 1.},
-        {'name': 'corr_diff_thresh', 'type': 'float', 'value': .16, 'step': 0.01},
-        {'name': 'template_diff_thresh', 'type': 'float', 'value': .25, 'step': 0.01},
-        {'name': 'censored_period_ms', 'type': 'float', 'value': .3, 'step': 0.01},
-        {'name': 'refractory_period_ms', 'type': 'float', 'value': 1.0, 'step': 0.1},
-        {'name': 'sigma_smooth_ms', 'type': 'float', 'value': 0.6, 'step': 0.1},
-        {'name': 'contamination_threshold', 'type': 'float', 'value': .2, 'step': 0.01},
-        {'name': 'adaptative_window_threshold', 'type': 'float', 'value': .5, 'step': 0.01},
-        {'name': 'censor_correlograms_ms', 'type': 'float', 'value': .15, 'step': 0.01},
-        {'name': 'num_channels', 'type': 'int', 'value': 5},
-        {'name': 'num_shift', 'type': 'int', 'value': 5},
-        {'name': 'firing_contamination_balance', 'type': 'float', 'value': 1.5, 'step': 0.1},
-    ]
-
-    _similarity_params = [
-        {'name': 'threshold_similarity', 'type': 'float', 'value': .9, 'step': 0.01},
-        {'name': 'method', 'type': 'list', 'limits': ['cosine_similarity']},
-    ]
-
-    _need_compute = True
+    _need_compute = False
 
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
@@ -46,29 +20,6 @@ class PairListView(WidgetBase):
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
-        self.sorting_column = 2
-        self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
-        #~ h = QT.QHBoxLayout()
-        #~ self.layout.addLayout(h)
-        self.combo_select = QT.QComboBox()
-        #~ h.addWidget(QT.QLabel('Select'))
-        #~ h.addWidget(self.combo_select)
-        self.combo_select.addItems(['all pairs', 'high similarity'])  #
-        #~ self.combo_select.currentTextChanged.connect(self.refresh)
-        #~ h.addStretch()
-
-        h = QT.QHBoxLayout()
-        self.layout.addLayout(h)
-        h.addWidget(QT.QLabel('Sort by'))
-        self.combo_sort = QT.QComboBox()
-        self.combo_sort.addItems(['label', 'similarity', 'ratio_similarity'])
-        self.combo_sort.currentIndexChanged.connect(self.refresh)
-        h.addWidget(self.combo_sort)
-        h.addStretch()
-
-        #~ but = QT.QPushButton('settings')
-        #~ self.layout.addWidget(but)
-        #~ but.clicked.connect(self.open_settings)
 
         self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
@@ -246,6 +197,7 @@ class PairListView(WidgetBase):
             return
         ch_method = ch_method_d['method']
 
+        params = None
         # Depending on the method we set the parameters
         if ch_method == 'automerge':
             params = ParamDialog(self._automerge_params, title='Automerge parameters').get()
@@ -256,7 +208,8 @@ class PairListView(WidgetBase):
             th_sim = similarity > params['threshold_similarity']
             self.pairs = [(i, j) for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
-
+        # params = get_dict_from_group_param(self.params)
+        #
         self.refresh()
 
 
