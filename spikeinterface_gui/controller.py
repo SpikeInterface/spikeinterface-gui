@@ -201,8 +201,9 @@ class  SpikeinterfaceController(ControllerBase):
             # print('')
         
         self.curation = curation
+        # TODO: Reload the dictionary if it already exists
         if self.curation:
-            self.manual_curation_data = dict()
+            self.manual_curation_data = {"manual_labels": [], "merged_unit_groups": [], "removed_units": []}
 
 
         

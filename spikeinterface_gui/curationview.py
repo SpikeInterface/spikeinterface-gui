@@ -39,6 +39,8 @@ class CurationView(WidgetBase):
         self.refresh()
 
     def _refresh(self):
+        print("curation refresh")
+        print(self.controller.manual_curation_data)
         pass
 
     def on_manual_curation_updated(self):

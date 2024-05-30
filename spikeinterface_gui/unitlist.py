@@ -86,6 +86,9 @@ class UnitListView(WidgetBase):
         if self.controller.curation:
             act = self.menu.addAction('Delete')
             act.triggered.connect(self.delete_unit)
+            act = self.menu.addAction('Merge selected')
+            # act.triggered.connect(self.merge_selected)
+
 
     
     def _refresh(self):
@@ -266,7 +269,7 @@ class UnitListView(WidgetBase):
         removed_units = self.controller.manual_curation_data["removed_units"]
         if unit_id not in removed_units:
             removed_units.append(unit_id)
-        self.manual_curation_updated()
+        self.manual_curation_updated.emit()
     
     #~ def change_sparsity(self):
         
