@@ -80,6 +80,8 @@ class UnitListView(WidgetBase):
         act.triggered.connect(self.show_all)
         act = self.menu.addAction('Hide all')
         act.triggered.connect(self.hide_all)
+        act = self.menu.addAction('Merge selected')
+        act.triggered.connect(self.merge_selected)
         
         #~ act = self.menu.addAction('Change sparsity')
         #~ act.triggered.connect(self.change_sparsity)
@@ -253,7 +255,14 @@ class UnitListView(WidgetBase):
 
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
-    
+
+    def _add_merged_group(self, unit_ids):
+        pass
+
+    def merge_selected(self):
+        # self.controller.manual_curation_data["merged_unit_groups"]
+        pass
+
     #~ def change_sparsity(self):
         
         #~ _params = [
