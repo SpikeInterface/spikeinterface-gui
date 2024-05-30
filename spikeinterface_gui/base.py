@@ -23,6 +23,7 @@ class ControllerBase(QT.QObject):
         new_view.unit_visibility_changed.connect(self.on_unit_visibility_changed)
         new_view.channel_visibility_changed.connect(self.on_channel_visibility_changed)
         new_view.similarity_method_changed.connect(self.on_similarity_method_changed)
+        new_view.manual_curation_updated.connect(self.on_manual_curation_updated)
 
         
     def on_spike_selection_changed(self):
@@ -64,6 +65,12 @@ class ControllerBase(QT.QObject):
             if view == self.sender(): continue
             # ~ t1 = time.perf_counter()
             view.on_similarity_method_changed()
+
+    def on_manual_curation_updated(self):
+        for view in self.views:
+            if view == self.sender(): continue
+            # ~ t1 = time.perf_counter()
+            view.on_manual_curation_updated()
 
 
     

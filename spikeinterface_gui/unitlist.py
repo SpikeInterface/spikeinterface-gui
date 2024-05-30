@@ -262,6 +262,7 @@ class UnitListView(WidgetBase):
         self.unit_visibility_changed.emit()
     
     def delete_unit(self):
+        print("delete_unit")
 
         row = self.table.selectedIndexes()[0].row()
         unit_id = self.table.item(row, 1).unit_id
@@ -269,6 +270,7 @@ class UnitListView(WidgetBase):
         removed_units = self.controller.manual_curation_data["removed_units"]
         if unit_id not in removed_units:
             removed_units.append(unit_id)
+        
         self.manual_curation_updated.emit()
     
     #~ def change_sparsity(self):
