@@ -80,6 +80,7 @@ def get_dict_from_group_param(param, cascade = False):
             d[p.name()] = p.value()
     return d
 
+
 def set_group_param_from_dict(param, d, cascade=False):
     assert param.type() == 'group'
     for p in param.children():
@@ -91,14 +92,14 @@ def set_group_param_from_dict(param, d, cascade=False):
         else:
             if k in d:
                 if d[k] is None and p.type() == 'float':
-                        param[k] = np.nan
+                    param[k] = np.nan
                 else:
                     param[k] = d[k]
     return d
     
 
 class ParamDialog(QT.QDialog):
-    def __init__(self,   params, title = '', parent = None):
+    def __init__(self, params, title = '', parent = None):
         QT.QDialog.__init__(self, parent = parent)
         
         self.setWindowTitle(title)
@@ -122,7 +123,8 @@ class ParamDialog(QT.QDialog):
         but.setFocus()
 
     def get(self):
-        return get_dict_from_group_param(self.params, cascade=True)
+        if self.exec_():
+            return get_dict_from_group_param(self.params, cascade=True)
     
     def set(self, d):
         set_group_param_from_dict(self.params, d, cascade=True)
