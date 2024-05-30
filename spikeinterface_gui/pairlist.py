@@ -6,6 +6,7 @@ import itertools
 
 from .base import WidgetBase
 from .tools import ParamDialog, get_dict_from_group_param, CustomItem
+from .curation_tools import adding_group
 
 
 class PairListView(WidgetBase):
@@ -75,7 +76,7 @@ class PairListView(WidgetBase):
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
-
+        self.table.KeyPressEvent.connect(self.accept_merge_pair)
         #~ self.table.customContextMenuRequested.connect(self.open_context_menu)
 
         #~ self.menu = QT.QMenu()
@@ -87,14 +88,26 @@ class PairListView(WidgetBase):
         self.pairs = self.controller.get_merge_list()
         self.refresh()
 
-    def on_item_selection_changed(self):
+    def _get_selected_pair_id(self):
         inds = self.table.selectedIndexes()
         if len(inds) != self.table.columnCount():
             return
         # k1, k2 = self.pairs[inds[0].row()]
         item = self.table.item(inds[0].row(), 0)
         k1, k2 = item.unit_id_pair
+        return k1, k2
 
+    def accept_merge_pair(self, event):
+        if event.key() != QT.Key_M:
+            return
+        k1, k2 = self._get_selected_pair_id()
+        merged_groups = self.controller.manual_curation_data["merged_unit_groups"]
+        merged_groups = adding_group(merged_groups, [k1, k2])
+        self.controller.manual_curation_data["merged_unit_groups"] = merged_groups
+        # TODO: Emit signal to trigger refresh in other views
+
+    def on_item_selection_changed(self):
+        k1, k2 = self._get_selected_pair_id()
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[k1] = True
