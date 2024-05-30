@@ -76,7 +76,7 @@ class PairListView(WidgetBase):
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
-        self.table.KeyPressEvent.connect(self.accept_merge_pair)
+        self.table.itemDoubleClicked.connect(self.accept_merge_pair)
         #~ self.table.customContextMenuRequested.connect(self.open_context_menu)
 
         #~ self.menu = QT.QMenu()
@@ -97,17 +97,23 @@ class PairListView(WidgetBase):
         k1, k2 = item.unit_id_pair
         return k1, k2
 
-    def accept_merge_pair(self, event):
-        if event.key() != QT.Key_M:
+    def accept_merge_pair(self, item):
+        k1, k2 = item.unit_id_pair
+        rm_units = self.controller.manual_curation_data["removed_units"]
+        if k1 in rm_units or k2 in rm_units:
             return
-        k1, k2 = self._get_selected_pair_id()
         merged_groups = self.controller.manual_curation_data["merged_unit_groups"]
         merged_groups = adding_group(merged_groups, [k1, k2])
         self.controller.manual_curation_data["merged_unit_groups"] = merged_groups
         # TODO: Emit signal to trigger refresh in other views
+        self.manual_curation_updated.emit()
+        self.refresh()
 
     def on_item_selection_changed(self):
-        k1, k2 = self._get_selected_pair_id()
+        r = self._get_selected_pair_id()
+        if r is None:
+            return
+        k1, k2 = r
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[k1] = True

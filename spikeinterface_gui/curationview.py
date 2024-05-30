@@ -41,7 +41,17 @@ class CurationView(WidgetBase):
     def _refresh(self):
         print("curation refresh")
         print(self.controller.manual_curation_data)
-
+        # Merged
+        merged_units = self.controller.manual_curation_data["merged_unit_groups"]
+        self.table_merge.clear()
+        self.table_merge.setRowCount(len(merged_units))
+        self.table_merge.setColumnCount(1)
+        self.table_merge.setHorizontalHeaderLabels(["Merged groups"])
+        self.table_merge.setSortingEnabled(False)
+        for ix, group in enumerate(merged_units):
+            item = QT.QTableWidgetItem(str(group))
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table_merge.setItem(ix, 0, item)
 
         ## deleted        
         removed_units = self.controller.manual_curation_data["removed_units"]
