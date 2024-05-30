@@ -262,8 +262,7 @@ class UnitListView(WidgetBase):
         self.unit_visibility_changed.emit()
     
     def delete_unit(self):
-        print("delete_unit")
-
+        
         row = self.table.selectedIndexes()[0].row()
         unit_id = self.table.item(row, 1).unit_id
 

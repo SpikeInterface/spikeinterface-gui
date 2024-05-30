@@ -24,7 +24,8 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False, curation=False):
+    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
+                 curation=False, manual_curation_data=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
@@ -203,7 +204,10 @@ class  SpikeinterfaceController(ControllerBase):
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
         if self.curation:
-            self.manual_curation_data = {"manual_labels": [], "merged_unit_groups": [], "removed_units": []}
+            if manual_curation_data is None:
+                self.manual_curation_data = {"manual_labels": [], "merged_unit_groups": [], "removed_units": []}
+            else:
+                self.manual_curation_data = manual_curation_data
 
 
         

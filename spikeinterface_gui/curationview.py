@@ -41,7 +41,25 @@ class CurationView(WidgetBase):
     def _refresh(self):
         print("curation refresh")
         print(self.controller.manual_curation_data)
-        pass
+
+
+        ## deleted        
+        removed_units = self.controller.manual_curation_data["removed_units"]
+        self.table_delete.clear()
+        self.table_delete.setRowCount(len(removed_units))
+        self.table_delete.setColumnCount(1)
+        self.table_delete.setHorizontalHeaderLabels(["unit_id"])
+        self.table_delete.setSortingEnabled(False)
+        for i, unit_id in enumerate(removed_units):
+            color = self.controller.qcolors.get(unit_id, QT.QColor( 'black'))
+            pix = QT.QPixmap(16,16)
+            pix.fill(color)
+            icon = QT.QIcon(pix)
+            item = QT.QTableWidgetItem( f'{unit_id}')
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table_delete.setItem(i,0, item)
+            item.setIcon(icon)
+
 
     def on_manual_curation_updated(self):
         self._refresh()
