@@ -24,7 +24,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False):
+    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False, curation=False):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
@@ -199,6 +199,10 @@ class  SpikeinterfaceController(ControllerBase):
             
             t0 = time.perf_counter()
             # print('')
+        
+        self.curation = curation
+        if self.curation:
+            self.manual_curation_data = dict()
 
 
         

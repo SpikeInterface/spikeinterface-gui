@@ -75,6 +75,7 @@ class WidgetBase(QT.QWidget):
     unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
     similarity_method_changed = QT.pyqtSignal()
+    manual_curation_updated = QT.pyqtSignal()
 
     _need_compute = False
     _params = None
@@ -140,5 +141,8 @@ class WidgetBase(QT.QWidget):
         pass
 
     def on_similarity_method_changed(self):
+        pass
+
+    def on_manual_curation_updated(self):
         pass
 

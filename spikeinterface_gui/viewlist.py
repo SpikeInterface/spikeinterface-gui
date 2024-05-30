@@ -11,6 +11,7 @@ from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
 from .spikeamplitudeview import SpikeAmplitudeView
 from .tracemapview import TraceMapView
+from .curationview import CurationView
 
 possible_class_views = dict(
     unitlist = UnitListView,
@@ -26,4 +27,5 @@ possible_class_views = dict(
     similarityview = SimilarityView,
     spikeamplitudeview = SpikeAmplitudeView,
     tracemapview = TraceMapView,
+    curation = CurationView,
 )

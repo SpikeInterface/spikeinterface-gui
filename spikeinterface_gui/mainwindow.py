@@ -9,18 +9,18 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,sorting_result,  parent=None, verbose=False):
+    def __init__(self,analyzer,  parent=None, verbose=False, curation=False):
         QT.QMainWindow.__init__(self, parent)
         
         self.verbose = verbose
         
-        self.sorting_result = sorting_result
+        # self.analyzer = analyzer
         
         if verbose:
             
             print('Controller:')
             t0 = time.perf_counter()
-        self.controller = SpikeinterfaceController(sorting_result, verbose=verbose)
+        self.controller = SpikeinterfaceController(analyzer, verbose=verbose, curation=curation)
         
         if verbose:
             t1 = time.perf_counter()
@@ -36,6 +36,9 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('spikelist', area='left')
         self.add_one_view('pairlist', split='spikelist', orientation='horizontal')
         self.add_one_view('unitlist', tabify='pairlist')
+        if self.controller.curation:
+            self.add_one_view('curation', tabify='spikelist')
+            self.docks['spikelist'].raise_()
 
         # on bottom left
         self.add_one_view('probeview', area='left')

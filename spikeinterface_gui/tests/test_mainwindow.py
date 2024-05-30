@@ -19,12 +19,12 @@ def setup_module():
 def teardown_module():
     clean_all(test_folder)
 
-def test_mainwindow(interactive=False, verbose=True):
+def test_mainwindow(interactive=False, verbose=True, curation=False):
     app = sigui.mkQApp()
     sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     print(sorting_analyzer)
 
-    win = sigui.MainWindow(sorting_analyzer, verbose=verbose)
+    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation)
     
     if interactive:
         win.show()
@@ -34,7 +34,7 @@ def test_mainwindow(interactive=False, verbose=True):
         win.close()
 
 
-def test_mainwindow_few(interactive=False, verbose=True):
+def test_mainwindow_few(interactive=False, verbose=True, curation=False):
     app = sigui.mkQApp()
     sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     
@@ -45,7 +45,7 @@ def test_mainwindow_few(interactive=False, verbose=True):
     print(sorting_analyzer)
 
 
-    win = sigui.MainWindow(sorting_analyzer, verbose=verbose)
+    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation)
     
     if interactive:
         win.show()
@@ -55,12 +55,13 @@ def test_mainwindow_few(interactive=False, verbose=True):
         win.close()
 
 
-    
+
 if __name__ == '__main__':
     # setup_module()
     
-    test_mainwindow(interactive=True)
+    # test_mainwindow(interactive=True)
     # test_mainwindow_few(interactive=True, verbose=True)
+    test_mainwindow(interactive=True, curation=True)
 
     # import spikeinterface.widgets as sw
     # sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
