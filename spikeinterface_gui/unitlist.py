@@ -80,11 +80,16 @@ class UnitListView(WidgetBase):
         act.triggered.connect(self.show_all)
         act = self.menu.addAction('Hide all')
         act.triggered.connect(self.hide_all)
-        act = self.menu.addAction('Merge selected')
-        act.triggered.connect(self.merge_selected)
         
         #~ act = self.menu.addAction('Change sparsity')
         #~ act.triggered.connect(self.change_sparsity)
+        if self.controller.curation:
+            act = self.menu.addAction('Delete')
+            act.triggered.connect(self.delete_unit)
+            act = self.menu.addAction('Merge selected')
+            # act.triggered.connect(self.merge_selected)
+
+
     
     def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
@@ -255,14 +260,18 @@ class UnitListView(WidgetBase):
 
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
+    
+    def delete_unit(self):
+        
+        row = self.table.selectedIndexes()[0].row()
+        unit_id = self.table.item(row, 1).unit_id
 
-    def _add_merged_group(self, unit_ids):
-        pass
-
-    def merge_selected(self):
-        # self.controller.manual_curation_data["merged_unit_groups"]
-        pass
-
+        removed_units = self.controller.manual_curation_data["removed_units"]
+        if unit_id not in removed_units:
+            removed_units.append(unit_id)
+        
+        self.manual_curation_updated.emit()
+    
     #~ def change_sparsity(self):
         
         #~ _params = [

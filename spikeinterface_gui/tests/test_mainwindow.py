@@ -24,7 +24,18 @@ def test_mainwindow(interactive=False, verbose=True, curation=False):
     sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     print(sorting_analyzer)
 
-    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation)
+    if curation:
+        unit_ids = sorting_analyzer.unit_ids.tolist()
+        manual_curation_data = {
+            "manual_labels": [],
+            "merged_unit_groups": [unit_ids[:3], unit_ids[3:5]],
+            "removed_units": unit_ids[5:8],
+        }
+    else:
+        manual_curation_data = None
+
+
+    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation, manual_curation_data=manual_curation_data)
     
     if interactive:
         win.show()
@@ -61,6 +72,7 @@ if __name__ == '__main__':
     
     # test_mainwindow(interactive=True)
     # test_mainwindow_few(interactive=True, verbose=True)
+
     test_mainwindow(interactive=True, curation=True)
 
     # import spikeinterface.widgets as sw
