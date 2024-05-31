@@ -38,7 +38,7 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('unitlist', tabify='pairlist')
         if self.controller.curation:
             self.add_one_view('curation', tabify='spikelist')
-            self.docks['spikelist'].raise_()
+            # self.docks['spikelist'].raise_()
 
         # on bottom left
         self.add_one_view('probeview', area='left')

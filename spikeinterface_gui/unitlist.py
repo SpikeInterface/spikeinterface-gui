@@ -81,16 +81,12 @@ class UnitListView(WidgetBase):
         act = self.menu.addAction('Hide all')
         act.triggered.connect(self.hide_all)
         
-        #~ act = self.menu.addAction('Change sparsity')
-        #~ act.triggered.connect(self.change_sparsity)
         if self.controller.curation:
             act = self.menu.addAction('Delete')
             act.triggered.connect(self.delete_unit)
             act = self.menu.addAction('Merge selected')
-            # act.triggered.connect(self.merge_selected)
+            act.triggered.connect(self.merge_selected)
 
-
-    
     def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
         
@@ -110,29 +106,12 @@ class UnitListView(WidgetBase):
         self.table.setColumnCount(len(labels))
         self.table.setHorizontalHeaderLabels(labels)
 
-        #~ self.table.setMinimumWidth(100)
-        #~ self.table.setColumnWidth(0,60)
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.open_context_menu)
         self.table.setSelectionMode(QT.QAbstractItemView.ExtendedSelection)
         self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
-        #
-        # sort_mode = str(self.combo_sort.currentText())
-        #
+
         unit_ids = self.controller.unit_ids
-        #
-        # if sort_mode=='unit_id':
-        #     order =np.arange(unit_ids.size)
-        # elif sort_mode=='num_spikes':
-        #     order = np.argsort([self.controller.num_spikes[u] for u in unit_ids])[::-1]
-        # elif sort_mode=='depth':
-        #     depths = self.controller.unit_positions[:, 1]
-        #     order = np.argsort(depths)[::-1]
-        #
-        # unit_ids = unit_ids[order]
-        #
-        #~ cluster_labels = self._special_label + self.controller.positive_cluster_labels[order].tolist()
-        #~ cluster_labels = self._special_label + self.controller.positive_cluster_labels[order].tolist()
         
         self.table.setRowCount(len(unit_ids))
         self.table.setSortingEnabled(False)
@@ -183,27 +162,6 @@ class UnitListView(WidgetBase):
                         item = CustomItem(f'{v}')
                     self.table.setItem(i, 5+len(categories) + m, item)
 
-            
-            #~ c = self.controller.get_extremum_channel(k)
-            #~ if c is not None:
-                #~ item = QT.QTableWidgetItem('{}: {}'.format(c, self.controller.channel_names[c]))
-                #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-                #~ self.table.setItem(i,3, item)
-            
-            #~ if k>=0:
-                #~ clusters = self.controller.clusters
-                ## ind = np.searchsorted(clusters['cluster_label'], k) ## wrong because searchsortedmust be ordered
-                #~ ind = np.nonzero(clusters['cluster_label'] == k)[0][0]
-                
-                #~ for c, attr in enumerate(['cell_label', 'tag', 'annotations']):
-                    #~ value = clusters[attr][ind]
-                    #~ item = QT.QTableWidgetItem('{}'.format(value))
-                    #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-                    #~ self.table.setItem(i,4+c, item)
-                #~ item = QT.QTableWidgetItem('{}'.format(value))
-                #~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-                #~ self.table.setItem(i,4+c, item)
-            
         for i in range(5):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
@@ -212,7 +170,6 @@ class UnitListView(WidgetBase):
     def on_item_changed(self, item):
         if item.column() != 1: return
         sel = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[item.checkState()]
-        #~ k = self.controller.cluster_labels[item.row()]
         unit_id = item.unit_id
         self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
 
@@ -230,20 +187,8 @@ class UnitListView(WidgetBase):
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
-    def selected_cluster(self):
-        selected = []
-        #~ for index in self.table.selectedIndexes():
-        for item in self.table.selectedItems():
-            #~ if index.column() !=1: continue
-            if item.column() != 1: continue
-            #~ selected.append(self.controller.cluster_labels[index.row()])
-            selected.append(item.label)
-        return selected
-    
-    
     def open_context_menu(self):
         self.menu.popup(self.cursor().pos())
-        #~ menu.exec_(self.cursor().pos())
     
     def show_all(self):
         for unit_id in self.controller.unit_visible_dict:
@@ -260,32 +205,26 @@ class UnitListView(WidgetBase):
 
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
-    
-    def delete_unit(self):
-        
-        row = self.table.selectedIndexes()[0].row()
-        unit_id = self.table.item(row, 1).unit_id
 
-        removed_units = self.controller.manual_curation_data["removed_units"]
-        if unit_id not in removed_units:
-            removed_units.append(unit_id)
-        
+    def get_selected_unit_ids(self):
+        unit_ids = []
+        for item in self.table.selectedItems():
+            if item.column() != 1: continue
+            unit_ids.append(item.unit_id)
+        return unit_ids
+
+
+    def delete_unit(self):
+        removed_unit_ids = self.get_selected_unit_ids()
+        self.controller.make_manual_delete_if_possible(removed_unit_ids)
         self.manual_curation_updated.emit()
+        self.refresh()
     
-    #~ def change_sparsity(self):
-        
-        #~ _params = [
-                #~ {'name': 'method', 'type': 'list', 'values' : ['best_channels', 'radius', 'threshold'] },
-                #~ {'name': 'num_channels', 'type': 'int', 'value' : 10 },
-                #~ {'name': 'radius_um', 'type': 'float', 'value' : 90.0 },
-                #~ {'name': 'threshold', 'type': 'float', 'value' : 2.5 },
-            #~ ]        
-        #~ dia = ParamDialog(_params, title = 'Sparsity params', parent = self)
-        #~ if dia.exec_():
-            #~ d = dia.get()
-            #~ self.controller.compute_sparsity(**d)
-            #~ self.channel_visibility_changed.emit()
-            #~ self.refresh()
+    def merge_selected(self):
+        merge_unit_ids = self.get_selected_unit_ids()
+        self.controller.make_manual_merge_if_possible(merge_unit_ids)
+        self.manual_curation_updated.emit()
+        self.refresh()
 
 
 class LabelCreator(QT.QDialog):

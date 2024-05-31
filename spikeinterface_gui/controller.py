@@ -1,5 +1,9 @@
 import time
 
+import numpy as np
+
+import json
+
 from .base import ControllerBase
 from .myqt import QT
 
@@ -10,8 +14,11 @@ import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.curation import get_potential_auto_merge
+from spikeinterface.core.core_tools import check_json
 
-import numpy as np
+
+
+from .curation_tools import adding_group
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -390,11 +397,64 @@ class  SpikeinterfaceController(ControllerBase):
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
-    def save_curation(self):
+    def construct_final_curation(self):
+        d = dict()
+        d["unit_ids"] = self.unit_ids.tolist()
+        d.update(self.manual_curation_data.copy())
+        return d
+
+    def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
             pass
         elif self.analyzer.format == "binary_folder":
-            print("TODO implement save curation in binary_folder")
+            folder = self.analyzer.folder / "spikeinterface_gui"
+            folder.mkdir(exist_ok=True, parents=True)
+            json_file = folder / f"manual_curation.json"
+            with json_file.open("w") as f:
+                json.dump(check_json(self.construct_final_curation()), f, indent=4)
         elif self.analyzer.format == "zarr":
             print("TODO implement save curation in zarr")
+    
+    def make_manual_delete_if_possible(self, removed_unit_ids):
+        """
+        Check if a unit_ids can be removed.
+
+        If unit are already deleted or in a merge group then the delete operation is skiped.
+        """
+        for unit_id in removed_unit_ids:
+            if unit_id in self.manual_curation_data["removed_units"]:
+                continue
+            # TODO: check if unit is already in a merge group
+            self.manual_curation_data["removed_units"].append(unit_id)
+    
+    def make_manual_restore(self, restire_unit_ids):
+        """
+        pop unit_ids from the removed_units list which is a restore.
+        """
+        for unit_id in restire_unit_ids:
+            if unit_id in self.manual_curation_data["removed_units"]:
+                self.manual_curation_data["removed_units"].remove(unit_id)
+
+    def make_manual_merge_if_possible(self, merge_unit_ids):
+        """
+        Check if the a list of unit_ids can be added as a new merge to the curation_data.
+
+        If some unit_ids are already in the removed list then the merge is skiped.
+
+        If unit_ids are already is some other merge then the connectivity graph is resolved groups can be
+        eventually merged.
+
+        """
+        if len(merge_unit_ids) < 2:
+            return
+
+        for unit_id in merge_unit_ids:
+            if unit_id in self.manual_curation_data["removed_units"]:
+                return
+
+        merged_groups = adding_group(self.manual_curation_data["merged_unit_groups"], merge_unit_ids)
+        self.manual_curation_data["merged_unit_groups"] = merged_groups
+    
+    def make_manual_restore_merge(self, merge_group_index):
+        del self.manual_curation_data["merged_unit_groups"][merge_group_index]
 

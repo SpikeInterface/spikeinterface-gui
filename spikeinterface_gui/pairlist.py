@@ -49,14 +49,8 @@ class PairListView(WidgetBase):
         self.setLayout(self.layout)
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
-        #~ h = QT.QHBoxLayout()
-        #~ self.layout.addLayout(h)
-        self.combo_select = QT.QComboBox()
-        #~ h.addWidget(QT.QLabel('Select'))
-        #~ h.addWidget(self.combo_select)
-        self.combo_select.addItems(['all pairs', 'high similarity'])  #
-        #~ self.combo_select.currentTextChanged.connect(self.refresh)
-        #~ h.addStretch()
+        # self.combo_select = QT.QComboBox()
+        # self.combo_select.addItems(['all pairs', 'high similarity'])
 
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
@@ -67,45 +61,43 @@ class PairListView(WidgetBase):
         h.addWidget(self.combo_sort)
         h.addStretch()
 
-        #~ but = QT.QPushButton('settings')
-        #~ self.layout.addWidget(but)
-        #~ but.clicked.connect(self.open_settings)
-
         self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
-        self.table.itemDoubleClicked.connect(self.accept_merge_pair)
-        #~ self.table.customContextMenuRequested.connect(self.open_context_menu)
+        self.table.itemDoubleClicked.connect(self.on_double_click)
 
-        #~ self.menu = QT.QMenu()
-        #~ act = self.menu.addAction('Merge')
-        #~ act.triggered.connect(self.do_merge)
-
-        #~ act = self.menu.addAction('Tag same cell')
-        #~ act.triggered.connect(self.do_tag_same_cell)
+        shortcut_merge = QT.QShortcut(self)
+        shortcut_merge.setKey(QT.QKeySequence('m'))
+        shortcut_merge.activated.connect(self.on_merge_shorcut)
         self.pairs = self.controller.get_merge_list()
+
+
+
         self.refresh()
 
     def _get_selected_pair_id(self):
         inds = self.table.selectedIndexes()
         if len(inds) != self.table.columnCount():
             return
-        # k1, k2 = self.pairs[inds[0].row()]
         item = self.table.item(inds[0].row(), 0)
         k1, k2 = item.unit_id_pair
         return k1, k2
 
-    def accept_merge_pair(self, item):
+    def on_double_click(self, item):
         k1, k2 = item.unit_id_pair
-        rm_units = self.controller.manual_curation_data["removed_units"]
-        if k1 in rm_units or k2 in rm_units:
+        self.accept_pair(k1, k2)
+    
+    def on_merge_shorcut(self, ):
+        pair = self._get_selected_pair_id()
+        if pair is None:
             return
-        merged_groups = self.controller.manual_curation_data["merged_unit_groups"]
-        merged_groups = adding_group(merged_groups, [k1, k2])
-        self.controller.manual_curation_data["merged_unit_groups"] = merged_groups
-        # TODO: Emit signal to trigger refresh in other views
+        print(pair)
+        self.accept_pair(*pair)
+
+    def accept_pair(self, k1, k2):
+        self.controller.make_manual_merge_if_possible([k1, k2])
         self.manual_curation_updated.emit()
         self.refresh()
 
@@ -279,6 +271,7 @@ class PairListView(WidgetBase):
         self.refresh()
 
 
-PairListView._gui_help_txt = """Auto merge list selection
+PairListView._gui_help_txt = """Auto merge list selection.
 Click on on row to make visible a unique pair of unit.
+Double click to accept the merge.
 """

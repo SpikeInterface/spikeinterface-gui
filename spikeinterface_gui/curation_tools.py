@@ -1,4 +1,6 @@
 
+
+
 def adding_group(previous_groups, new_group):
     to_merge = [new_group.copy()]
     unchanged = []
