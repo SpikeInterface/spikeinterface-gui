@@ -18,7 +18,7 @@ from spikeinterface.core.core_tools import check_json
 
 
 
-from .curation_tools import adding_group
+from .curation_tools import adding_group, default_label_definitions, empty_curation_data
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -32,7 +32,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 class  SpikeinterfaceController(ControllerBase):
     def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
-                 curation=False, manual_curation_data=None):
+                 curation=False, curation_data=None, label_definitions=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
@@ -211,11 +211,32 @@ class  SpikeinterfaceController(ControllerBase):
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
         if self.curation:
-            if manual_curation_data is None:
-                self.manual_curation_data = {"manual_labels": [], "merged_unit_groups": [], "removed_units": []}
-            else:
-                self.manual_curation_data = manual_curation_data
+            # rules:
+            #  * if curation_data alreadye exists in folder then it is reloaded and has precedance
+            #  * if not, then use curation_data argument input
+            #  * otherwise create an empty one
 
+            if self.analyzer.format == "binary_folder":
+                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
+                if json_file.exists():
+                    with open(json_file, "r") as f:
+                        curation_data = json.load(f)
+            elif self.analyzer.format == "zarr":
+                import zarr
+                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
+                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
+
+            if curation_data is None:
+                self.curation_data = empty_curation_data.copy()
+            else:
+                self.curation_data = curation_data
+            
+            if "label_definitions" not in self.curation_data:
+                if label_definitions is not None:
+                    self.curation_data["label_definitions"] = label_definitions
+                else:
+                    self.curation_data["label_definitions"] = default_label_definitions.copy()
 
         
     @property
@@ -400,7 +421,7 @@ class  SpikeinterfaceController(ControllerBase):
     def construct_final_curation(self):
         d = dict()
         d["unit_ids"] = self.unit_ids.tolist()
-        d.update(self.manual_curation_data.copy())
+        d.update(self.curation_data.copy())
         return d
 
     def save_curation_in_analyzer(self):
@@ -409,12 +430,20 @@ class  SpikeinterfaceController(ControllerBase):
         elif self.analyzer.format == "binary_folder":
             folder = self.analyzer.folder / "spikeinterface_gui"
             folder.mkdir(exist_ok=True, parents=True)
-            json_file = folder / f"manual_curation.json"
+            json_file = folder / f"curation_data.json"
             with json_file.open("w") as f:
                 json.dump(check_json(self.construct_final_curation()), f, indent=4)
         elif self.analyzer.format == "zarr":
-            print("TODO implement save curation in zarr")
+            import zarr
+            zarr_root = zarr.open(self.analyzer.folder, mode='r+')
+            if "spikeinterface_gui" not in zarr_root.keys():
+                sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
+            sigui_group = zarr_root["spikeinterface_gui"]
+            sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
     
+    def get_curation_label_definitions(self):
+        return self.curation_data["label_definitions"]
+
     def make_manual_delete_if_possible(self, removed_unit_ids):
         """
         Check if a unit_ids can be removed.
@@ -422,18 +451,18 @@ class  SpikeinterfaceController(ControllerBase):
         If unit are already deleted or in a merge group then the delete operation is skiped.
         """
         for unit_id in removed_unit_ids:
-            if unit_id in self.manual_curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed_units"]:
                 continue
             # TODO: check if unit is already in a merge group
-            self.manual_curation_data["removed_units"].append(unit_id)
+            self.curation_data["removed_units"].append(unit_id)
     
     def make_manual_restore(self, restire_unit_ids):
         """
         pop unit_ids from the removed_units list which is a restore.
         """
         for unit_id in restire_unit_ids:
-            if unit_id in self.manual_curation_data["removed_units"]:
-                self.manual_curation_data["removed_units"].remove(unit_id)
+            if unit_id in self.curation_data["removed_units"]:
+                self.curation_data["removed_units"].remove(unit_id)
 
     def make_manual_merge_if_possible(self, merge_unit_ids):
         """
@@ -449,12 +478,12 @@ class  SpikeinterfaceController(ControllerBase):
             return
 
         for unit_id in merge_unit_ids:
-            if unit_id in self.manual_curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed_units"]:
                 return
 
-        merged_groups = adding_group(self.manual_curation_data["merged_unit_groups"], merge_unit_ids)
-        self.manual_curation_data["merged_unit_groups"] = merged_groups
+        merged_groups = adding_group(self.curation_data["merged_unit_groups"], merge_unit_ids)
+        self.curation_data["merged_unit_groups"] = merged_groups
     
     def make_manual_restore_merge(self, merge_group_index):
-        del self.manual_curation_data["merged_unit_groups"][merge_group_index]
+        del self.curation_data["merged_unit_groups"][merge_group_index]
 

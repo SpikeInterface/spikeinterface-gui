@@ -19,23 +19,34 @@ def setup_module():
 def teardown_module():
     clean_all(test_folder)
 
-def test_mainwindow(interactive=False, verbose=True, curation=False):
+
+def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_extensions=False):
     app = sigui.mkQApp()
     sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    # sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer.zarr")
+
     print(sorting_analyzer)
 
     if curation:
         unit_ids = sorting_analyzer.unit_ids.tolist()
-        manual_curation_data = {
+        curation_data = {
             "manual_labels": [],
             "merged_unit_groups": [unit_ids[:3], unit_ids[3:5]],
             "removed_units": unit_ids[5:8],
         }
     else:
-        manual_curation_data = None
+        curation_data = None
+    
+    if only_some_extensions:
+        sorting_analyzer = sorting_analyzer.copy()
+        # sorting_analyzer._recording = None
+        for k in ("principal_components", "template_similarity", "spike_amplitudes"):
+            sorting_analyzer.delete_extension(k)
+        print(sorting_analyzer)
 
 
-    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation, manual_curation_data=manual_curation_data)
+
+    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation, curation_data=curation_data)
     
     if interactive:
         win.show()
@@ -45,25 +56,6 @@ def test_mainwindow(interactive=False, verbose=True, curation=False):
         win.close()
 
 
-def test_mainwindow_few(interactive=False, verbose=True, curation=False):
-    app = sigui.mkQApp()
-    sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
-    
-    # sorting_analyzer._recording = None
-    sorting_analyzer = sorting_analyzer.copy()
-    for k in ("principal_components", "template_similarity", "spike_amplitudes"):
-        sorting_analyzer.delete_extension(k)
-    print(sorting_analyzer)
-
-
-    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation)
-    
-    if interactive:
-        win.show()
-        app.exec()
-    else:
-        # close thread properly
-        win.close()
 
 
 
@@ -71,8 +63,7 @@ if __name__ == '__main__':
     # setup_module()
     
     # test_mainwindow(interactive=True)
-    # test_mainwindow_few(interactive=True, verbose=True)
-
+    # test_mainwindow(interactive=True, verbose=True, only_some_extensions=True)
     test_mainwindow(interactive=True, curation=True)
 
     # import spikeinterface.widgets as sw

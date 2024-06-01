@@ -1,6 +1,20 @@
 
 
 
+default_label_definitions = {
+    "quality": {
+        "name": "quality",
+        "label_options": ["good", "noise", "MUA", "artifact"],
+        "auto_exclusive": True
+    },
+}
+
+empty_curation_data = {
+    "manual_labels": [],
+    "merged_unit_groups": [],
+    "removed_units": []
+}
+
 def adding_group(previous_groups, new_group):
     to_merge = [new_group.copy()]
     unchanged = []

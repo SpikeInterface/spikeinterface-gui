@@ -9,7 +9,7 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,analyzer,  parent=None, verbose=False, curation=False, manual_curation_data=None):
+    def __init__(self,analyzer,  parent=None, verbose=False, curation=False, curation_data=None, label_definitions=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.verbose = verbose
@@ -20,7 +20,9 @@ class MainWindow(QT.QMainWindow):
             
             print('Controller:')
             t0 = time.perf_counter()
-        self.controller = SpikeinterfaceController(analyzer, verbose=verbose, curation=curation, manual_curation_data=manual_curation_data)
+        self.controller = SpikeinterfaceController(analyzer, verbose=verbose,
+                                                   curation=curation, curation_data=curation_data, label_definitions=label_definitions,
+                                                   )
         
         if verbose:
             t1 = time.perf_counter()
