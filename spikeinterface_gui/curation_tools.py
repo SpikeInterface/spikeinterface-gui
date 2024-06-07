@@ -3,11 +3,11 @@
 
 default_label_definitions = {
     "quality": {
-        "name": "quality",
         "label_options": ["good", "noise", "MUA", "artifact"],
-        "auto_exclusive": True
+        "exclusive": True
     },
 }
+
 
 empty_curation_data = {
     "manual_labels": [],

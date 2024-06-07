@@ -487,3 +487,5 @@ class  SpikeinterfaceController(ControllerBase):
     def make_manual_restore_merge(self, merge_group_index):
         del self.curation_data["merged_unit_groups"][merge_group_index]
 
+
+
