@@ -450,10 +450,13 @@ class  SpikeinterfaceController(ControllerBase):
 
         If unit are already deleted or in a merge group then the delete operation is skiped.
         """
+        all_merged_units = sum(self.curation_data["merged_unit_groups"], [])
         for unit_id in removed_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
                 continue
             # TODO: check if unit is already in a merge group
+            if unit_id in all_merged_units:
+                continue
             self.curation_data["removed_units"].append(unit_id)
     
     def make_manual_restore(self, restire_unit_ids):
