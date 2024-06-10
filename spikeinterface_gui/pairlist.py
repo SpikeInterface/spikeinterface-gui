@@ -77,24 +77,32 @@ class PairListView(WidgetBase):
 
         self.refresh()
 
-    def _get_selected_pair_id(self):
+    def _get_selected_row(self):
         inds = self.table.selectedIndexes()
         if len(inds) != self.table.columnCount():
             return
-        item = self.table.item(inds[0].row(), 0)
+        return inds[0].row()
+
+    def _get_selected_pair_id(self):
+        row_ix = self._get_selected_row()
+        if row_ix is None:
+            return
+        item = self.table.item(row_ix, 0)
         k1, k2 = item.unit_id_pair
-        return k1, k2
+        return row_ix, (k1, k2)
 
     def on_double_click(self, item):
         k1, k2 = item.unit_id_pair
         self.accept_pair(k1, k2)
     
     def on_merge_shorcut(self, ):
-        pair = self._get_selected_pair_id()
+        row_ix, pair = self._get_selected_pair_id()
         if pair is None:
             return
         print(pair)
         self.accept_pair(*pair)
+        n_rows = self.table.rowCount()
+        self.table.setCurrentCell(min(n_rows - 1, row_ix + 1), 0)
 
     def accept_pair(self, k1, k2):
         self.controller.make_manual_merge_if_possible([k1, k2])
@@ -105,7 +113,7 @@ class PairListView(WidgetBase):
         r = self._get_selected_pair_id()
         if r is None:
             return
-        k1, k2 = r
+        _, (k1, k2) = r
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[k1] = True

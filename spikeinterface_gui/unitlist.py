@@ -99,7 +99,7 @@ class UnitListView(WidgetBase):
         if self.controller.curation:
             label_definitions = self.controller.get_curation_label_definitions()
             num_labels = len(label_definitions)
-            labels += [label_def['name'] for k, label_def in label_definitions.items()]
+            labels += [k for k, label_def in label_definitions.items()]
         else:
             label_definitions = None
             num_labels = 0
