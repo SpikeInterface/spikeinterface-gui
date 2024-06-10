@@ -41,7 +41,9 @@ class UnitListView(WidgetBase):
         self.layout.addWidget(self.table)
         self.table.itemChanged.connect(self.on_item_changed)
         self.table.cellDoubleClicked.connect(self.on_double_clicked)
-        
+        shortcut_visible = QT.QShortcut(self)
+        shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
+        shortcut_visible.activated.connect(self.on_visible_shortcut)
         self.make_menu()
         
         self.refresh()
@@ -86,7 +88,7 @@ class UnitListView(WidgetBase):
             act.triggered.connect(self.merge_selected)
             shortcut_delete = QT.QShortcut(self)
             shortcut_delete.setKey(QT.QKeySequence('d'))
-            shortcut_delete.activated.connect(self.on_delete_shorcut)
+            shortcut_delete.activated.connect(self.on_delete_shortcut)
 
     def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
@@ -235,13 +237,20 @@ class UnitListView(WidgetBase):
             unit_ids.append(item.unit_id)
         return unit_ids
 
+    def on_visible_shortcut(self):
+        selected_unit_ids = self.get_selected_unit_ids()
+        for c_uid in selected_unit_ids:
+            self.controller.unit_visible_dict[c_uid] = not self.controller.unit_visible_dict[c_uid]
+        self.refresh()
+        self.unit_visibility_changed.emit()
+
     def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
         self.manual_curation_updated.emit()
         self.refresh()
 
-    def on_delete_shorcut(self):
+    def on_delete_shortcut(self):
         sel_rows = self._get_selected_rows()
         self.delete_unit()
         if len(sel_rows) > 0:
