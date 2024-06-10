@@ -84,6 +84,9 @@ class UnitListView(WidgetBase):
             act.triggered.connect(self.delete_unit)
             act = self.menu.addAction('Merge selected')
             act.triggered.connect(self.merge_selected)
+            shortcut_delete = QT.QShortcut(self)
+            shortcut_delete.setKey(QT.QKeySequence('d'))
+            shortcut_delete.activated.connect(self.on_delete_shorcut)
 
     def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
@@ -218,6 +221,13 @@ class UnitListView(WidgetBase):
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
 
+    def _get_selected_rows(self):
+        rows = []
+        for item in self.table.selectedItems():
+            if item.column() != 1: continue
+            rows.append(item.row())
+        return sorted(rows)
+
     def get_selected_unit_ids(self):
         unit_ids = []
         for item in self.table.selectedItems():
@@ -225,13 +235,18 @@ class UnitListView(WidgetBase):
             unit_ids.append(item.unit_id)
         return unit_ids
 
-
     def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
         self.manual_curation_updated.emit()
         self.refresh()
-    
+
+    def on_delete_shorcut(self):
+        sel_rows = self._get_selected_rows()
+        self.delete_unit()
+        if len(sel_rows) > 0:
+            self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
+
     def merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_merge_if_possible(merge_unit_ids)

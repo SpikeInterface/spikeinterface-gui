@@ -95,7 +95,7 @@ class PairListView(WidgetBase):
         k1, k2 = item.unit_id_pair
         self.accept_pair(k1, k2)
     
-    def on_merge_shorcut(self, ):
+    def on_merge_shorcut(self):
         row_ix, pair = self._get_selected_pair_id()
         if pair is None:
             return
