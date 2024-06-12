@@ -4,7 +4,7 @@ import pyqtgraph as pg
 import numpy as np
 
 from .base import WidgetBase
-from .tools import ParamDialog, CustomItem, find_category
+from .tools import ParamDialog, CustomItem, find_category, LabelComboBox
 
 
 _column_names = ['unit_id', 'visible', 'num_spikes', 'channel_id', 'sparsity']
@@ -165,9 +165,12 @@ class UnitListView(WidgetBase):
             # TODO bug colum ici!!!!!!
             if label_definitions is not None:
                 for ix, (k, label_def) in enumerate(label_definitions.items()):
-                    item = QT.QComboBox()
-                    item.addItems(label_def['label_options'])
+                    # item = QT.QComboBox()
+                    # item.addItems(label_def['label_options'])
                     # item.addItem('')
+                    item = LabelComboBox(i, 5 + ix, label_def['label_options'], self)
+                    item.remove_label_clicked.connect(self.on_remove_label)
+                    item.label_changed.connect(self.on_label_changed)
                     self.table.setCellWidget(i, 5 + ix, item)
 
             if with_metrics:
@@ -183,6 +186,18 @@ class UnitListView(WidgetBase):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
         self.table.itemChanged.connect(self.on_item_changed)        
+
+    def on_label_changed(self, row, col, new_label):
+        item = self.table.item(row, 1)
+        unit_id = item.unit_id
+        header = self.table.horizontalHeaderItem(col)
+        category = header.text()
+        self.controller.set_label_to_unit(unit_id, category, new_label)
+
+    def on_remove_label(self, row, col):
+        item = self.table.item(row, 1)
+        unit_id = item.unit_id
+        self.controller.remove_all_labels(unit_id)
 
     def on_item_changed(self, item):
         if item.column() != 1: return

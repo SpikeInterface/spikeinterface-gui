@@ -218,6 +218,59 @@ class CustomItem(QT.QTableWidgetItem):
             super().__lt__(other)
 
 
+class LabelOptionsDelegate(QT.QItemDelegate):
+    remove_clicked = QT.pyqtSignal()
+
+    def __init__(self, label_options, parent=None):
+        super().__init__(parent)
+        self.label_options = label_options
+
+    def editorEvent(self, event, model, option, index):
+        if index.row() == index.model().rowCount() - 1 and event.type() == QT.QEvent.Type.MouseButtonPress:
+            # Emit a signal when the button is clicked
+            self.remove_clicked.emit()
+            return True
+        return super().editorEvent(event, model, option, index)
+
+    def paint(self, painter, option, index):
+        if index.row() == len(self.label_options) - 1:
+            # This is the last row, draw a button
+            button_option = QT.QStyleOptionButton()
+            button_option.rect = option.rect
+            button_option.text = index.data()
+            button_option.state = QT.QStyle.State_Enabled | QT.QStyle.State_Raised
+            QT.QApplication.style().drawControl(QT.QStyle.ControlElement.CE_PushButton,
+                                                button_option,
+                                                painter)
+        else:
+            super().paint(painter, option, index)
+
+
+class LabelComboBox(QT.QComboBox):
+    remove_label_clicked = QT.pyqtSignal(int, int)
+    label_changed = QT.pyqtSignal(int, int, str)
+
+    def __init__(self, row, col, label_options, parent=None):
+        super().__init__(parent)
+        self.row = row
+        self.col = col
+        self._origin_labels = label_options
+        self.label_options = label_options + ['Remove']
+        delegate = LabelOptionsDelegate(self.label_options, self)
+        delegate.remove_clicked.connect(self.on_remove)
+        self.currentTextChanged.connect(self.on_label)
+        self.setItemDelegate(delegate)
+        self.addItems(self.label_options)
+
+    def on_remove(self):
+        self.remove_label_clicked.emit(self.row, self.col)
+
+    def on_label(self, current_label):
+        if self.currentIndex() >= len(self._origin_labels):
+            return
+        self.label_changed.emit(self.row, self.col, current_label)
+
+
 def find_category(categories, category):
     """
     Find a category, and its index, by its name
