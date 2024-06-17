@@ -30,7 +30,22 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
     if curation:
         unit_ids = sorting_analyzer.unit_ids.tolist()
         curation_data = {
-            "manual_labels": [],
+            "unit_ids": unit_ids,
+            "label_definitions": {
+                "quality":{
+                    "label_options": ["good", "noise", "MUA", "artifact"],
+                    "exclusive": True,
+                }, 
+                "putative_type":{
+                    "label_options": ["excitatory", "inhibitory", "pyramidal", "mitral"],
+                    "exclusive": True,
+                }
+            },
+            "manual_labels": [
+                {'unit_id': unit_ids[5], "quality": "MUA"},
+                {'unit_id': unit_ids[7], "putative_type": "exitatory"},
+                {'unit_id': unit_ids[9], "quality": "noise", "putative_type": "inhibitory"},
+            ],
             "merged_unit_groups": [unit_ids[:3], unit_ids[3:5]],
             "removed_units": unit_ids[5:8],
         }

@@ -490,22 +490,36 @@ class  SpikeinterfaceController(ControllerBase):
     def make_manual_restore_merge(self, merge_group_index):
         del self.curation_data["merged_unit_groups"][merge_group_index]
 
-    def find_unit_labels(self, unit_id, category):
+    def find_unit_manual_labels(self, unit_id):
         for ix, lbl in enumerate(self.curation_data["manual_labels"]):
-            if lbl["unit_id"] == unit_id and lbl["label_category"] == category:
-                return ix, lbl
+            if lbl["unit_id"] == unit_id:
+                    return ix
 
-        lbl = {"unit_id": unit_id, "label_category": category, "labels": []}
-        return None, lbl
+    
+    # def find_unit_labels(self, unit_id, category):
+    #     for ix, lbl in enumerate(self.curation_data["manual_labels"]):
+    #         if lbl["unit_id"] == unit_id and category in lbl:
+    #                 return ix, lbl
+    #     lbl = {"unit_id": unit_id}
+    #     return None, lbl
 
     def set_label_to_unit(self, unit_id, category, label):
-        ix, lbl = self.find_unit_labels(unit_id, category)
-        lbl["labels"] = [label]
+        ix = self.find_unit_manual_labels(unit_id)
+
+        # ix, lbl = self.find_unit_labels(unit_id, category)
+        # lbl["labels"] = [label]
         if ix is not None:
-            self.curation_data["manual_labels"][ix] = lbl
+            lbl = self.curation_data["manual_labels"][ix]
+            if category in lbl:
+                lbl[category] = [label]
+                # TODO handle exclusive
+                # if self.curation_data["label_definitions"][category]["exclusive"]:
+            else:
+                lbl[category] = [label]
+            # self.curation_data["manual_labels"][ix] = lbl
         else:
+            lbl = {"unit_id": unit_id, category:[label]}
             self.curation_data["manual_labels"].append(lbl)
-        print(self.curation_data)
 
     def add_label_to_unit(self, unit_id, category, label):
         lbl_def = self.curation_data["label_definitions"]

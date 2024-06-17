@@ -162,12 +162,17 @@ class UnitListView(WidgetBase):
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 4, item)
 
-            # TODO bug colum ici!!!!!!
             if label_definitions is not None:
-                for ix, (k, label_def) in enumerate(label_definitions.items()):
+                for ix, (category, label_def) in enumerate(label_definitions.items()):
                     # item = QT.QComboBox()
                     # item.addItems(label_def['label_options'])
                     # item.addItem('')
+                    idx, lbl = self.controller.find_unit_labels(unit_id, category)
+                    if idx is None:
+                        label = None
+                    else:
+                        label = lbl['labels'][0]
+                    print(unit_id, category, label)
                     item = LabelComboBox(i, 5 + ix, label_def['label_options'], self)
                     item.remove_label_clicked.connect(self.on_remove_label)
                     item.label_changed.connect(self.on_label_changed)

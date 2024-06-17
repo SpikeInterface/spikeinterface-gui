@@ -255,20 +255,27 @@ class LabelComboBox(QT.QComboBox):
         self.row = row
         self.col = col
         self._origin_labels = label_options
-        self.label_options = label_options + ['Remove']
-        delegate = LabelOptionsDelegate(self.label_options, self)
-        delegate.remove_clicked.connect(self.on_remove)
+        self.label_options = [''] + label_options
+        # self.label_options = label_options + ['Remove']
+        # delegate = LabelOptionsDelegate(self.label_options, self)
+        # delegate.remove_clicked.connect(self.on_remove)
         self.currentTextChanged.connect(self.on_label)
-        self.setItemDelegate(delegate)
+        # self.setItemDelegate(delegate)
         self.addItems(self.label_options)
 
-    def on_remove(self):
-        self.remove_label_clicked.emit(self.row, self.col)
+    # def on_remove(self):
+    #     self.remove_label_clicked.emit(self.row, self.col)
 
     def on_label(self, current_label):
-        if self.currentIndex() >= len(self._origin_labels):
-            return
-        self.label_changed.emit(self.row, self.col, current_label)
+        # if self.currentIndex() >= len(self._origin_labels):
+        #     return
+        # self.label_changed.emit(self.row, self.col, current_label)
+
+        if self.currentIndex() == 0:
+            self.remove_label_clicked.emit(self.row, self.col)
+        else:
+            self.label_changed.emit(self.row, self.col, current_label)
+
 
 
 def find_category(categories, category):
