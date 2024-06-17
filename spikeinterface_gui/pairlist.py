@@ -6,6 +6,7 @@ import itertools
 
 from .base import WidgetBase
 from .tools import ParamDialog, get_dict_from_group_param, CustomItem
+from .curation_tools import adding_group
 
 
 class PairListView(WidgetBase):
@@ -46,44 +47,73 @@ class PairListView(WidgetBase):
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
-        # ~ h = QT.QHBoxLayout()
-        # ~ self.layout.addLayout(h)
-        self.combo_select = QT.QComboBox()
-        # ~ h.addWidget(QT.QLabel('Select'))
-        # ~ h.addWidget(self.combo_select)
-        self.combo_select.addItems(['all pairs', 'high similarity'])  #
-        # ~ self.combo_select.currentTextChanged.connect(self.refresh)
-        # ~ h.addStretch()
+        self.sorting_column = 2
+        self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
+        # self.combo_select = QT.QComboBox()
+        # self.combo_select.addItems(['all pairs', 'high similarity'])
 
-        # ~ but = QT.QPushButton('settings')
-        # ~ self.layout.addWidget(but)
-        # ~ but.clicked.connect(self.open_settings)
+        h = QT.QHBoxLayout()
+        self.layout.addLayout(h)
+        h.addWidget(QT.QLabel('Sort by'))
+        self.combo_sort = QT.QComboBox()
+        self.combo_sort.addItems(['label', 'similarity', 'ratio_similarity'])
+        self.combo_sort.currentIndexChanged.connect(self.refresh)
+        h.addWidget(self.combo_sort)
+        h.addStretch()
 
         self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
+        self.table.itemDoubleClicked.connect(self.on_double_click)
 
-        # ~ self.table.customContextMenuRequested.connect(self.open_context_menu)
-
-        # ~ self.menu = QT.QMenu()
-        # ~ act = self.menu.addAction('Merge')
-        # ~ act.triggered.connect(self.do_merge)
-
-        # ~ act = self.menu.addAction('Tag same cell')
-        # ~ act.triggered.connect(self.do_tag_same_cell)
+        shortcut_merge = QT.QShortcut(self)
+        shortcut_merge.setKey(QT.QKeySequence('m'))
+        shortcut_merge.activated.connect(self.on_merge_shorcut)
         self.pairs = self.controller.get_merge_list()
+
+
+
         self.refresh()
 
-    def on_item_selection_changed(self):
+    def _get_selected_row(self):
         inds = self.table.selectedIndexes()
         if len(inds) != self.table.columnCount():
             return
-        # k1, k2 = self.pairs[inds[0].row()]
-        item = self.table.item(inds[0].row(), 0)
-        k1, k2 = item.unit_id_pair
+        return inds[0].row()
 
+    def _get_selected_pair_id(self):
+        row_ix = self._get_selected_row()
+        if row_ix is None:
+            return
+        item = self.table.item(row_ix, 0)
+        k1, k2 = item.unit_id_pair
+        return row_ix, (k1, k2)
+
+    def on_double_click(self, item):
+        k1, k2 = item.unit_id_pair
+        self.accept_pair(k1, k2)
+    
+    def on_merge_shorcut(self):
+        row_ix, pair = self._get_selected_pair_id()
+        if pair is None:
+            return
+        print(pair)
+        self.accept_pair(*pair)
+        n_rows = self.table.rowCount()
+        self.table.setCurrentCell(min(n_rows - 1, row_ix + 1), 0)
+
+    def accept_pair(self, k1, k2):
+        self.controller.make_manual_merge_if_possible([k1, k2])
+        self.manual_curation_updated.emit()
+        self.refresh()
+
+    def on_item_selection_changed(self):
+        r = self._get_selected_pair_id()
+        if r is None:
+            return
+        _, (k1, k2) = r
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[k1] = True
@@ -234,7 +264,6 @@ class PairListView(WidgetBase):
             return
         ch_method = ch_method_d['method']
 
-        params = None
         # Depending on the method we set the parameters
         if ch_method == 'automerge':
             params = ParamDialog(self._automerge_params, title='Automerge parameters').get()
@@ -245,11 +274,11 @@ class PairListView(WidgetBase):
             th_sim = similarity > params['threshold_similarity']
             self.pairs = [(i, j) for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
-        # params = get_dict_from_group_param(self.params)
-        #
+
         self.refresh()
 
 
-PairListView._gui_help_txt = """Auto merge list selection
+PairListView._gui_help_txt = """Auto merge list selection.
 Click on on row to make visible a unique pair of unit.
+Double click to accept the merge.
 """

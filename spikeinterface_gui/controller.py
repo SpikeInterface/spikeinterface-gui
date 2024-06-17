@@ -1,5 +1,9 @@
 import time
 
+import numpy as np
+
+import json
+
 from .base import ControllerBase
 from .myqt import QT
 
@@ -10,8 +14,11 @@ import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.curation import get_potential_auto_merge
+from spikeinterface.core.core_tools import check_json
 
-import numpy as np
+
+
+from .curation_tools import adding_group, default_label_definitions, empty_curation_data
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -24,7 +31,8 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False):
+    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
+                 curation=False, curation_data=None, label_definitions=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.analyzer = analyzer
@@ -199,7 +207,36 @@ class  SpikeinterfaceController(ControllerBase):
             
             t0 = time.perf_counter()
             # print('')
+        
+        self.curation = curation
+        # TODO: Reload the dictionary if it already exists
+        if self.curation:
+            # rules:
+            #  * if curation_data alreadye exists in folder then it is reloaded and has precedance
+            #  * if not, then use curation_data argument input
+            #  * otherwise create an empty one
 
+            if self.analyzer.format == "binary_folder":
+                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
+                if json_file.exists():
+                    with open(json_file, "r") as f:
+                        curation_data = json.load(f)
+            elif self.analyzer.format == "zarr":
+                import zarr
+                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
+                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
+
+            if curation_data is None:
+                self.curation_data = empty_curation_data.copy()
+            else:
+                self.curation_data = curation_data
+            
+            if "label_definitions" not in self.curation_data:
+                if label_definitions is not None:
+                    self.curation_data["label_definitions"] = label_definitions
+                else:
+                    self.curation_data["label_definitions"] = default_label_definitions.copy()
 
         
     @property
@@ -377,3 +414,130 @@ class  SpikeinterfaceController(ControllerBase):
             **params
         )
         return potential_merges, extra
+    
+    def curation_can_be_saved(self):
+        return self.analyzer.format != "memory"
+
+    def construct_final_curation(self):
+        d = dict()
+        d["unit_ids"] = self.unit_ids.tolist()
+        d.update(self.curation_data.copy())
+        return d
+
+    def save_curation_in_analyzer(self):
+        if self.analyzer.format == "memory":
+            pass
+        elif self.analyzer.format == "binary_folder":
+            folder = self.analyzer.folder / "spikeinterface_gui"
+            folder.mkdir(exist_ok=True, parents=True)
+            json_file = folder / f"curation_data.json"
+            with json_file.open("w") as f:
+                json.dump(check_json(self.construct_final_curation()), f, indent=4)
+        elif self.analyzer.format == "zarr":
+            import zarr
+            zarr_root = zarr.open(self.analyzer.folder, mode='r+')
+            if "spikeinterface_gui" not in zarr_root.keys():
+                sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
+            sigui_group = zarr_root["spikeinterface_gui"]
+            sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
+    
+    def get_curation_label_definitions(self):
+        return self.curation_data["label_definitions"]
+
+    def make_manual_delete_if_possible(self, removed_unit_ids):
+        """
+        Check if a unit_ids can be removed.
+
+        If unit are already deleted or in a merge group then the delete operation is skiped.
+        """
+        all_merged_units = sum(self.curation_data["merged_unit_groups"], [])
+        for unit_id in removed_unit_ids:
+            if unit_id in self.curation_data["removed_units"]:
+                continue
+            # TODO: check if unit is already in a merge group
+            if unit_id in all_merged_units:
+                continue
+            self.curation_data["removed_units"].append(unit_id)
+    
+    def make_manual_restore(self, restire_unit_ids):
+        """
+        pop unit_ids from the removed_units list which is a restore.
+        """
+        for unit_id in restire_unit_ids:
+            if unit_id in self.curation_data["removed_units"]:
+                self.curation_data["removed_units"].remove(unit_id)
+
+    def make_manual_merge_if_possible(self, merge_unit_ids):
+        """
+        Check if the a list of unit_ids can be added as a new merge to the curation_data.
+
+        If some unit_ids are already in the removed list then the merge is skiped.
+
+        If unit_ids are already is some other merge then the connectivity graph is resolved groups can be
+        eventually merged.
+
+        """
+        if len(merge_unit_ids) < 2:
+            return
+
+        for unit_id in merge_unit_ids:
+            if unit_id in self.curation_data["removed_units"]:
+                return
+
+        merged_groups = adding_group(self.curation_data["merged_unit_groups"], merge_unit_ids)
+        self.curation_data["merged_unit_groups"] = merged_groups
+    
+    def make_manual_restore_merge(self, merge_group_index):
+        del self.curation_data["merged_unit_groups"][merge_group_index]
+
+    def find_unit_labels(self, unit_id, category):
+        for ix, lbl in enumerate(self.curation_data["manual_labels"]):
+            if lbl["unit_id"] == unit_id and lbl["label_category"] == category:
+                return ix, lbl
+
+        lbl = {"unit_id": unit_id, "label_category": category, "labels": []}
+        return None, lbl
+
+    def set_label_to_unit(self, unit_id, category, label):
+        ix, lbl = self.find_unit_labels(unit_id, category)
+        lbl["labels"] = [label]
+        if ix is not None:
+            self.curation_data["manual_labels"][ix] = lbl
+        else:
+            self.curation_data["manual_labels"].append(lbl)
+        print(self.curation_data)
+
+    def add_label_to_unit(self, unit_id, category, label):
+        lbl_def = self.curation_data["label_definitions"]
+        try:
+            is_exclusive = lbl_def[category]["exclusive"]
+        except KeyError:
+            raise ValueError(f'{category} not a valid label category')
+        ix, lbl = self.find_unit_labels(unit_id, category)
+        if is_exclusive:
+            lbl["labels"] = [label]
+        else:
+            lbl["labels"].append(label)
+        if ix is not None:
+            self.curation_data["manual_labels"][ix] = lbl
+        else:
+            self.curation_data["manual_labels"].append(lbl)
+        print(self.curation_data)
+
+    def remove_label_from_unit(self, unit_id, category, label):
+        ix, lbl = self.find_unit_labels(unit_id, category)
+        if ix is None:
+            return
+        if label in lbl["labels"]:
+            lbl_ix = lbl["labels"].index(label)
+            lbl["labels"].pop(lbl_ix)
+            self.curation_data["manual_labels"][ix] = lbl
+        print(self.curation_data)
+
+    def remove_all_labels(self, unit_id):
+        for cat, lbl_def in self.curation_data["label_definitions"].items():
+            for label in lbl_def["label_options"]:
+                self.remove_label_from_unit(unit_id, cat, label)
+        print(self.curation_data)
+        
+
