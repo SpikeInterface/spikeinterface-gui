@@ -42,9 +42,9 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
                 }
             },
             "manual_labels": [
-                {'unit_id': unit_ids[5], "quality": "MUA"},
-                {'unit_id': unit_ids[7], "putative_type": "exitatory"},
-                {'unit_id': unit_ids[9], "quality": "noise", "putative_type": "inhibitory"},
+                {'unit_id': unit_ids[1], "quality": ["MUA"]},
+                {'unit_id': unit_ids[2], "putative_type": ["exitatory"]},
+                {'unit_id': unit_ids[3], "quality": ["noise"], "putative_type": ["inhibitory"]},
             ],
             "merged_unit_groups": [unit_ids[:3], unit_ids[3:5]],
             "removed_units": unit_ids[5:8],

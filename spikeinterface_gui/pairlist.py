@@ -86,7 +86,7 @@ class PairListView(WidgetBase):
     def _get_selected_pair_id(self):
         row_ix = self._get_selected_row()
         if row_ix is None:
-            return
+            return None, None
         item = self.table.item(row_ix, 0)
         k1, k2 = item.unit_id_pair
         return row_ix, (k1, k2)

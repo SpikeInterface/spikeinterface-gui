@@ -164,16 +164,9 @@ class UnitListView(WidgetBase):
 
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
-                    # item = QT.QComboBox()
-                    # item.addItems(label_def['label_options'])
-                    # item.addItem('')
-                    idx, lbl = self.controller.find_unit_labels(unit_id, category)
-                    if idx is None:
-                        label = None
-                    else:
-                        label = lbl['labels'][0]
-                    print(unit_id, category, label)
+                    label = self.controller.get_unit_label(unit_id, category)
                     item = LabelComboBox(i, 5 + ix, label_def['label_options'], self)
+                    item.set_label(label)
                     item.remove_label_clicked.connect(self.on_remove_label)
                     item.label_changed.connect(self.on_label_changed)
                     self.table.setCellWidget(i, 5 + ix, item)
@@ -202,7 +195,9 @@ class UnitListView(WidgetBase):
     def on_remove_label(self, row, col):
         item = self.table.item(row, 1)
         unit_id = item.unit_id
-        self.controller.remove_all_labels(unit_id)
+        header = self.table.horizontalHeaderItem(col)
+        category = header.text()
+        self.controller.set_label_to_unit(unit_id, category, None)
 
     def on_item_changed(self, item):
         if item.column() != 1: return
@@ -258,11 +253,19 @@ class UnitListView(WidgetBase):
         return unit_ids
 
     def on_visible_shortcut(self):
-        selected_unit_ids = self.get_selected_unit_ids()
-        for c_uid in selected_unit_ids:
-            self.controller.unit_visible_dict[c_uid] = not self.controller.unit_visible_dict[c_uid]
+        rows = self._get_selected_rows()
+        for unit_id in self.controller.unit_ids:
+            self.controller.unit_visible_dict[unit_id] = False
+        for unit_id in self.get_selected_unit_ids():
+            self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
+        self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
+        # self.table.set
+        # self.table.setCurrentCell(rows[0], None, QT.QItemSelectionModel.Select)
+        # self.table.scrollTo(index)
+        for row in rows:
+            self.table.selectRow(row)
 
     def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
@@ -281,52 +284,6 @@ class UnitListView(WidgetBase):
         self.controller.make_manual_merge_if_possible(merge_unit_ids)
         self.manual_curation_updated.emit()
         self.refresh()
-
-
-# @remi-pr: merci pour tout ça! pour le momement je l'enlève pour des raisons de consistency avec les entrées
-# class LabelCreator(QT.QDialog):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.setWindowTitle('Edit or add a label')
-#         self._categories = []  # [{'name': 'category', 'labels': ['label1', 'label2']}, }
-#         main_lyt = QT.QVBoxLayout(self)
-#         form_lyt = QT.QFormLayout()
-#         self.cat_cb = QT.QComboBox(self)
-#         self.labels_cb = QT.QComboBox(self)
-#         self.label_le = QT.QLineEdit(self)
-#         self.cat_cb.currentTextChanged.connect(self.category_changed)
-#         self.cat_cb.setEditable(True)
-#         form_lyt.addRow('Category', self.cat_cb)
-#         form_lyt.addRow('Old label', self.labels_cb)
-#         form_lyt.addRow('Label', self.label_le)
-#         btn_lyt = QT.QHBoxLayout()
-#         self.cancel_btn = QT.QPushButton('&Cancel')
-#         self.ok_btn = QT.QPushButton('&Apply')
-#         self.ok_btn.setDefault(True)
-#         self.cancel_btn.clicked.connect(self.reject)
-#         self.ok_btn.clicked.connect(self.accept)
-#         btn_lyt.addWidget(self.cancel_btn)
-#         btn_lyt.addWidget(self.ok_btn)
-#         main_lyt.addLayout(form_lyt)
-#         main_lyt.addLayout(btn_lyt)
-
-#     def category_changed(self, cat_name):
-#         self.labels_cb.clear()
-#         self.labels_cb.addItem('')
-#         r = find_category(self._categories, cat_name)
-#         if r is None:
-#             return
-#         _, cat = r
-#         self.labels_cb.addItems(cat['labels'])
-
-#     def edit_label(self, categories):
-#         print(categories)
-#         self._categories = categories
-#         for cat in categories:
-#             self.cat_cb.addItem(cat['name'], cat)
-#             # self.labels_cb.addItems(cat.labels)
-#         if self.exec_():
-#             return self.cat_cb.currentText(), self.labels_cb.currentText(), self.label_le.text()
 
 
 UnitListView._gui_help_txt = """Unit list

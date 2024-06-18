@@ -441,8 +441,7 @@ class  SpikeinterfaceController(ControllerBase):
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
     
-    def get_curation_label_definitions(self):
-        return self.curation_data["label_definitions"]
+
 
     def make_manual_delete_if_possible(self, removed_unit_ids):
         """
@@ -490,68 +489,52 @@ class  SpikeinterfaceController(ControllerBase):
     def make_manual_restore_merge(self, merge_group_index):
         del self.curation_data["merged_unit_groups"][merge_group_index]
 
-    def find_unit_manual_labels(self, unit_id):
+    def get_curation_label_definitions(self):
+        # give only label definition with exclusive
+        label_definitions = {}
+        for k, lbl_def in self.curation_data["label_definitions"].items():
+            if lbl_def['exclusive']:
+                label_definitions[k] = lbl_def.copy()
+        return label_definitions
+
+    def find_unit_in_manual_labels(self, unit_id):
         for ix, lbl in enumerate(self.curation_data["manual_labels"]):
             if lbl["unit_id"] == unit_id:
                     return ix
 
-    
-    # def find_unit_labels(self, unit_id, category):
-    #     for ix, lbl in enumerate(self.curation_data["manual_labels"]):
-    #         if lbl["unit_id"] == unit_id and category in lbl:
-    #                 return ix, lbl
-    #     lbl = {"unit_id": unit_id}
-    #     return None, lbl
+    def get_unit_label(self, unit_id, category):
+        ix = self.find_unit_in_manual_labels(unit_id)
+        if ix is None:
+            return
+        lbl = self.curation_data["manual_labels"][ix]
+        if category in lbl:
+            labels = lbl[category]
+            return labels[0]
 
     def set_label_to_unit(self, unit_id, category, label):
-        ix = self.find_unit_manual_labels(unit_id)
+        if label is None:
+            self.remove_category_from_unit(unit_id, category)
+            return
 
-        # ix, lbl = self.find_unit_labels(unit_id, category)
-        # lbl["labels"] = [label]
+        ix = self.find_unit_in_manual_labels(unit_id)
         if ix is not None:
             lbl = self.curation_data["manual_labels"][ix]
             if category in lbl:
                 lbl[category] = [label]
-                # TODO handle exclusive
-                # if self.curation_data["label_definitions"][category]["exclusive"]:
             else:
                 lbl[category] = [label]
-            # self.curation_data["manual_labels"][ix] = lbl
         else:
             lbl = {"unit_id": unit_id, category:[label]}
             self.curation_data["manual_labels"].append(lbl)
 
-    def add_label_to_unit(self, unit_id, category, label):
-        lbl_def = self.curation_data["label_definitions"]
-        try:
-            is_exclusive = lbl_def[category]["exclusive"]
-        except KeyError:
-            raise ValueError(f'{category} not a valid label category')
-        ix, lbl = self.find_unit_labels(unit_id, category)
-        if is_exclusive:
-            lbl["labels"] = [label]
-        else:
-            lbl["labels"].append(label)
-        if ix is not None:
-            self.curation_data["manual_labels"][ix] = lbl
-        else:
-            self.curation_data["manual_labels"].append(lbl)
-        print(self.curation_data)
-
-    def remove_label_from_unit(self, unit_id, category, label):
-        ix, lbl = self.find_unit_labels(unit_id, category)
+    def remove_category_from_unit(self, unit_id, category):
+        ix = self.find_unit_in_manual_labels(unit_id)
         if ix is None:
             return
-        if label in lbl["labels"]:
-            lbl_ix = lbl["labels"].index(label)
-            lbl["labels"].pop(lbl_ix)
-            self.curation_data["manual_labels"][ix] = lbl
-        print(self.curation_data)
-
-    def remove_all_labels(self, unit_id):
-        for cat, lbl_def in self.curation_data["label_definitions"].items():
-            for label in lbl_def["label_options"]:
-                self.remove_label_from_unit(unit_id, cat, label)
-        print(self.curation_data)
-        
+        lbl = self.curation_data["manual_labels"][ix]
+        if category in lbl:
+            lbl.pop(category)
+            if len(lbl) == 1:
+                # only unit_id in keys then no more labels, then remove then entry
+                self.curation_data["manual_labels"].pop(ix)
 
