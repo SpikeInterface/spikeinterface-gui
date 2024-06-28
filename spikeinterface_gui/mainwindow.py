@@ -83,7 +83,7 @@ class MainWindow(QT.QMainWindow):
             depencies_ok = all(self.controller.has_extension(k) for k in view_class._depend_on)
             if not depencies_ok:
                 if self.verbose:
-                    print(view_name, 'do not has all depencies', view_class._depend_on)                
+                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
                 return None
 
         dock = MyDock(dock_title,self)
