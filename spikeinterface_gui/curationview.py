@@ -86,7 +86,7 @@ class CurationView(WidgetBase):
         print("curation refresh")
         print(self.controller.curation_data)
         # Merged
-        merged_units = self.controller.curation_data["merged_unit_groups"]
+        merged_units = self.controller.curation_data["merge_unit_groups"]
         self.table_merge.clear()
         self.table_merge.setRowCount(len(merged_units))
         self.table_merge.setColumnCount(1)
@@ -140,7 +140,7 @@ class CurationView(WidgetBase):
             return
 
         ind = self.table_merge.selectedIndexes()[0].row()
-        unit_ids = self.controller.curation_data["merged_unit_groups"][ind]
+        unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         for unit_id in unit_ids:

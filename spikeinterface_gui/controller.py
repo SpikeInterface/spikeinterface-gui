@@ -449,7 +449,7 @@ class  SpikeinterfaceController(ControllerBase):
 
         If unit are already deleted or in a merge group then the delete operation is skiped.
         """
-        all_merged_units = sum(self.curation_data["merged_unit_groups"], [])
+        all_merged_units = sum(self.curation_data["merge_unit_groups"], [])
         for unit_id in removed_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
                 continue
@@ -483,11 +483,11 @@ class  SpikeinterfaceController(ControllerBase):
             if unit_id in self.curation_data["removed_units"]:
                 return
 
-        merged_groups = adding_group(self.curation_data["merged_unit_groups"], merge_unit_ids)
-        self.curation_data["merged_unit_groups"] = merged_groups
+        merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
+        self.curation_data["merge_unit_groups"] = merged_groups
     
     def make_manual_restore_merge(self, merge_group_index):
-        del self.curation_data["merged_unit_groups"][merge_group_index]
+        del self.curation_data["merge_unit_groups"][merge_group_index]
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive
