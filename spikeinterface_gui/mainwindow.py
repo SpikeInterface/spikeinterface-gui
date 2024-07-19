@@ -55,11 +55,15 @@ class MainWindow(QT.QMainWindow):
         
         if 'tracemapview' in self.docks:
             self.add_one_view('waveformview', tabify='traceview')
+        elif 'traceview' in self.docks:
+            self.add_one_view('waveformview', tabify='traceview')
         else:
             self.add_one_view('waveformview', area='right')
         
         self.add_one_view('waveformheatmapview', tabify='waveformview')
-        self.add_one_view('isiview', tabify='waveformheatmapview')
+
+        next_tab = 'waveformheatmapview' if 'waveformheatmapview' in self.docks else 'waveformview'
+        self.add_one_view('isiview', tabify=next_tab)
         self.add_one_view('crosscorrelogramview', tabify='isiview')
         self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview') # optional
         
