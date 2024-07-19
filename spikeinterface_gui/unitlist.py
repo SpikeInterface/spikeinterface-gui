@@ -287,7 +287,9 @@ class UnitListView(WidgetBase):
 
 
 UnitListView._gui_help_txt = """Unit list
-This control the visibility of units
+This control the visibility of units : check/uncheck visible
 Check box : make visible or unvisible
-Right click : context menu"""
+Double click on a row : make it visible  alone
+Right click : context menu (delete or merge if curation=True)
+"""
 

@@ -180,5 +180,7 @@ class CurationView(WidgetBase):
 
 
 
-CurationView._gui_help_txt = """
+CurationView._gui_help_txt = """Curation = delete + merge
+Click on items to make then visible
+Rigth click to remove merges.
 """

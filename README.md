@@ -26,8 +26,9 @@ Views can be reorganized by moving docks
 
 Every view has a **?** button which open the contextual help. **Theses inplace docs are the most important stuff to be read**. (but the contains typos)
 
-When some units are visible, the related spike list can be refresh and then the spike selection also refersh some views.
-This enable a very quick and convinient spike per spike view on traces.
+When some units are visible, the related spike list can be refresh.
+Then selecting spike per spike can also refersh some views.
+This enable a very quick and convinient spike per spike jump on traces.
 
 Channel visibility can be handled with the roi in the probeview.
 
