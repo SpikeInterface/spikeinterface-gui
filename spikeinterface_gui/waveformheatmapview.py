@@ -74,6 +74,7 @@ class WaveformHeatMapView(WidgetBase):
                       #~ {'name': 'sparse_display', 'type': 'bool', 'value' : True },
                       ]
     
+    _depend_on = ['waveforms']
     
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
