@@ -15,6 +15,25 @@ format or folder organisation. This gui is built on top of spikeinterface object
 (Recording, Sorting, SortingAnalyzer)
 These objects are "lazy" and retrieve data on the fly (no copy!).
 
+## main usage
+
+The main idea is make visible one or several unit and visualy inspect if they should be merge or remove.
+For this visibility:
+  * ctlr + double click on a unit in *probeview*
+  * double click on one unit in *unitlist*
+
+Views can be reorganized by moving docks
+
+Every view has a **?** button which open the contextual help. **Theses inplace docs are the most important stuff to be read**. (but the contains typos)
+
+When some units are visible, the related spike list can be refresh and then the spike selection also refersh some views.
+This enable a very quick and convinient spike per spike view on traces.
+
+Channel visibility can be handled with the roi in the probeview.
+
+
+## curation mode
+
 By default this tools is a viewer only. But you can turn it into a tools for manual curation using,
 the `curation=True` option.
 This tools supoort the [curation format from spikeinterface](https://spikeinterface.readthedocs.io/en/latest/modules/curation.html#manual-curation).
@@ -43,18 +62,17 @@ If you want visualize the old `WaveformExtractor` from spikeinterface<=0.100.1 y
 
 In order to use this viewer you will need to know a bit of [spikeinterface](https://spikeinterface.readthedocs.io/)
 
-### Step 1 : extract waveforms
+### Step 1 : create and compute SortingAnalyzer
 
 You first need to is to get a `SortingAnalyzer` object with spikeinterface.
 
 See help [here](https://spikeinterface.readthedocs.io)
 
 Note that:
-  * not all waveform snippets are extracted (See `max_spikes_per_unit`) only some of them
-  * this step is cached to a folder or zarr (and can be reloaded)
-  * this step can be run in parallel (and so is quite fast)
-  * optionally some extensionn can be computed (principal_components, spike_amplitudes, correlograms, ..)
-    All extension will be rendered in an appropriated view.
+  * some extensions are mandatory (unit_location, templates, )
+  * some extension are optional
+  * the more extensions are computed the more view are displayed
+
 
   
 Example:
@@ -119,7 +137,8 @@ With the command line
 sigui /path/for/my/sorting_analyzer
 ```
 
-### With curation mode
+
+## With curation mode
 
 
 To open the viewer with curation mode use `curation=True`.
