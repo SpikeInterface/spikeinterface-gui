@@ -1,5 +1,5 @@
 import spikeinterface_gui as sigui
-from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
+from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
 
 

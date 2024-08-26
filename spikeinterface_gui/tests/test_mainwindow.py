@@ -1,7 +1,7 @@
 # import PySide6
 import spikeinterface_gui as sigui
 
-from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
+from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
 from spikeinterface import load_sorting_analyzer
 import spikeinterface.postprocessing
@@ -14,7 +14,7 @@ test_folder = Path('my_dataset')
 
 
 def setup_module():
-    make_one_folder(test_folder)
+    make_analyzer_folder(test_folder, num_probe=1)
 
 def teardown_module():
     clean_all(test_folder)

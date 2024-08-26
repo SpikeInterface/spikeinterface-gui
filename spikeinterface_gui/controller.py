@@ -330,9 +330,9 @@ class  SpikeinterfaceController(ControllerBase):
     def detect_high_similarity(self, threshold=0.9):
         return
     
-    def get_probe(self):
-        return self.analyzer.get_probe()
-        
+    def get_probegroup(self):
+        return self.analyzer.get_probegroup()
+
     def set_channel_visibility(self, visible_channel_inds):
         self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
 
