@@ -11,7 +11,7 @@ default_label_definitions = {
 
 empty_curation_data = {
     "manual_labels": [],
-    "merged_unit_groups": [],
+    "merge_unit_groups": [],
     "removed_units": []
 }
 

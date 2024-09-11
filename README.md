@@ -14,7 +14,38 @@ copying and reformatting the entire dataset (filtered signal + waveform + PCA) t
 format or folder organisation. This gui is built on top of spikeinterface objects
 (Recording, Sorting, SortingAnalyzer)
 These objects are "lazy" and retrieve data on the fly (no copy!).
-And contrary to phy, this is a view only tool : no manual curation at the moment (split/merge/trash have to be done outside).
+
+## main usage
+
+The main idea is make visible one or several unit and visualy inspect if they should be merge or remove.
+For this visibility:
+  * ctlr + double click on a unit in *probeview*
+  * double click on one unit in *unitlist*
+
+Views can be reorganized by moving docks
+
+Every view has a **?** button which open the contextual help. **Theses inplace docs are the most important stuff to be read**. (but the contains typos)
+
+When some units are visible, the related spike list can be refresh.
+Then selecting spike per spike can also refersh some views.
+This enable a very quick and convinient spike per spike jump on traces.
+
+Channel visibility can be handled with the roi in the probeview.
+
+
+## curation mode
+
+By default this tools is a viewer only. But you can turn it into a tools for manual curation using,
+the `curation=True` option.
+This tools supoort the [curation format from spikeinterface](https://spikeinterface.readthedocs.io/en/latest/modules/curation.html#manual-curation).
+This format enbale to:
+  1. remove units
+  2. merge units
+  3. create manual labels
+
+When this mode is activated a new view is added on top left to maintain the list of removal and merges.
+The curation format can be exported to json.
+
 
 This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
 And so, this viewer is a local desktop app (old school!!).
@@ -32,18 +63,17 @@ If you want visualize the old `WaveformExtractor` from spikeinterface<=0.100.1 y
 
 In order to use this viewer you will need to know a bit of [spikeinterface](https://spikeinterface.readthedocs.io/)
 
-### Step 1 : extract waveforms
+### Step 1 : create and compute SortingAnalyzer
 
 You first need to is to get a `SortingAnalyzer` object with spikeinterface.
 
 See help [here](https://spikeinterface.readthedocs.io)
 
 Note that:
-  * not all waveform snippets are extracted (See `max_spikes_per_unit`) only some of them
-  * this step is cached to a folder or zarr (and can be reloaded)
-  * this step can be run in parallel (and so is quite fast)
-  * optionally some extensionn can be computed (principal_components, spike_amplitudes, correlograms, ..)
-    All extension will be rendered in an appropriated view.
+  * some extensions are mandatory (unit_location, templates, )
+  * some extension are optional
+  * the more extensions are computed the more view are displayed
+
 
   
 Example:
@@ -74,6 +104,7 @@ sorting_analyzer.compute("template_similarity")
 sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
 
 ```
+
 
 ### Step 2 : open the GUI
 
@@ -106,6 +137,34 @@ With the command line
 ```bash
 sigui /path/for/my/sorting_analyzer
 ```
+
+
+## With curation mode
+
+
+To open the viewer with curation mode use `curation=True`.
+
+This mode is pretty new and was implemented under kind inducement of friends.
+I hope that this could be a fair replacement of `phy`.
+
+
+```python
+import spikeinterface_gui
+app = spikeinterface_gui.mkQApp() 
+win = spikeinterface_gui.MainWindow(sorting_analyzer, curation=True)
+win.show()
+app.exec_()
+```
+
+
+```python
+  from spikeinterface.widgets import plot_sorting_summary
+  sw.plot_sorting_summary(sorting_analyzer, curation=True, backend="spikeinterface_gui")
+```
+
+The `curation_dict` can be saved inside the folder of the analyzer (for "binary_folder" or "zarr" format).
+Then it is auto-reloaded when the gui is re-opened.
+
 
 
 ## Install
@@ -141,3 +200,8 @@ Samuel Garcia, CNRS, Lyon, France
 
 This work is a port of the old `tridesclous.gui` submodule on top of
 [spikeinterface](https://github.com/SpikeInterface/spikeinterface).
+
+Contrary, to the spikeinterface package, for the developement of this viewer 
+all good practices of coding are deliberately put aside  : no test, no CI, no auto formating, no doc, ... 
+Feel free to contribute, it is an open wild zone. Code anarchist are very welcome.
+So in this mess, persona non grata : pre-commit, black, pytest fixture, ...

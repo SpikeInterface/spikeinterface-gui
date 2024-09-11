@@ -55,11 +55,15 @@ class MainWindow(QT.QMainWindow):
         
         if 'tracemapview' in self.docks:
             self.add_one_view('waveformview', tabify='traceview')
+        elif 'traceview' in self.docks:
+            self.add_one_view('waveformview', tabify='traceview')
         else:
             self.add_one_view('waveformview', area='right')
         
         self.add_one_view('waveformheatmapview', tabify='waveformview')
-        self.add_one_view('isiview', tabify='waveformheatmapview')
+
+        next_tab = 'waveformheatmapview' if 'waveformheatmapview' in self.docks else 'waveformview'
+        self.add_one_view('isiview', tabify=next_tab)
         self.add_one_view('crosscorrelogramview', tabify='isiview')
         self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview') # optional
         
@@ -83,7 +87,7 @@ class MainWindow(QT.QMainWindow):
             depencies_ok = all(self.controller.has_extension(k) for k in view_class._depend_on)
             if not depencies_ok:
                 if self.verbose:
-                    print(view_name, 'do not has all depencies', view_class._depend_on)                
+                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
                 return None
 
         dock = MyDock(dock_title,self)

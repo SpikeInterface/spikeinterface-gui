@@ -26,7 +26,6 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 
-# TODO handle recordingless
 # TODO handle return_scaled
 
 
@@ -53,13 +52,7 @@ class  SpikeinterfaceController(ControllerBase):
             self.external_sparsity = None
             self.analyzer_sparsity = self.analyzer.sparsity
 
-
-        # Mandatory extensions : computation forced            
-        wf_ext = self.analyzer.get_extension('waveforms')
-        if wf_ext is None:
-           wf_ext = analyzer.compute_one_extension('waveforms')
-        self.waveforms_ext = wf_ext
-            
+        # Mandatory extensions : computation forced
         ext = analyzer.get_extension('noise_levels')
         if ext is None:
             print('Force compute "noise_levels" is needed')
@@ -84,6 +77,9 @@ class  SpikeinterfaceController(ControllerBase):
         self.unit_positions = ext.get_data()[:, :2]
 
         # Non mandatory extensions :  can be None
+        wf_ext = self.analyzer.get_extension('waveforms')
+        self.waveforms_ext = wf_ext
+
         self.pc_ext = analyzer.get_extension('principal_components')
         self._pc_projections = None
 
@@ -449,7 +445,7 @@ class  SpikeinterfaceController(ControllerBase):
 
         If unit are already deleted or in a merge group then the delete operation is skiped.
         """
-        all_merged_units = sum(self.curation_data["merged_unit_groups"], [])
+        all_merged_units = sum(self.curation_data["merge_unit_groups"], [])
         for unit_id in removed_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
                 continue
@@ -483,11 +479,11 @@ class  SpikeinterfaceController(ControllerBase):
             if unit_id in self.curation_data["removed_units"]:
                 return
 
-        merged_groups = adding_group(self.curation_data["merged_unit_groups"], merge_unit_ids)
-        self.curation_data["merged_unit_groups"] = merged_groups
+        merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
+        self.curation_data["merge_unit_groups"] = merged_groups
     
     def make_manual_restore_merge(self, merge_group_index):
-        del self.curation_data["merged_unit_groups"][merge_group_index]
+        del self.curation_data["merge_unit_groups"][merge_group_index]
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive
