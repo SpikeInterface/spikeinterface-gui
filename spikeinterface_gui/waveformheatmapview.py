@@ -43,12 +43,12 @@ class WaveformHeatMapView(WidgetBase):
     
     Important:
       * use right click for X/Y zoom
-      * use left clik to move
-      * use **mouse wheel** for color zoom.Really important to play with this
+      * use left click to move
+      * use **mouse wheel** for color zoom. Really important to play with this
         to discover low density
-      * intentionnaly not all cluster are displayed other we see nothing. The best is to plot
-        2 by 2. Furthermore it faster to plot with few cluster.
-      * don't forget to display the **noise snippet** to validate that the mad is 1 for all channel.
+      * intentionnally not all clusters are displayed other we see nothing. The best is to plot
+        2 by 2. Furthermore it faster to plot with a few cluster.
+      * Don't forget to display the **noise snippet** to validate that the mad is 1 for all channels.
     
     Settings:
       * **colormap** hot is good because loaw density are black like background.
@@ -478,11 +478,11 @@ class WaveformHeatMapView(WidgetBase):
 
 WaveformHeatMapView._gui_help_txt = """Unit waveform heat map
 Check density around the average template for each unit.
-Usefull to check overlap between units.
+Useful to check overlap between units.
 
 right click : X/Y zoom
-left clik : move
+left click : move
 mouse wheel : color range for density (important!!)
 
 For efficiency : no more than  4 units visible at same time.
-This can be change in settings."""
+This can be changed in the settings."""

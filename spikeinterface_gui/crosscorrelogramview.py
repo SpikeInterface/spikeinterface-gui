@@ -93,7 +93,8 @@ class CrossCorrelogramView(WidgetBase):
                 self.grid.addItem(plot, row=r, col=c)
 
 
-CrossCorrelogramView._gui_help_txt = """Cross correlogram
-Show only selected units.
+CrossCorrelogramView._gui_help_txt = """Crosscorrelogram of units/autocorrelogram of one unit
+Shows only the selected unit(s).
 Settings control the bin size in ms.
-Right mouse : zoom"""
+Right mouse : zoom
+Left mouse : drags the correlograms"""

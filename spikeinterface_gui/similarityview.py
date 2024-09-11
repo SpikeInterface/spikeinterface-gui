@@ -187,5 +187,5 @@ class SimilarityView(WidgetBase):
     
 
 SimilarityView._gui_help_txt = """Similarity view
-Check similarity between units with several metric
-Mouse lick : make visible one pair of unit."""
+Check similarity between units with user-selectable metrics
+Mouse click : make one pair of units visible."""

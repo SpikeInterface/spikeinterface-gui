@@ -454,8 +454,12 @@ Display average template for visible units.
 If one spike is selected (in spike list) then the spike is super imposed (white trace).
 
 2 mode :
-  * 'geometry' : snipet are displayed center on contact position
-  * 'flatten' : snipet are concatenated in flatten way (better to check variance)
+  * 'geometry' : snippets are displayed centered on the contact position
+  * 'flatten' : snippets are concatenated in a flatten way (better to check the variance)
 
-Please check all settings."""
+left click : moves waveform around
+right click : zoom in x/y
+mouse wheel : scale amplitudes
+
+Please check all settings for fine control of what information is displayed."""
 

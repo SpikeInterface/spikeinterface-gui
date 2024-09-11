@@ -205,6 +205,7 @@ class SpikeAmplitudeView(WidgetBase):
 
     
 
-SpikeAmplitudeView._gui_help_txt = """Similarity view
-Check similarity between units with several metric
-Mouse lick : make visible one pair of unit."""
+SpikeAmplitudeView._gui_help_txt = """Spike Amplitude view
+Check amplitudes of spikes across the recording time or in a histogram
+comparing the distribution of ampltidues to the noise levels
+Mouse click : change scaling."""

@@ -180,5 +180,8 @@ class CurationView(WidgetBase):
 
 
 
-CurationView._gui_help_txt = """
+CurationView._gui_help_txt = """Curation includes potential delete + merge
+Must export or apply to analyzer to make persistent
+Click on items to make then visible
+Right click to remove merges or restore deletions
 """

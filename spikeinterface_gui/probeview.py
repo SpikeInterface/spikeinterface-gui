@@ -288,4 +288,5 @@ Units are color coded.
 Mouse drag ROI : change channel visibilty and unit visibility on other views
 Right click on the background : zoom
 Left click on the background : move
-Double click one one unit: select one unique unit"""
+Double click one unit: select one unique unit
+Ctrl + double click : select multiple units"""

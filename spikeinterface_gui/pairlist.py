@@ -279,6 +279,7 @@ class PairListView(WidgetBase):
 
 
 PairListView._gui_help_txt = """Auto merge list selection.
-Click on on row to make visible a unique pair of unit.
+Click compute to select similarity or to use the `get_potential_auto_merges` function
+Click on a row to make visible a unique pair of unit.
 Double click to accept the merge.
 """
