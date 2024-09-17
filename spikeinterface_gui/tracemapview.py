@@ -49,7 +49,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
 
 
 
-        pos = self.controller.get_probe().contact_positions
+        pos = self.controller.get_contact_location()
         self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], ))
         self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
         

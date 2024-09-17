@@ -1,7 +1,10 @@
 import shutil
 from pathlib import Path
 
+import numpy as np
+
 import spikeinterface.full as si
+import probeinterface
 
 
 def clean_all(test_folder):
@@ -10,37 +13,67 @@ def clean_all(test_folder):
         if Path(folder).exists():
             shutil.rmtree(folder)
 
-def make_one_folder(test_folder):
+def make_analyzer_folder(test_folder, num_probe=1):
     clean_all(test_folder)
     
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
-    recording, sorting = si.generate_ground_truth_recording(
-        durations=[300.0, 100.0],
-        num_channels=32,
-        num_units=16,
+    recordings = []
+    sortings = []
+    probes = []
+    for i in range(num_probe):
+        recording, sorting = si.generate_ground_truth_recording(
+            durations=[300.0, 100.0],
+            num_channels=32,
+            num_units=16,
 
-        # durations=[3600.0 / 10.],
-        # num_channels=380,
-        # num_units=250,
+            # durations=[3600.0 / 10.],
+            # num_channels=380,
+            # num_units=250,
 
-        sampling_frequency=30000.0,
-        
-        generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
-        generate_unit_locations_kwargs=dict(
-            margin_um=5.0,
-            minimum_z=5.0,
-            maximum_z=20.0,
-        ),
-        generate_templates_kwargs=dict(
-            unit_params=dict(
-                alpha=(100.0, 500.0),
-            )
-        ),
-        noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
-        seed=2205,
-    )
+            sampling_frequency=30000.0,
+            
+            generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
+            generate_unit_locations_kwargs=dict(
+                margin_um=5.0,
+                minimum_z=5.0,
+                maximum_z=20.0,
+            ),
+            generate_templates_kwargs=dict(
+                unit_params=dict(
+                    alpha=(100.0, 500.0),
+                )
+            ),
+            noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
+            seed=2205+i,
+        )
+
+        if num_probe > 1:
+            probe = recording.get_probe()
+            probe.move([i*200, 0])
+            recording = recording.set_probe(probe)
+            
+            recordings.append(recording)
+            sortings.append(sorting)
+            probes.append(probe.copy())
     
+    if num_probe > 1:
+        #
+        recording = si.aggregate_channels(recordings)
+        probegroup = probeinterface.ProbeGroup()
+        count = 0
+        for probe in probes:
+            n = probe.get_contact_count()
+            probe.device_channel_indices = np.arange(count, count+n)
+            probe.set_contact_ids(probe.device_channel_indices.astype('S'))
+            print(probe.contact_ids)
+            probegroup.add_probe(probe)
+            count += n
+        recording = recording.set_probegroup(probegroup)
+
+        sorting = si.aggregate_units(sortings)
+
+
     
     sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
                                                   format="binary_folder",
@@ -70,7 +103,7 @@ if __name__ == '__main__':
     folder = test_folder / 'sorting_analyzer'
     
     clean_all(test_folder)
-    make_one_folder(test_folder)
+    make_analyzer_folder(test_folder, num_probe=2)
     
     sorting_analyzer = si.load_sorting_analyzer(folder)
     print(sorting_analyzer)

@@ -1,6 +1,6 @@
 import spikeinterface_gui as sigui
 
-from spikeinterface_gui.tests.testingtools import clean_all, make_one_folder
+from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
 import spikeinterface.full as si
 
@@ -10,7 +10,7 @@ test_folder = Path('my_dataset')
 
 
 def setup_module():
-    make_one_folder(test_folder)
+    make_analyzer_folder(test_folder)
 
 def teardown_module():
     clean_all(test_folder)

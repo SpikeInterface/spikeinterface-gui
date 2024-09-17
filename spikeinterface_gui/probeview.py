@@ -86,29 +86,28 @@ class ProbeView(WidgetBase):
         #~ self.plot.showAxis('left', False)
         #~ self.plot.showAxis('bottom', False)
     
-        # probe
-        probe = self.controller.get_probe()
-        contact_vertices = probe.get_contact_vertices()
-        planar_contour = probe.probe_planar_contour
-        self.contact_positions = probe.contact_positions
-        
-        # small hack to connect to the first point
-        contact_vertices = [np.concatenate([e, e[:1, :]], axis=0) for e in contact_vertices]
-        
-        vertices = np.concatenate(contact_vertices)
-        connect = np.ones(vertices.shape[0], dtype='bool')
-        pos = 0
-        for e in contact_vertices[:-1]:
-            pos += e .shape[0]
-            connect[pos-1] = False
+        # probes
+        self.contact_positions = self.controller.get_contact_location()
 
-        self.contacts = pg.PlotCurveItem(vertices[:, 0], vertices[:, 1], pen='#7FFF00', fill='#7F7F0C', connect=connect)
-        self.plot.addItem(self.contacts)
-        
-        if planar_contour is not None:
-            self.contour = pg.PlotCurveItem(planar_contour[:, 0], planar_contour[:, 1], pen='#7FFF00')
-            self.plot.addItem(self.contour)
-            
+        probes = self.controller.get_probegroup().probes
+        for probe in probes:
+            contact_vertices = probe.get_contact_vertices()
+            # small hack to connect to the first point
+            contact_vertices = [np.concatenate([e, e[:1, :]], axis=0) for e in contact_vertices]
+            vertices = np.concatenate(contact_vertices)
+            connect = np.ones(vertices.shape[0], dtype='bool')
+            pos = 0
+            for e in contact_vertices[:-1]:
+                pos += e .shape[0]
+                connect[pos-1] = False
+            contacts = pg.PlotCurveItem(vertices[:, 0], vertices[:, 1], pen='#7FFF00', fill='#7F7F0C', connect=connect)
+            self.plot.addItem(contacts)
+
+            planar_contour = probe.probe_planar_contour
+            if planar_contour is not None:
+                self.contour = pg.PlotCurveItem(planar_contour[:, 0], planar_contour[:, 1], pen='#7FFF00')
+                self.plot.addItem(self.contour)
+
         # ROI
         self.channel_labels = []
         for i, channel_id in enumerate(self.controller.channel_ids):
