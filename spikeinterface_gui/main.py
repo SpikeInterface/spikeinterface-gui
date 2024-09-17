@@ -30,7 +30,7 @@ def run_mainwindow_cli():
 
     analyzer_folder = args.analyzer_folder
     if analyzer_folder is None:
-        print('Should must specify the analyzer folder like this: sigui /path/to/my/analyzer/folder')
+        print('You must specify the analyzer folder like this: sigui /path/to/my/analyzer/folder')
         exit()
     
     run_mainwindow(analyzer_folder)

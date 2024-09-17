@@ -212,7 +212,7 @@ class SpikeListView(WidgetBase):
         pass
 
 SpikeListView._gui_help_txt = """Spike list view
-Show all spikes of visible units.
+Show all spikes of the visible units.
 When on spike is selected then:
   * the trace scroll to it
-  * ndscatter show it (if unclueded_in_pc=True)"""
+  * ndscatter shows it (if included_in_pc=True)"""

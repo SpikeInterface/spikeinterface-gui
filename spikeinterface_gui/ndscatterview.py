@@ -373,9 +373,9 @@ def inside_poly(data, vertices):
     return mpl_path(vertices).contains_points(data)
 
 
-NDScatterView._gui_help_txt = """N-dimential scatter for principal components
-Project (num_chan x num_pc) into 2 dim.
-Button randomtour run dynamic "tour"
+NDScatterView._gui_help_txt = """N-dimensional scatter for the principal components
+Projects (num_chan x num_pc) into 2 dim.
+Button randomtour runs dynamic "tour" of the pcs
 mouse wheel : zoom
 left click: draw a lasso for spike selection
 settings controls : num_pc_per_channel displayed
