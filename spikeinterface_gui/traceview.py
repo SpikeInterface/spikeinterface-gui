@@ -244,7 +244,9 @@ class TraceView(WidgetBase, MixinViewTrace):
         self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
 
         self.change_segment(0)
-        self.refresh()
+
+        self.estimate_auto_scale()
+        # self.refresh()
     
     
     

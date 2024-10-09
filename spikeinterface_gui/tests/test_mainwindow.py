@@ -75,7 +75,7 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
 
 
 if __name__ == '__main__':
-    # ssetup_module()
+    # setup_module()
     
     test_mainwindow(interactive=True)
     # test_mainwindow(interactive=True, verbose=True, only_some_extensions=True)

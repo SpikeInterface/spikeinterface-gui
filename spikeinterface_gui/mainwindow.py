@@ -9,7 +9,8 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,analyzer,  parent=None, verbose=False, curation=False, curation_data=None, label_definitions=None):
+    def __init__(self,analyzer,  parent=None, verbose=False, curation=False, curation_data=None, label_definitions=None,
+                 with_traces=True):
         QT.QMainWindow.__init__(self, parent)
         
         self.verbose = verbose
@@ -22,7 +23,7 @@ class MainWindow(QT.QMainWindow):
             t0 = time.perf_counter()
         self.controller = SpikeinterfaceController(analyzer, verbose=verbose,
                                                    curation=curation, curation_data=curation_data, label_definitions=label_definitions,
-                                                   )
+                                                   with_traces=with_traces)
         
         if verbose:
             t1 = time.perf_counter()
@@ -49,12 +50,13 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('ndscatterview', tabify='similarityview') # optional
         
         # on right
-        self.add_one_view('traceview', area='right') # optional
-        if self.controller.num_channels >=16:
-            self.add_one_view('tracemapview',  tabify='traceview') # optional
+        if with_traces:
+            self.add_one_view('traceview', area='right') # optional
+            if self.controller.num_channels >=16:
+                self.add_one_view('tracemapview',  tabify='traceview') # optional
         
         if 'tracemapview' in self.docks:
-            self.add_one_view('waveformview', tabify='traceview')
+            self.add_one_view('waveformview', tabify='tracemapview')
         elif 'traceview' in self.docks:
             self.add_one_view('waveformview', tabify='traceview')
         else:

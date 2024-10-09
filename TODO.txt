@@ -1,6 +1,3 @@
-waveformheatmap : channel select global or common channel : have an option
-
-
-views:
-  * trace heatmap
-  * raster plot
+ * refresh spike list update at lass level
+ * widget compute
+ * cache the last get traces

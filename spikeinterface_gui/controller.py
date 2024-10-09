@@ -31,9 +31,11 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 class  SpikeinterfaceController(ControllerBase):
     def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None):
+                 curation=False, curation_data=None, label_definitions=None, with_traces=True):
         ControllerBase.__init__(self, parent=parent)
         
+        self.with_traces = with_traces
+
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
         
@@ -204,6 +206,9 @@ class  SpikeinterfaceController(ControllerBase):
             t0 = time.perf_counter()
             # print('')
         
+
+        self._traces_cached = {}
+
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
         if self.curation:
@@ -284,15 +289,23 @@ class  SpikeinterfaceController(ControllerBase):
     def get_traces(self, trace_source='preprocessed', **kargs):
         # assert trace_source in ['preprocessed', 'raw']
         assert trace_source in ['preprocessed']
+
+        cache_key = (kargs.get("segment_index", None), kargs.get("start_frame", None), kargs.get("end_frame", None))
+        if cache_key in self._traces_cached:
+            return self._traces_cached[cache_key]
+        
+        if len(self._traces_cached) > 4:
+            self._traces_cached.pop(list(self._traces_cached.keys())[0])
         
         if trace_source == 'preprocessed':
             rec = self.analyzer.recording
         elif trace_source == 'raw':
             raise NotImplemented
             # TODO get with parent recording the non process recording
-            pass
         kargs['return_scaled'] = self.return_scaled
         traces = rec.get_traces(**kargs)
+        # put in cache for next call
+        self._traces_cached[cache_key] = traces
         return traces
     
     def get_contact_location(self):
