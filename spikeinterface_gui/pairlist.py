@@ -119,7 +119,7 @@ class PairListView(WidgetBase):
         self.controller.unit_visible_dict[k1] = True
         self.controller.unit_visible_dict[k2] = True
 
-        self.controller.update_visible_spikes()
+        # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
 
     def open_context_menu(self):

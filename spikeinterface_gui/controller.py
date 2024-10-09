@@ -252,9 +252,16 @@ class  SpikeinterfaceController(ControllerBase):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
+
+    def on_unit_visibility_changed(self):
+        # hook to update also the indices on spikes
+        self.update_visible_spikes()
+        super().on_unit_visibility_changed()
+    
+
     def update_visible_spikes(self):
-        #~ print('update_visible_spikes')
-        #~ t0 = time.perf_counter()
+        # print('update_visible_spikes')
+        # t0 = time.perf_counter()
         
         inds = []
         for unit_index, unit_id in enumerate(self.unit_ids):
@@ -269,8 +276,9 @@ class  SpikeinterfaceController(ControllerBase):
         self._spike_visible_indices = inds
         
         self._spike_selected_indices = np.array([], dtype='int64')
-        #~ t1 = time.perf_counter()
-        #~ print('update_visible_spikes', t1-t0, self.spikes.size)
+
+        # t1 = time.perf_counter()
+        # print('update_visible_spikes', t1-t0, self.spikes.size)
     
     def get_indices_spike_visible(self):
         return self._spike_visible_indices

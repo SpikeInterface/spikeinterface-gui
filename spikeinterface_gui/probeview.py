@@ -44,8 +44,8 @@ class ProbeView(WidgetBase):
     _params = [
             #~ {'name': 'colormap', 'type': 'list', 'value': 'inferno', 'values': ['inferno', 'summer', 'viridis', 'jet'] },
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
-            {'name': 'radius_channel', 'type': 'float', 'value': 40.},
-            {'name': 'radius_units', 'type': 'float', 'value': 10.},
+            {'name': 'radius_channel', 'type': 'float', 'value': 50.},
+            {'name': 'radius_units', 'type': 'float', 'value': 30.},
             # {'name': 'roi_channel', 'type': 'bool', 'value': True},
             # {'name': 'roi_units', 'type': 'bool', 'value': True},
             {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
@@ -222,7 +222,7 @@ class ProbeView(WidgetBase):
             dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
             for unit_index, unit_id in enumerate(self.controller.unit_ids):
                 self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
-            self.controller.update_visible_spikes()
+            # self.controller.update_visible_spikes()
             self.unit_visibility_changed.emit()
             self.on_unit_visibility_changed(auto_zoom=False)
                 
@@ -302,7 +302,7 @@ class ProbeView(WidgetBase):
             self.roi_units.setPos(x - r, y - r)
             self.roi_units.blockSignals(False)
 
-            self.controller.update_visible_spikes()
+            # self.controller.update_visible_spikes()
             self.on_unit_visibility_changed()
             self.unit_visibility_changed.emit()
 

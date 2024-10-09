@@ -97,6 +97,10 @@ class SpikeModel(QT.QAbstractItemModel):
         self.visible_ind = self.controller.get_indices_spike_visible()
         self.layoutChanged.emit()
 
+    def clear(self):
+        self.visible_ind = np.array([])
+        self.layoutChanged.emit()
+
 
 class SpikeListView(WidgetBase):
     _params = [
@@ -142,7 +146,7 @@ class SpikeListView(WidgetBase):
     
     def refresh_label(self):
         n1 = self.controller.spikes.size
-        n2 = self.model.visible_ind.size
+        n2 = self.controller.get_indices_spike_visible().size
         n3 = self.controller.get_indices_spike_selected().size
         txt = f'<b>All spikes</b> : {n1} - <b>visible</b> : {n2} - <b>selected</b> : {n3}'
         self.label.setText(txt)
@@ -175,7 +179,8 @@ class SpikeListView(WidgetBase):
     def on_unit_visibility_changed(self):
         # we cannot refresh this list in real time whil moving channel/unit visibility
         # it is too slow.
-        pass
+        self.refresh_label()
+        self.model.clear()
 
     def on_spike_selection_changed(self):
         self.tree.selectionModel().selectionChanged.disconnect(self.on_tree_selection)
