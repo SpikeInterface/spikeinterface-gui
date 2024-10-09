@@ -15,14 +15,25 @@ format or folder organisation. This gui is built on top of spikeinterface object
 (Recording, Sorting, SortingAnalyzer)
 These objects are "lazy" and retrieve data on the fly (no copy!).
 
+
+This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
+And so, this viewer is a local desktop app (old school!!).
+There is a web based viewer [here](https://github.com/magland/sortingview).
+
+![screenshot](screenshot.png)
+
+
 ## main usage
 
 The main idea is make visible one or several unit and visualy inspect if they should be merge or remove.
 For this visibility:
   * ctlr + double click on a unit in *probeview*
-  * double click on one unit in *unitlist*
+  * check the box visible in the *unitlist* 
+  * double click on one unit in *unitlist* unit visible alone
+  * move one of the roi in the *probeview*
 
-Views can be reorganized by moving docks
+Views can be reorganized by moving docks by clicking in the title bar of a docks.
+Any dock (view) can be closed. And can be put back with right click in any title bar of any dock.
 
 Every view has a **?** button which open the contextual help. **Theses inplace docs are the most important stuff to be read**. (but the contains typos)
 
@@ -30,7 +41,7 @@ When some units are visible, the related spike list can be refresh.
 Then selecting spike per spike can also refersh some views.
 This enable a very quick and convinient spike per spike jump on traces.
 
-Channel visibility can be handled with the roi in the probeview.
+Channel visibility can be handled with one of the roi in the probeview.
 
 
 ## curation mode
@@ -47,17 +58,12 @@ When this mode is activated a new view is added on top left to maintain the list
 The curation format can be exported to json.
 
 
-This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
-And so, this viewer is a local desktop app (old school!!).
-There is a web based viewer [here](https://github.com/magland/sortingview).
-
-![screenshot](screenshot.png)
-
 ## Important note
 
-The actual `main` branch is using the new `SortingAnalyzer` object from spikeinterface which is not released yet.
-You can expect some small bugs.
-If you want visualize the old `WaveformExtractor` from spikeinterface<=0.100.1 you need to go back to version spikeinterface-gui=0.8.0.
+The actual `main` branch is using the new `SortingAnalyzer` object from spikeinterface, so you need at least version **0.101.0** of 
+spikeinterface and be familiar with the `SortingAnalyzer` concept.
+
+
 
 ## Launch
 
@@ -137,6 +143,13 @@ With the command line
 ```bash
 sigui /path/for/my/sorting_analyzer
 ```
+
+
+The command line support some otions like *--notraces* or *--curation*
+```bash
+sigui  --no-traces --curation /path/for/my/sorting_analyzer
+```
+
 
 
 ## With curation mode
