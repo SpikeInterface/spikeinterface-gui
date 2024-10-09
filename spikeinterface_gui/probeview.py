@@ -16,7 +16,6 @@ class MyViewBox(pg.ViewBox):
     ctrl_doubleclicked = QT.pyqtSignal(float, float)
     
     def mouseDoubleClickEvent(self, ev):
-        print('mouseDoubleClickEvent')
         pos = self.mapToView(ev.pos())
         x, y = pos.x(), pos.y()
         if ev.modifiers() == QT.ControlModifier:
@@ -45,9 +44,10 @@ class ProbeView(WidgetBase):
     _params = [
             #~ {'name': 'colormap', 'type': 'list', 'value': 'inferno', 'values': ['inferno', 'summer', 'viridis', 'jet'] },
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
-            {'name': 'radius', 'type': 'float', 'value': 40.},
-            {'name': 'roi_change_channel_visibility', 'type': 'bool', 'value': True},
-            {'name': 'roi_change_unit_visibility', 'type': 'bool', 'value': False},
+            {'name': 'radius_channel', 'type': 'float', 'value': 50.},
+            {'name': 'radius_units', 'type': 'float', 'value': 30.},
+            # {'name': 'roi_channel', 'type': 'bool', 'value': True},
+            # {'name': 'roi_units', 'type': 'bool', 'value': True},
             {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
             {'name': 'method_localize_unit', 'type': 'list', 'limits': possible_localization_methods},
             
@@ -117,13 +117,20 @@ class ProbeView(WidgetBase):
             self.plot.addItem(label)
             self.channel_labels.append(label)
 
-        radius = self.params['radius']
+        radius = self.params['radius_channel']
         x, y = self.contact_positions.mean(axis=0)
-        self.roi = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#7F7F0C') #pen=(4,9),
-        self.plot.addItem(self.roi)
+        self.roi_channel = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#7F7F0C') #pen=(4,9),
+        self.plot.addItem(self.roi_channel)
+        self.roi_channel.sigRegionChanged.connect(self.on_roi_channel_changed)
+        # self.roi_channel.sigRegionChangeFinished.connect(self.on_roi_channel_changed)
         
-        self.roi.sigRegionChanged.connect(self.on_roi_change)
-        
+
+        radius = self.params['radius_units']
+        x, y = self.contact_positions.mean(axis=0)
+        self.roi_units = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#d68910') #pen=(4,9),
+        self.plot.addItem(self.roi_units)
+        self.roi_units.sigRegionChangeFinished.connect(self.on_roi_units_changed)
+
         # units
         #~ self.unit_positions
         unit_positions = self.controller.unit_positions
@@ -145,14 +152,16 @@ class ProbeView(WidgetBase):
 
     
     def _refresh(self):
-        r = self.roi.state['size'][0] / 2
-        x = self.roi.state['pos'].x() + r
-        y = self.roi.state['pos'].y() + r
+        r, x, y = circle_from_roi(self.roi_channel)
+        radius = self.params['radius_channel']
+        self.roi_channel.setSize(radius * 2)
+        self.roi_channel.setPos(x - radius, y-radius)
 
-        radius = self.params['radius']
-        self.roi.setSize(radius * 2)
-        self.roi.setPos(x - radius, y-radius)
-        
+        r, x, y = circle_from_roi(self.roi_units)
+        radius = self.params['radius_units']
+        self.roi_units.setSize(radius * 2)
+        self.roi_units.setPos(x - radius, y-radius)
+
         
         if self.params['show_channel_id']:
             for label in self.channel_labels:
@@ -163,9 +172,7 @@ class ProbeView(WidgetBase):
             
     
     def update_channel_visibility_from_roi(self, emit_signals=False):
-            r = self.roi.state['size'][0] / 2
-            x = self.roi.state['pos'].x() + r
-            y = self.roi.state['pos'].y() + r
+            r, x, y = circle_from_roi(self.roi_channel)
         
             dist = np.sqrt(np.sum((self.contact_positions - np.array([[x, y]]))**2, axis=1))
             visible_channel_inds,  = np.nonzero(dist < r)
@@ -177,35 +184,59 @@ class ProbeView(WidgetBase):
                 self.channel_visibility_changed.emit()
 
     
-    def on_roi_change(self, emit_signals=True):
+    def on_roi_channel_changed(self, emit_signals=True):
         
-        r = self.roi.state['size'][0] / 2
-        x = self.roi.state['pos'].x() + r
-        y = self.roi.state['pos'].y() + r
+        r, x, y = circle_from_roi(self.roi_channel)
         
         self.params.blockSignals(True)
-        self.params['radius'] = r
+        self.params['radius_channel'] = r
         self.params.blockSignals(False)
         
         if emit_signals:
-            self.roi.blockSignals(True)
-            if self.params['roi_change_channel_visibility']:
-                self.update_channel_visibility_from_roi(emit_signals=True)
+            self.roi_channel.blockSignals(True)
+            # if self.params['roi_channel']:
+            
+            self.update_channel_visibility_from_roi(emit_signals=True)
 
-            if self.params['roi_change_unit_visibility']:
-                #~ t0 = time.perf_counter()
-                dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
-                for unit_index, unit_id in enumerate(self.controller.unit_ids):
-                    self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
-                #~ t1 = time.perf_counter()
-                #~ print(' probe view part1 change_unit_visibility', t1-t0)
-                self.controller.update_visible_spikes()
-                self.unit_visibility_changed.emit()
-                self.on_unit_visibility_changed(auto_zoom=False)
-                #~ t2 = time.perf_counter()
-                #~ print(' probe view part2 change_unit_visibility', t2-t0)
+            # if self.params['roi_units']:
+            #     dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
+            #     for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            #         self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
+            #     self.controller.update_visible_spikes()
+            #     self.unit_visibility_changed.emit()
+            #     self.on_unit_visibility_changed(auto_zoom=False)
                 
-            self.roi.blockSignals(False)
+            self.roi_channel.blockSignals(False)
+    
+    def on_roi_units_changed(self, emit_signals=True):
+        r, x, y = circle_from_roi(self.roi_units)
+
+        self.params.blockSignals(True)
+        self.params['radius_units'] = r
+        self.params.blockSignals(False)
+
+
+        if emit_signals:
+            self.roi_units.blockSignals(True)
+
+            dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
+            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
+            # self.controller.update_visible_spikes()
+            self.unit_visibility_changed.emit()
+            self.on_unit_visibility_changed(auto_zoom=False)
+                
+            self.roi_units.blockSignals(False)
+        
+        # also change channel
+        self.roi_channel.blockSignals(True)
+        radius = self.params['radius_channel']
+        self.roi_channel.setPos(x - radius, y - radius)
+        self.roi_channel.blockSignals(False)
+        self.on_roi_channel_changed(emit_signals=True)
+            
+
+
     
     def on_unit_visibility_changed(self, auto_zoom=None):
         # this change the ROI and so change also channel_visibility
@@ -214,11 +245,17 @@ class ProbeView(WidgetBase):
         if n == 1:
             unit_index  = np.nonzero(visible_mask)[0][0]
             x, y = self.controller.unit_positions[unit_index, :]
-            radius = self.params['radius']
-            self.roi.blockSignals(True)
-            self.roi.setPos(x - radius, y - radius)
-            self.roi.blockSignals(False)
-            self.on_roi_change(emit_signals=False)
+            radius = self.params['radius_channel']
+            self.roi_channel.blockSignals(True)
+            self.roi_channel.setPos(x - radius, y - radius)
+            self.roi_channel.blockSignals(False)
+            self.on_roi_channel_changed(emit_signals=False)
+            radius = self.params['radius_units']
+            self.roi_units.blockSignals(True)
+            self.roi_units.setPos(x - radius, y - radius)
+            self.roi_units.blockSignals(False)
+            self.on_roi_units_changed(emit_signals=False)
+
             self.update_channel_visibility_from_roi(emit_signals=True)
         
         # change scatter pen for selection
@@ -249,20 +286,27 @@ class ProbeView(WidgetBase):
         distances = np.sum((unit_positions - pos) **2, axis=1) ** 0.5
         ind = np.argmin(distances)
         if distances[ind] < 5.:
-            radius = self.params['radius']
+            radius = self.params['radius_channel']
             unit_id = self.controller.unit_ids[ind]
             if multi_select:
                 self.controller.unit_visible_dict[unit_id] = not(self.controller.unit_visible_dict[unit_id])
             else:
                 self.controller.unit_visible_dict = {unit_id:False for unit_id in self.controller.unit_ids}
                 self.controller.unit_visible_dict[unit_id] = True
-                self.roi.blockSignals(True)
-                self.roi.setPos(x - radius, y - radius)
-                self.roi.blockSignals(False)
+                self.roi_channel.blockSignals(True)
+                self.roi_channel.setPos(x - radius, y - radius)
+                self.roi_channel.blockSignals(False)
 
-            self.controller.update_visible_spikes()
+            r, _, _ = circle_from_roi(self.roi_units)
+            self.roi_units.blockSignals(True)
+            self.roi_units.setPos(x - r, y - r)
+            self.roi_units.blockSignals(False)
+
+            # self.controller.update_visible_spikes()
             self.on_unit_visibility_changed()
             self.unit_visibility_changed.emit()
+
+
     
     def on_add_units(self, x, y):
         self.on_pick_unit(x, y, multi_select=True)
@@ -279,6 +323,13 @@ class ProbeView(WidgetBase):
         self.refresh()
     
     #~ def compute_unit_positions
+
+def circle_from_roi(roi):
+    r = roi.state['size'][0] / 2
+    x = roi.state['pos'].x() + r
+    y = roi.state['pos'].y() + r
+    return r, x, y
+
 
 
 ProbeView._gui_help_txt = """Probe view

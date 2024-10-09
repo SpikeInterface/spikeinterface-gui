@@ -136,7 +136,8 @@ class WidgetBase(QT.QWidget):
         self.refresh()
     
     def on_spike_selection_changed(self):
-        self.refresh()
+        pass
+        # self.refresh()
 
     def on_spike_label_changed(self):
         self.refresh()

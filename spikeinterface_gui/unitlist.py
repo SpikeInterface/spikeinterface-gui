@@ -205,7 +205,7 @@ class UnitListView(WidgetBase):
         unit_id = item.unit_id
         self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
 
-        self.controller.update_visible_spikes()
+        # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
     def on_double_clicked(self, row, col):
@@ -216,7 +216,7 @@ class UnitListView(WidgetBase):
         self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
 
-        self.controller.update_visible_spikes()
+        # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
     def open_context_menu(self):
@@ -227,7 +227,7 @@ class UnitListView(WidgetBase):
             self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
 
-        self.controller.update_visible_spikes()
+        # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
     
     def hide_all(self):
@@ -235,7 +235,7 @@ class UnitListView(WidgetBase):
             self.controller.unit_visible_dict[unit_id] = False
         self.refresh()
 
-        self.controller.update_visible_spikes()
+        # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
 
     def _get_selected_rows(self):
@@ -259,7 +259,7 @@ class UnitListView(WidgetBase):
         for unit_id in self.get_selected_unit_ids():
             self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
-        self.controller.update_visible_spikes()
+        # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
         # self.table.set
         # self.table.setCurrentCell(rows[0], None, QT.QItemSelectionModel.Select)

@@ -1,6 +1,2 @@
-waveformheatmap : channel select global or common channel : have an option
-
-
-views:
-  * trace heatmap
-  * raster plot
+ * widget compute
+ * preset

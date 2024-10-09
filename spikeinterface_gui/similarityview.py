@@ -10,12 +10,16 @@ from .tools import ParamDialog
 
 
 class MyViewBox(pg.ViewBox):
-    clicked = QT.pyqtSignal(float, float)
+    clicked = QT.pyqtSignal(float, float, bool)
     doubleclicked = QT.pyqtSignal()
     def mouseClickEvent(self, ev):
         pos = self.mapToView(ev.pos())
         x, y = pos.x(), pos.y()
-        self.clicked.emit(x, y)
+        if ev.modifiers() == QT.ControlModifier:
+            self.clicked.emit(x, y, False)
+        else:
+            self.clicked.emit(x, y, True)
+
         ev.accept()
         
     def mouseDoubleClickEvent(self, ev):
@@ -158,7 +162,7 @@ class SimilarityView(WidgetBase):
                 self._text_items.append(item)
             pos += 1
     
-    def select_pair(self, x, y):
+    def select_pair(self, x, y, reset):
         unit_ids = self.controller.unit_ids
         
         if self.params['show_all']:
@@ -178,8 +182,12 @@ class SimilarityView(WidgetBase):
         unti_id0 = unit_ids[int(np.floor(x))]
         unti_id1 = unit_ids[int(np.floor(y))]
         
-        for unit_id in unit_ids:
-            self.controller.unit_visible_dict[unit_id] = unit_id in (unti_id0, unti_id1)
+        if reset:
+            for unit_id in unit_ids:
+                self.controller.unit_visible_dict[unit_id] = False
+        self.controller.unit_visible_dict[unti_id0] = True
+        self.controller.unit_visible_dict[unti_id1] = True
+
         self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
         
@@ -188,4 +196,6 @@ class SimilarityView(WidgetBase):
 
 SimilarityView._gui_help_txt = """Similarity view
 Check similarity between units with user-selectable metrics
-Mouse click : make one pair of units visible."""
+Mouse click : make one pair of units visible.
+Mouse click + CTRL: append pair to visible units.
+"""
