@@ -7,7 +7,7 @@ from .base import WidgetBase
 from .tools import ParamDialog, CustomItem, find_category, LabelComboBox
 
 
-_column_names = ['unit_id', 'visible', 'num_spikes', 'channel_id', 'sparsity']
+_column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
 
 # TODO: Save categories / labels
 
@@ -140,7 +140,8 @@ class UnitListView(WidgetBase):
             self.table.setItem(i,0, item)
             item.setIcon(icon)
             
-            item = QT.QTableWidgetItem('')
+            # item = QT.QTableWidgetItem('')
+            item = OrderableCheckItem('')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable|QT.Qt.ItemIsUserCheckable)
             item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict.get(unit_id, False)])
             self.table.setItem(i,1, item)
@@ -150,26 +151,42 @@ class UnitListView(WidgetBase):
             item = CustomItem(f'{num_spike}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 2, item)
+
+            x = float(self.controller.unit_positions[i, 0])
+            item = CustomItem(f'{x:0.1f}')
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table.setItem(i, 3, item)
+
+            y = float(self.controller.unit_positions[i, 1])
+            item = CustomItem(f'{y:0.1f}')
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table.setItem(i, 4, item)
+
+
+            
             
             channel_index = self.controller.get_extremum_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
             item = CustomItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 3, item)
+            self.table.setItem(i, 5, item)
             
             num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
             item = CustomItem(f'{num_chan}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 4, item)
+            self.table.setItem(i, 6, item)
 
+
+
+            n_first = len(_column_names)
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
                     label = self.controller.get_unit_label(unit_id, category)
-                    item = LabelComboBox(i, 5 + ix, label_def['label_options'], self)
+                    item = LabelComboBox(i, n_first + ix, label_def['label_options'], self)
                     item.set_label(label)
                     item.remove_label_clicked.connect(self.on_remove_label)
                     item.label_changed.connect(self.on_label_changed)
-                    self.table.setCellWidget(i, 5 + ix, item)
+                    self.table.setCellWidget(i, n_first + ix, item)
 
             if with_metrics:
                 for m, col in enumerate(metrics.columns):
@@ -178,7 +195,7 @@ class UnitListView(WidgetBase):
                         item = CustomItem(f'{v:0.2f}')
                     else:
                         item = CustomItem(f'{v}')
-                    self.table.setItem(i, 5 + num_labels + m, item)
+                    self.table.setItem(i, n_first + num_labels + m, item)
 
         for i in range(5):
             self.table.resizeColumnToContents(i)
@@ -286,10 +303,23 @@ class UnitListView(WidgetBase):
         self.refresh()
 
 
+
+class OrderableCheckItem(QT.QTableWidgetItem):
+
+    def is_checked(self):
+        checked = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[self.checkState()]
+        return checked
+
+    def __lt__(self, other):
+        comp = float(self.is_checked()) < float(other.is_checked())
+        return comp
+
+
 UnitListView._gui_help_txt = """Unit list
 This control the visibility of units : check/uncheck visible
 Check box : make visible or unvisible
 Double click on a row : make it visible  alone
 Right click : context menu (delete or merge if curation=True)
 """
+
 
