@@ -35,7 +35,7 @@ class PairListView(WidgetBase):
 
     _similarity_params = [
         {'name': 'threshold_similarity', 'type': 'float', 'value': .9, 'step': 0.01},
-        {'name': 'method', 'type': 'list', 'limits': ['l1', '2', 'cosine']},
+        {'name': 'method', 'type': 'list', 'limits': ['l1', 'l2', 'cosine']},
     ]
 
     _need_compute = True
