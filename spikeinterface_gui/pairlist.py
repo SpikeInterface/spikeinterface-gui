@@ -13,30 +13,29 @@ class PairListView(WidgetBase):
     """
     """
     _automerge_params = [
-        # {'name': 'threshold_similarity', 'type': 'float', 'value' :.9, 'step' : 0.01},
-        # {'name': 'threshold_ratio_similarity', 'type': 'float', 'value' :.8, 'step' : 0.01},
+        {'name': 'preset', 'type': 'list', 'limits': ['similarity_correlograms', 'temporal_splits', 'x_contaminations', 'feature_neighbors']},
 
-        {'name': 'minimum_spikes', 'type': 'int', 'value': 1000},
-        {'name': 'maximum_distance_um', 'type': 'float', 'value': 150.},
-        {'name': 'peak_sign', 'type': 'list', 'values': ['neg', 'pos', 'both']},
-        {'name': 'bin_ms', 'type': 'float', 'value': 0.25, 'step': 0.05},
-        {'name': 'window_ms', 'type': 'float', 'value': 100., 'step': 1.},
-        {'name': 'corr_diff_thresh', 'type': 'float', 'value': .16, 'step': 0.01},
-        {'name': 'template_diff_thresh', 'type': 'float', 'value': .25, 'step': 0.01},
-        {'name': 'censored_period_ms', 'type': 'float', 'value': .3, 'step': 0.01},
-        {'name': 'refractory_period_ms', 'type': 'float', 'value': 1.0, 'step': 0.1},
-        {'name': 'sigma_smooth_ms', 'type': 'float', 'value': 0.6, 'step': 0.1},
-        {'name': 'contamination_threshold', 'type': 'float', 'value': .2, 'step': 0.01},
-        {'name': 'adaptative_window_threshold', 'type': 'float', 'value': .5, 'step': 0.01},
-        {'name': 'censor_correlograms_ms', 'type': 'float', 'value': .15, 'step': 0.01},
-        {'name': 'num_channels', 'type': 'int', 'value': 5},
-        {'name': 'num_shift', 'type': 'int', 'value': 5},
-        {'name': 'firing_contamination_balance', 'type': 'float', 'value': 1.5, 'step': 0.1},
+        # {'name': 'minimum_spikes', 'type': 'int', 'value': 1000},
+        # {'name': 'maximum_distance_um', 'type': 'float', 'value': 150.},
+        # {'name': 'peak_sign', 'type': 'list', 'values': ['neg', 'pos', 'both']},
+        # {'name': 'bin_ms', 'type': 'float', 'value': 0.25, 'step': 0.05},
+        # {'name': 'window_ms', 'type': 'float', 'value': 100., 'step': 1.},
+        # {'name': 'corr_diff_thresh', 'type': 'float', 'value': .16, 'step': 0.01},
+        # {'name': 'template_diff_thresh', 'type': 'float', 'value': .25, 'step': 0.01},
+        # {'name': 'censored_period_ms', 'type': 'float', 'value': .3, 'step': 0.01},
+        # {'name': 'refractory_period_ms', 'type': 'float', 'value': 1.0, 'step': 0.1},
+        # {'name': 'sigma_smooth_ms', 'type': 'float', 'value': 0.6, 'step': 0.1},
+        # {'name': 'contamination_threshold', 'type': 'float', 'value': .2, 'step': 0.01},
+        # {'name': 'adaptative_window_threshold', 'type': 'float', 'value': .5, 'step': 0.01},
+        # {'name': 'censor_correlograms_ms', 'type': 'float', 'value': .15, 'step': 0.01},
+        # {'name': 'num_channels', 'type': 'int', 'value': 5},
+        # {'name': 'num_shift', 'type': 'int', 'value': 5},
+        # {'name': 'firing_contamination_balance', 'type': 'float', 'value': 1.5, 'step': 0.1},
     ]
 
     _similarity_params = [
         {'name': 'threshold_similarity', 'type': 'float', 'value': .9, 'step': 0.01},
-        {'name': 'method', 'type': 'list', 'limits': ['cosine_similarity']},
+        {'name': 'method', 'type': 'list', 'limits': ['l1', '2', 'cosine']},
     ]
 
     _need_compute = True
@@ -52,14 +51,14 @@ class PairListView(WidgetBase):
         # self.combo_select = QT.QComboBox()
         # self.combo_select.addItems(['all pairs', 'high similarity'])
 
-        h = QT.QHBoxLayout()
-        self.layout.addLayout(h)
-        h.addWidget(QT.QLabel('Sort by'))
-        self.combo_sort = QT.QComboBox()
-        self.combo_sort.addItems(['label', 'similarity', 'ratio_similarity'])
-        self.combo_sort.currentIndexChanged.connect(self.refresh)
-        h.addWidget(self.combo_sort)
-        h.addStretch()
+        # h = QT.QHBoxLayout()
+        # self.layout.addLayout(h)
+        # h.addWidget(QT.QLabel('Sort by'))
+        # self.combo_sort = QT.QComboBox()
+        # self.combo_sort.addItems(['label', 'similarity', 'ratio_similarity'])
+        # self.combo_sort.currentIndexChanged.connect(self.refresh)
+        # h.addWidget(self.combo_sort)
+        # h.addStretch()
 
         self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
@@ -267,7 +266,9 @@ class PairListView(WidgetBase):
         # Depending on the method we set the parameters
         if ch_method == 'automerge':
             params = ParamDialog(self._automerge_params, title='Automerge parameters').get()
+            print(params)
             self.pairs, self.merge_info = self.controller.compute_auto_merge(**params)
+            print(self.pairs, self.merge_info)
         elif ch_method == 'similarity':
             params = ParamDialog(self._similarity_params, title='Similarity parameters').get()
             similarity = self.controller.compute_similarity(params['method'])

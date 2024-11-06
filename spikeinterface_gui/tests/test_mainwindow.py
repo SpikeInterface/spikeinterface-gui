@@ -1,4 +1,4 @@
-# import PySide6
+import PySide6
 import spikeinterface_gui as sigui
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
@@ -77,9 +77,9 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
 if __name__ == '__main__':
     # setup_module()
     
-    test_mainwindow(interactive=True)
+    # test_mainwindow(interactive=True)
     # test_mainwindow(interactive=True, verbose=True, only_some_extensions=True)
-    # test_mainwindow(interactive=True, curation=True)
+    test_mainwindow(interactive=True, curation=True)
 
     # import spikeinterface.widgets as sw
     # sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")

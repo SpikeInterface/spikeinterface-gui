@@ -13,7 +13,7 @@ from spikeinterface.core import get_template_extremum_channel
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-from spikeinterface.curation import get_potential_auto_merge
+
 from spikeinterface.core.core_tools import check_json
 
 
@@ -422,15 +422,17 @@ class  SpikeinterfaceController(ControllerBase):
         return self._potential_merges
 
     def compute_auto_merge(self, **params):
+        
+        from spikeinterface.curation import compute_merge_unit_groups
 
-        potential_merges, extra = get_potential_auto_merge(
+        merge_unit_groups, extra = compute_merge_unit_groups(
             self.analyzer,
-
             extra_outputs=True,
-            steps=None,
-            **params
+            resolve_graph=False
         )
-        return potential_merges, extra
+        print('compute_auto_merge', merge_unit_groups)
+
+        return merge_unit_groups, extra
     
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
