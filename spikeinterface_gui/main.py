@@ -11,10 +11,27 @@ from spikeinterface_gui import MainWindow, mkQApp
 
 
 
-def run_mainwindow(analyzer_folder, with_traces=True, curation=False):
+def run_mainwindow(
+        analyzer,
+        with_traces=True,
+        curation=False,
+        curation_dict=None,
+        label_definitions=None,
+        displayed_units_properties=None,
+        extra_units_properties=None,
+    ):
+
     app = mkQApp()
-    analyzer = load_sorting_analyzer(analyzer_folder)
-    win = MainWindow(analyzer, with_traces=with_traces, curation=curation)
+    
+    win = MainWindow(
+        analyzer,
+        with_traces=with_traces,
+        curation=curation,
+        curation_dict=curation_dict,
+        label_definitions=label_definitions,
+        displayed_units_properties=displayed_units_properties,
+        extra_units_properties=extra_units_properties,
+    )
     win.show()
     app.exec()
 
@@ -35,6 +52,7 @@ def run_mainwindow_cli():
     if analyzer_folder is None:
         print('You must specify the analyzer folder like this: sigui /path/to/my/analyzer/folder')
         exit()
+    analyzer = load_sorting_analyzer(analyzer_folder)
     
-    run_mainwindow(analyzer_folder, with_traces=not(args.no_traces), curation=args.curation)
+    run_mainwindow(analyzer, with_traces=not(args.no_traces), curation=args.curation)
     

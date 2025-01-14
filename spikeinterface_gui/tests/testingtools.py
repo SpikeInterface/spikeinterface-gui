@@ -94,6 +94,10 @@ def make_analyzer_folder(test_folder, num_probe=1):
     sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
 
 
+    qm = sorting_analyzer.get_extension("quality_metrics").get_data()
+    print(qm.index)
+    print(qm.index.dtype)
+    print(sorting_analyzer.unit_ids.dtype)
     
 if __name__ == '__main__':
     from pathlib import Path
@@ -122,3 +126,7 @@ if __name__ == '__main__':
     qmc = sorting_analyzer.get_extension('quality_metrics')
     # print(qmc.get_data())
     
+    qm = sorting_analyzer.get_extension("quality_metrics").get_data()
+    print(qm.index)
+    print(qm.index.dtype)
+    print(sorting_analyzer.unit_ids.dtype)

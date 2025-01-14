@@ -9,8 +9,17 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,analyzer,  parent=None, verbose=False, curation=False, curation_data=None, label_definitions=None,
-                 with_traces=True):
+    def __init__(self,
+        analyzer,
+        parent=None,
+        verbose=False, 
+        with_traces=True,
+        curation=False,
+        curation_dict=None,
+        label_definitions=None,
+        displayed_units_properties=None,
+        extra_units_properties=None,
+    ):
         QT.QMainWindow.__init__(self, parent)
         
         self.verbose = verbose
@@ -22,8 +31,11 @@ class MainWindow(QT.QMainWindow):
             print('Controller:')
             t0 = time.perf_counter()
         self.controller = SpikeinterfaceController(analyzer, verbose=verbose,
-                                                   curation=curation, curation_data=curation_data, label_definitions=label_definitions,
-                                                   with_traces=with_traces)
+                                                   curation=curation, curation_data=curation_dict,
+                                                   label_definitions=label_definitions,
+                                                   with_traces=with_traces,
+                                                   displayed_units_properties=displayed_units_properties,
+                                                   extra_units_properties=extra_units_properties)
         
         if verbose:
             t1 = time.perf_counter()

@@ -13,8 +13,8 @@ from spikeinterface.core import get_template_extremum_channel
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-
 from spikeinterface.core.core_tools import check_json
+from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 
 
@@ -29,9 +29,14 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 # TODO handle return_scaled
 
 
+_default_displayed_units_properties = ['x', 'y', 'snr', ]
+
+
 class  SpikeinterfaceController(ControllerBase):
     def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True):
+                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
+                 displayed_units_properties=None,
+                 extra_units_properties=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.with_traces = with_traces
@@ -208,6 +213,11 @@ class  SpikeinterfaceController(ControllerBase):
         
 
         self._traces_cached = {}
+
+        if displayed_units_properties is None:
+            displayed_units_properties = list(_default_displayed_units_properties)
+        self.displayed_units_properties = displayed_units_properties
+        self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_units_properties)
 
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
@@ -418,6 +428,9 @@ class  SpikeinterfaceController(ControllerBase):
         self.isi_histograms, self.isi_bins = ext.get_data()
         return self.isi_histograms, self.isi_bins
 
+    def get_units_table(self):
+        return self.units_table
+
     def get_merge_list(self):
         return self._potential_merges
 
@@ -439,6 +452,7 @@ class  SpikeinterfaceController(ControllerBase):
 
     def construct_final_curation(self):
         d = dict()
+        d["format_version"] = "1"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
         return d

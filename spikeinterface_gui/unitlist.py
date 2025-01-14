@@ -7,7 +7,13 @@ from .base import WidgetBase
 from .tools import ParamDialog, CustomItem, find_category, LabelComboBox
 
 
-_column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+# _column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+
+
+_internal_column_names = ['unit_id', 'visible',  'num_spikes', 'channel_id', 'sparsity']
+
+# _first_column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+
 
 # TODO: Save categories / labels
 
@@ -94,31 +100,36 @@ class UnitListView(WidgetBase):
         self.table.itemChanged.disconnect(self.on_item_changed)
         
         self.table.clear()
-        labels = list(_column_names)
-        
-        if self.controller.handle_metrics():
-            with_metrics = self.checkbox_metrics.isChecked()
-        else:
-            with_metrics = False
+
+        # internal labels
+        column_labels = list(_internal_column_names)
 
         if self.controller.curation:
             label_definitions = self.controller.get_curation_label_definitions()
             num_labels = len(label_definitions)
-            labels += [k for k, label_def in label_definitions.items()]
+            column_labels += [k for k, label_def in label_definitions.items()]
         else:
             label_definitions = None
             num_labels = 0
+        
+        column_labels += self.controller.displayed_units_properties
+        
+        # if self.controller.handle_metrics():
+        #     with_metrics = self.checkbox_metrics.isChecked()
+        # else:
+        #     with_metrics = False
+
 
 
         # categories = [cat['name'] for cat in self.categories]
         # labels += categories
 
-        if with_metrics:
-            metrics = self.controller.metrics
-            labels += list(metrics.columns)
+        # if with_metrics:
+        #     metrics = self.controller.metrics
+        #     labels += list(metrics.columns)
         
-        self.table.setColumnCount(len(labels))
-        self.table.setHorizontalHeaderLabels(labels)
+        self.table.setColumnCount(len(column_labels))
+        self.table.setHorizontalHeaderLabels(column_labels)
 
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.open_context_menu)
@@ -129,6 +140,8 @@ class UnitListView(WidgetBase):
         
         self.table.setRowCount(len(unit_ids))
         self.table.setSortingEnabled(False)
+
+        # internal_column_names
         for i, unit_id in enumerate(unit_ids):
             color = self.controller.qcolors.get(unit_id, QT.QColor( 'black'))
             pix = QT.QPixmap(16,16)
@@ -152,19 +165,16 @@ class UnitListView(WidgetBase):
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 2, item)
 
-            x = float(self.controller.unit_positions[i, 0])
-            item = CustomItem(f'{x:0.1f}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 3, item)
+            # x = float(self.controller.unit_positions[i, 0])
+            # item = CustomItem(f'{x:0.1f}')
+            # item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            # self.table.setItem(i, 3, item)
 
-            y = float(self.controller.unit_positions[i, 1])
-            item = CustomItem(f'{y:0.1f}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 4, item)
+            # y = float(self.controller.unit_positions[i, 1])
+            # item = CustomItem(f'{y:0.1f}')
+            # item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            # self.table.setItem(i, 4, item)
 
-
-            
-            
             channel_index = self.controller.get_extremum_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
             item = CustomItem(f'{channel_id}')
@@ -178,7 +188,7 @@ class UnitListView(WidgetBase):
 
 
 
-            n_first = len(_column_names)
+            n_first = len(_internal_column_names)
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
                     label = self.controller.get_unit_label(unit_id, category)
@@ -188,9 +198,11 @@ class UnitListView(WidgetBase):
                     item.label_changed.connect(self.on_label_changed)
                     self.table.setCellWidget(i, n_first + ix, item)
 
-            if with_metrics:
-                for m, col in enumerate(metrics.columns):
-                    v = metrics.loc[unit_id, col]
+            # if with_metrics:
+            if True:
+                
+                for m, col in enumerate(self.controller.displayed_units_properties):
+                    v = self.controller.units_table.loc[unit_id, col]
                     if isinstance(v, float):
                         item = CustomItem(f'{v:0.2f}')
                     else:

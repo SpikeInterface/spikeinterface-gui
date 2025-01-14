@@ -94,7 +94,7 @@ sorting = si.run_sorter('YYYYY', recording_filtered)
 job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
 # make the SortingAnalyzer with necessary and some optional extensions
-sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
+sorting_analyzer = si.create_sorting_analyzer(sorting, recording_filtered,
                                               format="binary_folder", folder="/my_sorting_analyzer",
                                               **job_kwargs)
 sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
