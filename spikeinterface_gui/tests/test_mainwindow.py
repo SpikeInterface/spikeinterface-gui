@@ -1,5 +1,6 @@
 import PySide6
 import spikeinterface_gui as sigui
+from spikeinterface_gui import run_mainwindow
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
@@ -22,8 +23,9 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_extensions=False):
-    app = sigui.mkQApp()
+def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False):
+
+
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
@@ -62,38 +64,39 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
         print(analyzer)
 
 
+    n = analyzer.unit_ids.size
+    analyzer.sorting.set_property(key='yep', values=np.array([f"yep{i}" for i in range(n)]))
 
-    # win = sigui.MainWindow(analyzer, verbose=verbose, curation=curation, curation_dict=curation_dict)
+    extra_unit_properties = dict(
+        yop=np.array([f"yop{i}" for i in range(n)]),
+        yip=np.array([f"yip{i}" for i in range(n)]),
+    )
     
-    # if interactive:
-    #     win.show()
-    #     app.exec()
-    # else:
-    #     # close thread properly
-    #     win.close()
-
-    print(analyzer.unit_ids, analyzer.unit_ids.dtype)
-    print(analyzer.sorting.unit_ids, analyzer.sorting.unit_ids.dtype)
-
-    analyzer.sorting.set_property(key='yep', values=np.array(["a", ] * len(analyzer.unit_ids)))
-
-    from spikeinterface.widgets import plot_sorting_summary
-    plot_sorting_summary(analyzer, backend='spikeinterface_gui',
-                         curation=curation, curation_dict=curation_dict,
-                         displayed_units_properties=["x","y", "snr"],
-                         )
-
+    if from_si_api:
+        from spikeinterface.widgets import plot_sorting_summary
+        plot_sorting_summary(analyzer, backend='spikeinterface_gui',
+                            curation=curation, curation_dict=curation_dict,
+                            displayed_unit_properties=None,
+                            extra_unit_properties=extra_unit_properties,
+                            )
+    else:
+        run_mainwindow(analyzer, start_qt_app=start_qt_app, verbose=verbose,
+                        curation=curation, curation_dict=curation_dict, 
+                        displayed_unit_properties=None,
+                        extra_unit_properties=extra_unit_properties,
+                        )
 
 
 
 
 
 if __name__ == '__main__':
-    setup_module()
+    # setup_module()
     
-    # test_mainwindow(interactive=True)
-    # test_mainwindow(interactive=True, verbose=True, only_some_extensions=True)
-    # test_mainwindow(interactive=True, curation=True)
+    # test_mainwindow(start_qt_app=True)
+    # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
+    test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
+    # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)
 
     # import spikeinterface.widgets as sw
     # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")

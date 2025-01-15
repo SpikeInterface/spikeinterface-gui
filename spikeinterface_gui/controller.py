@@ -27,16 +27,14 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 
 # TODO handle return_scaled
-
-
-_default_displayed_units_properties = ['x', 'y', 'snr', ]
+from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
 
 class  SpikeinterfaceController(ControllerBase):
     def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_units_properties=None,
-                 extra_units_properties=None):
+                 displayed_unit_properties=None,
+                 extra_unit_properties=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.with_traces = with_traces
@@ -214,10 +212,14 @@ class  SpikeinterfaceController(ControllerBase):
 
         self._traces_cached = {}
 
-        if displayed_units_properties is None:
-            displayed_units_properties = list(_default_displayed_units_properties)
-        self.displayed_units_properties = displayed_units_properties
-        self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_units_properties)
+        self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
+        if displayed_unit_properties is None:
+            displayed_unit_properties = list(_default_displayed_unit_properties)
+            if extra_unit_properties is not None:
+                displayed_unit_properties += list(extra_unit_properties.keys())
+        displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
+        self.displayed_unit_properties = displayed_unit_properties
+        
 
         self.curation = curation
         # TODO: Reload the dictionary if it already exists

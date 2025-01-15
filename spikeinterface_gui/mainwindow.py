@@ -17,8 +17,8 @@ class MainWindow(QT.QMainWindow):
         curation=False,
         curation_dict=None,
         label_definitions=None,
-        displayed_units_properties=None,
-        extra_units_properties=None,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
     ):
         QT.QMainWindow.__init__(self, parent)
         
@@ -34,8 +34,8 @@ class MainWindow(QT.QMainWindow):
                                                    curation=curation, curation_data=curation_dict,
                                                    label_definitions=label_definitions,
                                                    with_traces=with_traces,
-                                                   displayed_units_properties=displayed_units_properties,
-                                                   extra_units_properties=extra_units_properties)
+                                                   displayed_unit_properties=displayed_unit_properties,
+                                                   extra_unit_properties=extra_unit_properties)
         
         if verbose:
             t1 = time.perf_counter()

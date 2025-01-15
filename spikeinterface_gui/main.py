@@ -3,6 +3,8 @@ import os
 import argparse
 
 from spikeinterface import load_sorting_analyzer
+
+# this force the loding of spikeinterface sub module
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 
@@ -17,23 +19,30 @@ def run_mainwindow(
         curation=False,
         curation_dict=None,
         label_definitions=None,
-        displayed_units_properties=None,
-        extra_units_properties=None,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        start_qt_app=True,
+        verbose=False,
     ):
+    """
+    Create the main window and start the QT app loop.
+    """
 
     app = mkQApp()
     
     win = MainWindow(
         analyzer,
+        verbose=verbose,
         with_traces=with_traces,
         curation=curation,
         curation_dict=curation_dict,
         label_definitions=label_definitions,
-        displayed_units_properties=displayed_units_properties,
-        extra_units_properties=extra_units_properties,
+        displayed_unit_properties=displayed_unit_properties,
+        extra_unit_properties=extra_unit_properties,
     )
     win.show()
-    app.exec()
+    if start_qt_app:
+        app.exec()
 
 
 def run_mainwindow_cli():
