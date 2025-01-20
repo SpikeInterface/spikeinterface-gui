@@ -33,7 +33,7 @@ class MyViewBox(pg.ViewBox):
 
 class SimilarityView(WidgetBase):
     _params = [
-            {'name': 'method', 'type': 'list', 'limits' : ['cosine_similarity',] },
+            {'name': 'method', 'type': 'list', 'limits' : ['l1', 'l2', 'cosine'] },
             {'name': 'colormap', 'type': 'list', 'limits' : ['viridis', 'jet', 'gray', 'hot', ] },
             {'name': 'show_all', 'type': 'bool', 'value' : True },
         ]

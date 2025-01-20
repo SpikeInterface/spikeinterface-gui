@@ -1,2 +1,4 @@
  * widget compute
  * preset
+ * unit list with deph
+ * no trace on waveform view when non rec

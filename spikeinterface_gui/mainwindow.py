@@ -9,8 +9,17 @@ from .viewlist import possible_class_views
 
 
 class MainWindow(QT.QMainWindow):
-    def __init__(self,analyzer,  parent=None, verbose=False, curation=False, curation_data=None, label_definitions=None,
-                 with_traces=True):
+    def __init__(self,
+        analyzer,
+        parent=None,
+        verbose=False, 
+        with_traces=True,
+        curation=False,
+        curation_dict=None,
+        label_definitions=None,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+    ):
         QT.QMainWindow.__init__(self, parent)
         
         self.verbose = verbose
@@ -22,8 +31,11 @@ class MainWindow(QT.QMainWindow):
             print('Controller:')
             t0 = time.perf_counter()
         self.controller = SpikeinterfaceController(analyzer, verbose=verbose,
-                                                   curation=curation, curation_data=curation_data, label_definitions=label_definitions,
-                                                   with_traces=with_traces)
+                                                   curation=curation, curation_data=curation_dict,
+                                                   label_definitions=label_definitions,
+                                                   with_traces=with_traces,
+                                                   displayed_unit_properties=displayed_unit_properties,
+                                                   extra_unit_properties=extra_unit_properties)
         
         if verbose:
             t1 = time.perf_counter()
@@ -37,8 +49,8 @@ class MainWindow(QT.QMainWindow):
         
         # list
         self.add_one_view('spikelist', area='left')
-        self.add_one_view('pairlist', split='spikelist', orientation='horizontal')
-        self.add_one_view('unitlist', tabify='pairlist')
+        self.add_one_view('mergelist', split='spikelist', orientation='horizontal')
+        self.add_one_view('unitlist', tabify='mergelist')
         if self.controller.curation:
             self.add_one_view('curation', tabify='spikelist')
             # self.docks['spikelist'].raise_()

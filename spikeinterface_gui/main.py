@@ -4,6 +4,8 @@ import numpy as np
 
 from spikeinterface import load_sorting_analyzer, load_extractor
 from spikeinterface.core.core_tools import is_path_remote
+
+# this force the loding of spikeinterface sub module
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 
@@ -11,14 +13,64 @@ from spikeinterface_gui import MainWindow, mkQApp
 
 
 
+def run_mainwindow(
+    analyzer,
+    with_traces=True,
+    curation=False,
+    curation_dict=None,
+    label_definitions=None,
+    displayed_unit_properties=None,
+    extra_unit_properties=None,
+    recording=None,
+    start_qt_app=True,
+    verbose=False,
+):
+    """
+    Create the main window and start the QT app loop.
 
-def run_mainwindow(analyzer, with_traces=True, curation=False, recording=None):
+    Parameters
+    ----------
+    analyzer: SortingAnalyzer
+        The sorting analyzer object
+    with_traces: bool, default: True
+        If True, traces are displayed
+    curation: bool, default: False
+        If True, the curation panel is displayed
+    curation_dict: dict | None, default: None
+        The curation dictionary to start from an existing curation
+    label_definitions: dict | None, default: None
+        The label definitions to provide to the curation panel
+    displayed_unit_properties: list | None, default: None
+        The displayed unit properties in the unit table
+    extra_unit_properties: list | None, default: None
+        The extra unit properties in the unit table
+    recording: RecordingExtractor | None, default: None
+        The recording object to display traces. This can be used when the 
+        SortingAnalyzer is recordingless.
+    start_qt_app: bool, default: True
+        If True, the QT app loop is started
+    verbose: bool, default: False
+        If True, print some information in the console
+    """
+
     app = mkQApp()
+
     if recording is not None:
         analyzer.set_temporary_recording(recording)
-    win = MainWindow(analyzer, with_traces=with_traces, curation=curation)
+    
+    win = MainWindow(
+        analyzer,
+        verbose=verbose,
+        with_traces=with_traces,
+        curation=curation,
+        curation_dict=curation_dict,
+        label_definitions=label_definitions,
+        displayed_unit_properties=displayed_unit_properties,
+        extra_unit_properties=extra_unit_properties,
+    )
     win.show()
-    app.exec()
+    if start_qt_app:
+        app.exec()
 
 
 def run_mainwindow_cli():
@@ -32,7 +84,6 @@ def run_mainwindow_cli():
     parser.add_argument('--preprocess-recording', choices=['none', 'highpass', 'bandpass'], help='Preprocess the recording', default='none')
     
     args = parser.parse_args(argv)
-    # print(args)
 
     analyzer_folder = args.analyzer_folder
     if analyzer_folder is None:

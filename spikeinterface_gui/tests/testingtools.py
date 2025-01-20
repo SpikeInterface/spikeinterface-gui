@@ -88,12 +88,16 @@ def make_analyzer_folder(test_folder, num_probe=1):
     sorting_analyzer.compute("unit_locations")
     ext = sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1., method="numba")
     sorting_analyzer.compute("correlograms", window_ms=50., bin_ms=1.)
-    sorting_analyzer.compute("template_similarity")
+    sorting_analyzer.compute("template_similarity", method="l1")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
     sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
     sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
 
 
+    qm = sorting_analyzer.get_extension("quality_metrics").get_data()
+    print(qm.index)
+    print(qm.index.dtype)
+    print(sorting_analyzer.unit_ids.dtype)
     
 if __name__ == '__main__':
     from pathlib import Path
@@ -122,3 +126,7 @@ if __name__ == '__main__':
     qmc = sorting_analyzer.get_extension('quality_metrics')
     # print(qmc.get_data())
     
+    qm = sorting_analyzer.get_extension("quality_metrics").get_data()
+    print(qm.index)
+    print(qm.index.dtype)
+    print(sorting_analyzer.unit_ids.dtype)

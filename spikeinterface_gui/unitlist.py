@@ -7,7 +7,13 @@ from .base import WidgetBase
 from .tools import ParamDialog, CustomItem, find_category, LabelComboBox
 
 
-_column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+# _column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+
+
+
+
+# _first_column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+
 
 # TODO: Save categories / labels
 
@@ -15,6 +21,9 @@ _column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 's
 class UnitListView(WidgetBase):
     """
     """
+
+    _params = [] # this is a hack to create the settings button
+
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)
 
@@ -24,11 +33,12 @@ class UnitListView(WidgetBase):
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
-        if self.controller.handle_metrics():
-            self.checkbox_metrics = QT.QCheckBox('metrics')
-            self.checkbox_metrics.setChecked(True)
-            h.addWidget(self.checkbox_metrics)
-            self.checkbox_metrics.stateChanged.connect(self.refresh)
+
+        # if self.controller.handle_metrics():
+        #     self.checkbox_metrics = QT.QCheckBox('metrics')
+        #     self.checkbox_metrics.setChecked(True)
+        #     h.addWidget(self.checkbox_metrics)
+        #     self.checkbox_metrics.stateChanged.connect(self.refresh)
         
         # self.categories = self._basic_categories.copy()
         # self.labels_btn = QT.QPushButton('Labels')
@@ -46,6 +56,31 @@ class UnitListView(WidgetBase):
         shortcut_visible.activated.connect(self.on_visible_shortcut)
         self.make_menu()
         
+        self.refresh()
+
+
+    def create_settings(self):
+        # hack to use settings to control visible columns
+
+        params = []
+        for col in self.controller.units_table.columns:
+            params.append(
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
+            )
+        self.params = pg.parametertree.Parameter.create( name='Visible', type='group', children=params)
+        
+        self.tree_params = pg.parametertree.ParameterTree(parent=self)
+        self.tree_params.header().hide()
+        self.tree_params.setParameters(self.params, showTop=True)
+        self.tree_params.setWindowTitle(u'Options for waveforms hist viewer')
+        self.tree_params.setWindowFlags(QT.Qt.Window)
+        
+        self.params.sigTreeStateChanged.connect(self.on_params_changed)
+
+    def on_params_changed(self):
+        
+        new_displayed = [col for col in self.controller.units_table.columns if self.params[col]]
+        self.controller.displayed_unit_properties = new_displayed
         self.refresh()
 
     # def update_labels(self):
@@ -94,31 +129,39 @@ class UnitListView(WidgetBase):
         self.table.itemChanged.disconnect(self.on_item_changed)
         
         self.table.clear()
-        labels = list(_column_names)
-        
-        if self.controller.handle_metrics():
-            with_metrics = self.checkbox_metrics.isChecked()
-        else:
-            with_metrics = False
+
+
+        internal_column_names = ['unit_id', 'visible',  'channel_id', 'sparsity']
+
+        # internal labels
+        column_labels = list(internal_column_names)
 
         if self.controller.curation:
             label_definitions = self.controller.get_curation_label_definitions()
             num_labels = len(label_definitions)
-            labels += [k for k, label_def in label_definitions.items()]
+            column_labels += [k for k, label_def in label_definitions.items()]
         else:
             label_definitions = None
             num_labels = 0
+        
+        column_labels += self.controller.displayed_unit_properties
+        
+        # if self.controller.handle_metrics():
+        #     with_metrics = self.checkbox_metrics.isChecked()
+        # else:
+        #     with_metrics = False
+
 
 
         # categories = [cat['name'] for cat in self.categories]
         # labels += categories
 
-        if with_metrics:
-            metrics = self.controller.metrics
-            labels += list(metrics.columns)
+        # if with_metrics:
+        #     metrics = self.controller.metrics
+        #     labels += list(metrics.columns)
         
-        self.table.setColumnCount(len(labels))
-        self.table.setHorizontalHeaderLabels(labels)
+        self.table.setColumnCount(len(column_labels))
+        self.table.setHorizontalHeaderLabels(column_labels)
 
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.open_context_menu)
@@ -129,6 +172,8 @@ class UnitListView(WidgetBase):
         
         self.table.setRowCount(len(unit_ids))
         self.table.setSortingEnabled(False)
+
+        # internal_column_names
         for i, unit_id in enumerate(unit_ids):
             color = self.controller.qcolors.get(unit_id, QT.QColor( 'black'))
             pix = QT.QPixmap(16,16)
@@ -140,45 +185,26 @@ class UnitListView(WidgetBase):
             self.table.setItem(i,0, item)
             item.setIcon(icon)
             
-            # item = QT.QTableWidgetItem('')
             item = OrderableCheckItem('')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable|QT.Qt.ItemIsUserCheckable)
             item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict.get(unit_id, False)])
             self.table.setItem(i,1, item)
             item.unit_id = unit_id
             
-            num_spike = self.controller.num_spikes[unit_id]
-            item = CustomItem(f'{num_spike}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 2, item)
-
-            x = float(self.controller.unit_positions[i, 0])
-            item = CustomItem(f'{x:0.1f}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 3, item)
-
-            y = float(self.controller.unit_positions[i, 1])
-            item = CustomItem(f'{y:0.1f}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 4, item)
-
-
-            
-            
             channel_index = self.controller.get_extremum_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
             item = CustomItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 5, item)
+            self.table.setItem(i, 2, item)
             
             num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
             item = CustomItem(f'{num_chan}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 6, item)
+            self.table.setItem(i, 3, item)
 
 
 
-            n_first = len(_column_names)
+            n_first = len(internal_column_names)
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
                     label = self.controller.get_unit_label(unit_id, category)
@@ -188,9 +214,11 @@ class UnitListView(WidgetBase):
                     item.label_changed.connect(self.on_label_changed)
                     self.table.setCellWidget(i, n_first + ix, item)
 
-            if with_metrics:
-                for m, col in enumerate(metrics.columns):
-                    v = metrics.loc[unit_id, col]
+            # if with_metrics:
+            if True:
+                
+                for m, col in enumerate(self.controller.displayed_unit_properties):
+                    v = self.controller.units_table.loc[unit_id, col]
                     if isinstance(v, float):
                         item = CustomItem(f'{v:0.2f}')
                     else:

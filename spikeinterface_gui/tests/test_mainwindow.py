@@ -1,5 +1,6 @@
-# import PySide6
+import PySide6
 import spikeinterface_gui as sigui
+from spikeinterface_gui import run_mainwindow
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
@@ -9,6 +10,8 @@ import spikeinterface.qualitymetrics
 
 
 from pathlib import Path
+
+import numpy as np
 
 test_folder = Path('my_dataset')
 
@@ -20,16 +23,17 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_extensions=False):
-    app = sigui.mkQApp()
-    sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
-    # sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer.zarr")
+def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False):
 
-    print(sorting_analyzer)
+
+    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
+
+    print(analyzer)
 
     if curation:
-        unit_ids = sorting_analyzer.unit_ids.tolist()
-        curation_data = {
+        unit_ids = analyzer.unit_ids.tolist()
+        curation_dict = {
             "unit_ids": unit_ids,
             "label_definitions": {
                 "quality":{
@@ -50,25 +54,37 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
             "removed_units": unit_ids[5:8],
         }
     else:
-        curation_data = None
+        curation_dict = None
     
     if only_some_extensions:
-        sorting_analyzer = sorting_analyzer.copy()
-        # sorting_analyzer._recording = None
+        analyzer = analyzer.copy()
+        # analyzer._recording = None
         for k in ("principal_components", "template_similarity", "spike_amplitudes"):
-            sorting_analyzer.delete_extension(k)
-        print(sorting_analyzer)
+            analyzer.delete_extension(k)
+        print(analyzer)
 
 
+    n = analyzer.unit_ids.size
+    analyzer.sorting.set_property(key='yep', values=np.array([f"yep{i}" for i in range(n)]))
 
-    win = sigui.MainWindow(sorting_analyzer, verbose=verbose, curation=curation, curation_data=curation_data)
+    extra_unit_properties = dict(
+        yop=np.array([f"yop{i}" for i in range(n)]),
+        yip=np.array([f"yip{i}" for i in range(n)]),
+    )
     
-    if interactive:
-        win.show()
-        app.exec()
+    if from_si_api:
+        from spikeinterface.widgets import plot_sorting_summary
+        plot_sorting_summary(analyzer, backend='spikeinterface_gui',
+                            curation=curation, curation_dict=curation_dict,
+                            displayed_unit_properties=None,
+                            extra_unit_properties=extra_unit_properties,
+                            )
     else:
-        # close thread properly
-        win.close()
+        run_mainwindow(analyzer, start_qt_app=start_qt_app, verbose=verbose,
+                        curation=curation, curation_dict=curation_dict, 
+                        displayed_unit_properties=None,
+                        extra_unit_properties=extra_unit_properties,
+                        )
 
 
 
@@ -77,10 +93,11 @@ def test_mainwindow(interactive=False, verbose=True, curation=False, only_some_e
 if __name__ == '__main__':
     # setup_module()
     
-    test_mainwindow(interactive=True)
-    # test_mainwindow(interactive=True, verbose=True, only_some_extensions=True)
-    # test_mainwindow(interactive=True, curation=True)
+    # test_mainwindow(start_qt_app=True)
+    # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
+    test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
+    # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)
 
     # import spikeinterface.widgets as sw
-    # sorting_analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
