@@ -49,8 +49,8 @@ class MainWindow(QT.QMainWindow):
         
         # list
         self.add_one_view('spikelist', area='left')
-        self.add_one_view('pairlist', split='spikelist', orientation='horizontal')
-        self.add_one_view('unitlist', tabify='pairlist')
+        self.add_one_view('mergelist', split='spikelist', orientation='horizontal')
+        self.add_one_view('unitlist', tabify='mergelist')
         if self.controller.curation:
             self.add_one_view('curation', tabify='spikelist')
             # self.docks['spikelist'].raise_()

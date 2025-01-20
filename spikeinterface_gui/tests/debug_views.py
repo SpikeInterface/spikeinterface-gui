@@ -29,7 +29,7 @@ def debug_one_view():
     # view0 = sigui.UnitListView(controller=controller)
     # view0.show()
     #~ view = sigui.SpikeListView(controller=controller)
-    view = sigui.PairListView(controller=controller)
+    view = sigui.MergeView(controller=controller)
     #~ view = sigui.TraceView(controller=controller)
     #~ view = sigui.WaveformView(controller=controller)
     #~ view = sigui.WaveformHeatMapView(controller=controller)

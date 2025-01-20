@@ -9,7 +9,7 @@ from .tools import ParamDialog, get_dict_from_group_param, CustomItem
 from .curation_tools import adding_group
 
 
-class PairListView(WidgetBase):
+class MergeView(WidgetBase):
     """
     """
     _automerge_params = [
@@ -255,7 +255,7 @@ class PairListView(WidgetBase):
 
 
 
-PairListView._gui_help_txt = """Auto merge list selection.
+MergeView._gui_help_txt = """Merge proposal.
 Click compute to select similarity or to use the `get_potential_auto_merges` function
 Click on a row to make visible a unique pair of unit.
 Double click to accept the merge.
