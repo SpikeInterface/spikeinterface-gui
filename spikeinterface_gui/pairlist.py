@@ -13,7 +13,10 @@ class PairListView(WidgetBase):
     """
     """
     _automerge_params = [
-        {'name': 'preset', 'type': 'list', 'limits': ['similarity_correlograms', 'temporal_splits', 'x_contaminations', 'feature_neighbors']},
+        {'name': 'preset', 'type': 'list', 'limits': [
+            'similarity_correlograms', 'temporal_splits', 'x_contaminations', 'feature_neighbors'
+            ]
+        },
 
         # {'name': 'minimum_spikes', 'type': 'int', 'value': 1000},
         # {'name': 'maximum_distance_um', 'type': 'float', 'value': 150.},
@@ -70,9 +73,7 @@ class PairListView(WidgetBase):
         shortcut_merge = QT.QShortcut(self)
         shortcut_merge.setKey(QT.QKeySequence('m'))
         shortcut_merge.activated.connect(self.on_merge_shorcut)
-        self.pairs = self.controller.get_merge_list()
-
-
+        self.proposed_merge_unit_groups = [] # self.controller.get_merge_list()
 
         self.refresh()
 
@@ -82,41 +83,42 @@ class PairListView(WidgetBase):
             return
         return inds[0].row()
 
-    def _get_selected_pair_id(self):
+    def _get_selected_group_ids(self):
         row_ix = self._get_selected_row()
         if row_ix is None:
             return None, None
         item = self.table.item(row_ix, 0)
-        k1, k2 = item.unit_id_pair
-        return row_ix, (k1, k2)
+        group_ids = item.group_ids
+        return row_ix, group_ids
 
     def on_double_click(self, item):
-        k1, k2 = item.unit_id_pair
-        self.accept_pair(k1, k2)
+        self.accept_group_merge(item.group_ids)
     
     def on_merge_shorcut(self):
-        row_ix, pair = self._get_selected_pair_id()
-        if pair is None:
+        row_ix, group_ids = self._get_selected_group_ids()
+        if group_ids is None:
             return
-        print(pair)
-        self.accept_pair(*pair)
+        self.accept_group_merge(group_ids)
         n_rows = self.table.rowCount()
         self.table.setCurrentCell(min(n_rows - 1, row_ix + 1), 0)
 
-    def accept_pair(self, k1, k2):
-        self.controller.make_manual_merge_if_possible([k1, k2])
+    def accept_group_merge(self, group_ids):
+        self.controller.make_manual_merge_if_possible(group_ids)
         self.manual_curation_updated.emit()
         self.refresh()
 
     def on_item_selection_changed(self):
-        r = self._get_selected_pair_id()
+        r = self._get_selected_group_ids()
         if r is None:
             return
-        _, (k1, k2) = r
-        for k in self.controller.unit_visible_dict:
+        row_ix, group_ids = r
+        if group_ids is None:
+            return
+        
+        for k in self.controller.unit_ids:
             self.controller.unit_visible_dict[k] = False
-        self.controller.unit_visible_dict[k1] = True
-        self.controller.unit_visible_dict[k2] = True
+        for unit_id in group_ids:
+            self.controller.unit_visible_dict[unit_id] = True
 
         # self.controller.update_visible_spikes()
         self.unit_visibility_changed.emit()
@@ -124,83 +126,47 @@ class PairListView(WidgetBase):
     def open_context_menu(self):
         self.menu.popup(self.cursor().pos())
 
-    # def do_merge(self):
-    #     if len(self.table.selectedIndexes())==0:
-    #         return
-    #     ind = self.table.selectedIndexes()[0].row()
-
-    #     label_to_merge = list(self.pairs[ind])
-    #     self.controller.merge_cluster(label_to_merge)
-    #     self.refresh()
-    #     self.spike_label_changed.emit()
-
-    # def do_tag_same_cell(self):
-    #     if len(self.table.selectedIndexes())==0:
-    #         return
-    #     ind = self.table.selectedIndexes()[0].row()
-
-    #     label_to_merge = list(self.pairs[ind])
-    #     self.controller.tag_same_cell(label_to_merge)
-    #     self.refresh()
-    #     self.cluster_tag_changed.emit()
-
     def _refresh(self):
         self.table.clear()
         self.table.setSortingEnabled(False)
-        labels = ['unit_id1', 'unit_id2']
-        potential_labels = {'similarity', 'correlogram_diff', 'templates_diff'}
-        for lbl in self.merge_info.keys():
-            if lbl in potential_labels:
-                labels.append(lbl)
-        self.table.setColumnCount(len(labels))
-        self.table.setHorizontalHeaderLabels(labels)
+        # labels = ['unit_id0', 'unit_id1']
+        # self.table.setColumnCount(len(labels))
+        # self.table.setHorizontalHeaderLabels(labels)
+
+        if self.proposed_merge_unit_groups is None or len(self.proposed_merge_unit_groups) == 0:
+            self.table.setColumnCount(0)
+            self.table.setRowCount(0)
+            return
+
+
         self.table.setColumnWidth(0, 100)
         self.table.setColumnWidth(1, 100)
 
-        if self.pairs is None:
-            return
 
-            # select
-        # mode = self.combo_select.currentText()
-        # if mode == 'all pairs':
-        #     unit_ids = self.controller.unit_ids
-        #     self.pairs = list(itertools.combinations(unit_ids, 2))
-        # elif mode == 'high similarity':
-        #     self.pairs = self.controller.detect_high_similarity(threshold=self.params['threshold_similarity'])
+        max_group_size = max(len(g) for g in self.proposed_merge_unit_groups)
 
-        # sort
-        # mode = self.combo_sort.currentText()
-        # order = np.arange(len(self.pairs))
-        # if mode == 'label':
-        #     pass
-        # elif mode == 'similarity':
-        #     if self.controller.cluster_similarity is not None:
-        #         order = []
-        #         for r in range(len(self.pairs)):
-        #             k1, k2 = self.pairs[r]
-        #             ind1 = self.controller.positive_cluster_labels.tolist().index(k1)
-        #             ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
-        #             order.append(self.controller.cluster_similarity[ind1, ind2])
-        #         order = np.argsort(order)[::-1]
-        # ~ elif mode == 'ratio_similarity':
-        # ~ if self.controller.cluster_ratio_similarity is not None:
-        # ~ order = []
-        # ~ for r in range(len(self.pairs)):
-        # ~ k1, k2 = self.pairs[r]
-        # ~ ind1 = self.controller.positive_cluster_labels.tolist().index(k1)
-        # ~ ind2 = self.controller.positive_cluster_labels.tolist().index(k2)
-        # ~ order.append(self.controller.cluster_ratio_similarity[ind1, ind2])
-        # ~ order = np.argsort(order)[::-1]
-        # self.pairs = [self.pairs[i] for i in order ]
+        potential_labels = {'similarity', 'correlogram_diff', 'templates_diff'}
+        more_labels = []
+        for lbl in self.merge_info.keys():
+            if lbl in potential_labels:
+                if max_group_size == 2:
+                    more_labels.append(lbl)
+                else:
+                    more_labels.append([lbl+"_min", lbl+"_max"])
 
-        self.table.setRowCount(len(self.pairs))
+        labels = [f'unit_id{i}' for i in range(max_group_size)] + more_labels
 
-        for r in range(len(self.pairs)):
-            unit_id1, unit_id2 = self.pairs[r]
-            # ind1 = self.controller.unit_ids.tolist().index(unit_id1)
-            # ind2 = self.controller.unit_ids.tolist().index(unit_id2)
+        self.table.setColumnCount(len(labels))
+        self.table.setHorizontalHeaderLabels(labels)
 
-            for c, unit_id in enumerate((unit_id1, unit_id2)):
+        self.table.setRowCount(len(self.proposed_merge_unit_groups))
+        
+        print("self.proposed_merge_unit_groups", self.proposed_merge_unit_groups)
+
+        for r in range(len(self.proposed_merge_unit_groups)):
+            group_ids = self.proposed_merge_unit_groups[r]
+
+            for c, unit_id in enumerate(group_ids):
                 color = self.controller.qcolors.get(unit_id, QT.QColor('white'))
                 pix = QT.QPixmap(16, 16)
                 pix.fill(color)
@@ -215,32 +181,33 @@ class PairListView(WidgetBase):
                 item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
                 self.table.setItem(r, c, item)
                 item.setIcon(icon)
-                item.unit_id_pair = (unit_id1, unit_id2)
+                item.group_ids = group_ids
 
-            for c_ix, info_name in enumerate(labels[2:]):
-                info = self.merge_info[info_name][unit_id1][unit_id2]
-                item = CustomItem(f'{info:.2f}')
-                self.table.setItem(r, c_ix + 2, item)
+            # TODO similarity
 
-                # ~ cell_label = self.controller.cell_labels[self.controller.cluster_labels==k][0]
-                # ~ name = '{}'.format(cell_label)
-                # ~ item = QT.QTableWidgetItem(name)
-                # ~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-                # ~ self.table.setItem(r,c+2, item)
+            unit_ids = list(self.controller.unit_ids)
+            for c_ix, info_name in enumerate(more_labels):
+                # take all values in group and make min max
+                values = []
+                for unit_id1, unit_id2 in itertools.combinations(group_ids, 2):
+                    unit_ind1 = unit_ids.index(unit_id1)
+                    unit_ind2 = unit_ids.index(unit_id2)
+                    values.append(self.merge_info[info_name][unit_ind1][unit_ind2])
+                
+                if max_group_size == 2:
+                    # only pair, display value
+                    value = values[0]
+                    item = CustomItem(f'{value:.2f}')
+                    self.table.setItem(r, c_ix + max_group_size, item)
+                else:
+                    # display mix max
+                    min_, max_ = min(values), max(values)
+                    item = CustomItem(f'{min_:.2f}')
+                    self.table.setItem(r, c_ix//2 + max_group_size, item)
+                    item = CustomItem(f'{min_:.2f}')
+                    self.table.setItem(r, c_ix//2 + 1 + max_group_size, item)
+                
 
-            # ~ if self.controller.cluster_similarity is not None:
-            # ~ if self.controller.cluster_similarity.shape[0] == self.controller.positive_cluster_labels.size:
-            # ~ name = '{}'.format(self.controller.cluster_similarity[ind1, ind2])
-            # ~ item = QT.QTableWidgetItem(name)
-            # ~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            # ~ self.table.setItem(r,4, item)
-
-            # ~ if self.controller.cluster_ratio_similarity is not None:
-            # ~ if self.controller.cluster_ratio_similarity.shape[0] == self.controller.positive_cluster_labels.size:
-            # ~ name = '{}'.format(self.controller.cluster_ratio_similarity[ind1, ind2])
-            # ~ item = QT.QTableWidgetItem(name)
-            # ~ item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            # ~ self.table.setItem(r,5, item)
         for i in range(self.table.columnCount()):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
@@ -266,15 +233,21 @@ class PairListView(WidgetBase):
         # Depending on the method we set the parameters
         if ch_method == 'automerge':
             params = ParamDialog(self._automerge_params, title='Automerge parameters').get()
-            print(params)
-            self.pairs, self.merge_info = self.controller.compute_auto_merge(**params)
-            print(self.pairs, self.merge_info)
+            self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
+            # print(self.proposed_merge_unit_groups, self.merge_info)
+            print(self.proposed_merge_unit_groups)
+
         elif ch_method == 'similarity':
+            
             params = ParamDialog(self._similarity_params, title='Similarity parameters').get()
-            similarity = self.controller.compute_similarity(params['method'])
+            similarity = self.controller.get_similarity(params['method'])
+            if similarity is None:
+                similarity = self.controller.compute_similarity(params['method'])
             th_sim = similarity > params['threshold_similarity']
-            self.pairs = [(i, j) for i, j in zip(*np.nonzero(th_sim)) if i < j]
+            unit_ids = self.controller.unit_ids
+            self.proposed_merge_unit_groups = [[unit_ids[i], unit_ids[j]] for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
+            print("proposed_merge_unit_groups", self.proposed_merge_unit_groups)
 
         self.refresh()
 

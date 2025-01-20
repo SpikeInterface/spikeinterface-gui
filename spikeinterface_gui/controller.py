@@ -120,8 +120,8 @@ class  SpikeinterfaceController(ControllerBase):
         else:
             if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
                 # precompute similarity when low channel/units count
-                method = 'cosine_similarity'
-                ts_ext = analyzer.compute_one_extension('template_similarity', method=method)
+                method = 'l1'
+                ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
                 self._similarity_by_method[method] = ts_ext.get_data()
         
         self._potential_merges = None
@@ -159,6 +159,7 @@ class  SpikeinterfaceController(ControllerBase):
         unit_ids = self.analyzer.unit_ids
         num_seg = self.analyzer.get_num_segments()
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
+        # print("self.num_spikes", self.num_spikes)
 
         spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
         
@@ -172,7 +173,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.spikes['rand_selected'][:] = False
         self.spikes['rand_selected'][random_spikes_indices] = True
 
-        self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
+        # self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
         
@@ -360,9 +361,6 @@ class  SpikeinterfaceController(ControllerBase):
         chan_inds, = np.nonzero(sparsity_mask[unit_indexes, :].sum(axis=0) == len(unit_ids))
         return chan_inds
     
-    def detect_high_similarity(self, threshold=0.9):
-        return
-    
     def get_probegroup(self):
         return self.analyzer.get_probegroup()
 
@@ -396,11 +394,11 @@ class  SpikeinterfaceController(ControllerBase):
         else:
             return self.analyzer_sparsity.mask
 
-    def get_similarity(self, method='cosine_similarity'):
+    def get_similarity(self, method='l1'):
         similarity = self._similarity_by_method.get(method, None)
         return similarity
     
-    def compute_similarity(self, method='cosine_similarity'):
+    def compute_similarity(self, method='l1'):
         # have internal cache
         if method in self._similarity_by_method:
             return self._similarity_by_method[method]

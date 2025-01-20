@@ -83,8 +83,8 @@ class CurationView(WidgetBase):
         self.refresh()
 
     def _refresh(self):
-        print("curation refresh")
-        print(self.controller.curation_data)
+        # print("curation refresh")
+        # print(self.controller.curation_data)
         # Merged
         merged_units = self.controller.curation_data["merge_unit_groups"]
         self.table_merge.clear()
@@ -172,7 +172,7 @@ class CurationView(WidgetBase):
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
-            print(json_file)
+            # print(json_file)
             with json_file.open("w") as f:
                 curation_dict = check_json(self.controller.construct_final_curation())
                 json.dump(curation_dict, f, indent=4)
