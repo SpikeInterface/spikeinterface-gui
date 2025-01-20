@@ -94,7 +94,7 @@ sorting = si.run_sorter('YYYYY', recording_filtered)
 job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
 # make the SortingAnalyzer with necessary and some optional extensions
-sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
+sorting_analyzer = si.create_sorting_analyzer(sorting, recording_filtered,
                                               format="binary_folder", folder="/my_sorting_analyzer",
                                               **job_kwargs)
 sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
@@ -117,19 +117,14 @@ sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
 With python:
 
 ```python
-import spikeinterface_gui
-# This creates a Qt app
-app = spikeinterface_gui.mkQApp() 
+from spikeinterface_gui import run_mainwindow
 # reload the SortingAnalyzer
 sorting_analyzer = si.load_sorting_analyzer("/my_sorting_analyzer")
-# create the mainwindow and show
-win = spikeinterface_gui.MainWindow(sorting_analyzer)
-win.show()
-# run the main Qt6 loop
-app.exec_()
+# open and run the Qt app
+run_mainwindow(sorting_analyzer)
 ```
 
-Or simpler:
+Or from spikeinterface:
 
 ```python
   import spikeinterface.widgets as sw
@@ -162,11 +157,8 @@ I hope that this could be a fair replacement of `phy`.
 
 
 ```python
-import spikeinterface_gui
-app = spikeinterface_gui.mkQApp() 
-win = spikeinterface_gui.MainWindow(sorting_analyzer, curation=True)
-win.show()
-app.exec_()
+from spikeinterface_gui import run_mainwindow
+run_mainwindow(sorting_analyzer, curation=True)
 ```
 
 

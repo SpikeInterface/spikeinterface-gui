@@ -1,6 +1,6 @@
 from .unitlist import UnitListView
 from .spikelist import SpikeListView
-from .pairlist import PairListView
+from .mergeview import MergeView
 from .traceview import TraceView
 from .waveformview import WaveformView
 from .waveformheatmapview import WaveformHeatMapView
@@ -16,7 +16,7 @@ from .curationview import CurationView
 possible_class_views = dict(
     unitlist = UnitListView,
     spikelist = SpikeListView,
-    pairlist = PairListView,
+    mergelist = MergeView,
     traceview = TraceView,
     waveformview = WaveformView,
     waveformheatmapview = WaveformHeatMapView,

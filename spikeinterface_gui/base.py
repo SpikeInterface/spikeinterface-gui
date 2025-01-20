@@ -117,7 +117,7 @@ class WidgetBase(QT.QWidget):
         self.tree_params = pg.parametertree.ParameterTree(parent=self)
         self.tree_params.header().hide()
         self.tree_params.setParameters(self.params, showTop=True)
-        self.tree_params.setWindowTitle(u'Options for waveforms hist viewer')
+        self.tree_params.setWindowTitle(u'View options')
         self.tree_params.setWindowFlags(QT.Qt.Window)
         
         self.params.sigTreeStateChanged.connect(self.on_params_changed)
