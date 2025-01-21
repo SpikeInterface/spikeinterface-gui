@@ -19,6 +19,7 @@ class MainWindow(QT.QMainWindow):
         label_definitions=None,
         displayed_unit_properties=None,
         extra_unit_properties=None,
+        mode="full"
     ):
         QT.QMainWindow.__init__(self, parent)
         
@@ -35,7 +36,8 @@ class MainWindow(QT.QMainWindow):
                                                    label_definitions=label_definitions,
                                                    with_traces=with_traces,
                                                    displayed_unit_properties=displayed_unit_properties,
-                                                   extra_unit_properties=extra_unit_properties)
+                                                   extra_unit_properties=extra_unit_properties,
+                                                   mode=mode)
         
         if verbose:
             t1 = time.perf_counter()
@@ -58,7 +60,8 @@ class MainWindow(QT.QMainWindow):
         # on bottom left
         self.add_one_view('probeview', area='left')
         self.add_one_view('similarityview', split='probeview', orientation='horizontal')
-        
+
+
         self.add_one_view('ndscatterview', tabify='similarityview') # optional
         
         # on right
