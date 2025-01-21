@@ -235,7 +235,6 @@ class MergeView(WidgetBase):
             params = ParamDialog(self._automerge_params, title='Automerge parameters').get()
             self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
             # print(self.proposed_merge_unit_groups, self.merge_info)
-            print(self.proposed_merge_unit_groups)
 
         elif ch_method == 'similarity':
             
@@ -247,7 +246,6 @@ class MergeView(WidgetBase):
             unit_ids = self.controller.unit_ids
             self.proposed_merge_unit_groups = [[unit_ids[i], unit_ids[j]] for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
-            print("proposed_merge_unit_groups", self.proposed_merge_unit_groups)
 
         self.refresh()
 
@@ -256,7 +254,7 @@ class MergeView(WidgetBase):
 
 
 MergeView._gui_help_txt = """Merge proposal.
-Click compute to select similarity or to use the `get_potential_auto_merges` function
+Click "compute" button to select similarity or to use the `get_potential_auto_merges` function
 Click on a row to make visible a unique pair of unit.
-Double click to accept the merge.
+To accept the merge : double click one onr row  or press "m" key.
 """

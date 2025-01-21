@@ -16,7 +16,7 @@ empty_curation_data = {
 }
 
 def adding_group(previous_groups, new_group):
-    to_merge = [new_group.copy()]
+    to_merge = [list(new_group)]
     unchanged = []
     for c_prev in previous_groups:
         is_unaffected = True
