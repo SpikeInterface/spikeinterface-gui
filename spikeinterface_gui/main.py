@@ -2,7 +2,7 @@ import sys
 import argparse
 import numpy as np
 
-from spikeinterface import load_sorting_analyzer, load_extractor
+from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
 
 # this force the loding of spikeinterface sub module
@@ -81,7 +81,6 @@ def run_mainwindow_cli():
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
     parser.add_argument('--recording', help='Path to a file or path that can be loaded with load_extractor', default=None)
-    parser.add_argument('--preprocess-recording', choices=['none', 'highpass', 'bandpass'], help='Preprocess the recording', default='none')
     
     args = parser.parse_args(argv)
 
@@ -94,21 +93,16 @@ def run_mainwindow_cli():
     recording = None
     if args.recording is not None:
         try:
-            recording = load_extractor(args.recording)
+            recording = load(args.recording)
         except Exception as e:
             print('Error when loading recording. Please check the path or the file format')
         if recording is not None:
-            if args.preprocess_recording == 'highpass':
-                from spikeinterface.preprocessing import highpass_filter
-                recording = highpass_filter(recording)
-            elif args.preprocess_recording == 'bandpass':
-                from spikeinterface.preprocessing import bandpass_filter
-                recording = bandpass_filter(recording)
             if analyzer.get_num_channels() != recording.get_num_channels():
                 print('Recording and analyzer have different number of channels. Slicing recording')
                 channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
+                if np.sum(channel_mask) != analyzer.get_num_channels():
+                    raise ValueError('The recording does not have the same channel ids as the analyzer')
                 recording = recording.select_channels(recording.channel_ids[channel_mask])
-                recording = None
     
     run_mainwindow(analyzer, with_traces=not(args.no_traces), curation=args.curation, recording=recording)
     
