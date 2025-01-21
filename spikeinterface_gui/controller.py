@@ -4,6 +4,9 @@ import numpy as np
 
 import json
 
+from .base import ControllerBase
+from .myqt import QT
+
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel
@@ -12,9 +15,6 @@ import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
-
-from .base import ControllerBase
-from .myqt import QT
 
 from .curation_tools import adding_group, default_label_definitions, empty_curation_data
 
@@ -32,7 +32,7 @@ class  SpikeinterfaceController(ControllerBase):
     def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
-                 extra_unit_properties=None, mode="full"):
+                 extra_unit_properties=None):
         ControllerBase.__init__(self, parent=parent)
         
         self.with_traces = with_traces
@@ -131,16 +131,12 @@ class  SpikeinterfaceController(ControllerBase):
                 self._similarity_by_method[method] = ts_ext.get_data()
 
         # Non mandatory extensions :  can be None
-        if mode != "minimal":
-            if verbose:
-                print('\tLoading waveforms')
-            wf_ext = self.analyzer.get_extension('waveforms')
-            if verbose:
-                print('\tLoading principal_components')
-            pc_ext = analyzer.get_extension('principal_components')
-        else:
-            wf_ext = None
-            pc_ext = None
+        if verbose:
+            print('\tLoading waveforms')
+        wf_ext = self.analyzer.get_extension('waveforms')
+        if verbose:
+            print('\tLoading principal_components')
+        pc_ext = analyzer.get_extension('principal_components')
         self.waveforms_ext = wf_ext
         self.pc_ext = pc_ext
         self._pc_projections = None
@@ -247,7 +243,7 @@ class  SpikeinterfaceController(ControllerBase):
         # TODO: Reload the dictionary if it already exists
         if self.curation:
             # rules:
-            #  * if curation_data alreadye exists in folder then it is reloaded and has precedance
+            #  * if curation_data already exists in folder, then it is reloaded and has precedance
             #  * if not, then use curation_data argument input
             #  * otherwise create an empty one
 
@@ -390,7 +386,7 @@ class  SpikeinterfaceController(ControllerBase):
 
     def has_extension(self, extension_name):
         if extension_name == 'recording':
-            return self.analyzer.has_recording()
+            return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
         else:
             # extension needs to be loaded
             return extension_name in self.analyzer.extensions

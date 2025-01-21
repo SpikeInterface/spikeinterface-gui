@@ -24,7 +24,6 @@ def run_mainwindow(
     extra_unit_properties=None,
     recording=None,
     start_qt_app=True,
-    mode="full",
     verbose=False,
 ):
     """
@@ -51,8 +50,6 @@ def run_mainwindow(
         SortingAnalyzer is recordingless.
     start_qt_app: bool, default: True
         If True, the QT app loop is started
-    mode: "full" | "minimal", default: "full"
-        The mode of the GUI. If "minimal", waveforms and pca extensions are not loaded on startup
     verbose: bool, default: False
         If True, print some information in the console
     """
@@ -71,11 +68,8 @@ def run_mainwindow(
         label_definitions=label_definitions,
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
-        mode=mode
     )
-    print("Setting window title")
     win.setWindowTitle('SpikeInterface GUI')
-    print("Setting window icon")
     this_file = Path(__file__).absolute()
     win.setWindowIcon(QtGui.QIcon(str(this_file.parent / 'img' / 'si.png')))
     win.show()
@@ -91,7 +85,6 @@ def run_mainwindow_cli():
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
     parser.add_argument('--recording', help='Path to a file or path that can be loaded with load_extractor', default=None)
-    parser.add_argument('--mode', choices=["full", "minimal"], help='GUI mode', default="full")
     parser.add_argument('--verbose', help='Verbose', action='store_true', default=False)
     
     args = parser.parse_args(argv)
@@ -124,5 +117,5 @@ def run_mainwindow_cli():
                     raise ValueError('The recording does not have the same channel ids as the analyzer')
                 recording = recording.select_channels(recording.channel_ids[channel_mask])
     
-    run_mainwindow(analyzer, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose, mode=args.mode)
+    run_mainwindow(analyzer, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
     

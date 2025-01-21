@@ -36,8 +36,7 @@ class MainWindow(QT.QMainWindow):
                                                    label_definitions=label_definitions,
                                                    with_traces=with_traces,
                                                    displayed_unit_properties=displayed_unit_properties,
-                                                   extra_unit_properties=extra_unit_properties,
-                                                   mode=mode)
+                                                   extra_unit_properties=extra_unit_properties)
         
         if verbose:
             t1 = time.perf_counter()
