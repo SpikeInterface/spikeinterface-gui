@@ -58,7 +58,8 @@ class MainWindow(QT.QMainWindow):
         # on bottom left
         self.add_one_view('probeview', area='left')
         self.add_one_view('similarityview', split='probeview', orientation='horizontal')
-        
+
+
         self.add_one_view('ndscatterview', tabify='similarityview') # optional
         
         # on right

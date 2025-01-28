@@ -16,8 +16,6 @@ from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
-
-
 from .curation_tools import adding_group, default_label_definitions, empty_curation_data
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
@@ -47,7 +45,6 @@ class  SpikeinterfaceController(ControllerBase):
 
         if verbose:
             t0 = time.perf_counter()
-            print('open/compute extensions')
 
         # sparsity
         if self.analyzer.sparsity is None:
@@ -58,12 +55,16 @@ class  SpikeinterfaceController(ControllerBase):
             self.analyzer_sparsity = self.analyzer.sparsity
 
         # Mandatory extensions : computation forced
+        if verbose:
+            print('\tLoading noise_levels')
         ext = analyzer.get_extension('noise_levels')
         if ext is None:
             print('Force compute "noise_levels" is needed')
             ext = analyzer.compute_one_extension('noise_levels')
         self.noise_levels = ext.get_data()
 
+        if verbose:
+            print('\tLoading templates')
         temp_ext = self.analyzer.get_extension("templates")
         if temp_ext is None:
             temp_ext = self.analyzer.compute_one_extension("templates")
@@ -74,6 +75,8 @@ class  SpikeinterfaceController(ControllerBase):
 
         self.num_channels = self.analyzer.get_num_channels()
 
+        if verbose:
+            print('\tLoading unit_locations')
         ext = analyzer.get_extension('unit_locations')
         if ext is None:
             print('Force compute "unit_locations" is needed')
@@ -81,31 +84,32 @@ class  SpikeinterfaceController(ControllerBase):
         # only 2D
         self.unit_positions = ext.get_data()[:, :2]
 
-        # Non mandatory extensions :  can be None
-        wf_ext = self.analyzer.get_extension('waveforms')
-        self.waveforms_ext = wf_ext
-
-        self.pc_ext = analyzer.get_extension('principal_components')
-        self._pc_projections = None
-
+        if verbose:
+            print('\tLoading quality_metrics')
         qm_ext = analyzer.get_extension('quality_metrics')
         if qm_ext is not None:
             self.metrics = qm_ext.get_data()
         else:
             self.metrics = None
 
+        if verbose:
+            print('\tLoading spike_amplitudes')
         sa_ext = analyzer.get_extension('spike_amplitudes')
         if sa_ext is not None:
             self.spike_amplitudes = sa_ext.get_data()
         else:
             self.spike_amplitudes = None
 
+        if verbose:
+            print('\tLoading correlograms')
         ccg_ext = analyzer.get_extension('correlograms')
         if ccg_ext is not None:
             self.correlograms, self.correlograms_bins = ccg_ext.get_data()
         else:
             self.correlograms, self.correlograms_bins = None, None
 
+        if verbose:
+            print('\tLoading isi_histograms')
         isi_ext = analyzer.get_extension('isi_histograms')
         if isi_ext is not None:
             self.isi_histograms, self.isi_bins = isi_ext.get_data()
@@ -113,6 +117,8 @@ class  SpikeinterfaceController(ControllerBase):
             self.isi_histograms, self.isi_bins = None, None
 
         self._similarity_by_method = {}
+        if verbose:
+            print('\tLoading template_similarity')
         ts_ext = analyzer.get_extension('template_similarity')
         if ts_ext is not None:
             method = ts_ext.params["method"]
@@ -123,13 +129,24 @@ class  SpikeinterfaceController(ControllerBase):
                 method = 'l1'
                 ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
                 self._similarity_by_method[method] = ts_ext.get_data()
+
+        # Non mandatory extensions :  can be None
+        if verbose:
+            print('\tLoading waveforms')
+        wf_ext = self.analyzer.get_extension('waveforms')
+        if verbose:
+            print('\tLoading principal_components')
+        pc_ext = analyzer.get_extension('principal_components')
+        self.waveforms_ext = wf_ext
+        self.pc_ext = pc_ext
+        self._pc_projections = None
         
         self._potential_merges = None
 
 
         if verbose:
             t1 = time.perf_counter()
-            print('open extensions', t1 - t0)
+            print('Loading extensions took', t1 - t0)
 
             t0 = time.perf_counter()
 
@@ -226,7 +243,7 @@ class  SpikeinterfaceController(ControllerBase):
         # TODO: Reload the dictionary if it already exists
         if self.curation:
             # rules:
-            #  * if curation_data alreadye exists in folder then it is reloaded and has precedance
+            #  * if curation_data already exists in folder, then it is reloaded and has precedance
             #  * if not, then use curation_data argument input
             #  * otherwise create an empty one
 
@@ -369,22 +386,25 @@ class  SpikeinterfaceController(ControllerBase):
 
     def has_extension(self, extension_name):
         if extension_name == 'recording':
-            return self.analyzer.has_recording()
+            return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
         else:
-            return self.analyzer.has_extension(extension_name)
+            # extension needs to be loaded
+            return extension_name in self.analyzer.extensions
 
     def handle_metrics(self):
         return self.metrics is not None
 
     def get_all_pcs(self):
 
-        if self._pc_projections is None:
+        if self._pc_projections is None and self.pc_ext is not None:
             self._pc_projections, self._pc_indices = self.pc_ext.get_some_projections(
                 channel_ids=self.analyzer.channel_ids,
                 unit_ids=self.analyzer.unit_ids
             )
 
-        return self._pc_indices, self._pc_projections
+            return self._pc_indices, self._pc_projections
+        else:
+            return None, None
     
     
 
