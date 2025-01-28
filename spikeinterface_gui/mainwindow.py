@@ -19,7 +19,6 @@ class MainWindow(QT.QMainWindow):
         label_definitions=None,
         displayed_unit_properties=None,
         extra_unit_properties=None,
-        mode="full"
     ):
         QT.QMainWindow.__init__(self, parent)
         
