@@ -66,6 +66,9 @@ class UnitListView(WidgetBase):
         self.make_menu()
         self.refresh()
 
+    def on_column_moved(self, logical_index, old_visual_index, new_visual_index):
+        # Update stored column order
+        self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
     def create_settings(self):
         # hack to use settings to control visible columns
@@ -351,7 +354,6 @@ class UnitListView(WidgetBase):
         self.refresh()
 
 
-
 class OrderableCheckItem(QT.QTableWidgetItem):
 
     def is_checked(self):
@@ -362,10 +364,6 @@ class OrderableCheckItem(QT.QTableWidgetItem):
         comp = float(self.is_checked()) < float(other.is_checked())
         return comp
 
-
-    def on_column_moved(self, logical_index, old_visual_index, new_visual_index):
-        # Update stored column order
-        self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
 UnitListView._gui_help_txt = """Unit list
 This control the visibility of units : check/uncheck visible
