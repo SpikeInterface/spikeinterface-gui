@@ -54,8 +54,16 @@ class UnitListView(WidgetBase):
         shortcut_visible = QT.QShortcut(self)
         shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
         shortcut_visible.activated.connect(self.on_visible_shortcut)
-        self.make_menu()
         
+        # Enable column dragging
+        header = self.table.horizontalHeader()
+        header.setSectionsMovable(True)
+        header.sectionMoved.connect(self.on_column_moved)
+        
+        # Store original column order
+        self.column_order = None
+        
+        self.make_menu()
         self.refresh()
 
 
@@ -127,6 +135,10 @@ class UnitListView(WidgetBase):
 
     def _refresh(self):
         self.table.itemChanged.disconnect(self.on_item_changed)
+        
+        # Store current column order before clearing
+        if self.table.columnCount() > 0:
+            self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
         
         self.table.clear()
 
@@ -228,7 +240,15 @@ class UnitListView(WidgetBase):
         for i in range(5):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
-        self.table.itemChanged.connect(self.on_item_changed)        
+        self.table.itemChanged.connect(self.on_item_changed)
+        
+        # Restore column order if it exists
+        if self.column_order is not None and len(self.column_order) == self.table.columnCount():
+            header = self.table.horizontalHeader()
+            for visual_index, logical_index in enumerate(self.column_order):
+                current_visual = header.visualIndex(logical_index)
+                if current_visual != visual_index:
+                    header.moveSection(current_visual, visual_index)
 
     def on_label_changed(self, row, col, new_label):
         item = self.table.item(row, 1)
@@ -343,11 +363,14 @@ class OrderableCheckItem(QT.QTableWidgetItem):
         return comp
 
 
+    def on_column_moved(self, logical_index, old_visual_index, new_visual_index):
+        # Update stored column order
+        self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
+
 UnitListView._gui_help_txt = """Unit list
 This control the visibility of units : check/uncheck visible
 Check box : make visible or unvisible
 Double click on a row : make it visible  alone
 Right click : context menu (delete or merge if curation=True)
+Drag column headers : reorder columns
 """
-
-
