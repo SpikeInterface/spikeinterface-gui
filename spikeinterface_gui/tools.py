@@ -215,7 +215,7 @@ class CustomItem(QT.QTableWidgetItem):
             comp = float(self.text()) < float(other.text())
             return comp
         except ValueError:
-            super().__lt__(other)
+            return self.text().lower() < other.text().lower()
 
 
 # class LabelOptionsDelegate(QT.QItemDelegate):
@@ -316,7 +316,3 @@ if __name__=='__main__':
     dialog = ParamDialog(params, title = 'yep')
     dialog.exec_()
     print(dialog.get())
-    
-    
-
-
