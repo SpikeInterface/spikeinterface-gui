@@ -2,28 +2,42 @@ from .myqt import QT
 import pyqtgraph as pg
 
 import numpy as np
+from matplotlib.path import Path as mpl_path
 
 from .base import WidgetBase
 
 
 
 class MyViewBox(pg.ViewBox):
-    pass
-    #~ clicked = QT.pyqtSignal(float, float)
     doubleclicked = QT.pyqtSignal()
+    lasso_drawing = QT.pyqtSignal(object)
+    lasso_finished = QT.pyqtSignal(object)
     
-    #~ def mouseClickEvent(self, ev):
-        #~ pos = self.mapToView(ev.pos())
-        #~ x, y = pos.x(), pos.y()
-        #~ self.clicked.emit(x, y)
-        #~ ev.accept()
-        
+    def __init__(self, *args, **kwds):
+        pg.ViewBox.__init__(self, *args, **kwds)
+        self.drag_points = []
+    
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
         ev.accept()
     
+    def mouseDragEvent(self, ev):
+        ev.accept()
+        if ev.button() != QT.MouseButton.LeftButton:
+            return
+        
+        if ev.isStart():
+            self.drag_points = []
+        
+        pos = self.mapToView(ev.pos())
+        self.drag_points.append([pos.x(), pos.y()])
+        
+        if ev.isFinish():
+            self.lasso_finished.emit(self.drag_points)
+        else:
+            self.lasso_drawing.emit(self.drag_points)
+    
     def raiseContextMenu(self, ev):
-        #for some reasons enableMenu=False is not taken (bug ????)
         pass
 
 
@@ -72,6 +86,16 @@ class SpikeAmplitudeView(WidgetBase):
 
         self.initialize_plot()
         
+        # Add lasso curve
+        self.lasso = pg.PlotCurveItem(pen='#7FFF00')
+        self.plot.addItem(self.lasso)
+        
+        # Add selection scatter
+        brush = QT.QColor('white')
+        brush.setAlpha(200)
+        self.scatter_select = pg.ScatterPlotItem(pen=pg.mkPen(None), brush=brush, size=11, pxMode=True)
+        self.plot.addItem(self.scatter_select)
+        self.scatter_select.setZValue(1000)
 
     def on_params_changed(self):
         self.refresh()
@@ -79,6 +103,8 @@ class SpikeAmplitudeView(WidgetBase):
     def initialize_plot(self):
         self.viewBox = MyViewBox()
         self.viewBox.doubleclicked.connect(self.open_settings)
+        self.viewBox.lasso_drawing.connect(self.on_lasso_drawing)
+        self.viewBox.lasso_finished.connect(self.on_lasso_finished)
         self.viewBox.disableAutoRange()
         self.plot = pg.PlotItem(viewBox=self.viewBox)
         self.graphicsview.setCentralItem(self.plot)
@@ -127,9 +153,9 @@ class SpikeAmplitudeView(WidgetBase):
 
     
     def _refresh(self):
-        
         self.scatter.clear()
         self.plot2.clear()
+        self.scatter_select.clear()
         
         if self.controller.spike_amplitudes is None:
             return
@@ -200,12 +226,74 @@ class SpikeAmplitudeView(WidgetBase):
         #~ self.plot.setYRange(-.5, nb_visible-.5, padding = 0.0)
         
         self.plot2.setXRange(0, max_count, padding = 0.0)
-
         
-
+        # Update selection scatter
+        seg_index = self.combo_seg.currentIndex()
+        sl = self.controller.segment_slices[seg_index]
+        spikes_in_seg = self.controller.spikes[sl]
+        fs = self.controller.sampling_frequency
+        
+        selected_indices = self.controller.get_indices_spike_selected()
+        mask = np.isin(sl.start + np.arange(len(spikes_in_seg)), selected_indices)
+        if np.any(mask):
+            selected_spikes = spikes_in_seg[mask]
+            spike_times = selected_spikes['sample_index'] / fs
+            amps = self.controller.spike_amplitudes[sl][mask]
+            self.scatter_select.setData(spike_times, amps)
     
+    def on_lasso_drawing(self, points):
+        points = np.array(points)
+        self.lasso.setData(points[:, 0], points[:, 1])
+    
+    def on_lasso_finished(self, points):
+        self.lasso.setData([], [])
+        vertices = np.array(points)
+        
+        seg_index = self.combo_seg.currentIndex()
+        sl = self.controller.segment_slices[seg_index]
+        spikes_in_seg = self.controller.spikes[sl]
+        fs = self.controller.sampling_frequency
+        
+        # Create mask for visible units
+        visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if self.controller.unit_visible_dict[unit_id]:
+                visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+        
+        # Only consider spikes from visible units
+        visible_spikes = spikes_in_seg[visible_mask]
+        if len(visible_spikes) == 0:
+            # Clear selection if no visible spikes
+            self.controller.set_indices_spike_selected([])
+            self.refresh()
+            self.spike_selection_changed.emit()
+            return
+            
+        spike_times = visible_spikes['sample_index'] / fs
+        amps = self.controller.spike_amplitudes[sl][visible_mask]
+        
+        points = np.column_stack((spike_times, amps))
+        inside = mpl_path(vertices).contains_points(points)
+        
+        # Clear selection if no spikes inside lasso
+        if not np.any(inside):
+            self.controller.set_indices_spike_selected([])
+            self.refresh()
+            self.spike_selection_changed.emit()
+            return
+            
+        # Map back to original indices
+        visible_indices = np.nonzero(visible_mask)[0]
+        selected_indices = sl.start + visible_indices[inside]
+        self.controller.set_indices_spike_selected(selected_indices)
+        self.refresh()
+        self.spike_selection_changed.emit()
+
+    def on_spike_selection_changed(self):
+        self.refresh()
 
 SpikeAmplitudeView._gui_help_txt = """Spike Amplitude view
 Check amplitudes of spikes across the recording time or in a histogram
 comparing the distribution of ampltidues to the noise levels
-Mouse click : change scaling."""
+Mouse click : change scaling
+Left click drag : draw lasso to select spikes"""
