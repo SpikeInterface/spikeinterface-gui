@@ -84,8 +84,9 @@ def run_mainwindow_cli():
     parser.add_argument('analyzer_folder', help='SortingAnalyzer folder path', default=None, nargs='?')
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
-    parser.add_argument('--recording', help='Path to a file or path that can be loaded with load_extractor', default=None)
-    parser.add_argument('--verbose', help='Verbose', action='store_true', default=False)
+    parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
+    parser.add_argument('--recording-base-folder', help='Base folder path for the recording (if .json/.pkl)', default=None)
+    parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
     
     args = parser.parse_args(argv)
 
@@ -104,7 +105,8 @@ def run_mainwindow_cli():
         try:
             if args.verbose:
                 print('Loading recording...')
-            recording = load(args.recording)
+            recording_base_path = args.recording_base_path
+            recording = load(args.recording, base_folder=recording_base_path)
             if args.verbose:
                 print('Recording loaded')
         except Exception as e:
