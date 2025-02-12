@@ -16,26 +16,30 @@ class MyViewBox(pg.ViewBox):
     def __init__(self, *args, **kwds):
         pg.ViewBox.__init__(self, *args, **kwds)
         self.drag_points = []
+        self.lasso_active = False
     
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
         ev.accept()
     
     def mouseDragEvent(self, ev):
-        ev.accept()
-        if ev.button() != QT.MouseButton.LeftButton:
-            return
-        
-        if ev.isStart():
-            self.drag_points = []
-        
-        pos = self.mapToView(ev.pos())
-        self.drag_points.append([pos.x(), pos.y()])
-        
-        if ev.isFinish():
-            self.lasso_finished.emit(self.drag_points)
+        if not self.lasso_active:
+            pg.ViewBox.mouseDragEvent(self, ev)
         else:
-            self.lasso_drawing.emit(self.drag_points)
+            ev.accept()
+            if ev.button() != QT.MouseButton.LeftButton:
+                return
+            
+            if ev.isStart():
+                self.drag_points = []
+            
+            pos = self.mapToView(ev.pos())
+            self.drag_points.append([pos.x(), pos.y()])
+            
+            if ev.isFinish():
+                self.lasso_finished.emit(self.drag_points)
+            else:
+                self.lasso_drawing.emit(self.drag_points)
     
     def raiseContextMenu(self, ev):
         pass
@@ -69,6 +73,11 @@ class SpikeAmplitudeView(WidgetBase):
         h.addWidget(self.combo_seg)
         self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
         self.combo_seg.currentIndexChanged.connect(self.refresh)
+        self.lasso_but = but = QT.QPushButton("select", checkable = True)
+        self.lasso_but.setMaximumWidth(50)
+        h.addWidget(self.lasso_but)
+        self.lasso_but.clicked.connect(self.enable_disable_lasso)
+
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
@@ -150,6 +159,8 @@ class SpikeAmplitudeView(WidgetBase):
 
         self.plot.setYRange(self._amp_min,self._amp_max, padding = 0.0)
 
+    def enable_disable_lasso(self, checked):
+        self.viewBox.lasso_active = checked
 
     
     def _refresh(self):
