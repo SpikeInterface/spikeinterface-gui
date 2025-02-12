@@ -239,12 +239,26 @@ class ProbeView(WidgetBase):
 
     
     def on_unit_visibility_changed(self, auto_zoom=None):
+
+        
+
         # this change the ROI and so change also channel_visibility
-        visible_mask = list(self.controller.unit_visible_dict.values())
-        n = np.sum(visible_mask)
+        visible_mask = np.array(list(self.controller.unit_visible_dict.values()))
+        unit_inds = np.flatnonzero(visible_mask)
+        n = unit_inds.size
+        x, y = None, None
         if n == 1:
-            unit_index  = np.nonzero(visible_mask)[0][0]
+            # always refresh the channel ROI
+            unit_index  = unit_inds[0]
             x, y = self.controller.unit_positions[unit_index, :]
+        elif n > 1:
+            # change ROI only if all units are inside the radius
+            positions = self.controller.unit_positions[unit_inds, :]
+            distances = np.linalg.norm(positions[:, np.newaxis] - positions[np.newaxis, :], axis=2)
+            if np.max(distances) < (self.params['radius_units'] * 2):
+                x, y = np.mean(positions, axis=0)
+
+        if x is not None:
             radius = self.params['radius_channel']
             self.roi_channel.blockSignals(True)
             self.roi_channel.setPos(x - radius, y - radius)
