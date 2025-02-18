@@ -247,13 +247,13 @@ class CustomItem(QT.QTableWidgetItem):
 
 
 class LabelComboBox(QT.QComboBox):
-    remove_label_clicked = QT.pyqtSignal(int, int)
-    label_changed = QT.pyqtSignal(int, int, str)
+    remove_label_clicked = QT.pyqtSignal(int, str)
+    label_changed = QT.pyqtSignal(int, str, str)
 
-    def __init__(self, row, col, label_options, parent=None):
+    def __init__(self, unit_index, category, label_options, parent=None):
         super().__init__(parent)
-        self.row = row
-        self.col = col
+        self.unit_index = unit_index
+        self.category = category
         self._origin_labels = label_options
         self.label_options = [''] + label_options
         # self.label_options = label_options + ['Remove']
@@ -273,17 +273,17 @@ class LabelComboBox(QT.QComboBox):
         self.setCurrentIndex(ind)
 
     # def on_remove(self):
-    #     self.remove_label_clicked.emit(self.row, self.col)
+    #     self.remove_label_clicked.emit(self.my_row, self.my_col)
 
     def on_label_changed(self, current_label):
         # if self.currentIndex() >= len(self._origin_labels):
         #     return
-        # self.label_changed.emit(self.row, self.col, current_label)
+        # self.label_changed.emit(self.my_row, self.my_col, current_label)
 
         if self.currentIndex() == 0:
-            self.remove_label_clicked.emit(self.row, self.col)
+            self.remove_label_clicked.emit(self.unit_index, self.category)
         else:
-            self.label_changed.emit(self.row, self.col, current_label)
+            self.label_changed.emit(self.unit_index, self.category, current_label)
 
 
 
