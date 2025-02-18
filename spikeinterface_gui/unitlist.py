@@ -223,7 +223,7 @@ class UnitListView(WidgetBase):
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
                     label = self.controller.get_unit_label(unit_id, category)
-                    item = LabelComboBox(i, n_first + ix, label_def['label_options'], self)
+                    item = LabelComboBox(i, category, label_def['label_options'], self)
                     item.set_label(label)
                     item.remove_label_clicked.connect(self.on_remove_label)
                     item.label_changed.connect(self.on_label_changed)
@@ -253,18 +253,12 @@ class UnitListView(WidgetBase):
                 if current_visual != visual_index:
                     header.moveSection(current_visual, visual_index)
 
-    def on_label_changed(self, row, col, new_label):
-        item = self.table.item(row, 1)
-        unit_id = item.unit_id
-        header = self.table.horizontalHeaderItem(col)
-        category = header.text()
+    def on_label_changed(self, unit_index, category, new_label):
+        unit_id = self.controller.unit_ids[unit_index]
         self.controller.set_label_to_unit(unit_id, category, new_label)
 
-    def on_remove_label(self, row, col):
-        item = self.table.item(row, 1)
-        unit_id = item.unit_id
-        header = self.table.horizontalHeaderItem(col)
-        category = header.text()
+    def on_remove_label(self, unit_index, category):
+        unit_id = self.controller.unit_ids[unit_index]
         self.controller.set_label_to_unit(unit_id, category, None)
 
     def on_item_changed(self, item):
