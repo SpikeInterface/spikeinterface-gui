@@ -25,46 +25,93 @@ class SpikeAmplitudeView(ViewBase):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
 
-    def get_segment_data(self, seg_index):
-        """Get spike data for a specific segment"""
+    def prepare_plotting_data(self):
+        
+        d = dict()
+
+        # TODO handle combobox
+        # seg_index =  self.combo_seg.currentIndex()
+        seg_index = 0
         sl = self.controller.segment_slices[seg_index]
         spikes_in_seg = self.controller.spikes[sl]
         fs = self.controller.sampling_frequency
-        return spikes_in_seg, sl, fs
+        
+        max_count = 0
+        d['scatter'] = dict()
+        d['hist'] = dict()
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if not self.controller.unit_visible_dict[unit_id]:
+                continue
+            
+            # TODO sam : use index instead of boolean masking
+            spike_mask = (spikes_in_seg['unit_index'] == unit_index)
+            spikes = spikes_in_seg[spike_mask]
+            spike_times = spikes['sample_index'] / fs
+            amps = self.controller.spike_amplitudes[sl][spike_mask]
+            d['scatter'][unit_id] = (spike_times, amps)
+            
 
-    def get_unit_data(self, unit_index, spikes_in_seg):
-        """Get spike times and amplitudes for a specific unit"""
-        # Handle case when there are no spikes
-        if len(spikes_in_seg) == 0:
-            return np.array([]), np.array([])
+            count, bins = np.histogram(amps, bins = np.linspace(self._amp_min, self._amp_max, self.settings['num_bins']))
+            d['hist'][unit_id] = (count, bins)
+            
+            max_count = max(max_count, np.max(count))
 
-        # Create mask for the current segment
-        spike_mask = spikes_in_seg["unit_index"] == unit_index
-        spikes = spikes_in_seg[spike_mask]
-
-        # Handle case when no spikes for this unit
-        if len(spikes) == 0:
-            return np.array([]), np.array([])
-
-        spike_times = spikes["sample_index"] / self.controller.sampling_frequency
-
-        # Get the slice of spike amplitudes for this segment
-        sl = self.controller.segment_slices[spikes[0]["segment_index"]]
-        segment_amplitudes = self.controller.spike_amplitudes[sl]
-        amps = segment_amplitudes[spike_mask]
-        return spike_times, amps
-
-    def compute_amplitude_histogram(self, amplitudes, num_bins):
-        """Compute histogram of spike amplitudes"""
-        count, bins = np.histogram(amplitudes, bins=np.linspace(self._amp_min, self._amp_max, num_bins))
-        return count, bins
+        d['hist_max'] = max_count
 
 
-    def get_view_bounds(self, seg_index):
-        """Get time range for the view"""
-        t1 = 0.0
-        t2 = self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
-        return t1, t2
+        selected_indices = self.controller.get_indices_spike_selected()
+        mask = np.isin(sl.start + np.arange(len(spikes_in_seg)), selected_indices)
+        if np.any(mask):
+            selected_spikes = spikes_in_seg[mask]
+            spike_times = selected_spikes['sample_index'] / fs
+            amps = self.controller.spike_amplitudes[sl][mask]
+            d['selected'] = (spike_times, amps)
+        
+        d['time_lims'] = 0., self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
+
+        return d
+
+
+
+    # def get_segment_data(self, seg_index):
+    #     sl = self.controller.segment_slices[seg_index]
+    #     spikes_in_seg = self.controller.spikes[sl]
+    #     fs = self.controller.sampling_frequency
+    #     return spikes_in_seg, sl, fs
+
+    # def get_unit_data(self, unit_index, spikes_in_seg):
+    #     """Get spike times and amplitudes for a specific unit"""
+    #     # Handle case when there are no spikes
+    #     if len(spikes_in_seg) == 0:
+    #         return np.array([]), np.array([])
+
+    #     # Create mask for the current segment
+    #     spike_mask = spikes_in_seg["unit_index"] == unit_index
+    #     spikes = spikes_in_seg[spike_mask]
+
+    #     # Handle case when no spikes for this unit
+    #     if len(spikes) == 0:
+    #         return np.array([]), np.array([])
+
+    #     spike_times = spikes["sample_index"] / self.controller.sampling_frequency
+
+    #     # Get the slice of spike amplitudes for this segment
+    #     sl = self.controller.segment_slices[spikes[0]["segment_index"]]
+    #     segment_amplitudes = self.controller.spike_amplitudes[sl]
+    #     amps = segment_amplitudes[spike_mask]
+    #     return spike_times, amps
+
+    # def compute_amplitude_histogram(self, amplitudes, num_bins):
+    #     """Compute histogram of spike amplitudes"""
+    #     count, bins = np.histogram(amplitudes, bins=np.linspace(self._amp_min, self._amp_max, num_bins))
+    #     return count, bins
+
+
+    # def get_view_bounds(self, seg_index):
+    #     """Get time range for the view"""
+    #     t1 = 0.0
+    #     t2 = self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
+    #     return t1, t2
 
 
     ## QT zone ##
@@ -138,43 +185,17 @@ class SpikeAmplitudeView(ViewBase):
         self.plot2.hideButtons()
         self.plot2.setYLink(self.plot)
 
-        #~ l = pg.GraphicsLayout()
-        
-        #~ # hack to force 4 row
-        #~ rem = [l.addPlot() for i in range(4)]
-        #~ l.nextRow()
-        
-        #~ self.graphicsview.setCentralItem(l)
-        #~ self.plot = l.addPlot(row=1, col=0, colspan=3)
-        #~ self.plot.hideButtons()
-        
-        #~ self.plot2 = l.addPlot(row=1, col=3, colspan=1)
-        #~ self.plot2.hideButtons()
-        
-        #~ self.plot2.setYLink(self.plot)
-        
-        #~ #end of the hack hack to force 4 row
-        #~ for p in rem:
-            #~ l.removeItem(p)
         
         self.scatter = pg.ScatterPlotItem(size=self.settings['scatter_size'], pxMode = True)
         self.plot.addItem(self.scatter)
         
         self._text_items = []
         
-        
-        # self._amp_min = np.min(self.controller.spike_amplitudes)
-        # self._amp_max = np.max(self.controller.spike_amplitudes)
-        # eps = (self._amp_max - self._amp_min) / 100.
-        # self._amp_max += eps 
-
         self.plot.setYRange(self._amp_min,self._amp_max, padding = 0.0)
 
     def on_spike_selection_changed(self):
         self.refresh()
 
-
-    
     def _refresh_qt(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -185,55 +206,24 @@ class SpikeAmplitudeView(ViewBase):
         
         if self.controller.spike_amplitudes is None:
             return
-            
-        seg_index =  self.combo_seg.currentIndex()
-        sl = self.controller.segment_slices[seg_index]
-        
-        spikes_in_seg = self.controller.spikes[sl]
-        
-        fs = self.controller.sampling_frequency
-        
-        self.scatter.setSize(self.settings['scatter_size'])
-        
-        max_count = 0
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+
+        d = self.prepare_plotting_data()
+
+
+
+        for unit_id in d['scatter']:
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
             
             # make a copy of the color
             color = QT.QColor(self.get_unit_color(unit_id))
             color.setAlpha(int(self.settings['alpha']*255))
-
-            
-
-            # amps = self.controller.spike_amplitudes[seg_index][unit_id]
-
-            spike_mask = (spikes_in_seg['unit_index'] == unit_index)
-            spikes = spikes_in_seg[spike_mask]
-            spike_times = spikes['sample_index'] / fs
-            amps = self.controller.spike_amplitudes[sl][spike_mask]
-            
+            spike_times, amps =d['scatter'][unit_id]
             self.scatter.addPoints(x=spike_times, y=amps,  pen=pg.mkPen(None), brush=color)
-            
 
-            count, bins = np.histogram(amps, bins = np.linspace(self._amp_min, self._amp_max, self.settings['num_bins']))
-            # trick to avoid bad borders
-            # count[0] = 0
-            # count[-1] = 0
-            
-            max_count = max(max_count, np.max(count))
-            
-            #~ color = QT.QColor(self.controller.qcolors[unit_id])
-            # curve = pg.PlotCurveItem(count, bins, stepMode='center', fillLevel=0, brush=color, pen=color)
-            
-            # curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=0, fillOutline=True, brush=color, pen=color)
-
-            # color = QT.QColor(self.controller.qcolors[unit_id])
             color = self.get_unit_color(unit_id)
-
+            count, bins = d['hist'][unit_id]
             curve = pg.PlotCurveItem(count, bins[:-1], fillLevel=None, fillOutline=True, brush=color, pen=color)
-            
-
             self.plot2.addItem(curve)
 
         # average noise across channels
@@ -247,28 +237,13 @@ class SpikeAmplitudeView(ViewBase):
                                         brush=(255, 255, 255, int(i * alpha_factor)), pen=(0, 0, 0, 0))
                 )
             
-        
-        t1 = 0.
-        t2 = self.controller.get_num_samples(seg_index) / fs
+        t1, t2 = d['time_lims']
         self.plot.setXRange( t1, t2, padding = 0.0)
-        #~ self.plot.setYRange(-.5, nb_visible-.5, padding = 0.0)
+        self.plot2.setXRange(0, d['hist_max'], padding = 0.0)
         
-        self.plot2.setXRange(0, max_count, padding = 0.0)
-        
-        # Update selection scatter
-        seg_index = self.combo_seg.currentIndex()
-        sl = self.controller.segment_slices[seg_index]
-        spikes_in_seg = self.controller.spikes[sl]
-        fs = self.controller.sampling_frequency
-        
-        selected_indices = self.controller.get_indices_spike_selected()
-        mask = np.isin(sl.start + np.arange(len(spikes_in_seg)), selected_indices)
-        if np.any(mask):
-            selected_spikes = spikes_in_seg[mask]
-            spike_times = selected_spikes['sample_index'] / fs
-            amps = self.controller.spike_amplitudes[sl][mask]
+        if 'selected' in d:
+            spike_times, amps = d['selected']
             self.scatter_select.setData(spike_times, amps)
-    
 
     def enable_disable_lasso(self, checked):
         self.viewBox.lasso_active = checked
@@ -363,9 +338,9 @@ class SpikeAmplitudeView(ViewBase):
             "x",
             "y",
             source=self.scatter_source,
-            size=self.settings.scatter_size,
+            size=self.settings['scatter_size'],
             color="color",
-            fill_alpha=self.settings.alpha,
+            fill_alpha=self.settings['alpha'],
         )
 
         # Add hover tool
@@ -379,20 +354,20 @@ class SpikeAmplitudeView(ViewBase):
         self.hist_fig.x_range.start = 0
         self.hist_fig.x_range.end = 1  # Will be updated in _refresh
 
-        # Create Panel layout with improved styling and responsiveness
-        self.settings_panel = pn.Param(
-            self.settings,
-            widgets={
-                "alpha": {"type": pn.widgets.FloatSlider, "width": 200},
-                "scatter_size": {"type": pn.widgets.FloatSlider, "width": 200, "start": 0.1, "end": 10},
-                "num_bins": {"type": pn.widgets.IntSlider, "width": 200, "start": 2, "end": 1000},
-                "noise_level": {"type": pn.widgets.Checkbox},
-                "noise_factor": {"type": pn.widgets.IntSlider, "width": 200, "start": 2, "end": 10},
-                "segment": {"type": pn.widgets.Select, "width": 200},
-            },
-            name="Settings",
-            show_name=True,
-        )
+        # # Create Panel layout with improved styling and responsiveness
+        # self.settings_panel = pn.Param(
+        #     self.settings,
+        #     widgets={
+        #         "alpha": {"type": pn.widgets.FloatSlider, "width": 200},
+        #         "scatter_size": {"type": pn.widgets.FloatSlider, "width": 200, "start": 0.1, "end": 10},
+        #         "num_bins": {"type": pn.widgets.IntSlider, "width": 200, "start": 2, "end": 1000},
+        #         "noise_level": {"type": pn.widgets.Checkbox},
+        #         "noise_factor": {"type": pn.widgets.IntSlider, "width": 200, "start": 2, "end": 10},
+        #         "segment": {"type": pn.widgets.Select, "width": 200},
+        #     },
+        #     name="Settings",
+        #     show_name=True,
+        # )
 
         self.plot_panel = pn.Row(
             pn.Column(
@@ -415,12 +390,12 @@ class SpikeAmplitudeView(ViewBase):
                 styles={"flex": "1"},
                 sizing_mode="stretch_both"
             ),
-            pn.Card(  # Settings panel
-                self.settings_panel,
-                title="Settings",
-                collapsed=True,
-                styles={"flex": "0.1"}
-            ),
+            # pn.Card(  # Settings panel
+            #     self.settings_panel,
+            #     title="Settings",
+            #     collapsed=True,
+            #     styles={"flex": "0.1"}
+            # ),
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both"
         )
@@ -442,15 +417,19 @@ class SpikeAmplitudeView(ViewBase):
                     self.hist_fig.renderers.remove(renderer)
             del self.noise_sources[i]
 
+
+        d = self.prepare_plotting_data()
+
         # Get segment data
         # seg_index = int(self.settings.segment.split()[-1])
         # TODO
         seg_index = 0
 
-        spikes_in_seg, sl, fs = self.get_segment_data(seg_index)
+        # spikes_in_seg, sl, fs = self.get_segment_data(seg_index)
 
         # Keep track of which units are shown
-        shown_units = set()
+        # shown_units = set()
+
 
         # Update scatter plot and histogram for each unit
         max_count = 0
@@ -466,10 +445,13 @@ class SpikeAmplitudeView(ViewBase):
                     del self.hist_sources[unit_id]
                 continue
 
-            shown_units.add(unit_id)
+            # shown_units.add(unit_id)
+
 
             # Get unit data using the fixed core method
-            spike_times, amps = self.get_unit_data(unit_index, spikes_in_seg)
+            # spike_times, amps = self.get_unit_data(unit_index, spikes_in_seg)
+            spike_times, amps = d['scatter'][unit_id]
+
 
             if len(spike_times) == 0:
                 continue
@@ -482,7 +464,8 @@ class SpikeAmplitudeView(ViewBase):
             scatter_data["color"].extend([color] * len(spike_times))
 
             # Update histogram
-            count, bins = self.compute_amplitude_histogram(amps, self.settings.num_bins)
+            # count, bins = self.compute_amplitude_histogram(amps, self.settings.num_bins)
+            count, bins = d['scatter'][unit_id]
             max_count = max(max_count, np.max(count) if len(count) > 0 else 0)
 
             # Create or update histogram source
@@ -500,9 +483,9 @@ class SpikeAmplitudeView(ViewBase):
                 y="y",
                 right="x",
                 source=self.hist_sources[unit_id],
-                height=0.8 * (self._amp_max - self._amp_min) / self.settings.num_bins,
+                height=0.8 * (self._amp_max - self._amp_min) / self.settings['num_bins'],
                 color=color,
-                alpha=self.settings.alpha,
+                alpha=self.settings['alpha'],
             )
 
             self.hist_sources[unit_id].data = {
@@ -511,9 +494,9 @@ class SpikeAmplitudeView(ViewBase):
             }
 
         # Add noise level bands after histograms are drawn
-        if self.settings.noise_level:
+        if self.settings['noise_level']:
             noise = np.mean(self.controller.noise_levels)
-            n = self.settings.noise_factor
+            n = self.settings['noise_factor']
             alpha_factor = 50 / n  # Same as Qt implementation
             for i in range(1, n + 1):
                 # Create new source and renderer for each noise band
@@ -535,7 +518,8 @@ class SpikeAmplitudeView(ViewBase):
                 }
 
         # Set axis ranges
-        t1, t2 = self.get_view_bounds(seg_index)
+        # t1, t2 = self.get_view_bounds(seg_index)
+        t1, t2 = d['time_lims']
         self.scatter_fig.x_range.start = t1
         self.scatter_fig.x_range.end = t2
         self.scatter_fig.y_range.start = self._amp_min
@@ -543,12 +527,12 @@ class SpikeAmplitudeView(ViewBase):
 
         # Update histogram x-range for proper scaling
         self.hist_fig.x_range.start = 0
-        self.hist_fig.x_range.end = max_count if max_count > 0 else 1
+        self.hist_fig.x_range.end = d['hist_max']
 
         # Update scatter source with correct alpha parameter
         self.scatter_source.data = scatter_data
-        self.scatter.glyph.size = self.settings.scatter_size
-        self.scatter.glyph.fill_alpha = self.settings.alpha        
+        self.scatter.glyph.size = self.settings['scatter_size']
+        self.scatter.glyph.fill_alpha = self.settings['alpha']
         
 
 

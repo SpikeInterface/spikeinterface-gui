@@ -84,6 +84,14 @@ param_type_map = {
     "list": param.ObjectSelector,
 }
 
+class SettingsProxy:
+    # this make the setting dict like (to mimic pyqtgraph)
+    # for instance self.settings['my_params'] instead of self.settings.my_params
+    def __init__(self, myparametrized):
+        self._parametrized = myparametrized
+    
+    def __getitem__(self,key):
+        return getattr(self._parametrized, key)
 
 def create_settings(view):
     # Create the class attributes dynamically
@@ -101,12 +109,13 @@ def create_settings(view):
             attributes[setting_data["name"]] = param_type_map[setting_data["type"]](
                 setting_data["value"], doc=f"{setting_data['name']} parameter"
             )
-    MySettings = type("MySettings", (param.Parameterized,), attributes)
-    view.settings = MySettings()
+    MyParameterized = type("MyParameterized", (param.Parameterized,), attributes)
+
+    view.settings = SettingsProxy(MyParameterized())
 
     # Alessio : how to handle the change on steeing is it like this
     for setting_data in view._settings:
-        view.settings.param.watch(view.on_settings_changed, setting_data["name"])
+        view.settings._parametrized.param.watch(view.on_settings_changed, setting_data["name"])
 
 
 
@@ -135,11 +144,19 @@ class MainWindow:
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
-            settings_panel = pn.Param(view.settings, name="Settings", show_name=True)
+            settings_panel = pn.Param(view.settings._parametrized, name="Settings", show_name=True)
 
             view_layout = pn.Column(
-                settings_panel,
+                # settings_panel,
+                pn.Card(
+                    settings_panel,
+                    title="Settings",
+                    collapsed=True,
+                    styles={"flex": "0.1"},
+                 ),
                 view.layout,
+            styles={"display": "flex", "flex-direction": "column"},
+            sizing_mode="stretch_both"
             )
             self.view_layouts[view_name] = view_layout
 
