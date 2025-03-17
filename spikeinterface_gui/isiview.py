@@ -20,7 +20,7 @@ class MyViewBox(pg.ViewBox):
 
 
 class ISIView(WidgetBase):
-    _params = [
+    _settings = [
                 {'name': 'window_ms', 'type': 'float', 'value' : 50. },
                 {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
         ]

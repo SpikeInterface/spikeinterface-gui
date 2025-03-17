@@ -4,8 +4,8 @@ import numpy as np
 
 import json
 
-from .base import ControllerBase
-from .myqt import QT
+# from .base import ControllerBase
+# from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
@@ -28,13 +28,24 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
 
-class  SpikeinterfaceController(ControllerBase):
-    def __init__(self, analyzer=None,parent=None, verbose=False, save_on_compute=False,
+# class  SpikeinterfaceController(ControllerBase):
+class  Controller():
+    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
                  extra_unit_properties=None):
-        ControllerBase.__init__(self, parent=parent)
+        # ControllerBase.__init__(self, parent=parent)
         
+        self.views = []
+        self.backend = backend
+        if self.backend == "qt":
+            from .backend_qt import SignalHandler
+            self.signal_handler = SignalHandler(self, parent=parent)
+
+        elif self.backend == "panel":
+            from .backend_panel import SignalHandler
+            self.signal_handler = SignalHandler(self, parent=parent)
+
         self.with_traces = with_traces
 
         self.analyzer = analyzer
@@ -43,6 +54,7 @@ class  SpikeinterfaceController(ControllerBase):
         self.return_scaled = True
         self.save_on_compute = save_on_compute
 
+        self.verbose = verbose
         if verbose:
             t0 = time.perf_counter()
 
@@ -159,10 +171,10 @@ class  SpikeinterfaceController(ControllerBase):
 
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
-        self.qcolors = {}
-        for unit_id, color in self.colors.items():
-            r, g, b, a = color
-            self.qcolors[unit_id] = QT.QColor(int(r*255), int(g*255), int(b*255))
+        # self.qcolors = {}
+        # for unit_id, color in self.colors.items():
+        #     r, g, b, a = color
+            # self.qcolors[unit_id] = QT.QColor(int(r*255), int(g*255), int(b*255))
 
         self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
@@ -269,6 +281,23 @@ class  SpikeinterfaceController(ControllerBase):
                 else:
                     self.curation_data["label_definitions"] = default_label_definitions.copy()
 
+    def check_is_view_possible(self, view_name):
+        from .viewlist import possible_class_views
+        view_class = possible_class_views[view_name]
+        if view_class._depend_on is not None:
+            depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
+            if not depencies_ok:
+                if self.verbose:
+                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
+                return False
+        return True
+
+
+    def declare_a_view(self, new_view):
+        assert new_view not in self.views, 'view already declared {}'.format(self)
+        self.views.append(new_view)
+        self.signal_handler.connect_view(new_view)
+
         
     @property
     def channel_ids(self):
@@ -277,6 +306,9 @@ class  SpikeinterfaceController(ControllerBase):
     @property
     def unit_ids(self):
         return self.analyzer.sorting.unit_ids
+    
+    def get_unit_color(self, unit_id):
+        return self.colors[unit_id]
     
     def get_extremum_channel(self, unit_id):
         chan_ind = self._extremum_channel[unit_id]

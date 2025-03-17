@@ -10,12 +10,15 @@ from spikeinterface.core.core_tools import is_path_remote
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 
-from spikeinterface_gui import MainWindow, mkQApp
+from spikeinterface_gui.controller import Controller
+
+# from spikeinterface_gui import MainWindow, mkQApp
 
 
 
 def run_mainwindow(
     analyzer,
+    backend="qt",
     with_traces=True,
     curation=False,
     curation_dict=None,
@@ -33,6 +36,8 @@ def run_mainwindow(
     ----------
     analyzer: SortingAnalyzer
         The sorting analyzer object
+    backend: 'qt' | 'panel'
+        The GUI backend to use ('qt' or 'panel')
     with_traces: bool, default: True
         If True, traces are displayed
     curation: bool, default: False
@@ -53,29 +58,44 @@ def run_mainwindow(
     verbose: bool, default: False
         If True, print some information in the console
     """
-    from .myqt import QtGui
-    app = mkQApp()
 
     if recording is not None:
         analyzer.set_temporary_recording(recording)
-    
-    win = MainWindow(
-        analyzer,
-        verbose=verbose,
-        with_traces=with_traces,
-        curation=curation,
-        curation_dict=curation_dict,
-        label_definitions=label_definitions,
-        displayed_unit_properties=displayed_unit_properties,
-        extra_unit_properties=extra_unit_properties,
-    )
-    win.setWindowTitle('SpikeInterface GUI')
-    this_file = Path(__file__).absolute()
-    win.setWindowIcon(QtGui.QIcon(str(this_file.parent / 'img' / 'si.png')))
-    win.show()
-    if start_qt_app:
-        app.exec()
 
+
+    controller = Controller(
+        analyzer, backend=backend, verbose=verbose,
+        curation=curation, curation_data=curation_dict,
+        label_definitions=label_definitions,
+        with_traces=with_traces,
+        displayed_unit_properties=displayed_unit_properties,
+        extra_unit_properties=extra_unit_properties
+    )
+
+    if backend == "qt":
+        from spikeinterface_gui.myqt import QT, mkQApp
+        from spikeinterface_gui.backend_qt import MainWindow
+
+        app = mkQApp()
+        
+        win = MainWindow(controller)
+        win.setWindowTitle('SpikeInterface GUI')
+        this_file = Path(__file__).absolute()
+        win.setWindowIcon(QT.QIcon(str(this_file.parent / 'img' / 'si.png')))
+        win.show()
+        if start_qt_app:
+            app.exec()
+ 
+    elif backend == "panel":
+        from .backend_panel import MainWindow, start_server
+        win = MainWindow(controller)
+        start_server(win, port=None)
+    
+    else:
+        raise ValueError(f"spikeinterface-gui wrong backend {backend}")
+
+    
+ 
 
 def run_mainwindow_cli():
     argv = sys.argv[1:]

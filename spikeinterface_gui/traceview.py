@@ -209,7 +209,7 @@ class MixinViewTrace:
 class TraceView(WidgetBase, MixinViewTrace):
     
     _depend_on = ['recording']
-    _params = [
+    _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
         {'name': 'zoom_size', 'type': 'float', 'value':  0.08, 'step' : 0.001 },
         {'name': 'plot_threshold', 'type': 'bool', 'value':  True },

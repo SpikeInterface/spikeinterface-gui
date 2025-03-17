@@ -61,7 +61,7 @@ class WaveformHeatMapView(WidgetBase):
         (2 by default but you can set more)
     
     """
-    _params = [
+    _settings = [
                       {'name': 'colormap', 'type': 'list', 'limits' : ['hot', 'viridis', 'jet', 'gray',  ] },
                       {'name': 'show_channel_id', 'type': 'bool', 'value': True},
                       #~ {'name': 'data', 'type': 'list', 'limits' : ['waveforms', 'features', ] },

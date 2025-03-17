@@ -103,7 +103,7 @@ class SpikeModel(QT.QAbstractItemModel):
 
 
 class SpikeListView(WidgetBase):
-    _params = [
+    _settings = [
             {'name': 'select_change_channel_visibility', 'type': 'bool', 'value': False},
         ]    
     

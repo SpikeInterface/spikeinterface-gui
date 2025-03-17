@@ -32,7 +32,7 @@ class MyViewBox(pg.ViewBox):
 
 class WaveformView(WidgetBase):
 
-    _params = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
+    _settings = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
                         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
                       {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
                       {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },

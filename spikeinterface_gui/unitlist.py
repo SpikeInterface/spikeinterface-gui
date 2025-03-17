@@ -22,7 +22,7 @@ class UnitListView(WidgetBase):
     """
     """
 
-    _params = [] # this is a hack to create the settings button
+    _settings = [] # this is a hack to create the settings button
 
     def __init__(self, controller=None, parent=None):
         WidgetBase.__init__(self, parent=parent, controller=controller)

@@ -63,7 +63,7 @@ class NDScatterView(WidgetBase):
     This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
     """
     _depend_on = ['principal_components']
-    _params = [
+    _settings = [
            {'name': 'refresh_interval', 'type': 'int', 'value': 80 },
            {'name': 'num_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
            {'name': 'num_pc_per_channel', 'type': 'int', 'value':  2, 'limits' : [1, 100] },
