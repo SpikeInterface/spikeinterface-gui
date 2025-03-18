@@ -1,6 +1,7 @@
 
 
 class ViewBase():
+    _supported_backend = []
     _need_compute = False
     _settings = None
     _gui_help_txt = "The help for this view is not done yet"
@@ -15,11 +16,11 @@ class ViewBase():
         if self.backend == "qt":
             # For QT the parent is the **widget**
             from .backend_qt import SignalNotifyer, create_settings
+            self.qt_widget = parent
             self.notifyer = SignalNotifyer(parent=parent)
             if self._settings is not None:
                 create_settings(self, parent)
             self._make_layout_qt()
-            self.qt_widget = parent
 
         elif self.backend == "panel":
             from .backend_panel import SignalNotifyer, create_settings
@@ -86,37 +87,84 @@ class ViewBase():
             return html_color
 
     # def open_settings(self):
-    #     if not self.tree_params.isVisible():
-    #         self.tree_params.show()
-    #     else:
-    #         self.tree_params.hide()
-    
+    #     NON mauvaise idée
+    #     if self.backend == "qt":
+    #         if not self.tree_settings.isVisible():
+    #             self.tree_settings.show()
+    #         else:
+    #             self.tree_settings.hide()
+
     # def open_help(self):
     #     but = self.sender()
     #     QT.QToolTip.showText(but.mapToGlobal(QT.QPoint()),self._gui_help_txt, but)
     
     # Default behavior for all views : this can be changed view by view for perfs reaons    
     def on_spike_selection_changed(self):
-        pass
+        if self.backend == "qt":
+            self._on_spike_selection_changed_qt()
+        elif self.backend == "panel":
+            self._on_spike_selection_changed_panel()
+        
 
     def on_unit_visibility_changed(self):
-        self.refresh()
+        if self.backend == "qt":
+            self._on_unit_visibility_changed_qt()
+        elif self.backend == "panel":
+            self._on_unit_visibility_changed_panel()
+
     
     def on_channel_visibility_changed(self):
-        pass
+        if self.backend == "qt":
+            self._on_channel_visibility_changed_qt()
+        elif self.backend == "panel":
+            self._on_channel_visibility_changed_panel()
+
 
     def on_manual_curation_updated(self):
-        pass
+        if self.backend == "qt":
+            self._on_manual_curation_updated_qt()
+        elif self.backend == "panel":
+            self._on_manual_curation_updated_panel()
+
 
     ## Zone to be done per layout ##
+
+    ## QT ##
     def _make_layout_qt(self):
         raise NotImplementedError
 
-    def _make_layout_panel(self):
-        raise NotImplementedError
-    
     def _refresh_qt(self):
         raise(NotImplementedError)
 
+    def _on_spike_selection_changed_qt(self):
+        pass
+
+    def _on_unit_visibility_changed_qt(self):
+        # most veiw need a refresh
+        self.refresh()
+    
+    def _on_channel_visibility_changed_qt(self):
+        pass
+
+    def _on_manual_curation_updated_qt(self):
+        pass
+
+    ## PANEL ##
+    def _make_layout_panel(self):
+        raise NotImplementedError
+
     def _refresh_panel(self):
         raise(NotImplementedError)
+
+    def _on_spike_selection_changed_panel(self):
+        pass
+
+    def _on_unit_visibility_changed_panel(self):
+        # most veiw need a refresh
+        self.refresh()
+    
+    def _on_channel_visibility_changed_panel(self):
+        pass
+
+    def _on_manual_curation_updated_panel(self):
+        pass

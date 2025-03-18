@@ -1,67 +1,16 @@
 """
-This should be rewritte with vispy but I don't have time now...
+This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
 """
-from .myqt import QT
-import pyqtgraph as pg
-
-from matplotlib.path import Path as mpl_path
-
-import numpy as np
-import pandas as pd
 
 import itertools
+import numpy as np
+from matplotlib.path import Path as mpl_path
 
-from .base import WidgetBase
-from .tools import ParamDialog
+from .view_base import ViewBase
 
 
-class MyViewBox(pg.ViewBox):
-    doubleclicked = QT.pyqtSignal()
-    gain_zoom = QT.pyqtSignal(float)
-    lasso_drawing = QT.pyqtSignal(object)
-    lasso_finished = QT.pyqtSignal(object)
-    
-    def __init__(self, *args, **kwds):
-        pg.ViewBox.__init__(self, *args, **kwds)
-        self.disableAutoRange()
-        self.drag_points = []
-        
-    def mouseClickEvent(self, ev):
-        ev.accept()
-        
-    def mouseDoubleClickEvent(self, ev):
-        self.doubleclicked.emit()
-        ev.accept()
-        
-    def wheelEvent(self, ev, axis=None):
-        if ev.modifiers() == QT.Qt.ControlModifier:
-            z = 10 if ev.delta()>0 else 1/10.
-        else:
-            z = 1.3 if ev.delta()>0 else 1/1.3
-        self.gain_zoom.emit(z)
-        ev.accept()
-        
-    def mouseDragEvent(self, ev):
-        ev.accept()
-        if ev.button() != QT.MouseButton.LeftButton:
-            return
-        
-        if ev.isStart():
-            self.drag_points = []
-        
-        pos = self.mapToView(ev.pos())
-        self.drag_points.append([pos.x(), pos.y()])
-        
-        if ev.isFinish():
-            self.lasso_finished.emit(self.drag_points)
-        else:
-            self.lasso_drawing.emit(self.drag_points)
-        
-
-class NDScatterView(WidgetBase):
-    """
-    This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
-    """
+class NDScatterView(ViewBase):
+    _supported_backend = ['qt']
     _depend_on = ['principal_components']
     _settings = [
            {'name': 'refresh_interval', 'type': 'int', 'value': 80 },
@@ -69,8 +18,13 @@ class NDScatterView(WidgetBase):
            {'name': 'num_pc_per_channel', 'type': 'int', 'value':  2, 'limits' : [1, 100] },
         ]
     
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+    
+
+    def _make_layout_qt(self):
+        from .myqt import QT
+        import pyqtgraph as pg
         
         assert self.controller.has_extension('principal_components')
         
@@ -97,27 +51,9 @@ class NDScatterView(WidgetBase):
         
         
         self.layout = QT.QHBoxLayout()
-        self.setLayout(self.layout)
-        
-        self.create_toolbar()
-        
-        self.graphicsview = pg.GraphicsView()
-        self.layout.addWidget(self.graphicsview)
+        # self.setLayout(self.layout)
 
-        self.toolbar.addStretch()
-        self.graphicsview2 = pg.GraphicsView()
-        self.toolbar.addWidget(self.graphicsview2)
-
-        self.timer_tour = QT.QTimer(interval=100)
-        self.timer_tour.timeout.connect(self.new_tour_step)
-        
-        self.initialize()
-        self.refresh()
-        
-        self.params.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
-    
-    def create_toolbar(self):
-        
+        # toolbar
         tb = self.toolbar = QT.QVBoxLayout()
         self.layout.addLayout(tb)
         but = QT.QPushButton('next face')
@@ -130,11 +66,35 @@ class NDScatterView(WidgetBase):
         tb.addWidget(but)
         but.clicked.connect(self.start_stop_tour)
         but = QT.QPushButton('settings')
-        but.clicked.connect(self.open_settings)
+        # but.clicked.connect(self.open_settings)
         tb.addWidget(but)
 
-    def initialize(self):
-        self.viewBox = MyViewBox()
+        
+        self.graphicsview = pg.GraphicsView()
+        self.layout.addWidget(self.graphicsview)
+
+        self.toolbar.addStretch()
+        self.graphicsview2 = pg.GraphicsView()
+        self.toolbar.addWidget(self.graphicsview2)
+
+        self.timer_tour = QT.QTimer(interval=100)
+        self.timer_tour.timeout.connect(self.new_tour_step)
+        
+        # initialize plot
+        self._qt_initialize()
+        # self.refresh()
+        
+        self.settings.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
+    
+
+    def _qt_initialize(self):
+        # TODO sam : move this to _make_layout_qt
+        from .myqt import QT
+        import pyqtgraph as pg
+        from .utils_qt import ViewBoxHandlingLassoAndGain
+
+
+        self.viewBox = ViewBoxHandlingLassoAndGain()
         self.viewBox.gain_zoom.connect(self.gain_zoom)
         self.viewBox.lasso_drawing.connect(self.on_lasso_drawing)
         self.viewBox.lasso_finished.connect(self.on_lasso_finished)
@@ -175,7 +135,7 @@ class NDScatterView(WidgetBase):
         
         self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
         
-        self.plot2 = pg.PlotItem(viewBox=MyViewBox(lockAspect=True))
+        self.plot2 = pg.PlotItem(viewBox=ViewBoxHandlingLassoAndGain(lockAspect=True))
         self.graphicsview2.setCentralItem(self.plot2)
         self.plot2.hideButtons()
         angles = np.arange(0,360, .1)
@@ -236,7 +196,8 @@ class NDScatterView(WidgetBase):
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
         return projected
     
-    def _refresh(self):
+    def _refresh_qt(self):
+        import pyqtgraph as pg
         #~ if self.data is None:
         #~ if self.controller.some_features is None:
             #~ if hasattr(self, 'plot'):
@@ -251,7 +212,7 @@ class NDScatterView(WidgetBase):
         
         # update visible channel
         n_pc_per_chan = self.pc_data.shape[1]
-        n = min(self.params['num_pc_per_channel'], n_pc_per_chan)
+        n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
         self.selected_comp[:] = False
         for i in range(n):
             self.selected_comp[self.controller.visible_channel_inds*n_pc_per_chan+i] = True
@@ -268,7 +229,7 @@ class NDScatterView(WidgetBase):
             #~ projected = np.dot(data, self.projection )
             projected = self.apply_dot(data)
             #~ color = self.get_color(k)
-            color = self.controller.qcolors[unit_id]
+            color = self.get_unit_color(unit_id)
             self.scatter.addPoints(x=projected[:,0], y=projected[:,1],  pen=pg.mkPen(None), brush=color)
         
         #selection scatter
@@ -298,13 +259,13 @@ class NDScatterView(WidgetBase):
     def start_stop_tour(self, checked):
         if checked:
             self.tour_step = 0
-            self.timer_tour.setInterval(int(self.params['refresh_interval']))
+            self.timer_tour.setInterval(int(self.settings['refresh_interval']))
             self.timer_tour.start()
         else:
             self.timer_tour.stop()
     
     def new_tour_step(self):
-        num_step = self.params['num_step']
+        num_step = self.settings['num_step']
         ndim = self.data.shape[1]
         
         if self.tour_step == 0:
@@ -353,8 +314,9 @@ class NDScatterView(WidgetBase):
         self.controller.set_indices_spike_selected(inds)
         
         self.refresh()
-        self.spike_selection_changed.emit()
-    
+        self.notify_spike_selection_changed()
+
+
     def on_spike_selection_changed(self):
         self.refresh()
 

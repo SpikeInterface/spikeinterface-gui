@@ -1,46 +1,14 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
-import pandas as pd
 
-from .base import WidgetBase
 
-import time
+
+from .view_base import ViewBase
 
 from spikeinterface.postprocessing.unit_locations import possible_localization_methods
 
 
-class MyViewBox(pg.ViewBox):
-    doubleclicked = QT.pyqtSignal(float, float)
-    ctrl_doubleclicked = QT.pyqtSignal(float, float)
-    
-    def mouseDoubleClickEvent(self, ev):
-        pos = self.mapToView(ev.pos())
-        x, y = pos.x(), pos.y()
-        if ev.modifiers() == QT.ControlModifier:
-            self.ctrl_doubleclicked.emit(x, y)
-        else:
-            self.doubleclicked.emit(x, y)
-        ev.accept()
-
-    # this is not working because of the ROI that take it    
-    # def mouseClickEvent(self, ev):
-    #     print('mouseClickEvent', ev.modifiers(), QT.ControlModifier, ev.modifiers() == QT.ControlModifier)
-    #     if ev.modifiers() == QT.ControlModifier:
-    #         pos = self.mapToView(ev.pos())
-    #         x, y = pos.x(), pos.y()
-    #         self.ctrl_doubleclicked.emit(x, y)
-    #         ev.accept()
-    #     else:
-    #         pg.ViewBox.mouseClickEvent(self, ev)
-    
-    def raiseContextMenu(self, ev):
-        #for some reasons enableMenu=False is not taken (bug ????)
-        pass
-
-
-class ProbeView(WidgetBase):
+class ProbeView(ViewBase):
+    _supported_backend = ['qt']
     _settings = [
             #~ {'name': 'colormap', 'type': 'list', 'value': 'inferno', 'values': ['inferno', 'summer', 'viridis', 'jet'] },
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
@@ -55,19 +23,22 @@ class ProbeView(WidgetBase):
         ]
     
     _need_compute = True
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+    def _make_layout_qt(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+        from .utils_qt import ViewBoxHandlingDoubleClickToPosition
+    
         
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
         
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
         
-        self.initialize_plot()
-        
-    def initialize_plot(self):
-        self.viewBox = MyViewBox()
+        self.viewBox = ViewBoxHandlingDoubleClickToPosition()
         #~ self.viewBox.doubleclicked.connect(self.open_settings)
         self.viewBox.doubleclicked.connect(self.on_pick_unit)
         self.viewBox.ctrl_doubleclicked.connect(self.on_add_units)
@@ -117,7 +88,7 @@ class ProbeView(WidgetBase):
             self.plot.addItem(label)
             self.channel_labels.append(label)
 
-        radius = self.params['radius_channel']
+        radius = self.settings['radius_channel']
         x, y = self.contact_positions.mean(axis=0)
         self.roi_channel = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#7F7F0C') #pen=(4,9),
         self.plot.addItem(self.roi_channel)
@@ -125,7 +96,7 @@ class ProbeView(WidgetBase):
         # self.roi_channel.sigRegionChangeFinished.connect(self.on_roi_channel_changed)
         
 
-        radius = self.params['radius_units']
+        radius = self.settings['radius_units']
         x, y = self.contact_positions.mean(axis=0)
         self.roi_units = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#d68910') #pen=(4,9),
         self.plot.addItem(self.roi_units)
@@ -134,7 +105,7 @@ class ProbeView(WidgetBase):
         # units
         #~ self.unit_positions
         unit_positions = self.controller.unit_positions
-        brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
+        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
         self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
         self.plot.addItem(self.scatter)
 
@@ -151,19 +122,19 @@ class ProbeView(WidgetBase):
         
 
     
-    def _refresh(self):
+    def _refresh_qt(self):
         r, x, y = circle_from_roi(self.roi_channel)
-        radius = self.params['radius_channel']
+        radius = self.settings['radius_channel']
         self.roi_channel.setSize(radius * 2)
         self.roi_channel.setPos(x - radius, y-radius)
 
         r, x, y = circle_from_roi(self.roi_units)
-        radius = self.params['radius_units']
+        radius = self.settings['radius_units']
         self.roi_units.setSize(radius * 2)
         self.roi_units.setPos(x - radius, y-radius)
 
         
-        if self.params['show_channel_id']:
+        if self.settings['show_channel_id']:
             for label in self.channel_labels:
                 label.show()
         else:
@@ -181,24 +152,24 @@ class ProbeView(WidgetBase):
             visible_channel_inds = visible_channel_inds[order]
             self.controller.set_channel_visibility(visible_channel_inds)
             if emit_signals:
-                self.channel_visibility_changed.emit()
+                self.notify_channel_visibility_changed()
 
     
     def on_roi_channel_changed(self, emit_signals=True):
         
         r, x, y = circle_from_roi(self.roi_channel)
         
-        self.params.blockSignals(True)
-        self.params['radius_channel'] = r
-        self.params.blockSignals(False)
+        self.settings.blockSignals(True)
+        self.settings['radius_channel'] = r
+        self.settings.blockSignals(False)
         
         if emit_signals:
             self.roi_channel.blockSignals(True)
-            # if self.params['roi_channel']:
+            # if self.settings['roi_channel']:
             
             self.update_channel_visibility_from_roi(emit_signals=True)
 
-            # if self.params['roi_units']:
+            # if self.settings['roi_units']:
             #     dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
             #     for unit_index, unit_id in enumerate(self.controller.unit_ids):
             #         self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
@@ -211,9 +182,9 @@ class ProbeView(WidgetBase):
     def on_roi_units_changed(self, emit_signals=True):
         r, x, y = circle_from_roi(self.roi_units)
 
-        self.params.blockSignals(True)
-        self.params['radius_units'] = r
-        self.params.blockSignals(False)
+        self.settings.blockSignals(True)
+        self.settings['radius_units'] = r
+        self.settings.blockSignals(False)
 
 
         if emit_signals:
@@ -223,14 +194,14 @@ class ProbeView(WidgetBase):
             for unit_index, unit_id in enumerate(self.controller.unit_ids):
                 self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
             # self.controller.update_visible_spikes()
-            self.unit_visibility_changed.emit()
+            self.notify_unit_visibility_changed()
             self.on_unit_visibility_changed(auto_zoom=False)
                 
             self.roi_units.blockSignals(False)
         
         # also change channel
         self.roi_channel.blockSignals(True)
-        radius = self.params['radius_channel']
+        radius = self.settings['radius_channel']
         self.roi_channel.setPos(x - radius, y - radius)
         self.roi_channel.blockSignals(False)
         self.on_roi_channel_changed(emit_signals=True)
@@ -239,6 +210,7 @@ class ProbeView(WidgetBase):
 
     
     def on_unit_visibility_changed(self, auto_zoom=None):
+        import pyqtgraph as pg
 
         
 
@@ -255,16 +227,16 @@ class ProbeView(WidgetBase):
             # change ROI only if all units are inside the radius
             positions = self.controller.unit_positions[unit_inds, :]
             distances = np.linalg.norm(positions[:, np.newaxis] - positions[np.newaxis, :], axis=2)
-            if np.max(distances) < (self.params['radius_units'] * 2):
+            if np.max(distances) < (self.settings['radius_units'] * 2):
                 x, y = np.mean(positions, axis=0)
 
         if x is not None:
-            radius = self.params['radius_channel']
+            radius = self.settings['radius_channel']
             self.roi_channel.blockSignals(True)
             self.roi_channel.setPos(x - radius, y - radius)
             self.roi_channel.blockSignals(False)
             self.on_roi_channel_changed(emit_signals=False)
-            radius = self.params['radius_units']
+            radius = self.settings['radius_units']
             self.roi_units.blockSignals(True)
             self.roi_units.setPos(x - radius, y - radius)
             self.roi_units.blockSignals(False)
@@ -280,7 +252,7 @@ class ProbeView(WidgetBase):
         
         # auto zoom
         if auto_zoom is None:
-            auto_zoom = self.params['auto_zoom_on_unit_selection']
+            auto_zoom = self.settings['auto_zoom_on_unit_selection']
         
         if auto_zoom:
             visible_pos = self.controller.unit_positions[visible_mask, :]
@@ -300,7 +272,7 @@ class ProbeView(WidgetBase):
         distances = np.sum((unit_positions - pos) **2, axis=1) ** 0.5
         ind = np.argmin(distances)
         if distances[ind] < 5.:
-            radius = self.params['radius_channel']
+            radius = self.settings['radius_channel']
             unit_id = self.controller.unit_ids[ind]
             if multi_select:
                 self.controller.unit_visible_dict[unit_id] = not(self.controller.unit_visible_dict[unit_id])
@@ -318,7 +290,8 @@ class ProbeView(WidgetBase):
 
             # self.controller.update_visible_spikes()
             self.on_unit_visibility_changed()
-            self.unit_visibility_changed.emit()
+
+            self.notify_unit_visibility_changed()
 
 
     
@@ -329,7 +302,7 @@ class ProbeView(WidgetBase):
     def compute(self):
         # TODO : option by method
         method_kwargs ={} 
-        self.controller.compute_unit_positions(self.params['method_localize_unit'], method_kwargs)
+        self.controller.compute_unit_positions(self.settings['method_localize_unit'], method_kwargs)
         unit_positions = self.controller.unit_positions
         brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
         self.scatter.setData(pos=unit_positions, pxMode=False, size=10, brush=brush)

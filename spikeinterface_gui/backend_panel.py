@@ -139,8 +139,11 @@ class MainWindow:
         # this contains view layout + settings
         self.view_layouts = {}
         for view_name, view_class in possible_class_views.items():
+            if 'panel' not in view_class._supported_backend:
+                continue
             if not self.controller.check_is_view_possible(view_name):
                 continue
+
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 

@@ -4,6 +4,7 @@ from matplotlib.path import Path as mpl_path
 from .view_base import ViewBase
 
 class SpikeAmplitudeView(ViewBase):
+    _supported_backend = ['qt', 'panel']
     _depend_on = ['spike_amplitudes']
     _settings = [
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },

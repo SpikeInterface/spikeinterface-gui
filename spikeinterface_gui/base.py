@@ -115,10 +115,10 @@
 #     def create_settings(self):
 #         self.params = pg.parametertree.Parameter.create( name='settings', type='group', children=self._params)
         
-#         self.tree_params = pg.parametertree.ParameterTree(parent=self)
-#         self.tree_params.header().hide()
-#         self.tree_params.setParameters(self.params, showTop=True)
-#         self.tree_params.setWindowTitle(u'View options')
+#         self.tree_settings = pg.parametertree.ParameterTree(parent=self)
+#         self.tree_settings.header().hide()
+#         self.tree_settings.setParameters(self.params, showTop=True)
+#         self.tree_settings.setWindowTitle(u'View options')
 #         self.tree_params.setWindowFlags(QT.Qt.Window)
         
 #         self.params.sigTreeStateChanged.connect(self.on_params_changed)

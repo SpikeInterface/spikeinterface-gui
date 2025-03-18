@@ -1,119 +1,123 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
 
-from .base import WidgetBase
+
+from .view_base import ViewBase
 
 
 _columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'rand_selected']
 
-class SpikeModel(QT.QAbstractItemModel):
 
-    def __init__(self, parent =None, controller=None):
-        QT.QAbstractItemModel.__init__(self,parent)
-        self.controller = controller
-        self.refresh_colors()
+# class SpikeModel(QT.QAbstractItemModel):
+
+#     def __init__(self, parent =None, controller=None):
+#         QT.QAbstractItemModel.__init__(self,parent)
+#         self.controller = controller
+#         self.refresh_colors()
         
-        self.visible_ind = self.controller.get_indices_spike_visible()
+#         self.visible_ind = self.controller.get_indices_spike_visible()
     
-    def columnCount(self , parentIndex):
-        return len(_columns)
+#     def columnCount(self , parentIndex):
+#         return len(_columns)
     
-    def rowCount(self, parentIndex):
-        if not parentIndex.isValid():
-            return int(self.visible_ind.size)
-        else :
-            return 0
+#     def rowCount(self, parentIndex):
+#         if not parentIndex.isValid():
+#             return int(self.visible_ind.size)
+#         else :
+#             return 0
     
-    def index(self, row, column, parentIndex):
-        if not parentIndex.isValid():
-            return self.createIndex(row, column, None)
-        else:
-            return QT.QModelIndex()
+#     def index(self, row, column, parentIndex):
+#         if not parentIndex.isValid():
+#             return self.createIndex(row, column, None)
+#         else:
+#             return QT.QModelIndex()
 
-    def parent(self, index):
-        return QT.QModelIndex()
+#     def parent(self, index):
+#         return QT.QModelIndex()
     
-    def data(self, index, role):
+#     def data(self, index, role):
         
-        if not index.isValid():
-            return None
+#         if not index.isValid():
+#             return None
         
-        if role not in (QT.Qt.DisplayRole, QT.Qt.DecorationRole):
-            return
+#         if role not in (QT.Qt.DisplayRole, QT.Qt.DecorationRole):
+#             return
         
-        col = index.column()
-        row = index.row()
+#         col = index.column()
+#         row = index.row()
         
-        abs_ind = self.visible_ind[row]
-        spike = self.controller.spikes[abs_ind]
-        unit_id = self.controller.unit_ids[spike['unit_index']]
+#         abs_ind = self.visible_ind[row]
+#         spike = self.controller.spikes[abs_ind]
+#         unit_id = self.controller.unit_ids[spike['unit_index']]
         
-        if role ==QT.Qt.DisplayRole :
-            if col == 0:
-                return '{}'.format(abs_ind)
-            elif col == 1:
-                return '{}'.format(unit_id)
-            elif col == 2:
-                return '{}'.format(spike['segment_index'])
-            elif col == 3:
-                return '{}'.format(spike['sample_index'])
-            elif col == 4:
-                return '{}'.format(spike['channel_index'])
-            elif col == 5:
-                return '{}'.format(spike['rand_selected'])
-            else:
-                return None
-        elif role == QT.Qt.DecorationRole :
-            if col != 0:
-                return None
-            if unit_id in self.icons:
-                return self.icons[unit_id]
-            else:
-                return None
-        else :
-            return None
+#         if role ==QT.Qt.DisplayRole :
+#             if col == 0:
+#                 return '{}'.format(abs_ind)
+#             elif col == 1:
+#                 return '{}'.format(unit_id)
+#             elif col == 2:
+#                 return '{}'.format(spike['segment_index'])
+#             elif col == 3:
+#                 return '{}'.format(spike['sample_index'])
+#             elif col == 4:
+#                 return '{}'.format(spike['channel_index'])
+#             elif col == 5:
+#                 return '{}'.format(spike['rand_selected'])
+#             else:
+#                 return None
+#         elif role == QT.Qt.DecorationRole :
+#             if col != 0:
+#                 return None
+#             if unit_id in self.icons:
+#                 return self.icons[unit_id]
+#             else:
+#                 return None
+#         else :
+#             return None
         
     
-    def flags(self, index):
-        if not index.isValid():
-            return QT.Qt.NoItemFlags
-        return QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable #| Qt.ItemIsDragEnabled
+#     def flags(self, index):
+#         if not index.isValid():
+#             return QT.Qt.NoItemFlags
+#         return QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable #| Qt.ItemIsDragEnabled
 
-    def headerData(self, section, orientation, role):
-        if orientation == QT.Qt.Horizontal and role == QT.Qt.DisplayRole:
-            return  _columns[section]
-        return
+#     def headerData(self, section, orientation, role):
+#         if orientation == QT.Qt.Horizontal and role == QT.Qt.DisplayRole:
+#             return  _columns[section]
+#         return
 
-    def refresh_colors(self):
-        self.icons = { }
-        for unit_id, qcolor in self.controller.qcolors.items():
-            pix = QT.QPixmap(10,10 )
-            pix.fill(qcolor)
-            self.icons[unit_id] = QT.QIcon(pix)
+#     def refresh_colors(self):
+#         self.icons = { }
+#         for unit_id, qcolor in self.controller.qcolors.items():
+#             pix = QT.QPixmap(10,10 )
+#             pix.fill(qcolor)
+#             self.icons[unit_id] = QT.QIcon(pix)
     
-    def refresh(self):
-        self.visible_ind = self.controller.get_indices_spike_visible()
-        self.layoutChanged.emit()
+#     def refresh(self):
+#         self.visible_ind = self.controller.get_indices_spike_visible()
+#         self.layoutChanged.emit()
 
-    def clear(self):
-        self.visible_ind = np.array([])
-        self.layoutChanged.emit()
+#     def clear(self):
+#         self.visible_ind = np.array([])
+#         self.layoutChanged.emit()
 
 
-class SpikeListView(WidgetBase):
+class SpikeListView(ViewBase):
+    _supported_backend = ['qt']
     _settings = [
             {'name': 'select_change_channel_visibility', 'type': 'bool', 'value': False},
         ]    
     
     
-    def __init__(self,controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
-        self.controller = controller
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+    def _make_layout_qt(self):
+        from .myqt import QT
+
+        # this getter is to protect import QT
+        SpikeModel = get_qt_spike_model()
         
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
@@ -134,7 +138,10 @@ class SpikeListView(WidgetBase):
         
         self.layout.addWidget(self.tree)
         
-        self.model = SpikeModel(controller=self.controller)
+        self.model = SpikeModel(controller=self.controller, columns=_columns)
+        qcolors = {unit_id:self.get_unit_color(unit_id) for unit_id in self.controller.unit_ids}
+        self.model.refresh_colors(qcolors)
+
         self.tree.setModel(self.model)
         self.tree.selectionModel().selectionChanged.connect(self.on_tree_selection)
 
@@ -142,7 +149,6 @@ class SpikeListView(WidgetBase):
             self.tree.resizeColumnToContents(i)
         self.tree.setColumnWidth(0,80)
         
-        self.model.refresh_colors()
     
     def refresh_label(self):
         n1 = self.controller.spikes.size
@@ -162,8 +168,8 @@ class SpikeListView(WidgetBase):
                 ind = self.model.visible_ind[index.row()]
                 inds.append(ind)
         self.controller.set_indices_spike_selected(inds)
-        self.spike_selection_changed.emit()
-        if len(inds) == 1 and self.params['select_change_channel_visibility']:
+        self.notify_spike_selection_changed()
+        if len(inds) == 1 and self.settings['select_change_channel_visibility']:
             # also change channel for centering trace view.
             sparsity_mask = self.controller.get_sparsity_mask()
             unit_index = self.controller.spikes[inds[0]]['unit_index']
@@ -176,13 +182,14 @@ class SpikeListView(WidgetBase):
         
         self.refresh_label()
     
-    def on_unit_visibility_changed(self):
+    def _on_unit_visibility_changed_qt(self):
         # we cannot refresh this list in real time whil moving channel/unit visibility
         # it is too slow.
         self.refresh_label()
         self.model.clear()
 
-    def on_spike_selection_changed(self):
+    def _on_spike_selection_changed_qt(self):
+        from .myqt import QT
         self.tree.selectionModel().selectionChanged.disconnect(self.on_tree_selection)
         
         selected_inds  = self.controller.get_indices_spike_selected()
@@ -213,11 +220,115 @@ class SpikeListView(WidgetBase):
         
         self.refresh_label()
 
-    def open_context_menu(self):
-        pass
 
 SpikeListView._gui_help_txt = """Spike list view
 Show all spikes of the visible units.
 When on spike is selected then:
   * the trace scroll to it
   * ndscatter shows it (if included_in_pc=True)"""
+
+
+
+
+
+def get_qt_spike_model():
+    # this getter is to protect import QT when using panel
+
+    from .myqt import QT
+
+    class SpikeModel(QT.QAbstractItemModel):
+
+        def __init__(self, parent =None, controller=None, columns=[]):
+            QT.QAbstractItemModel.__init__(self,parent)
+            self.controller = controller
+            self.columns = columns
+            # self.refresh_colors()
+            
+            self.visible_ind = self.controller.get_indices_spike_visible()
+        
+        def columnCount(self , parentIndex):
+            return len(self.columns)
+        
+        def rowCount(self, parentIndex):
+            if not parentIndex.isValid():
+                return int(self.visible_ind.size)
+            else :
+                return 0
+        
+        def index(self, row, column, parentIndex):
+            if not parentIndex.isValid():
+                return self.createIndex(row, column, None)
+            else:
+                return QT.QModelIndex()
+
+        def parent(self, index):
+            return QT.QModelIndex()
+        
+        def data(self, index, role):
+            
+            if not index.isValid():
+                return None
+            
+            if role not in (QT.Qt.DisplayRole, QT.Qt.DecorationRole):
+                return
+            
+            col = index.column()
+            row = index.row()
+            
+            abs_ind = self.visible_ind[row]
+            spike = self.controller.spikes[abs_ind]
+            unit_id = self.controller.unit_ids[spike['unit_index']]
+            
+            if role ==QT.Qt.DisplayRole :
+                if col == 0:
+                    return '{}'.format(abs_ind)
+                elif col == 1:
+                    return '{}'.format(unit_id)
+                elif col == 2:
+                    return '{}'.format(spike['segment_index'])
+                elif col == 3:
+                    return '{}'.format(spike['sample_index'])
+                elif col == 4:
+                    return '{}'.format(spike['channel_index'])
+                elif col == 5:
+                    return '{}'.format(spike['rand_selected'])
+                else:
+                    return None
+            elif role == QT.Qt.DecorationRole :
+                if col != 0:
+                    return None
+                if unit_id in self.icons:
+                    return self.icons[unit_id]
+                else:
+                    return None
+            else :
+                return None
+            
+        
+        def flags(self, index):
+            if not index.isValid():
+                return QT.Qt.NoItemFlags
+            return QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable #| Qt.ItemIsDragEnabled
+
+        def headerData(self, section, orientation, role):
+            if orientation == QT.Qt.Horizontal and role == QT.Qt.DisplayRole:
+                return  self.columns[section]
+            return
+
+        def refresh_colors(self, qcolors):
+            self.icons = { }
+            for unit_id, qcolor in qcolors.items():
+                pix = QT.QPixmap(10,10 )
+                pix.fill(qcolor)
+                self.icons[unit_id] = QT.QIcon(pix)
+        
+        def refresh(self):
+            self.visible_ind = self.controller.get_indices_spike_visible()
+            self.layoutChanged.emit()
+
+        def clear(self):
+            self.visible_ind = np.array([])
+            self.layoutChanged.emit()
+
+
+    return SpikeModel

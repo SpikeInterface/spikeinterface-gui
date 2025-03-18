@@ -69,7 +69,7 @@ class MixinViewTrace:
         # winsize
         self.xsize = .5
         tb.addWidget(QT.QLabel(u'X size (s)'))
-        self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.params['xsize_max']], suffix = 's',
+        self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.settings['xsize_max']], suffix = 's',
                             siPrefix = True, step = 0.1, dec = True)
         self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
         tb.addWidget(self.spinbox_xsize)
@@ -178,7 +178,7 @@ class MixinViewTrace:
         ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
         
-        if self.params['auto_zoom_on_select'] and n_selected==1:
+        if self.settings['auto_zoom_on_select'] and n_selected==1:
             #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
             ind = ind_selected[0]
             peak_ind = self.controller.spikes[ind]['sample_index']
@@ -191,8 +191,8 @@ class MixinViewTrace:
                 self.combo_seg.setCurrentIndex(seg_num)
             
             self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-            self.spinbox_xsize.setValue(self.params['zoom_size'])
-            self.xsize = self.params['zoom_size']
+            self.spinbox_xsize.setValue(self.settings['zoom_size'])
+            self.xsize = self.settings['zoom_size']
             self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
             
             self.seek(peak_time)
@@ -256,18 +256,18 @@ class TraceView(WidgetBase, MixinViewTrace):
     def visible_channel_inds(self):
         # TODO add option to order by depth
         inds = self.controller.visible_channel_inds
-        n_max =self.params['max_visible_channel']
+        n_max =self.settings['max_visible_channel']
         if inds.size > n_max:
             inds = inds[:n_max]
         return inds
     
     def on_params_changed(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
-        self.spinbox_xsize.opts['bounds'] = [0.001, self.params['xsize_max']]
-        if self.xsize > self.params['xsize_max']:
+        self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
+        if self.xsize > self.settings['xsize_max']:
             self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-            self.spinbox_xsize.setValue(self.params['xsize_max'])
-            self.xsize = self.params['xsize_max']
+            self.spinbox_xsize.setValue(self.settings['xsize_max'])
+            self.xsize = self.settings['xsize_max']
             self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
         
         self.reset_gain_and_offset()
@@ -423,7 +423,7 @@ class TraceView(WidgetBase, MixinViewTrace):
             y = sigs_chunk[sample_inds, channel_inds] * self.gains[channel_inds] + self.offsets[channel_inds]
 
             color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
-            color.setAlpha(int(self.params['alpha']*255))
+            color.setAlpha(int(self.settings['alpha']*255))
             
             all_x.append(x)
             all_y.append(y)

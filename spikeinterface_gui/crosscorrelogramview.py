@@ -1,16 +1,9 @@
-# from .myqt import QT
-# import pyqtgraph as pg
-
-# import numpy as np
-# import pandas as pd
-
-# from .base import WidgetBase
-
 from .view_base import ViewBase
 
 
 
 class CrossCorrelogramView(ViewBase):
+    _supported_backend = ['qt']
     _settings = [
                       {'name': 'window_ms', 'type': 'float', 'value' : 50. },
                       {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },

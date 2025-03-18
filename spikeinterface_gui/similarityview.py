@@ -1,48 +1,32 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
 import matplotlib.cm
 import matplotlib.colors
 
-from .base import WidgetBase
-from .tools import ParamDialog
-
-
-class MyViewBox(pg.ViewBox):
-    clicked = QT.pyqtSignal(float, float, bool)
-    doubleclicked = QT.pyqtSignal()
-    def mouseClickEvent(self, ev):
-        pos = self.mapToView(ev.pos())
-        x, y = pos.x(), pos.y()
-        if ev.modifiers() == QT.ControlModifier:
-            self.clicked.emit(x, y, False)
-        else:
-            self.clicked.emit(x, y, True)
-
-        ev.accept()
-        
-    def mouseDoubleClickEvent(self, ev):
-        self.doubleclicked.emit()
-        ev.accept()
-    def raiseContextMenu(self, ev):
-        #for some reasons enableMenu=False is not taken (bug ????)
-        pass
+from .view_base import ViewBase
 
 
 
-class SimilarityView(WidgetBase):
+
+class SimilarityView(ViewBase):
+    _supported_backend = ['qt']
     _settings = [
             {'name': 'method', 'type': 'list', 'limits' : ['l1', 'l2', 'cosine'] },
             {'name': 'colormap', 'type': 'list', 'limits' : ['viridis', 'jet', 'gray', 'hot', ] },
             {'name': 'show_all', 'type': 'bool', 'value' : True },
         ]
     _need_compute = True
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
-        
+
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+
+    def _make_layout_qt(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+        from .utils_qt import ViewBoxHandlingClickToPositionWithCtrl
+
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
+        # self.setLayout(self.layout)
         
         #~ h = QT.QHBoxLayout()
         #~ self.layout.addLayout(h)
@@ -56,33 +40,9 @@ class SimilarityView(WidgetBase):
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
         
-        self.initialize_plot()
-        
-        self.similarity = self.controller.get_similarity(method=self.params['method'])
-        self.on_params_changed()#this do refresh
-
-    def on_params_changed(self):
-        
-        # TODO : check if method have changed or not
-        # self.similarity = None
-        
-        N = 512
-        cmap_name = self.params['colormap']
-        cmap = matplotlib.colormaps[cmap_name].resampled(N)
-        
-        lut = []
-        for i in range(N):
-            r,g,b,_ =  matplotlib.colors.ColorConverter().to_rgba(cmap(i))
-            lut.append([r*255,g*255,b*255])
-        self.lut = np.array(lut, dtype='uint8')
-        
-        
-        self.refresh()
-    
-    def initialize_plot(self):
-        self.viewBox = MyViewBox()
+        self.viewBox = ViewBoxHandlingClickToPositionWithCtrl()
         self.viewBox.clicked.connect(self.select_pair)
-        self.viewBox.doubleclicked.connect(self.open_settings)
+        # self.viewBox.doubleclicked.connect(self.open_settings)
         self.viewBox.disableAutoRange()
         
         self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -97,27 +57,37 @@ class SimilarityView(WidgetBase):
         
         self._text_items = []
 
+        
+        self.similarity = self.controller.get_similarity(method=self.settings['method'])
+        self.on_params_changed()#this do refresh
 
-    def on_spike_selection_changed(self):
-        pass
-    
-    def on_spike_label_changed(self):
-        self.refresh()
-    
-    def on_colors_changed(self):
-        pass
-    
-    def on_unit_visibility_changed(self):
+    def on_params_changed(self):
+        
+        # TODO : check if method have changed or not
+        # self.similarity = None
+        
+        N = 512
+        cmap_name = self.settings['colormap']
+        cmap = matplotlib.colormaps[cmap_name].resampled(N)
+        
+        lut = []
+        for i in range(N):
+            r,g,b,_ =  matplotlib.colors.ColorConverter().to_rgba(cmap(i))
+            lut.append([r*255,g*255,b*255])
+        self.lut = np.array(lut, dtype='uint8')
+        
+        
         self.refresh()
 
-    def on_similarity_method_changed(self):
-        self.refresh()
+    # def on_similarity_method_changed(self):
+    #     self.refresh()
 
     def compute(self):
-        self.similarity = self.controller.compute_similarity(method=self.params['method'])
+        self.similarity = self.controller.compute_similarity(method=self.settings['method'])
         self.refresh()
 
-    def _refresh(self):
+    def _refresh_qt(self):
+        import pyqtgraph as pg
         
         unit_ids = self.controller.unit_ids
         
@@ -127,7 +97,7 @@ class SimilarityView(WidgetBase):
         
         _max = np.max(self.similarity)
         
-        if self.params['show_all']:
+        if self.settings['show_all']:
             visible_mask = np.ones(len(unit_ids), dtype='bool')
             s = self.similarity
         else:
@@ -165,7 +135,7 @@ class SimilarityView(WidgetBase):
     def select_pair(self, x, y, reset):
         unit_ids = self.controller.unit_ids
         
-        if self.params['show_all']:
+        if self.settings['show_all']:
             visible_ids = unit_ids
         else:
             visible_ids = [u for u, v in self.controller.unit_visible_dict.items() if v]
@@ -189,7 +159,7 @@ class SimilarityView(WidgetBase):
         self.controller.unit_visible_dict[unti_id1] = True
 
         self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
         
         self.refresh()
     

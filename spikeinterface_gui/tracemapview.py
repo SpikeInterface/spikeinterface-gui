@@ -1,21 +1,19 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
-import time
 
 import matplotlib.cm
 import matplotlib.colors
 
+from .view_base import ViewBase
 
-from .base import WidgetBase
 from .tools import TimeSeeker
 from .traceview import MixinViewTrace
 
 
-class TraceMapView(WidgetBase, MixinViewTrace):
+# class TraceMapView(WidgetBase, MixinViewTrace):
+class TraceMapView(ViewBase, MixinViewTrace):
+
+    _supported_backend = ['qt']
     _depend_on = ['recording']
-    
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
         {'name': 'zoom_size', 'type': 'float', 'value':  0.03, 'step' : 0.001 },
@@ -27,12 +25,17 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         {'name': 'reverse_colormap', 'type': 'bool', 'value': True },
         {'name': 'show_on_selected_units', 'type': 'bool', 'value': True },
     ]
-    
-    def __init__(self,controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+
+
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+
+    def _make_layout_qt(self):
+        from .myqt import QT
+        import pyqtgraph as pg
 
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
         
         self.create_toolbar()
         
@@ -71,23 +74,23 @@ class TraceMapView(WidgetBase, MixinViewTrace):
 
     def on_params_changed(self, do_refresh=True):
 
-        self.spinbox_xsize.opts['bounds'] = [0.001, self.params['xsize_max']]
-        if self.xsize > self.params['xsize_max']:
+        self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
+        if self.xsize > self.settings['xsize_max']:
             self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-            self.spinbox_xsize.setValue(self.params['xsize_max'])
-            self.xsize = self.params['xsize_max']
+            self.spinbox_xsize.setValue(self.settings['xsize_max'])
+            self.xsize = self.settings['xsize_max']
             self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
 
 
         N = 512
-        cmap_name = self.params['colormap']
+        cmap_name = self.settings['colormap']
         cmap = matplotlib.colormaps[cmap_name].resampled(N)
         lut = []
         for i in range(N):
             r,g,b,_ =  matplotlib.colors.ColorConverter().to_rgba(cmap(i))
             lut.append([r*255,g*255,b*255])
         self.lut = np.array(lut, dtype='uint8')
-        if self.params['reverse_colormap']:
+        if self.settings['reverse_colormap']:
             self.lut = self.lut[::-1]
 
 
@@ -179,7 +182,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         all_y = []
         all_brush = []
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if self.params['show_on_selected_units'] and not self.controller.unit_visible_dict[unit_id]:
+            if self.settings['show_on_selected_units'] and not self.controller.unit_visible_dict[unit_id]:
                 continue
             
             unit_mask = (spikes_chunk['unit_index'] == unit_index)
@@ -202,7 +205,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
 
 
             color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
-            color.setAlpha(int(self.params['alpha']*255))
+            color.setAlpha(int(self.settings['alpha']*255))
             
             all_x.append(x)
             all_y.append(y)
@@ -271,7 +274,7 @@ class TraceMapView(WidgetBase, MixinViewTrace):
         #     y = sigs_chunk[sample_inds, channel_inds] * self.gains[channel_inds] + self.offsets[channel_inds]
 
         #     color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
-        #     color.setAlpha(int(self.params['alpha']*255))
+        #     color.setAlpha(int(self.settings['alpha']*255))
             
         #     all_x.append(x)
         #     all_y.append(y)

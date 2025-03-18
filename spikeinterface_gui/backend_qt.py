@@ -35,7 +35,6 @@ class SignalHandler(QT.QObject):
         self.controller = controller
 
     def connect_view(self, view):
-        print("connect_view QT:", view)
         view.notifyer.spike_selection_changed.connect(self.on_spike_selection_changed)
         view.notifyer.unit_visibility_changed.connect(self.on_unit_visibility_changed)
         view.notifyer.channel_visibility_changed.connect(self.on_channel_visibility_changed)
@@ -67,11 +66,11 @@ def create_settings(view, parent):
     view.settings = pg.parametertree.Parameter.create( name='settings', type='group', children=view._settings)
     
     # not that the parent is not the view (not Qt anymore) itself but the widget
-    view.tree_params = pg.parametertree.ParameterTree(parent=parent)
-    view.tree_params.header().hide()
-    view.tree_params.setParameters(view.settings, showTop=True)
-    view.tree_params.setWindowTitle(u'View options')
-    view.tree_params.setWindowFlags(QT.Qt.Window)
+    view.tree_settings = pg.parametertree.ParameterTree(parent=parent)
+    view.tree_settings.header().hide()
+    view.tree_settings.setParameters(view.settings, showTop=True)
+    view.tree_settings.setWindowTitle(u'View options')
+    view.tree_settings.setWindowFlags(QT.Qt.Window)
     
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
@@ -97,19 +96,19 @@ class MainWindow(QT.QMainWindow):
         ## main layout
         
         # list
-        # self.add_one_view('spikelist', area='left')
+        self.add_one_view('spikelist', area='left')
         # self.add_one_view('mergelist', split='spikelist', orientation='horizontal')
+        self.add_one_view('unitlist', split='spikelist', orientation='horizontal')
         # self.add_one_view('unitlist', tabify='mergelist')
         # if self.controller.curation:
         #     self.add_one_view('curation', tabify='spikelist')
         #     # self.docks['spikelist'].raise_()
 
         # # on bottom left
-        # self.add_one_view('probeview', area='left')
-        # self.add_one_view('similarityview', split='probeview', orientation='horizontal')
+        self.add_one_view('probeview', area='left')
+        self.add_one_view('similarityview', split='probeview', orientation='horizontal')
+        self.add_one_view('ndscatterview', tabify='similarityview') # optional
 
-
-        # self.add_one_view('ndscatterview', tabify='similarityview') # optional
         
         # # on right
         # if with_traces:
@@ -117,17 +116,17 @@ class MainWindow(QT.QMainWindow):
         #     if self.controller.num_channels >=16:
         #         self.add_one_view('tracemapview',  tabify='traceview') # optional
         
-        # if 'tracemapview' in self.docks:
-        #     self.add_one_view('waveformview', tabify='tracemapview')
-        # elif 'traceview' in self.docks:
-        #     self.add_one_view('waveformview', tabify='traceview')
-        # else:
-        #     self.add_one_view('waveformview', area='right')
+        if 'tracemapview' in self.docks:
+            self.add_one_view('waveformview', tabify='tracemapview')
+        elif 'traceview' in self.docks:
+            self.add_one_view('waveformview', tabify='traceview')
+        else:
+            self.add_one_view('waveformview', area='right')
         
-        # self.add_one_view('waveformheatmapview', tabify='waveformview')
+        self.add_one_view('waveformheatmapview', tabify='waveformview')
 
-        # next_tab = 'waveformheatmapview' if 'waveformheatmapview' in self.docks else 'waveformview'
-        # self.add_one_view('isiview', tabify=next_tab)
+        next_tab = 'waveformheatmapview' if 'waveformheatmapview' in self.docks else 'waveformview'
+        self.add_one_view('isiview', tabify=next_tab)
         # self.add_one_view('crosscorrelogramview', tabify='isiview')
         self.add_one_view('crosscorrelogramview', area='right')
         self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview') # optional
@@ -148,6 +147,8 @@ class MainWindow(QT.QMainWindow):
             dock_title = view_name
 
         view_class = possible_class_views[view_name]
+        if 'qt' not in view_class._supported_backend:
+            return
 
         if not self.controller.check_is_view_possible(view_name):
             return 
@@ -159,7 +160,6 @@ class MainWindow(QT.QMainWindow):
 
         
         widget.setLayout(view.layout)
-        print("view.layout", view.layout, "widget", widget)
 
         dock.setWidget(widget)
         
@@ -209,8 +209,6 @@ class MyDock(QT.QDockWidget):
     def make_custum_title_bar(self, title='', view=None, widget=None):
         # TODO set style with small icons and font
         
-        print('make_custum_title_bar', )
-
         titlebar = QT.QWidget(self)
 
         # style = 'QPushButton {padding: 5px;}'
@@ -268,10 +266,10 @@ class MyDock(QT.QDockWidget):
 
     def open_settings(self):
         
-        if not self.view.tree_params.isVisible():
-            self.view.tree_params.show()
+        if not self.view.tree_settings.isVisible():
+            self.view.tree_settings.show()
         else:
-            self.view.tree_params.hide()
+            self.view.tree_settings.hide()
     
     def open_help(self):
         but = self.sender()
