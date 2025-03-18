@@ -161,6 +161,35 @@ class ViewBoxHandlingDoubleclickAndGain(pg.ViewBox):
         pass
 
 
+class ViewBoxForTrace(pg.ViewBox):
+    doubleclicked = QT.pyqtSignal(float, float)
+    gain_zoom = QT.pyqtSignal(float)
+    xsize_zoom = QT.pyqtSignal(float)
+    def __init__(self, *args, **kwds):
+        pg.ViewBox.__init__(self, *args, **kwds)
+    def mouseClickEvent(self, ev):
+        ev.accept()
+    def mouseDoubleClickEvent(self, ev):
+        pos = self.mapToView(ev.pos())
+        x, y = pos.x(), pos.y()
+        self.doubleclicked.emit(x, y)
+        ev.accept()
+    def mouseDragEvent(self, ev):
+        ev.ignore()
+    def wheelEvent(self, ev, axis=None):
+        if ev.modifiers() == QT.Qt.ControlModifier:
+            z = 10 if ev.delta()>0 else 1/10.
+        else:
+            z = 1.3 if ev.delta()>0 else 1/1.3
+        self.gain_zoom.emit(z)
+        ev.accept()
+    def mouseDragEvent(self, ev):
+        ev.accept()
+        self.xsize_zoom.emit((ev.pos()-ev.lastPos()).x())
+
+
+
+
 
 
 

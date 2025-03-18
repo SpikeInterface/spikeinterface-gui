@@ -1,49 +1,23 @@
-from .myqt import QT
-import pyqtgraph as pg
+# from .myqt import QT
+# import pyqtgraph as pg
 
 import numpy as np
 import time
 
-from .base import WidgetBase
-from .tools import TimeSeeker
-
+from .view_base import ViewBase
 
 # _trace_sources = ['preprocessed', 'raw']
 _trace_sources = ['preprocessed']
 
-class MyViewBox(pg.ViewBox):
-    doubleclicked = QT.pyqtSignal(float, float)
-    gain_zoom = QT.pyqtSignal(float)
-    xsize_zoom = QT.pyqtSignal(float)
-    def __init__(self, *args, **kwds):
-        pg.ViewBox.__init__(self, *args, **kwds)
-    def mouseClickEvent(self, ev):
-        ev.accept()
-    def mouseDoubleClickEvent(self, ev):
-        pos = self.mapToView(ev.pos())
-        x, y = pos.x(), pos.y()
-        self.doubleclicked.emit(x, y)
-        ev.accept()
-    def mouseDragEvent(self, ev):
-        ev.ignore()
-    def wheelEvent(self, ev, axis=None):
-        if ev.modifiers() == QT.Qt.ControlModifier:
-            z = 10 if ev.delta()>0 else 1/10.
-        else:
-            z = 1.3 if ev.delta()>0 else 1/1.3
-        self.gain_zoom.emit(z)
-        ev.accept()
-    def mouseDragEvent(self, ev):
-        ev.accept()
-        self.xsize_zoom.emit((ev.pos()-ev.lastPos()).x())
-
-
 
 
 class MixinViewTrace:
-    _default_color = QT.QColor( 'white')
 
     def create_toolbar(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+        from .utils_qt import TimeSeeker
+
         tb = self.toolbar = QT.QToolBar()
         
         #Segment selection
@@ -84,7 +58,12 @@ class MixinViewTrace:
         self.layout.addWidget(self.toolbar)
 
     def initialize_plot(self):
-        self.viewBox = MyViewBox()
+        from .myqt import QT
+        import pyqtgraph as pg
+        from .utils_qt import ViewBoxForTrace
+
+
+        self.viewBox = ViewBoxForTrace()
         self.plot = pg.PlotItem(viewBox=self.viewBox)
         self.graphicsview.setCentralItem(self.plot)
         self.plot.hideButtons()
@@ -142,7 +121,7 @@ class MixinViewTrace:
         self.scroll_time.setMinimum(0)
         self.scroll_time.setMaximum(length)
         
-        if self.isVisible():
+        if self.is_view_visible():
             self.refresh()
 
     def on_combo_seg_changed(self):
@@ -157,9 +136,8 @@ class MixinViewTrace:
     
     def on_xsize_changed(self):
         self.xsize = self.spinbox_xsize.value()
-        if self.isVisible():
+        if self.is_view_visible():
             self.refresh()
-    
 
     def xsize_zoom(self, xmove):
         factor = xmove/100.
@@ -167,8 +145,6 @@ class MixinViewTrace:
         limits = self.spinbox_xsize.opts['bounds']
         if newsize>0. and newsize<limits[1]:
             self.spinbox_xsize.setValue(newsize)
-    
-
 
     def on_scroll_time(self, val):
         sr = self.controller.sampling_frequency
@@ -179,7 +155,6 @@ class MixinViewTrace:
         n_selected = ind_selected.size
         
         if self.settings['auto_zoom_on_select'] and n_selected==1:
-            #~ ind_selected, = np.nonzero(self.controller.spikes['selected'])
             ind = ind_selected[0]
             peak_ind = self.controller.spikes[ind]['sample_index']
             seg_num = self.controller.spikes[ind]['segment_index']
@@ -202,12 +177,9 @@ class MixinViewTrace:
 
 
 
-    
 
-
-
-class TraceView(WidgetBase, MixinViewTrace):
-    
+class TraceView(ViewBase, MixinViewTrace):
+    _supported_backend = ['qt']
     _depend_on = ['recording']
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
@@ -217,15 +189,21 @@ class TraceView(WidgetBase, MixinViewTrace):
         {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
         {'name': 'max_visible_channel', 'type': 'int', 'value':  16},
     ]
-    
-    def __init__(self,controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+
+
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
     
         self.trace_source = _trace_sources[0]
-        
+
+    def _make_layout_qt(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+
+
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
+        # self.setLayout(self.layout)
         
         self.create_toolbar()
         
@@ -321,7 +299,7 @@ class TraceView(WidgetBase, MixinViewTrace):
         #~ self.controller.spikes['selected'][ind_spike_nearest] = True
         self.controller.set_indices_spike_selected([ind_spike_nearest])
         
-        self.spike_selection_changed.emit()
+        self.notify_spike_selection_changed()
         self.refresh()
     
 
@@ -334,7 +312,10 @@ class TraceView(WidgetBase, MixinViewTrace):
         self.seek(self.time_by_seg[self.seg_num])
 
     def seek(self, t):
-        if self.sender() is not self.timeseeker:
+        from .myqt import QT
+        import pyqtgraph as pg
+
+        if self.qt_widget.sender() is not self.timeseeker:
             self.timeseeker.seek(t, emit = False)
         
         self.time_by_seg[self.seg_num] = t
@@ -422,7 +403,8 @@ class TraceView(WidgetBase, MixinViewTrace):
             x = times_chunk[sample_inds]
             y = sigs_chunk[sample_inds, channel_inds] * self.gains[channel_inds] + self.offsets[channel_inds]
 
-            color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
+            # color = QT.QColor(self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
+            color = QT.QColor(self.get_unit_color(unit_id))
             color.setAlpha(int(self.settings['alpha']*255))
             
             all_x.append(x)
@@ -449,6 +431,7 @@ class TraceView(WidgetBase, MixinViewTrace):
         
     
     def _initialize_plot(self):
+        import pyqtgraph as pg
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 

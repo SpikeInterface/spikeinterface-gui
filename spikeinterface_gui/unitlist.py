@@ -57,7 +57,7 @@ class UnitListView(ViewBase):
             act.triggered.connect(self.delete_unit)
             act = self.menu.addAction('Merge selected')
             act.triggered.connect(self.merge_selected)
-            shortcut_delete = QT.QShortcut(self)
+            shortcut_delete = QT.QShortcut(self.qt_widget)
             shortcut_delete.setKey(QT.QKeySequence('d'))
             shortcut_delete.activated.connect(self.on_delete_shortcut)
 
@@ -116,20 +116,6 @@ class UnitListView(ViewBase):
         
         column_labels += self.controller.displayed_unit_properties
         
-        # if self.controller.handle_metrics():
-        #     with_metrics = self.checkbox_metrics.isChecked()
-        # else:
-        #     with_metrics = False
-
-
-
-        # categories = [cat['name'] for cat in self.categories]
-        # labels += categories
-
-        # if with_metrics:
-        #     metrics = self.controller.metrics
-        #     labels += list(metrics.columns)
-        
         self.table.setColumnCount(len(column_labels))
         self.table.setHorizontalHeaderLabels(column_labels)
 
@@ -178,7 +164,7 @@ class UnitListView(ViewBase):
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
                     label = self.controller.get_unit_label(unit_id, category)
-                    item = LabelComboBox(i, category, label_def['label_options'], self)
+                    item = LabelComboBox(i, category, label_def['label_options'], parent=self.qt_widget)
                     item.set_label(label)
                     item.remove_label_clicked.connect(self.on_remove_label)
                     item.label_changed.connect(self.on_label_changed)

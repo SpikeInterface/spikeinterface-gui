@@ -97,12 +97,12 @@ class MainWindow(QT.QMainWindow):
         
         # list
         self.add_one_view('spikelist', area='left')
-        # self.add_one_view('mergelist', split='spikelist', orientation='horizontal')
-        self.add_one_view('unitlist', split='spikelist', orientation='horizontal')
-        # self.add_one_view('unitlist', tabify='mergelist')
-        # if self.controller.curation:
-        #     self.add_one_view('curation', tabify='spikelist')
-        #     # self.docks['spikelist'].raise_()
+        self.add_one_view('mergelist', split='spikelist', orientation='horizontal')
+        # self.add_one_view('unitlist', split='spikelist', orientation='horizontal')
+        self.add_one_view('unitlist', tabify='mergelist')
+        if self.controller.curation:
+            self.add_one_view('curation', tabify='spikelist')
+            # self.docks['spikelist'].raise_()
 
         # # on bottom left
         self.add_one_view('probeview', area='left')
@@ -110,11 +110,11 @@ class MainWindow(QT.QMainWindow):
         self.add_one_view('ndscatterview', tabify='similarityview') # optional
 
         
-        # # on right
-        # if with_traces:
-        #     self.add_one_view('traceview', area='right') # optional
-        #     if self.controller.num_channels >=16:
-        #         self.add_one_view('tracemapview',  tabify='traceview') # optional
+        # on right
+        if self.controller.with_traces:
+            self.add_one_view('traceview', area='right') # optional
+            # if self.controller.num_channels >=16:
+            #     self.add_one_view('tracemapview',  tabify='traceview') # optional
         
         if 'tracemapview' in self.docks:
             self.add_one_view('waveformview', tabify='tracemapview')

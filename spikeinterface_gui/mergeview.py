@@ -1,17 +1,16 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
 import itertools
 
-from .base import WidgetBase
-from .tools import ParamDialog, get_dict_from_group_param, CustomItem
+from .view_base import ViewBase
+
+# from .tools import ParamDialog, get_dict_from_group_param, CustomItem
+
 from .curation_tools import adding_group
 
 
-class MergeView(WidgetBase):
-    """
-    """
+class MergeView(ViewBase):
+    _supported_backend = ['qt']
+
     _automerge_params = [
         {'name': 'preset', 'type': 'list', 'limits': [
             'similarity_correlograms', 'temporal_splits', 'x_contaminations', 'feature_neighbors'
@@ -43,12 +42,16 @@ class MergeView(WidgetBase):
 
     _need_compute = True
 
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+
+    def _make_layout_qt(self):
+        from .myqt import QT
 
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
+        # self.setLayout(self.layout)
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
         # self.combo_select = QT.QComboBox()
@@ -68,9 +71,9 @@ class MergeView(WidgetBase):
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self.on_item_selection_changed)
-        self.table.itemDoubleClicked.connect(self.on_double_click)
+        self.table.itemDoubleClicked.connect(self._qt_on_double_click)
 
-        shortcut_merge = QT.QShortcut(self)
+        shortcut_merge = QT.QShortcut(self.qt_widget)
         shortcut_merge.setKey(QT.QKeySequence('m'))
         shortcut_merge.activated.connect(self.on_merge_shorcut)
         self.proposed_merge_unit_groups = [] # self.controller.get_merge_list()
@@ -91,7 +94,7 @@ class MergeView(WidgetBase):
         group_ids = item.group_ids
         return row_ix, group_ids
 
-    def on_double_click(self, item):
+    def _qt_on_double_click(self, item):
         self.accept_group_merge(item.group_ids)
     
     def on_merge_shorcut(self):
@@ -104,7 +107,7 @@ class MergeView(WidgetBase):
 
     def accept_group_merge(self, group_ids):
         self.controller.make_manual_merge_if_possible(group_ids)
-        self.manual_curation_updated.emit()
+        self.notify_manual_curation_updated()
         self.refresh()
 
     def on_item_selection_changed(self):
@@ -121,12 +124,16 @@ class MergeView(WidgetBase):
             self.controller.unit_visible_dict[unit_id] = True
 
         # self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
 
     def open_context_menu(self):
         self.menu.popup(self.cursor().pos())
 
-    def _refresh(self):
+    def _refresh_qt(self):
+        from .myqt import QT
+        from .utils_qt import CustomItem
+        
+
         self.table.clear()
         self.table.setSortingEnabled(False)
         # labels = ['unit_id0', 'unit_id1']
@@ -167,7 +174,7 @@ class MergeView(WidgetBase):
             group_ids = self.proposed_merge_unit_groups[r]
 
             for c, unit_id in enumerate(group_ids):
-                color = self.controller.qcolors.get(unit_id, QT.QColor('white'))
+                color = self.get_unit_color(unit_id)
                 pix = QT.QPixmap(16, 16)
                 pix.fill(color)
                 icon = QT.QIcon(pix)
@@ -222,6 +229,7 @@ class MergeView(WidgetBase):
         pass
 
     def compute(self):
+        from .utils_qt import ParamDialog
         # First we choose the method
 
         methods = {'name': 'method', 'type': 'list', 'limits': ['similarity', 'automerge']}
