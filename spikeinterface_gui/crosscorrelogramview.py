@@ -103,7 +103,8 @@ class CrossCorrelogramView(ViewBase):
         # Main layout with improved sizing and spacing
         self.layout = pn.Column(
             self.empty_plot_pane,
-            sizing_mode="stretch_width",
+            # sizing_mode="stretch_width",
+            sizing_mode="stretch_both",
         )
         self.is_warning_active = False
 

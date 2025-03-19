@@ -1,4 +1,10 @@
+import numpy as np
+
 import panel as pn
+
+from bokeh.models import ColumnDataSource, Patches
+
+
 
 _bg_color = "#181818"
 
@@ -56,5 +62,55 @@ def clear_warning(view):
         if isinstance(item, pn.pane.HTML) and "⚠️" in str(item.object):
             view.layout.remove(item)
 
+
+
+
+class CustomCircle:
+    """
+    Create a custom circle glyph with draggable center and radius.
+    """
+
+    def __init__(
+        self,
+        initial_x=0,
+        initial_y=0,
+        radius=50,
+        num_points_theta=50,
+        line_color="#7F7F0C",
+        fill_color=None,
+        fill_alpha=0.1,
+        line_width=2,
+    ):
+        self.theta = np.linspace(0, 2 * np.pi, num_points_theta)
+        xs = initial_x + radius * np.cos(self.theta)
+        ys = initial_y + radius * np.sin(self.theta)
+        self.source = ColumnDataSource(data=dict(xs=[xs.tolist()], ys=[ys.tolist()]))
+        self.circle = Patches(
+            xs="xs", ys="ys", line_color=line_color, fill_color=fill_color, line_width=line_width, fill_alpha=fill_alpha
+        )
+        self.radius = radius
+        self.center = (initial_x, initial_y)
+
+    def update_position(self, x, y):
+        # Update circle points
+        xs = x + self.radius * np.cos(self.theta)
+        ys = y + self.radius * np.sin(self.theta)
+        self.source.data.update(dict(xs=[xs.tolist()], ys=[ys.tolist()]))
+        self.center = (x, y)
+
+    def update_radius(self, radius):
+        self.radius = radius
+        self.update_position(*self.center)
+
+    def is_position_inside(self, x, y):
+        # Check if position is inside the circle
+        distance = np.sqrt((x - self.center[0]) ** 2 + (y - self.center[1]) ** 2)
+        return distance <= self.radius
+
+    def is_close_to_border(self, x, y):
+        # Check if position is close to the border of the circle
+        distance = np.sqrt((x - self.center[0]) ** 2 + (y - self.center[1]) ** 2)
+        print(f"Distance to border: {distance} (radius: {self.radius})")
+        return abs(distance - self.radius) < 5
 
 
