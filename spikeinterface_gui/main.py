@@ -27,6 +27,7 @@ def run_mainwindow(
     extra_unit_properties=None,
     recording=None,
     start_qt_app=True,
+    layout_preset=None,
     verbose=False,
 ):
     """
@@ -55,6 +56,8 @@ def run_mainwindow(
         SortingAnalyzer is recordingless.
     start_qt_app: bool, default: True
         If True, the QT app loop is started
+    layout_preset : str | None
+        The name of the layout preset. None is default.
     verbose: bool, default: False
         If True, print some information in the console
     """
@@ -78,7 +81,7 @@ def run_mainwindow(
 
         app = mkQApp()
         
-        win = MainWindow(controller)
+        win = MainWindow(controller, layout_preset=layout_preset)
         win.setWindowTitle('SpikeInterface GUI')
         this_file = Path(__file__).absolute()
         win.setWindowIcon(QT.QIcon(str(this_file.parent / 'img' / 'si.png')))
@@ -89,7 +92,7 @@ def run_mainwindow(
     elif backend == "panel":
         from .backend_panel import MainWindow, start_server
         import panel
-        win = MainWindow(controller)
+        win = MainWindow(controller, layout_preset=layout_preset)
         start_server(win)
     
     else:

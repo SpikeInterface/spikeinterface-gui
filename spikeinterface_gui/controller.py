@@ -322,6 +322,7 @@ class  Controller():
         # hook to update also the indices on spikes
         self.update_visible_spikes()
         super().on_unit_visibility_changed()
+
     
 
     def update_visible_spikes(self):

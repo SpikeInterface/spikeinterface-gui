@@ -84,7 +84,6 @@ class ISIView(ViewBase):
                 sizing_mode="stretch_both"
             )
 
-
     def _panel_refresh(self):
         from bokeh.models import ColumnDataSource
 
@@ -110,12 +109,10 @@ class ISIView(ViewBase):
             y_max = max(y_max, isi.max())
 
         # Update plot ranges
-        # self.figure.x_range.start = 0
+        self.figure.x_range.start = 0
         self.figure.x_range.end = self.settings['window_ms']
-        # self.figure.y_range.start = 0
+        self.figure.y_range.start = 0
         self.figure.y_range.end = y_max * 1.1
-
-
 
 
 ISIView._gui_help_txt = """Inter spike intervals

@@ -2,6 +2,7 @@ from .myqt import QT
 import pyqtgraph as pg
 
 from .viewlist import possible_class_views
+from .layout_presets import get_layout_description
 
 import time
 
@@ -77,126 +78,134 @@ def create_settings(view, parent):
 
 
 
-
+# TODO sam : remove the MyDock and make a toolbar inside the widget (bug on some qt version)
 # open settings
 # open help
 
 
-
 class MainWindow(QT.QMainWindow):
-    def __init__(self, controller, parent=None):
+    def __init__(self, controller, parent=None, layout_preset=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
+        self.layout_preset = layout_preset
 
+        self.make_views()
+        self.create_main_layout()
+
+        # refresh all views
+        for view in self.views.values():
+            view.refresh()
+
+    def make_views(self):
         self.views = {}
         self.docks = {}
-        
-        ## main layout
-        
-        # list
-        self.add_one_view('spikelist', area='left')
-        self.add_one_view('mergelist', split='spikelist', orientation='horizontal')
-        # self.add_one_view('unitlist', split='spikelist', orientation='horizontal')
-        self.add_one_view('unitlist', tabify='mergelist')
-        if self.controller.curation:
-            self.add_one_view('curation', tabify='spikelist')
-            # self.docks['spikelist'].raise_()
-
-        # # on bottom left
-        self.add_one_view('probeview', area='left')
-        self.add_one_view('similarityview', split='probeview', orientation='horizontal')
-        self.add_one_view('ndscatterview', tabify='similarityview') # optional
-
-        
-        # on right
-        if self.controller.with_traces:
-            self.add_one_view('traceview', area='right') # optional
-            if self.controller.num_channels >=16:
-                self.add_one_view('tracemapview',  tabify='traceview') # optional
-        
-        if 'tracemapview' in self.docks:
-            self.add_one_view('waveformview', tabify='tracemapview')
-        elif 'traceview' in self.docks:
-            self.add_one_view('waveformview', tabify='traceview')
-        else:
-            self.add_one_view('waveformview', area='right')
-        
-        self.add_one_view('waveformheatmapview', tabify='waveformview')
-
-        next_tab = 'waveformheatmapview' if 'waveformheatmapview' in self.docks else 'waveformview'
-        self.add_one_view('isiview', tabify=next_tab)
-        self.add_one_view('crosscorrelogramview', tabify='isiview')
-        self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview') # optional
-        
-        # if 'traceview' in self.docks:
-        #     self.docks['traceview'].raise_()
-        #     self.docks['traceview'].setGeometry(300, 600, 200, 120)
-        
-    def add_one_view(self, view_name, dock_title=None,
-            area=None, orientation=None, tabify=None, split=None):
-        assert view_name not in self.views, 'View is already in window'
-        
-        if self.verbose:
-            t0 = time.perf_counter()
-            print('view', view_name)
+        for view_name, view_class in possible_class_views.items():
+            if 'qt' not in view_class._supported_backend:
+                continue
+            if not self.controller.check_is_view_possible(view_name):
+                continue
             
-        if dock_title is None:
-            dock_title = view_name
+            if view_name == 'curation' and not self.controller.curation:
+                continue
 
-        view_class = possible_class_views[view_name]
-        if 'qt' not in view_class._supported_backend:
-            return
+            # widget = QT.QWidget(parent=self)
+            widget = QT.QWidget()
+            view = view_class(controller=self.controller, parent=widget, backend='qt')
+            widget.setLayout(view.layout)
 
-        if not self.controller.check_is_view_possible(view_name):
-            return 
+            # dock = MyDock(view_name, parent=self)
+            dock = MyDock(view_name)
+            dock.setWidget(widget)
+            dock.make_custum_title_bar(title=view_name, view=view, widget=widget)
+            dock.visibilityChanged.connect(view.refresh)
+            
+            self.views[view_name] = view
+            self.docks[view_name] = dock
 
-        dock = MyDock(dock_title, parent=self)
-        
-        widget = QT.QWidget(parent=self)
-        view = view_class(controller=self.controller, parent=widget, backend='qt')
+    def create_main_layout(self):
+        preset = get_layout_description(self.layout_preset)
 
-        
-        widget.setLayout(view.layout)
+        widgets_zone = {}
+        for zone, view_names in preset.items():
+            # keep only instanciated views
+            view_names = [view_name for view_name in view_names if view_name in self.views.keys()]
+            widgets_zone[zone] = view_names
 
-        dock.setWidget(widget)
-        
-        if area is not None:
-            _area = areas.get(area)
-            if orientation is None:
+
+        # upper_sidebar
+        last_upper = None
+        for i, view_name in enumerate(widgets_zone['upper_sidebar']):
+            dock = self.docks[view_name]
+            if i == 0:
+                self.addDockWidget(areas['left'], dock)
+            else:
+                self.tabifyDockWidget(self.docks[last_upper], dock)
+            last_upper = view_name
+
+        # upper_left
+        for i, view_name in enumerate(widgets_zone['upper_left']):
+            dock = self.docks[view_name]
+            if i == 0 and last_upper is None:
+                self.addDockWidget(areas['left'], dock)
+            elif i == 0 and last_upper is not None:
+                _orientation = orientations['horizontal']
+                self.splitDockWidget(self.docks[last_upper], dock, _orientation)
+            else:
+                self.tabifyDockWidget(self.docks[last_upper], dock)
+            last_upper = view_name
+
+        # bottom_sidebar
+        last_bottom = None
+        for i, view_name in enumerate(widgets_zone['bottom_sidebar']):
+            dock = self.docks[view_name]
+            if i == 0:
+                _area = areas.get('left')
                 self.addDockWidget(_area, dock)
             else:
-                _orientation = orientations[orientation]
-                self.addDockWidget(dock, _area, _orientation)
+                self.tabifyDockWidget(self.docks[last_bottom], dock)
+            last_bottom = view_name
 
-        elif tabify is not None:
-            assert tabify in self.docks
-            self.tabifyDockWidget(self.docks[tabify], dock)
-        elif split is not None:
-            assert split in self.docks
-            _orientation = orientations[orientation]
-            self.splitDockWidget(self.docks[split], dock, _orientation)
-        
-        dock.make_custum_title_bar(title=dock_title, view=view, widget=widget)
-        
-        dock.visibilityChanged.connect(view.refresh)
-        
-        self.views[view_name] = view
-        self.docks[view_name] = dock
+        # bottom_left
+        for i, view_name in enumerate(widgets_zone['bottom_left']):
+            dock = self.docks[view_name]
+            if i == 0 and last_bottom is None:
+                _area = areas.get('left')
+                self.addDockWidget(_area, dock)
+            elif i == 0 and last_bottom is not None:
+                _orientation = orientations['horizontal']
+                self.splitDockWidget(self.docks[last_bottom], dock, _orientation)
+            else:
+                self.tabifyDockWidget(self.docks[last_bottom], dock)
+            last_bottom = view_name
 
-        if self.verbose:
-            t1 = time.perf_counter()
-            print('view', view_name, t1-t0)
-            
-            #~ print('refresh view')
-            #~ view.refresh()
-            #~ t2 = time.perf_counter()
-            #~ print(t2-t1)
+        # upper_right
+        last_right = None
+        for i, view_name in enumerate(widgets_zone['upper_right']):
+            dock = self.docks[view_name]
+            if i == 0:
+                _area = areas.get('right')
+                self.addDockWidget(_area, dock)
+            else:
+                self.tabifyDockWidget(self.docks[last_right], dock)
+            last_right = view_name
 
+        # bottom_right
+        last_right = None
+        for i, view_name in enumerate(widgets_zone['bottom_right']):
+            dock = self.docks[view_name]
+            if i == 0:
+                _area = areas.get('right')
+                self.addDockWidget(_area, dock)
+            else:
+                self.tabifyDockWidget(self.docks[last_right], dock)
+            last_right = view_name
 
-
-            
+        # make visible the first of each zone
+        for zone, view_names in widgets_zone.items():
+            if len(view_names) > 1:
+                self.docks[view_names[0]].raise_()
 
 
 

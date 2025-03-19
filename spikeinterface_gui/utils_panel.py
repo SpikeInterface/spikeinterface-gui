@@ -1,3 +1,4 @@
+import panel as pn
 
 _bg_color = "#181818"
 
@@ -37,3 +38,23 @@ table_stylesheet = """
     background-color: #1a1a1a !important;
 }
 """
+
+
+def insert_warning(view, warning_msg):
+    clear_warning(view)
+    alert_html = f"""
+    <div style="padding: 15px; margin-bottom: 20px; border: 1px solid #d4ac0d; 
+                border-radius: 4px; background-color: #fcf3cf; color: #7d6608;
+                font-weight: bold; text-align: center; width: 100%;">
+        ⚠️ {warning_msg}
+    </div>
+    """
+    view.layout.insert(0, pn.pane.HTML(alert_html))
+
+def clear_warning(view):
+    for item in view.layout:
+        if isinstance(item, pn.pane.HTML) and "⚠️" in str(item.object):
+            view.layout.remove(item)
+
+
+

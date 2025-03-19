@@ -1,16 +1,9 @@
-from pathlib import Path
-import signal
-import sys
-import traceback
-
 import param
 import panel as pn
-from tornado.ioloop import IOLoop
-import socket
-# pn.extension('modal')
 
 
 from .viewlist import possible_class_views
+from .layout_presets import get_layout_description
 
 # Used by views to emit/trigger signals
 class SignalNotifyer(param.Parameterized):
@@ -123,12 +116,14 @@ def create_settings(view):
 
 class MainWindow:
 
-    def __init__(self, controller):
+    def __init__(self, controller, layout_preset=None):
         self.controller = controller
+        self.layout_preset = layout_preset
         self.verbose = controller.verbose
 
         self.make_views()
         self.create_main_layout()
+        
         # refresh all views
         for view in self.views.values():
             view.refresh()        
@@ -149,7 +144,11 @@ class MainWindow:
             # settings_panel = pn.Param(view.settings._parametrized, name="Settings", show_name=True)
 
             if view_class._settings is not None:
-                settings_panel = pn.Param(view.settings._parametrized, name="", show_name=False)
+                settings_panel = pn.Card(
+                    pn.Param(view.settings._parametrized, name="Settings", show_name=True),
+                    collapsed=True,
+                    styles={"flex": "0.1"}
+                )
                 items = (
                     settings_panel,
                     view.layout,
@@ -168,86 +167,132 @@ class MainWindow:
 
 
     def create_main_layout(self):
-        # Create tabs for views
-        self.main_tabs = pn.Tabs(
-            # ("Waveform View", self.waveform_view.show()),
-            # ("Trace View", self.trace_view.show()),
-            # ("Trace Map View", self.trace_map_view.show()),
-            ("ISI View", self.view_layouts["isiview"]),
-            # ("Correlogram View", self.correlogram_view.layout),
-            ("Spike Amplitude View", self.view_layouts["spikeamplitudeview"]),
-            sizing_mode="stretch_both",
-            dynamic=True,  # Render tabs only when activated
-            tabs_location="above",
-        )
+        
+        preset = get_layout_description(self.layout_preset)
 
-        # make tab with unit list and merge view
-        self.unit_merge_tabs = pn.Tabs(
-            ("Unit List", self.view_layouts["unitlist"]),
-            # ("Merge View", self.merge_view.show()),
-            sizing_mode="stretch_both",
-            dynamic=True,  # Render tabs only when activated
-            tabs_location="above",
-            styles={"min-height": "50%"}
+        layout_zone = {}
+        for zone, view_names in preset.items():
+            # keep only instanciated views
+            view_names = [view_name for view_name in view_names if view_name in self.view_layouts.keys()]
 
-        )
+            if len(view_names) == 0:
+                layout_zone[zone] = None
+            elif len(view_names) == 1:
+                # unique in the zone
+                layout_zone[zone] = self.view_layouts[view_names[0]]
+            else:
+                 layout_zone[zone] = pn.Tabs(
+                    *((view_name, self.view_layouts[view_name]) for view_name in view_names if view_name in self.view_layouts),
+                    sizing_mode="stretch_both",
+                    dynamic=True,  # Render tabs only when activated
+                    tabs_location="above",
+                )
 
-        # if self.controller.curation:
-        #     # make top tab with spikelist and curation view
-        #     self.spike_curation_tab = pn.Tabs(
-        #         ("Spike List", self.spike_list_view.show()),
-        #         ("Curation View", self.curation_view.show()),
-        #         sizing_mode="stretch_both",
-        #         dynamic=True,  # Render tabs only when activated
-        #         tabs_location="above",
-        #         styles={"min-height": "50%"}
-        #     )
-        # else:
-        #     self.spike_curation_tab = self.spike_list_view.show()
-
-        # # make bottom tab with similarity and ndscatter view
-        # if self.ndscatter_view is not None:
-        #     self.similarity_ndscatter_tab = pn.Tabs(
-        #         ("Similarity View", self.similarity_view.show()),
-        #         ("ND Scatter View", self.ndscatter_view.show()),
-        #         sizing_mode="stretch_both",
-        #         dynamic=True,  # Render tabs only when activated
-        #         tabs_location="above",
-        #         styles={"min-height": "50%"}
-        #     )
-        # else:
-        #     self.similarity_ndscatter_tab = pn.Tabs(
-        #         ("Similarity View", self.similarity_view.show()),
-        #         sizing_mode="stretch_both",
-        #         dynamic=True,  # Render tabs only when activated
-        #         tabs_location="above",
-        #         styles={"min-height": "50%"}
-        #     )
-
-        # # Initialize sidebar with unit list
-        self.sidebar = pn.Row(
-            pn.Column(
-                self.unit_merge_tabs,
-                # self.probe_view.show(),
-                sizing_mode="stretch_width",
-            ),
-            # pn.Column(
-            #     self.spike_curation_tab,
-            #     self.similarity_ndscatter_tab,
-            #     sizing_mode="stretch_width",
-            # ),
-            sizing_mode="stretch_width",
-        )
-
-        # # Create initial layout structure
-        self.main_layout = pn.Column(
+        left = pn.Column(
             pn.Row(
-                self.sidebar,  # Placeholder for sidebar
-                self.main_tabs,  # Main content area
-                sizing_mode="stretch_both"
+                *(layout_zone[zone] for zone in ('upper_sidebar', 'upper_left') if layout_zone[zone] is not None),
             ),
-            sizing_mode="stretch_both"
+            pn.Row(
+                *(layout_zone[zone] for zone in ('bottom_sidebar', 'bottom_left') if layout_zone[zone] is not None),
+            ),
+            sizing_mode="stretch_both",
         )
+
+        right = pn.Column(
+            *(layout_zone[zone] for zone in ('upper_right', 'bottom_right') if layout_zone[zone] is not None),
+            sizing_mode="stretch_both",
+        )
+
+        self.main_layout = pn.Row(
+            left,
+            right,
+            sizing_mode="stretch_both",
+        )
+
+
+
+
+
+        # # Create tabs for views
+        # self.main_tabs = pn.Tabs(
+        #     # ("Waveform View", self.waveform_view.show()),
+        #     # ("Trace View", self.trace_view.show()),
+        #     # ("Trace Map View", self.trace_map_view.show()),
+        #     ("ISI View", self.view_layouts["isi"]),
+        #     ("Correlogram View", self.view_layouts["correlogram"]),
+        #     ("Spike Amplitude View", self.view_layouts["spikeamplitude"]),
+        #     sizing_mode="stretch_both",
+        #     dynamic=True,  # Render tabs only when activated
+        #     tabs_location="above",
+        # )
+
+        # # make tab with unit list and merge view
+        # self.unit_merge_tabs = pn.Tabs(
+        #     ("Unit List", self.view_layouts["unitlist"]),
+        #     # ("Merge View", self.merge_view.show()),
+        #     sizing_mode="stretch_both",
+        #     dynamic=True,  # Render tabs only when activated
+        #     tabs_location="above",
+        #     styles={"min-height": "50%"}
+
+        # )
+
+        # # if self.controller.curation:
+        # #     # make top tab with spikelist and curation view
+        # #     self.spike_curation_tab = pn.Tabs(
+        # #         ("Spike List", self.spike_list_view.show()),
+        # #         ("Curation View", self.curation_view.show()),
+        # #         sizing_mode="stretch_both",
+        # #         dynamic=True,  # Render tabs only when activated
+        # #         tabs_location="above",
+        # #         styles={"min-height": "50%"}
+        # #     )
+        # # else:
+        # #     self.spike_curation_tab = self.spike_list_view.show()
+
+        # # # make bottom tab with similarity and ndscatter view
+        # # if self.ndscatter_view is not None:
+        # #     self.similarity_ndscatter_tab = pn.Tabs(
+        # #         ("Similarity View", self.similarity_view.show()),
+        # #         ("ND Scatter View", self.ndscatter_view.show()),
+        # #         sizing_mode="stretch_both",
+        # #         dynamic=True,  # Render tabs only when activated
+        # #         tabs_location="above",
+        # #         styles={"min-height": "50%"}
+        # #     )
+        # # else:
+        # #     self.similarity_ndscatter_tab = pn.Tabs(
+        # #         ("Similarity View", self.similarity_view.show()),
+        # #         sizing_mode="stretch_both",
+        # #         dynamic=True,  # Render tabs only when activated
+        # #         tabs_location="above",
+        # #         styles={"min-height": "50%"}
+        # #     )
+
+        # # # Initialize sidebar with unit list
+        # self.sidebar = pn.Row(
+        #     pn.Column(
+        #         self.unit_merge_tabs,
+        #         # self.probe_view.show(),
+        #         sizing_mode="stretch_width",
+        #     ),
+        #     # pn.Column(
+        #     #     self.spike_curation_tab,
+        #     #     self.similarity_ndscatter_tab,
+        #     #     sizing_mode="stretch_width",
+        #     # ),
+        #     sizing_mode="stretch_width",
+        # )
+
+        # # # Create initial layout structure
+        # self.main_layout = pn.Column(
+        #     pn.Row(
+        #         self.sidebar,  # Placeholder for sidebar
+        #         self.main_tabs,  # Main content area
+        #         sizing_mode="stretch_both"
+        #     ),
+        #     sizing_mode="stretch_both"
+        # )
 
 
 
