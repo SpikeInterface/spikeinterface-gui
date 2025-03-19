@@ -20,14 +20,14 @@ class ViewBase():
             self.notifyer = SignalNotifyer(parent=parent)
             if self._settings is not None:
                 create_settings(self, parent)
-            self._make_layout_qt()
+            self._qt_make_layout()
 
         elif self.backend == "panel":
             from .backend_panel import SignalNotifyer, create_settings
             self.notifyer = SignalNotifyer(parent=parent)
             if self._settings is not None:
                 create_settings(self)
-            self._make_layout_panel()
+            self._panel_make_layout()
 
         self.controller.declare_a_view(self)
 
@@ -43,11 +43,19 @@ class ViewBase():
     def notify_manual_curation_updated(self):
         self.notifyer.notify_manual_curation_updated()
 
-    # what to do when one settings is changed
+    
     def on_settings_changed(self, *params):
-        # print("on_settings_changed", type(params))
-        # NOte param is either from panel or pyqtgraph
-        self.refresh()
+        # what to do when one settings is changed
+        # optionally views can implement custom method
+        # but the general case is to refesh
+        if self.backend == "qt" and hasattr(self, '_on_settings_changed_qt'):
+            return self._on_settings_changed_qt()
+        elif self.backend == "panel" and hasattr(self, '_on_settings_changed_panel'):
+            return self._on_settings_changed_panel()
+        elif  hasattr(self, '_on_settings_changed'):
+            self._on_settings_changed()
+        else:
+            self.refresh()
 
     def is_view_visible(self):
         if self.backend == "qt":
@@ -62,9 +70,9 @@ class ViewBase():
 
     def _refresh(self):
         if self.backend == "qt":
-            self._refresh_qt()
+            self._qt_refresh()
         elif self.backend == "panel":
-            self._refresh_panel()
+            self._panel_refresh()
     
     def get_unit_color(self, unit_id):
         if self.backend == "qt":
@@ -101,70 +109,70 @@ class ViewBase():
     # Default behavior for all views : this can be changed view by view for perfs reaons    
     def on_spike_selection_changed(self):
         if self.backend == "qt":
-            self._on_spike_selection_changed_qt()
+            self._qt_on_spike_selection_changed()
         elif self.backend == "panel":
-            self._on_spike_selection_changed_panel()
+            self._panel_on_spike_selection_changed()
         
 
     def on_unit_visibility_changed(self):
         if self.backend == "qt":
-            self._on_unit_visibility_changed_qt()
+            self._qt_on_unit_visibility_changed()
         elif self.backend == "panel":
-            self._on_unit_visibility_changed_panel()
+            self._panel_on_unit_visibility_changed()
 
     
     def on_channel_visibility_changed(self):
         if self.backend == "qt":
-            self._on_channel_visibility_changed_qt()
+            self._qt_on_channel_visibility_changed()
         elif self.backend == "panel":
-            self._on_channel_visibility_changed_panel()
+            self._panel_on_channel_visibility_changed()
 
 
     def on_manual_curation_updated(self):
         if self.backend == "qt":
-            self._on_manual_curation_updated_qt()
+            self._qt_on_manual_curation_updated()
         elif self.backend == "panel":
-            self._on_manual_curation_updated_panel()
+            self._panel_on_manual_curation_updated()
 
 
     ## Zone to be done per layout ##
 
     ## QT ##
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         raise NotImplementedError
 
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         raise(NotImplementedError)
 
-    def _on_spike_selection_changed_qt(self):
+    def _qt_on_spike_selection_changed(self):
         pass
 
-    def _on_unit_visibility_changed_qt(self):
+    def _qt_on_unit_visibility_changed(self):
         # most veiw need a refresh
         self.refresh()
     
-    def _on_channel_visibility_changed_qt(self):
+    def _qt_on_channel_visibility_changed(self):
         pass
 
-    def _on_manual_curation_updated_qt(self):
+    def _qt_on_manual_curation_updated(self):
         pass
 
     ## PANEL ##
-    def _make_layout_panel(self):
+    def _panel_make_layout(self):
         raise NotImplementedError
 
-    def _refresh_panel(self):
+    def _panel_refresh(self):
         raise(NotImplementedError)
 
-    def _on_spike_selection_changed_panel(self):
+    def _panel_on_spike_selection_changed(self):
         pass
 
-    def _on_unit_visibility_changed_panel(self):
+    def _panel_on_unit_visibility_changed(self):
         # most veiw need a refresh
         self.refresh()
     
-    def _on_channel_visibility_changed_panel(self):
+    def _panel_on_channel_visibility_changed(self):
         pass
 
-    def _on_manual_curation_updated_panel(self):
+    def _panel_on_manual_curation_updated(self):
         pass

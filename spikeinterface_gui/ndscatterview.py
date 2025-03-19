@@ -22,7 +22,7 @@ class NDScatterView(ViewBase):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
     
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         
@@ -196,7 +196,7 @@ class NDScatterView(ViewBase):
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
         return projected
     
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         import pyqtgraph as pg
         #~ if self.data is None:
         #~ if self.controller.some_features is None:

@@ -20,7 +20,7 @@ class SimilarityView(ViewBase):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import ViewBoxHandlingClickToPositionWithCtrl
@@ -59,9 +59,9 @@ class SimilarityView(ViewBase):
 
         
         self.similarity = self.controller.get_similarity(method=self.settings['method'])
-        self.on_params_changed()#this do refresh
+        self.on_settings_changed()#this do refresh
 
-    def on_params_changed(self):
+    def _on_settings_changed(self):
         
         # TODO : check if method have changed or not
         # self.similarity = None
@@ -86,7 +86,7 @@ class SimilarityView(ViewBase):
         self.similarity = self.controller.compute_similarity(method=self.settings['method'])
         self.refresh()
 
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         import pyqtgraph as pg
         
         unit_ids = self.controller.unit_ids

@@ -197,7 +197,7 @@ class TraceView(ViewBase, MixinViewTrace):
     
         self.trace_source = _trace_sources[0]
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -238,8 +238,8 @@ class TraceView(ViewBase, MixinViewTrace):
         if inds.size > n_max:
             inds = inds[:n_max]
         return inds
-    
-    def on_params_changed(self):
+
+    def _on_settings_changed_qt(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
         self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
         if self.xsize > self.settings['xsize_max']:
@@ -250,7 +250,6 @@ class TraceView(ViewBase, MixinViewTrace):
         
         self.reset_gain_and_offset()
         self.refresh()
-    
 
     def gain_zoom(self, factor_ratio):
         self.factor *= factor_ratio

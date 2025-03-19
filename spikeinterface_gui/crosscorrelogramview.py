@@ -19,7 +19,7 @@ class CrossCorrelogramView(ViewBase):
         self.ccg, self.bins = self.controller.get_correlograms()
 
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -32,10 +32,10 @@ class CrossCorrelogramView(ViewBase):
         self.grid = pg.GraphicsLayoutWidget()
         self.layout.addWidget(self.grid)
 
-    def _make_layout_panel(self):
+    def _panel_make_layout(self):
         raise NotImplementedError
     
-    def on_params_changed(self):
+    def _on_settings_changed(self):
         self.ccg = None
         self.refresh()
 
@@ -44,7 +44,7 @@ class CrossCorrelogramView(ViewBase):
                 self.settings['window_ms'],  self.settings['bin_ms'])
         self.refresh()
 
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         import pyqtgraph as pg
 
         self.grid.clear()
@@ -86,7 +86,7 @@ class CrossCorrelogramView(ViewBase):
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
 
-    def _refresh_panel(self):
+    def _panel_refresh(self):
         raise(NotImplementedError)
 
 

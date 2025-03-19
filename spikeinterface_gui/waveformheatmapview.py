@@ -25,7 +25,7 @@ class WaveformHeatMapView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import ViewBoxHandlingDoubleclickAndGain
@@ -83,10 +83,10 @@ class WaveformHeatMapView(ViewBase):
 
         self.similarity = None
 
-        self.on_params_changed()#this do refresh
+        self.on_settings_changed()#this do refresh
     
     
-    def on_params_changed(self, ): 
+    def _on_settings_changed(self, ): 
         
         N = 512
         cmap_name = self.settings['colormap']
@@ -113,7 +113,7 @@ class WaveformHeatMapView(ViewBase):
         for label in self.channel_labels:
             label.hide()
     
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         from .myqt import QT
         import pyqtgraph as pg
         

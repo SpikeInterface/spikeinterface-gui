@@ -27,7 +27,7 @@ class ProbeView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import ViewBoxHandlingDoubleClickToPosition
@@ -122,7 +122,7 @@ class ProbeView(ViewBase):
         
 
     
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         r, x, y = circle_from_roi(self.roi_channel)
         radius = self.settings['radius_channel']
         self.roi_channel.setSize(radius * 2)

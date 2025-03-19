@@ -88,8 +88,9 @@ def run_mainwindow(
  
     elif backend == "panel":
         from .backend_panel import MainWindow, start_server
+        import panel
         win = MainWindow(controller)
-        start_server(win, port=None)
+        start_server(win)
     
     else:
         raise ValueError(f"spikeinterface-gui wrong backend {backend}")

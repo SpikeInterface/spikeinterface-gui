@@ -18,7 +18,7 @@ class CurationView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -79,7 +79,7 @@ class CurationView(ViewBase):
 
         self.refresh()
 
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         from .myqt import QT
         # print("curation refresh")
         # print(self.controller.curation_data)

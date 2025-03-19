@@ -111,7 +111,7 @@ class SpikeListView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
 
         # this getter is to protect import QT
@@ -182,13 +182,13 @@ class SpikeListView(ViewBase):
         
         self.refresh_label()
     
-    def _on_unit_visibility_changed_qt(self):
+    def _qt_on_unit_visibility_changed(self):
         # we cannot refresh this list in real time whil moving channel/unit visibility
         # it is too slow.
         self.refresh_label()
         self.model.clear()
 
-    def _on_spike_selection_changed_qt(self):
+    def _qt_on_spike_selection_changed(self):
         from .myqt import QT
         self.tree.selectionModel().selectionChanged.disconnect(self.on_tree_selection)
         

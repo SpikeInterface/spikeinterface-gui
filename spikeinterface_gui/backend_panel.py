@@ -7,6 +7,7 @@ import param
 import panel as pn
 from tornado.ioloop import IOLoop
 import socket
+# pn.extension('modal')
 
 
 from .viewlist import possible_class_views
@@ -47,21 +48,21 @@ class SignalHandler(param.Parameterized):
         view.notifyer.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
 
     def on_spike_selection_changed(self, param):
-        print('on_spike_selection_changed', type(param))
+        # print('on_spike_selection_changed', type(param))
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view==self.sender(): continue
             view.on_spike_selection_changed()
 
     def on_unit_visibility_changed(self, param):
-        print('on_unit_visibility_changed', type(param))
+        # print('on_unit_visibility_changed', type(param))
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view==self.sender(): continue
             view.on_unit_visibility_changed()
 
     def on_channel_visibility_changed(self, param):
-        print('on_channel_visibility_changed', type(param))
+        # print('on_channel_visibility_changed', type(param))
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view==self.sender(): continue
@@ -69,7 +70,7 @@ class SignalHandler(param.Parameterized):
 
 
     def on_manual_curation_updated(self, param):
-        print('on_manual_curation_updated', type(param))
+        # print('on_manual_curation_updated', type(param))
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view == self.sender(): continue
@@ -121,10 +122,8 @@ def create_settings(view):
 
 
 class MainWindow:
-    """Panel implementation of the main window."""
 
     def __init__(self, controller):
-        """Initialize Panel main window."""
         self.controller = controller
         self.verbose = controller.verbose
 
@@ -147,19 +146,23 @@ class MainWindow:
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
-            settings_panel = pn.Param(view.settings._parametrized, name="Settings", show_name=True)
+            # settings_panel = pn.Param(view.settings._parametrized, name="Settings", show_name=True)
+
+            if view_class._settings is not None:
+                settings_panel = pn.Param(view.settings._parametrized, name="", show_name=False)
+                items = (
+                    settings_panel,
+                    view.layout,
+                )
+            else:
+                items = (
+                    view.layout,
+                )
 
             view_layout = pn.Column(
-                # settings_panel,
-                pn.Card(
-                    settings_panel,
-                    title="Settings",
-                    collapsed=True,
-                    styles={"flex": "0.1"},
-                 ),
-                view.layout,
-            styles={"display": "flex", "flex-direction": "column"},
-            sizing_mode="stretch_both"
+                *items,
+                styles={"display": "flex", "flex-direction": "column"},
+                sizing_mode="stretch_both"
             )
             self.view_layouts[view_name] = view_layout
 
@@ -170,7 +173,7 @@ class MainWindow:
             # ("Waveform View", self.waveform_view.show()),
             # ("Trace View", self.trace_view.show()),
             # ("Trace Map View", self.trace_map_view.show()),
-            # ("ISI View", self.isi_view.show()),
+            ("ISI View", self.view_layouts["isiview"]),
             # ("Correlogram View", self.correlogram_view.layout),
             ("Spike Amplitude View", self.view_layouts["spikeamplitudeview"]),
             sizing_mode="stretch_both",
@@ -179,15 +182,15 @@ class MainWindow:
         )
 
         # make tab with unit list and merge view
-        # self.unit_merge_tabs = pn.Tabs(
-        #     ("Unit List", self.unit_view.show()),
-        #     ("Merge View", self.merge_view.show()),
-        #     sizing_mode="stretch_both",
-        #     dynamic=True,  # Render tabs only when activated
-        #     tabs_location="above",
-        #     styles={"min-height": "50%"}
+        self.unit_merge_tabs = pn.Tabs(
+            ("Unit List", self.view_layouts["unitlist"]),
+            # ("Merge View", self.merge_view.show()),
+            sizing_mode="stretch_both",
+            dynamic=True,  # Render tabs only when activated
+            tabs_location="above",
+            styles={"min-height": "50%"}
 
-        # )
+        )
 
         # if self.controller.curation:
         #     # make top tab with spikelist and curation view
@@ -222,24 +225,24 @@ class MainWindow:
         #     )
 
         # # Initialize sidebar with unit list
-        # self.sidebar = pn.Row(
-        #     pn.Column(
-        #         self.unit_merge_tabs,
-        #         self.probe_view.show(),
-        #         sizing_mode="stretch_width",
-        #     ),
-        #     pn.Column(
-        #         self.spike_curation_tab,
-        #         self.similarity_ndscatter_tab,
-        #         sizing_mode="stretch_width",
-        #     ),
-        #     sizing_mode="stretch_width",
-        # )
+        self.sidebar = pn.Row(
+            pn.Column(
+                self.unit_merge_tabs,
+                # self.probe_view.show(),
+                sizing_mode="stretch_width",
+            ),
+            # pn.Column(
+            #     self.spike_curation_tab,
+            #     self.similarity_ndscatter_tab,
+            #     sizing_mode="stretch_width",
+            # ),
+            sizing_mode="stretch_width",
+        )
 
         # # Create initial layout structure
         self.main_layout = pn.Column(
             pn.Row(
-                # self.sidebar,  # Placeholder for sidebar
+                self.sidebar,  # Placeholder for sidebar
                 self.main_tabs,  # Main content area
                 sizing_mode="stretch_both"
             ),
@@ -253,24 +256,24 @@ class MainWindow:
 
 
 
-def _find_available_port(address="localhost", start_port: int = 5006, max_attempts: int = 10) -> int:
-    """Find an available port starting from start_port."""
-    for port in range(start_port, start_port + max_attempts):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            try:
-                sock.bind((address, port))
-                return port
-            except OSError:
-                continue
-    raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts - 1}")
+# def _find_available_port(address="localhost", start_port: int = 5006, max_attempts: int = 10) -> int:
+#     """Find an available port starting from start_port."""
+#     for port in range(start_port, start_port + max_attempts):
+#         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+#             try:
+#                 sock.bind((address, port))
+#                 return port
+#             except OSError:
+#                 continue
+#     raise RuntimeError(f"Could not find an available port in range {start_port}-{start_port + max_attempts - 1}")
 
 
 
-def start_server(mainwindow, address="localhost", port=None):
+def start_server(mainwindow, address="localhost", port=0):
     verbose = mainwindow.controller.verbose
 
     pn.config.sizing_mode = "stretch_width"
-    pn.config.theme = "dark"
+    # pn.config.theme = "dark"
     pn.extension("bokeh")
 
     # logging.basicConfig(level=logging.DEBUG)
@@ -278,48 +281,59 @@ def start_server(mainwindow, address="localhost", port=None):
 
     # favicon_path = Path(__file__).parent.parent / "img" / "si.ico"
 
-    if port is None:
-        # automatic when localhost
-        port =_find_available_port(address=address)
+    # if port is None:
+    #     # automatic when localhost
+    #     port =_find_available_port(address=address)
 
-    server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port, show=False, start=False, dev=True)
-    ioloop = IOLoop.current()
+    # win.main_layout.servable()
+    # server.start()
+
+    mainwindow.main_layout.servable()
+
+    server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
+                      show=False, start=True, dev=True,  autoreload=True)
+    # ioloop = IOLoop.current()
     
     # Handle browser window close using pn.state
     # Alessio : maybe we should have a button for quit instead of the browser closing to be able to recover the session.
-    def on_session_destroyed(session_context):
-        if not pn.state.curdoc.session_context.sessions:
-            if verbose:
-                print("No active sessions. Stopping server...")
-            server.stop()
+    # def on_session_destroyed(session_context):
+    #     if not pn.state.curdoc.session_context.sessions:
+    #         if verbose:
+    #             print("No active sessions. Stopping server...")
+    #         server.stop()
 
-    pn.state.on_session_destroyed(on_session_destroyed)
+    # pn.state.on_session_destroyed(on_session_destroyed)
 
     # Handle system signals
-    def signal_handler(signum, frame):
-        if verbose:
-            print("\nReceived termination signal. Stopping Panel server...")
-        server.stop()
-        # sys.exit(0)  # <-- Forcefully exit process
+    # def signal_handler(signum, frame):
+    #     if verbose:
+    #         print("\nReceived termination signal. Stopping Panel server...")
+    #     server.stop()
+    #     # sys.exit(0)  # <-- Forcefully exit process
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # signal.signal(signal.SIGINT, signal_handler)
+    # signal.signal(signal.SIGTERM, signal_handler)
 
-    url = f"http://{address}:{port}"
+    # url = f"http://{address}:{port}"
 
-    try:
-        # Start server manually
-        server.start()
-        if verbose:
-            print(f"Spikeinterface-gui server running at {url}")
+    # server.start()
+    # if verbose:
+    #     print(f"Spikeinterface-gui server running at {url}")
 
-        # Start Tornado event loop
-        ioloop.start()
 
-    except Exception as e:
-        print("Error starting Panel server:", str(e))
-        traceback.print_exc()
-        server.stop()
-        # sys.exit(1)  # <-- Exit with failure code
+    # try:
+    #     # Start server manually
+    #     server.start()
+    #     if verbose:
+    #         print(f"Spikeinterface-gui server running at {url}")
 
-    return url
+    #     # Start Tornado event loop
+    #     # ioloop.start()
+
+    # except Exception as e:
+    #     print("Error starting Panel server:", str(e))
+    #     traceback.print_exc()
+    #     server.stop()
+    #     # sys.exit(1)  # <-- Exit with failure code
+
+    # return url

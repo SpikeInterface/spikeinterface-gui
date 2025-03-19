@@ -3,27 +3,6 @@ import numpy as np
 from .view_base import ViewBase
 
 
-# class MyViewBox(pg.ViewBox):
-#     doubleclicked = QT.pyqtSignal()
-#     gain_zoom = QT.pyqtSignal(float)
-#     def __init__(self, *args, **kwds):
-#         pg.ViewBox.__init__(self, *args, **kwds)
-#         #~ self.disableAutoRange()
-#     def mouseClickEvent(self, ev):
-#         ev.accept()
-#     def mouseDoubleClickEvent(self, ev):
-#         self.doubleclicked.emit()
-#         ev.accept()
-#     #~ def mouseDragEvent(self, ev):
-#         #~ ev.ignore()
-#     def wheelEvent(self, ev, axis=None):
-#         if ev.modifiers() == QT.Qt.ControlModifier:
-#             z = 10 if ev.delta()>0 else 1/10.
-#         else:
-#             z = 1.3 if ev.delta()>0 else 1/1.3
-#         self.gain_zoom.emit(z)
-#         ev.accept()
-
 
 # TODO sam : check the on_params_changed in change params and remove initialize_plot()
 
@@ -50,7 +29,7 @@ class WaveformView(ViewBase):
         self.ccg, self.bins = self.controller.get_correlograms()
 
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         
@@ -96,7 +75,7 @@ class WaveformView(ViewBase):
         self.initialize_plot()
         self.refresh()
     
-    def on_params_changed(self, params, changes):
+    def _on_settings_changed_qt(self, params, changes):
         for param, change, data in changes:
             if change != 'value': continue
             if param.name()=='flip_bottom_up':
@@ -188,15 +167,15 @@ class WaveformView(ViewBase):
     def gain_zoom(self, factor_ratio):
         self.factor_y *= factor_ratio
         
-        self._refresh_qt(keep_range=True)
+        self._qt_refresh(keep_range=True)
     
     def zoom_range(self):
         self._x_range = None
         self._y1_range = None
         self._y2_range = None
-        self._refresh_qt(keep_range=False)
+        self._qt_refresh(keep_range=False)
     
-    def _refresh_qt(self, keep_range=False):
+    def _qt_refresh(self, keep_range=False):
         
         if not hasattr(self, 'viewBox1'):
             self.initialize_plot()
@@ -452,12 +431,12 @@ class WaveformView(ViewBase):
 
                 self.curve_one_waveform.setData(self.xvect.flatten(), wf.T.flatten(), connect=connect.T.flatten())
     
-    def _on_spike_selection_changed_qt(self):
-        self._refresh_qt(keep_range=True)
+    def _qt_on_spike_selection_changed(self):
+        self._qt_refresh(keep_range=True)
     
-    def _on_unit_visibility_changed_qt(self):
+    def _qt_on_unit_visibility_changed(self):
         keep_range = not(self.settings['auto_zoom_on_unit_selection'])
-        self._refresh_qt(keep_range=keep_range)
+        self._qt_refresh(keep_range=keep_range)
 
 
 WaveformView._gui_help_txt = """Waveform view

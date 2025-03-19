@@ -46,7 +46,7 @@ class MergeView(ViewBase):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
 
-    def _make_layout_qt(self):
+    def _qt_make_layout(self):
         from .myqt import QT
 
         self.merge_info = {}
@@ -129,7 +129,7 @@ class MergeView(ViewBase):
     def open_context_menu(self):
         self.menu.popup(self.cursor().pos())
 
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         from .myqt import QT
         from .utils_qt import CustomItem
         

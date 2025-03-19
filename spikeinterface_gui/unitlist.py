@@ -11,13 +11,29 @@ from .view_base import ViewBase
 
 
 class UnitListView(ViewBase):
-    _supported_backend = ['qt']
-    _settings = [] # this is a hack to create the settings button
+    _supported_backend = ['qt', 'panel']
+    # _settings = [] # this is a hack to create the settings button
+    _settings = None
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-    def _make_layout_qt(self):
+
+    ## common ##
+    def show_all(self):
+        for unit_id in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[unit_id] = True
+        self.refresh()
+        self.notify_unit_visibility_changed()
+    
+    def hide_all(self):
+        for unit_id in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[unit_id] = False
+        self.refresh()
+        self.notify_unit_visibility_changed()
+
+    ## Qt ##
+    def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         
@@ -88,7 +104,7 @@ class UnitListView(ViewBase):
         self.controller.displayed_unit_properties = new_displayed
         self.refresh()
 
-    def _refresh_qt(self):
+    def _qt_refresh(self):
         from .myqt import QT
         from .utils_qt import OrderableCheckItem, CustomItem, LabelComboBox
 
@@ -226,22 +242,6 @@ class UnitListView(ViewBase):
     def _qt_on_open_context_menu(self):
         self.menu.popup(self.cursor().pos())
     
-    def show_all(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = True
-        self.refresh()
-
-        # self.controller.update_visible_spikes()
-        self.notify_unit_visibility_changed()
-    
-    def hide_all(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = False
-        self.refresh()
-
-        # self.controller.update_visible_spikes()
-        self.notify_unit_visibility_changed()
-
     def _get_selected_rows(self):
         rows = []
         for item in self.table.selectedItems():
@@ -288,6 +288,143 @@ class UnitListView(ViewBase):
         self.controller.make_manual_merge_if_possible(merge_unit_ids)
         self.notify_manual_curation_updated()
         self.refresh()
+
+
+    ## panel zone ##
+    def _panel_make_layout(self):
+        import panel as pn
+        from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
+        from .utils_panel import _bg_color, table_stylesheet
+
+        # Create source for table
+        self.source = ColumnDataSource({})
+
+        # Create HTML formatter for unit column with color
+        unit_formatter = HTMLTemplateFormatter(
+            template="""
+            <div style="color: <%= value ? value.color : '#ffffff' %>;">
+                ● <%= value ? value.id : '' %>
+            </div>
+        """
+        )
+
+        # Create checkbox formatter for selected column
+        checkbox_formatter = HTMLTemplateFormatter(
+            template="""
+            <input type="checkbox" <%= value ? 'checked' : '' %> onclick="
+                var indices = source.selected.indices;
+                var idx = cb_obj.parentElement.parentElement.rowIndex - 1;
+                if (cb_obj.checked) {
+                    if (!indices.includes(idx)) indices.push(idx);
+                } else {
+                    var index = indices.indexOf(idx);
+                    if (index > -1) indices.splice(index, 1);
+                }
+                source.selected.indices = indices;
+                source.change.emit();
+            ">
+            """
+        )
+
+        # Create table columns with special formatting
+        columns = [
+            TableColumn(field="unit_id", title="Unit", formatter=unit_formatter),
+            TableColumn(field="selected", title="✓", width=30, formatter=checkbox_formatter),
+            # TableColumn(field="channel_id", title="Channel"),
+            # TableColumn(field="num_channels", title="Sparsity"),
+        ]
+
+        # Create table with dark theme styling
+        self.table = DataTable(
+            source=self.source,
+            columns=columns,
+            sizing_mode="stretch_both",
+            selectable=True,
+            styles={
+                "background-color": _bg_color,
+                "color": "#ffffff",
+            },
+            stylesheets=[table_stylesheet]
+        )
+
+        # Create buttons with consistent styling
+        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default", width=100)
+        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default", width=100)
+
+        # Create info text
+        self.info_text = pn.pane.HTML("")
+
+        # Create main layout
+        self.layout = pn.Column(
+            self.info_text,
+            pn.Row(
+                self.select_all_button,
+                self.unselect_all_button,
+            ),
+            self.table,
+            sizing_mode="stretch_width",
+        )
+
+        # Connect events
+        self.source.selected.on_change("indices", self._panel_on_selection_changed)
+        self.select_all_button.on_click(lambda event: self.show_all())
+        self.unselect_all_button.on_click(lambda event: self.hide_all())
+
+        # Initial refresh
+        # self._refresh_view()
+
+    def _panel_refresh(self):
+        
+
+        # Prepare data for all units
+        unit_ids = self.controller.unit_ids
+        data = {
+            "unit_id": list(unit_ids),
+            "selected": list(self.controller.unit_visible_dict.values()),
+            # "channel_id": [],
+            # "num_channels": [],
+            # "raw_unit_id": []  # Keep track of original unit IDs
+        }
+
+        # ensure str
+        data["unit_index"] =  list(range(unit_ids.size))
+
+        self.source.data = data
+        n1 = len(unit_ids)
+        n2 = sum(self.controller.unit_visible_dict.values())
+        txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
+        self.info_text.object = txt
+
+    def _panel_on_selection_changed(self, attr, old, new):
+        # Get selected units and update visibility
+        selected_unit_ids = []
+        for row_idx in new:
+            unit_index = self.source.data["unit_index"][row_idx]
+            selected_unit_ids.append(self.controller.unit_ids[unit_index])
+
+        # Clear all selections first if using single select
+        if len(new) == 1 and len(old or []) != 0:
+            for unit_id in self.controller.unit_visible_dict:
+                self.controller.unit_visible_dict[unit_id] = False
+
+        # Set selected units as visible
+        for unit_id in selected_unit_ids:
+            self.controller.unit_visible_dict[unit_id] = True
+
+        # # Handle channel visibility
+        # if len(selected_unit_ids) == 1 and self.params["select_change_channel_visibility"]:
+        #     sparsity_mask = self.controller.get_sparsity_mask()
+        #     unit_index = self.controller.unit_ids.tolist().index(selected_unit_ids[0])
+        #     (visible_channel_inds,) = np.nonzero(sparsity_mask[unit_index, :])
+            
+        #     if not np.all(np.isin(visible_channel_inds, self.controller.visible_channel_inds)):
+        #         self.controller.set_channel_visibility(visible_channel_inds)
+        #         self.param.trigger("channel_visibility_changed")
+
+        self.notify_unit_visibility_changed()
+
+
+
 
 
 

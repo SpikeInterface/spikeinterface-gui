@@ -211,7 +211,10 @@ class  Controller():
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
         spike_per_seg = [s.size for s in spike_vector2]
+        # dict[unit_id] -> all indices for this unit across segments
         self._spike_index_by_units = {}
+        # dict[seg_index][unit_id] -> all indices for this unit for one segment
+        self._spike_index_by_segment_and_units = spike_indices
         for unit_id in unit_ids:
             inds = []
             for seg_ind in range(num_seg):
@@ -352,6 +355,14 @@ class  Controller():
         #~ self.controller.spikes['selected'][:] = False
         #~ self.controller.spikes['selected'][inds] = True
         self._spike_selected_indices = np.array(inds)
+
+    def get_spike_indices(self, unit_id, seg_index=None):
+        if seg_index is None:
+            # dict[unit_id] -> all indices for this unit across segments
+            return self._spike_index_by_units[unit_id]
+        else:
+            # dict[seg_index][unit_id] -> all indices for this unit for one segment
+            return self._spike_index_by_segment_and_units[seg_index][unit_id]
 
     def get_num_samples(self, segment_index):
         return self.analyzer.get_num_samples(segment_index=segment_index)

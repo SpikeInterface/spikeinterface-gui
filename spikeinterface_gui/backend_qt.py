@@ -113,8 +113,8 @@ class MainWindow(QT.QMainWindow):
         # on right
         if self.controller.with_traces:
             self.add_one_view('traceview', area='right') # optional
-            # if self.controller.num_channels >=16:
-            #     self.add_one_view('tracemapview',  tabify='traceview') # optional
+            if self.controller.num_channels >=16:
+                self.add_one_view('tracemapview',  tabify='traceview') # optional
         
         if 'tracemapview' in self.docks:
             self.add_one_view('waveformview', tabify='tracemapview')
@@ -127,8 +127,7 @@ class MainWindow(QT.QMainWindow):
 
         next_tab = 'waveformheatmapview' if 'waveformheatmapview' in self.docks else 'waveformview'
         self.add_one_view('isiview', tabify=next_tab)
-        # self.add_one_view('crosscorrelogramview', tabify='isiview')
-        self.add_one_view('crosscorrelogramview', area='right')
+        self.add_one_view('crosscorrelogramview', tabify='isiview')
         self.add_one_view('spikeamplitudeview', tabify='crosscorrelogramview') # optional
         
         # if 'traceview' in self.docks:
