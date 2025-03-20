@@ -1,19 +1,16 @@
-# from .myqt import QT
-# import pyqtgraph as pg
-
 import numpy as np
 import time
 
 from .view_base import ViewBase
 
-# _trace_sources = ['preprocessed', 'raw']
-_trace_sources = ['preprocessed']
 
-
+# This MixinViewTrace is used both in:
+#   * TraceView
+#   * TraceMapView
 
 class MixinViewTrace:
-
-    def create_toolbar(self):
+    ## Qt ##
+    def _qt_create_toolbar(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import TimeSeeker
@@ -26,38 +23,32 @@ class MixinViewTrace:
         self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
         self._seg_index = 0
         self.seg_num = self._seg_index
-        self.combo_seg.currentIndexChanged.connect(self.on_combo_seg_changed)
+        self.combo_seg.currentIndexChanged.connect(self._qt_on_combo_seg_changed)
         tb.addSeparator()
         
-        #~ self.combo_type = QT.QComboBox()
-        #~ tb.addWidget(self.combo_type)
-        #~ self.combo_type.addItems([ trace_source for trace_source in _trace_sources ])
-        #~ self.combo_type.setCurrentIndex(_trace_sources.index(self.trace_source))
-        #~ self.combo_type.currentIndexChanged.connect(self.on_combo_type_changed)
-
         # time slider
         self.timeseeker = TimeSeeker(show_slider=False)
         tb.addWidget(self.timeseeker)
-        self.timeseeker.time_changed.connect(self.seek)
+        self.timeseeker.time_changed.connect(self._qt_seek)
         
         # winsize
         self.xsize = .5
         tb.addWidget(QT.QLabel(u'X size (s)'))
         self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.settings['xsize_max']], suffix = 's',
                             siPrefix = True, step = 0.1, dec = True)
-        self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
+        self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
         tb.addWidget(self.spinbox_xsize)
         tb.addSeparator()
         self.spinbox_xsize.sigValueChanged.connect(self.refresh)
         
         #
         but = QT.QPushButton('auto scale')
-        but.clicked.connect(self.auto_scale)
+        but.clicked.connect(self._qt_auto_scale)
         tb.addWidget(but)
         
         self.layout.addWidget(self.toolbar)
 
-    def initialize_plot(self):
+    def _qt_initialize_plot(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import ViewBoxForTrace
@@ -69,16 +60,16 @@ class MixinViewTrace:
         self.plot.hideButtons()
         self.plot.showAxis('left', False)
         
-        self.viewBox.doubleclicked.connect(self.scatter_item_clicked)
+        self.viewBox.doubleclicked.connect(self._qt_scatter_item_clicked)
         
         
-        self.viewBox.gain_zoom.connect(self.gain_zoom)
-        self.viewBox.xsize_zoom.connect(self.xsize_zoom)
+        self.viewBox.gain_zoom.connect(self._qt_gain_zoom)
+        self.viewBox.xsize_zoom.connect(self._qt_xsize_zoom)
         
         self.signals_curve = pg.PlotCurveItem(pen='#7FFF00', connect='finite')
         self.plot.addItem(self.signals_curve)
 
-        #~ self.scatter.sigClicked.connect(self.scatter_item_clicked)
+        #~ self.scatter.sigClicked.connect(self._qt_scatter_item_clicked)
         
         self.channel_labels = []
         self.threshold_lines =[]
@@ -92,18 +83,10 @@ class MixinViewTrace:
         self.plot.addItem(self.selection_line)
         self.selection_line.hide()
         
-        self._initialize_plot()
-        
         self.gains = None
         self.offsets = None
 
-    def prev_segment(self):
-        self.change_segment(self._seg_index - 1)
-        
-    def next_segment(self):
-        self.change_segment(self._seg_index + 1)
-
-    def change_segment(self, seg_pos):
+    def _qt_change_segment(self, seg_pos):
         #TODO: dirty because now seg_pos IS seg_num
         self._seg_index  =  seg_pos
         if self._seg_index<0:
@@ -124,33 +107,27 @@ class MixinViewTrace:
         if self.is_view_visible():
             self.refresh()
 
-    def on_combo_seg_changed(self):
+    def _qt_on_combo_seg_changed(self):
         s =  self.combo_seg.currentIndex()
-        self.change_segment(s)
+        self._qt_change_segment(s)
     
-    #~ def on_combo_type_changed(self):
-        #~ s =  self.combo_type.currentIndex()
-        #~ self.trace_source = _trace_sources[s]
-        #~ self.estimate_auto_scale()
-        #~ self.change_segment(self._seg_index)
-    
-    def on_xsize_changed(self):
+    def _qt_on_xsize_changed(self):
         self.xsize = self.spinbox_xsize.value()
         if self.is_view_visible():
             self.refresh()
 
-    def xsize_zoom(self, xmove):
+    def _qt_xsize_zoom(self, xmove):
         factor = xmove/100.
         newsize = self.xsize*(factor+1.)
         limits = self.spinbox_xsize.opts['bounds']
         if newsize>0. and newsize<limits[1]:
             self.spinbox_xsize.setValue(newsize)
 
-    def on_scroll_time(self, val):
+    def _qt_on_scroll_time(self, val):
         sr = self.controller.sampling_frequency
         self.timeseeker.seek(val/sr)
 
-    def seek_with_selected_spike(self):
+    def _qt_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
         
@@ -165,12 +142,12 @@ class MixinViewTrace:
             if seg_num != self.seg_num:
                 self.combo_seg.setCurrentIndex(seg_num)
             
-            self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
+            self.spinbox_xsize.sigValueChanged.disconnect(self._qt_on_xsize_changed)
             self.spinbox_xsize.setValue(self.settings['zoom_size'])
             self.xsize = self.settings['zoom_size']
-            self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
+            self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
             
-            self.seek(peak_time)
+            self._qt_seek(peak_time)
             
         else:
             self.refresh()
@@ -179,7 +156,8 @@ class MixinViewTrace:
 
 
 class TraceView(ViewBase, MixinViewTrace):
-    _supported_backend = ['qt']
+    _supported_backend = ['qt', 'panel']
+
     _depend_on = ['recording']
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
@@ -195,41 +173,15 @@ class TraceView(ViewBase, MixinViewTrace):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
     
-        self.trace_source = _trace_sources[0]
+        # self.trace_source = _trace_sources[0]
 
 
-    ## qt ##
-    def _qt_make_layout(self):
-        from .myqt import QT
-        import pyqtgraph as pg
 
-
-        self.layout = QT.QVBoxLayout()
-        # self.setLayout(self.layout)
-        
-        self.create_toolbar()
-        
-        
-        # create graphic view and 2 scroll bar
-        g = QT.QGridLayout()
-        self.layout.addLayout(g)
-        self.graphicsview = pg.GraphicsView()
-        g.addWidget(self.graphicsview, 0,1)
-        self.initialize_plot()
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self.on_scroll_time)
-        
-        #handle time by segments
-        self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
-
-        self.change_segment(0)
-
-        self.estimate_auto_scale()
-        # self.refresh()
     
-    
-    
+    def on_channel_visibility_changed(self):
+        self.reset_gain_and_offset()
+        self.refresh()
+
 
 
     @property
@@ -241,37 +193,6 @@ class TraceView(ViewBase, MixinViewTrace):
             inds = inds[:n_max]
         return inds
 
-    def _on_settings_changed_qt(self):
-        # adjust xsize spinbox bounds, and adjust xsize if out of bounds
-        self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
-        if self.xsize > self.settings['xsize_max']:
-            self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-            self.spinbox_xsize.setValue(self.settings['xsize_max'])
-            self.xsize = self.settings['xsize_max']
-            self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
-        
-        self.reset_gain_and_offset()
-        self.refresh()
-
-    def gain_zoom(self, factor_ratio):
-        self.factor *= factor_ratio
-        self.reset_gain_and_offset()
-        self.refresh()
-
-    def auto_scale(self):
-        self.estimate_auto_scale()
-        self.refresh()
-
-    def estimate_auto_scale(self):
-        # self.med, self.mad = self.controller.estimate_noise()
-        
-        self.mad = self.controller.noise_levels.astype('float32').copy()
-        # we make the assumption that the signal is center on zero (HP filtered)
-        self.med = np.zeros(self.mad.shape, dtype='float32')
-
-        self.factor = 1.
-        self.gain_zoom(15.)
-    
     def reset_gain_and_offset(self):
         num_chans = len(self.controller.channel_ids)
         self.gains = np.zeros(num_chans, dtype='float32')
@@ -281,11 +202,71 @@ class TraceView(ViewBase, MixinViewTrace):
         self.gains[self.visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
         self.offsets[self.visible_channel_inds] = np.arange(n)[::-1] - self.med[self.visible_channel_inds]*self.gains[self.visible_channel_inds]
 
-    def on_spike_selection_changed(self):
-        self.seek_with_selected_spike()
+
+
+
+
+    ## qt ##
+    def _qt_make_layout(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+
+
+        self.layout = QT.QVBoxLayout()
+        # self.setLayout(self.layout)
         
-    
-    def scatter_item_clicked(self, x, y):
+        self._qt_create_toolbar()
+        
+        
+        # create graphic view and 2 scroll bar
+        g = QT.QGridLayout()
+        self.layout.addLayout(g)
+        self.graphicsview = pg.GraphicsView()
+        g.addWidget(self.graphicsview, 0,1)
+        self._qt_initialize_plot()
+        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
+        g.addWidget(self.scroll_time, 1,1)
+        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
+        
+        #handle time by segments
+        self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
+
+        self._qt_change_segment(0)
+
+        self._qt_estimate_auto_scale()
+        # self.refresh()
+
+    def _qt_initialize_plot(self):
+        MixinViewTrace._qt_initialize_plot(self)
+        import pyqtgraph as pg
+        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
+        self.plot.addItem(self.scatter)
+
+        # self.curve_predictions = pg.PlotCurveItem(pen='#FF00FF', connect='finite')
+        # self.plot.addItem(self.curve_predictions)
+        # self.curve_residuals = pg.PlotCurveItem(pen='#FFFF00', connect='finite')
+        # self.plot.addItem(self.curve_residuals)
+
+
+    def _qt_on_settings_changed(self):
+        # adjust xsize spinbox bounds, and adjust xsize if out of bounds
+        self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
+        if self.xsize > self.settings['xsize_max']:
+            self.spinbox_xsize.sigValueChanged.disconnect(self._qt_on_xsize_changed)
+            self.spinbox_xsize.setValue(self.settings['xsize_max'])
+            self.xsize = self.settings['xsize_max']
+            self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
+        
+        self.reset_gain_and_offset()
+        self.refresh()
+
+    def _qt_on_spike_selection_changed(self):
+        print('trace _qt_on_spike_selection_changed')
+        self._qt_seek_with_selected_spike()
+
+
+    def _qt_scatter_item_clicked(self, x, y):
+        # TODO sam : make it faster without boolean mask
         ind_click = int(x*self.controller.sampling_frequency )
         in_seg, = np.nonzero(self.controller.spikes['segment_index'] == self.seg_num)
         nearest = np.argmin(np.abs(self.controller.spikes[in_seg]['sample_index'] - ind_click))
@@ -302,54 +283,60 @@ class TraceView(ViewBase, MixinViewTrace):
         
         self.notify_spike_selection_changed()
         self.refresh()
-    
 
-    
-    def on_channel_visibility_changed(self):
+    def _qt_auto_scale(self):
+        self._qt_estimate_auto_scale()
+        self.refresh()
+
+    def _qt_gain_zoom(self, factor_ratio):
+        self.factor *= factor_ratio
         self.reset_gain_and_offset()
         self.refresh()
 
-    def _refresh(self):
-        self.seek(self.time_by_seg[self.seg_num])
+    def _qt_estimate_auto_scale(self):
+        self.mad = self.controller.noise_levels.astype('float32').copy()
+        # we make the assumption that the signal is center on zero (HP filtered)
+        self.med = np.zeros(self.mad.shape, dtype='float32')
 
-    def seek(self, t):
+        self.factor = 1.
+        self._qt_gain_zoom(15.)
+
+
+    def _qt_refresh(self):
+        self._qt_seek(self.time_by_seg[self.seg_num])
+
+    def _qt_seek(self, t):
         from .myqt import QT
         import pyqtgraph as pg
 
         if self.qt_widget.sender() is not self.timeseeker:
-            self.timeseeker.seek(t, emit = False)
+            self.timeseeker.seek(t, emit=False)
         
         self.time_by_seg[self.seg_num] = t
         t1,t2 = t-self.xsize/3. , t+self.xsize*2/3.
         t_start = 0.
         sr = self.controller.sampling_frequency
 
-        self.scroll_time.valueChanged.disconnect(self.on_scroll_time)
+        self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
         self.scroll_time.setValue(int(sr*t))
         self.scroll_time.setPageStep(int(sr*self.xsize))
-        self.scroll_time.valueChanged.connect(self.on_scroll_time)
+        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
         
         ind1 = max(0, int((t1-t_start)*sr))
         ind2 = min(self.controller.get_num_samples(self.seg_num), int((t2-t_start)*sr))
         
 
-        sigs_chunk = self.controller.get_traces(trace_source=self.trace_source, 
-                segment_index=self.seg_num, 
-                start_frame=ind1, end_frame=ind2)
-
-
+        sigs_chunk = self.controller.get_traces(segment_index=self.seg_num, start_frame=ind1, end_frame=ind2)
         
         if sigs_chunk is None: 
             return
         
         if self.gains is None:
-            self.estimate_auto_scale()
+            self._qt_estimate_auto_scale()
 
         nb_visible = self.visible_channel_inds.size
         
         data_curves = sigs_chunk[:, self.visible_channel_inds].T.copy()
-        
-        
         
         if data_curves.dtype!='float32':
             data_curves = data_curves.astype('float32')
@@ -429,20 +416,127 @@ class TraceView(ViewBase, MixinViewTrace):
         #ranges
         self.plot.setXRange( t1, t2, padding = 0.0)
         self.plot.setYRange(-.5, nb_visible-.5, padding = 0.0)
-        
-    
-    def _initialize_plot(self):
-        import pyqtgraph as pg
-        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
-        self.plot.addItem(self.scatter)
 
-        # self.curve_predictions = pg.PlotCurveItem(pen='#FF00FF', connect='finite')
-        # self.plot.addItem(self.curve_predictions)
-        # self.curve_residuals = pg.PlotCurveItem(pen='#FFFF00', connect='finite')
-        # self.plot.addItem(self.curve_residuals)
+
 
     ## panel ##
-    
+    def _panel_make_layout(self):
+        import panel as pn
+        import bokeh.plotting as bpl
+        from .utils_panel import _bg_color
+        from bokeh.models import ColumnDataSource, Range1d, HoverTool
+        from bokeh.events import Tap, DoubleTap
+
+        # TODO sam factorize this
+        self.time_by_seg = np.array([0.0] * self.controller.num_segments, dtype="float64")
+        self._seg_index = 0
+        self.seg_num = self._seg_index
+        self.xsize = 0.5
+        self.gains = None
+        self.offsets = None
+
+        # Create figure
+        self.figure = bpl.figure(
+            sizing_mode="stretch_both",
+            tools="box_zoom,wheel_zoom,reset",
+            active_scroll="wheel_zoom",
+            background_fill_color=_bg_color,
+            border_fill_color=_bg_color,
+            outline_line_color="white",
+            styles={"flex": "1"}
+        )
+
+        # Initialize plot ranges
+        length = self.controller.get_num_samples(self.seg_num)
+        t_stop = length / self.controller.sampling_frequency
+        self.figure.x_range = Range1d(start=0, end=t_stop)
+        self.figure.y_range = Range1d(start=-0.5, end=len(self.controller.channel_ids) - 0.5)
+
+        # Add grid
+        self.figure.grid.visible = False
+        self.figure.xgrid.grid_line_color = None
+        self.figure.ygrid.grid_line_color = None
+
+        # Configure axes
+        self.figure.xaxis.axis_label = "Time (s)"
+        self.figure.xaxis.axis_label_text_color = "white"
+        self.figure.xaxis.axis_line_color = "white"
+        self.figure.xaxis.major_label_text_color = "white"
+        self.figure.xaxis.major_tick_line_color = "white"
+        self.figure.yaxis.visible = False
+
+        # Add data sources
+        self.signal_source = ColumnDataSource({"xs": [], "ys": [], "channel_id": []})
+
+        self.spike_source = ColumnDataSource({"x": [], "y": [], "color": [], "unit_id": []})
+
+        # Plot signals
+        self.signal_renderer = self.figure.multi_line(
+            xs="xs", ys="ys", source=self.signal_source, line_color="#7FFF00", line_width=1, line_alpha=0.8
+        )
+
+        # Plot spikes
+        self.spike_renderer = self.figure.scatter(
+            x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
+        )
+
+        # Add hover tool for channels
+        hover_channels = HoverTool(renderers=[self.signal_renderer], tooltips=[("Channel", "@channel_id")])
+        self.figure.add_tools(hover_channels)
+
+        # Selected spike line
+        self.selection_line = self.figure.line(
+            x=[], y=[], line_color="purple", line_width=2, line_dash="dashed", visible=False
+        )
+
+        # Create widgets
+        # Segment selector
+        self.segment_selector = pn.widgets.Select(
+            name="Segment",
+            options=[f"Segment {i}" for i in range(self.controller.num_segments)],
+            value=f"Segment {self._seg_index}",
+        )
+
+        # Window size control
+        self.xsize_spinner = pn.widgets.FloatInput(
+            name="Window Size (s)", value=self.xsize, start=0.001, end=self.settings['xsize_max'], step=0.1
+        )
+
+        # Auto scale button
+        self.auto_scale_button = pn.widgets.Button(name="Auto Scale", button_type="default")
+
+        # Time slider
+        length = self.controller.get_num_samples(self.seg_num)
+        t_start = 0
+        t_stop = length / self.controller.sampling_frequency
+        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1)
+
+        # TODO sam
+        # Connect events
+        # self.segment_selector.param.watch(self._on_segment_changed, "value")
+        # self.xsize_spinner.param.watch(self._on_xsize_changed, "value")
+        # self.auto_scale_button.on_click(self.auto_scale)
+        # self.time_slider.param.watch(self._on_time_slider_changed, "value")
+        # self.figure.on_event(Tap, self._on_tap)
+        # self.figure.on_event(DoubleTap, self._on_double_tap)
+
+        # TODO generic toolbar
+        self.toolbar = pn.Column(
+            pn.Row(self.segment_selector, self.xsize_spinner, self.auto_scale_button),
+            pn.Row(self.time_slider, width=800),
+        )
+
+        self.layout = pn.Column(
+                self.toolbar,
+                self.figure,
+            styles={"display": "flex", "flex-direction": "column"},
+            sizing_mode="stretch_both"
+        )
+
+
+    def _panel_refresh(self):
+        pass
+
 
 
     

@@ -102,7 +102,7 @@ class SpikeListView(ViewBase):
     
     def _qt_on_unit_visibility_changed(self):
         # we cannot refresh this list in real time whil moving channel/unit visibility
-        # it is too slow.
+        # it is too slow. So the list is clear.
         self._qt_refresh_label()
         self.model.clear()
 
@@ -241,10 +241,10 @@ class SpikeListView(ViewBase):
         # if not hasattr(new, "__iter__"):
         #     return
 
-        selected_indices = []
-        for row_idx in new:
-            abs_ind = self.core.visible_ind[row_idx]
-            selected_indices.append(abs_ind)
+        visible_inds = self.controller.get_indices_spike_visible()
+
+        row_inds = new
+        selected_indices = visible_inds[row_inds]
 
         self.handle_selection(selected_indices)
 

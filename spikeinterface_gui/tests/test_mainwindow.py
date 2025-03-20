@@ -88,8 +88,8 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
-            layout_preset='default',
-            # layout_preset='yep',
+            # layout_preset='default',
+            layout_preset='yep',
         )
 
 

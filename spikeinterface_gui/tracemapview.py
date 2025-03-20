@@ -30,13 +30,27 @@ class TraceMapView(ViewBase, MixinViewTrace):
         MixinViewTrace.__init__(self)
 
 
+    def make_color_lut(self):
+        N = 512
+        cmap_name = self.settings['colormap']
+        cmap = matplotlib.colormaps[cmap_name].resampled(N)
+        lut = []
+        for i in range(N):
+            r,g,b,_ =  matplotlib.colors.ColorConverter().to_rgba(cmap(i))
+            lut.append([r*255,g*255,b*255])
+        self.lut = np.array(lut, dtype='uint8')
+        if self.settings['reverse_colormap']:
+            self.lut = self.lut[::-1]
+
+
+    ## Qt ##
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
 
         self.layout = QT.QVBoxLayout()
         
-        self.create_toolbar()
+        self._qt_create_toolbar()
         
         
         # create graphic view and 2 scroll bar
@@ -44,10 +58,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.layout.addLayout(g)
         self.graphicsview = pg.GraphicsView()
         g.addWidget(self.graphicsview, 0,1)
-        self.initialize_plot()
+        self._qt_initialize_plot()
         self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
         g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self.on_scroll_time)
+        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
 
 
@@ -63,27 +77,16 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         # self.on_params_changed(do_refresh=False)
         #this do refresh
-        self.change_segment(0)
+        self._qt_change_segment(0)
         self.color_limit = None
 
-    @property
-    def visible_channel_inds(self):
-        inds = self.controller.visible_channel_inds
-        return inds
-
-
-    def make_color_lut(self):
-        N = 512
-        cmap_name = self.settings['colormap']
-        cmap = matplotlib.colormaps[cmap_name].resampled(N)
-        lut = []
-        for i in range(N):
-            r,g,b,_ =  matplotlib.colors.ColorConverter().to_rgba(cmap(i))
-            lut.append([r*255,g*255,b*255])
-        self.lut = np.array(lut, dtype='uint8')
-        if self.settings['reverse_colormap']:
-            self.lut = self.lut[::-1]
-
+    def _qt_initialize_plot(self):
+        MixinViewTrace._qt_initialize_plot(self)
+        import pyqtgraph as pg
+        self.image = pg.ImageItem()
+        self.plot.addItem(self.image)
+        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
+        self.plot.addItem(self.scatter)
 
     def _on_settings_changed_qt(self, do_refresh=True):
 
@@ -99,36 +102,30 @@ class TraceMapView(ViewBase, MixinViewTrace):
         if do_refresh:
             self.refresh()
 
-    def on_spike_selection_changed(self):
-        self.seek_with_selected_spike()
+    def _qt_on_spike_selection_changed(self):
+        print('tracemap _qt_on_spike_selection_changed')
+        self._qt_seek_with_selected_spike()
 
 
-    def scatter_item_clicked(self, x, y):
+    def _qt_scatter_item_clicked(self, x, y):
+        # useless but needed for the MixinViewTrace
         pass
-    
-    def _initialize_plot(self):
-        import pyqtgraph as pg
-        self.image = pg.ImageItem()
-        self.plot.addItem(self.image)
-        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
-        self.plot.addItem(self.scatter)
 
 
-
-    def gain_zoom(self, factor_ratio, ):
+    def _qt_gain_zoom(self, factor_ratio, ):
         if self.color_limit is None:
             return
         self.color_limit = self.color_limit * factor_ratio
         self.image.setLevels([-self.color_limit, self.color_limit], update=True)
         self.refresh()
 
-    def auto_scale(self):
-        self.seek(self.time_by_seg[self.seg_num], auto_scale=True)
+    def _qt_auto_scale(self):
+        self._qt_seek(self.time_by_seg[self.seg_num], auto_scale=True)
 
-    def _refresh(self):
-        self.seek(self.time_by_seg[self.seg_num])
+    def _qt_refresh(self):
+        self._qt_seek(self.time_by_seg[self.seg_num])
 
-    def seek(self, t, auto_scale=False):
+    def _qt_seek(self, t, auto_scale=False):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -140,10 +137,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
         t_start = 0.
         sr = self.controller.sampling_frequency
 
-        self.scroll_time.valueChanged.disconnect(self.on_scroll_time)
+        self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
         self.scroll_time.setValue(int(sr*t))
         self.scroll_time.setPageStep(int(sr*self.xsize))
-        self.scroll_time.valueChanged.connect(self.on_scroll_time)
+        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
         
         ind1 = max(0, int((t1-t_start)*sr))
         ind2 = min(self.controller.get_num_samples(self.seg_num), int((t2-t_start)*sr))
