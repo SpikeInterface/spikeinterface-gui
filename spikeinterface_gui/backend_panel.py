@@ -28,13 +28,13 @@ class SignalNotifyer(param.Parameterized):
         self.param.trigger("manual_curation_updated")
 
 
+
 class SignalHandler(param.Parameterized):
     def __init__(self, controller, parent=None):
         param.Parameterized.__init__(self)
         self.controller = controller
 
     def connect_view(self, view):
-        print("connect_view Panel:", view)
         view.notifyer.param.watch(self.on_spike_selection_changed, "spike_selection_changed")
         view.notifyer.param.watch(self.on_unit_visibility_changed, "unit_visibility_changed")
         view.notifyer.param.watch(self.on_channel_visibility_changed, "channel_visibility_changed")
@@ -114,7 +114,7 @@ def create_settings(view):
 
 
 
-class MainWindow:
+class PanelMainWindow:
 
     def __init__(self, controller, layout_preset=None):
         self.controller = controller

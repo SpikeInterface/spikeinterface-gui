@@ -77,11 +77,11 @@ def run_mainwindow(
 
     if backend == "qt":
         from spikeinterface_gui.myqt import QT, mkQApp
-        from spikeinterface_gui.backend_qt import MainWindow
+        from spikeinterface_gui.backend_qt import QtMainWindow
 
         app = mkQApp()
         
-        win = MainWindow(controller, layout_preset=layout_preset)
+        win = QtMainWindow(controller, layout_preset=layout_preset)
         win.setWindowTitle('SpikeInterface GUI')
         this_file = Path(__file__).absolute()
         win.setWindowIcon(QT.QIcon(str(this_file.parent / 'img' / 'si.png')))
@@ -90,9 +90,9 @@ def run_mainwindow(
             app.exec()
  
     elif backend == "panel":
-        from .backend_panel import MainWindow, start_server
+        from .backend_panel import PanelMainWindow, start_server
         import panel
-        win = MainWindow(controller, layout_preset=layout_preset)
+        win = PanelMainWindow(controller, layout_preset=layout_preset)
         start_server(win)
     
     else:

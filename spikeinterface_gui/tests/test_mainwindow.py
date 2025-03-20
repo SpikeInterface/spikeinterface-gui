@@ -82,14 +82,14 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
     else:
         run_mainwindow(
             analyzer,
-            backend="qt",
-            # backend="panel",
+            # backend="qt",
+            backend="panel",
             start_qt_app=start_qt_app, verbose=verbose,
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
-            # layout_preset='default',
-            layout_preset='yep',
+            layout_preset='default',
+            # layout_preset='yep',
         )
 
 

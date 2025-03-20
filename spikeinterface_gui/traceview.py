@@ -197,6 +197,8 @@ class TraceView(ViewBase, MixinViewTrace):
     
         self.trace_source = _trace_sources[0]
 
+
+    ## qt ##
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -438,6 +440,10 @@ class TraceView(ViewBase, MixinViewTrace):
         # self.plot.addItem(self.curve_predictions)
         # self.curve_residuals = pg.PlotCurveItem(pen='#FFFF00', connect='finite')
         # self.plot.addItem(self.curve_residuals)
+
+    ## panel ##
+    
+
 
     
 TraceView._gui_help_txt = """Trace view

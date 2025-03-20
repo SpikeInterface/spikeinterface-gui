@@ -45,6 +45,21 @@ table_stylesheet = """
 }
 """
 
+checkbox_formatter_template = """
+<input type="checkbox" <%= value ? 'checked' : '' %> onclick="
+    var indices = source.selected.indices;
+    var idx = cb_obj.parentElement.parentElement.rowIndex - 1;
+    if (cb_obj.checked) {
+        if (!indices.includes(idx)) indices.push(idx);
+    } else {
+        var index = indices.indexOf(idx);
+        if (index > -1) indices.splice(index, 1);
+    }
+    source.selected.indices = indices;
+    source.change.emit();
+">
+"""
+
 
 def insert_warning(view, warning_msg):
     clear_warning(view)

@@ -143,7 +143,6 @@ class CurationView(ViewBase):
             self.controller.unit_visible_dict[k] = False
         for unit_id in unit_ids:
             self.controller.unit_visible_dict[unit_id] = True
-        self.controller.update_visible_spikes()
         self.notify_unit_visibility_changed()
 
     def on_item_selection_changed_delete(self):
@@ -154,7 +153,6 @@ class CurationView(ViewBase):
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[unit_id] = True
-        self.controller.update_visible_spikes()
         self.notify_unit_visibility_changed()
 
     def on_manual_curation_updated(self):

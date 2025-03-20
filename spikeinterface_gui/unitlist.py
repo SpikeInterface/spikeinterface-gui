@@ -225,7 +225,6 @@ class UnitListView(ViewBase):
         unit_id = item.unit_id
         self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
 
-        # self.controller.update_visible_spikes()
         self.notify_unit_visibility_changed()
     
     def _qt_on_double_clicked(self, row, col):
@@ -236,7 +235,6 @@ class UnitListView(ViewBase):
         self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
 
-        # self.controller.update_visible_spikes()
         self.notify_unit_visibility_changed()
     
     def _qt_on_open_context_menu(self):
@@ -263,7 +261,6 @@ class UnitListView(ViewBase):
         for unit_id in self.get_selected_unit_ids():
             self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
-        # self.controller.update_visible_spikes()
         self.notify_unit_visibility_changed()
         # self.table.set
         # self.table.setCurrentCell(rows[0], None, QT.QItemSelectionModel.Select)
@@ -294,12 +291,10 @@ class UnitListView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
-        from .utils_panel import _bg_color, table_stylesheet
+        from .utils_panel import _bg_color, table_stylesheet, checkbox_formatter_template
 
-        # Create source for table
         self.source = ColumnDataSource({})
 
-        # Create HTML formatter for unit column with color
         unit_formatter = HTMLTemplateFormatter(
             template="""
             <div style="color: <%= value ? value.color : '#ffffff' %>;">
@@ -308,25 +303,8 @@ class UnitListView(ViewBase):
         """
         )
 
-        # Create checkbox formatter for selected column
-        checkbox_formatter = HTMLTemplateFormatter(
-            template="""
-            <input type="checkbox" <%= value ? 'checked' : '' %> onclick="
-                var indices = source.selected.indices;
-                var idx = cb_obj.parentElement.parentElement.rowIndex - 1;
-                if (cb_obj.checked) {
-                    if (!indices.includes(idx)) indices.push(idx);
-                } else {
-                    var index = indices.indexOf(idx);
-                    if (index > -1) indices.splice(index, 1);
-                }
-                source.selected.indices = indices;
-                source.change.emit();
-            ">
-            """
-        )
+        checkbox_formatter = HTMLTemplateFormatter(template=checkbox_formatter_template)
 
-        # Create table columns with special formatting
         columns = [
             TableColumn(field="unit_id", title="Unit", formatter=unit_formatter),
             TableColumn(field="selected", title="✓", width=30, formatter=checkbox_formatter),
@@ -334,7 +312,6 @@ class UnitListView(ViewBase):
             # TableColumn(field="num_channels", title="Sparsity"),
         ]
 
-        # Create table with dark theme styling
         self.table = DataTable(
             source=self.source,
             columns=columns,
@@ -347,14 +324,11 @@ class UnitListView(ViewBase):
             stylesheets=[table_stylesheet]
         )
 
-        # Create buttons with consistent styling
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default", width=100)
         self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default", width=100)
 
-        # Create info text
         self.info_text = pn.pane.HTML("")
 
-        # Create main layout
         self.layout = pn.Column(
             self.info_text,
             pn.Row(
@@ -365,13 +339,10 @@ class UnitListView(ViewBase):
             sizing_mode="stretch_width",
         )
 
-        # Connect events
         self.source.selected.on_change("indices", self._panel_on_selection_changed)
         self.select_all_button.on_click(lambda event: self.show_all())
         self.unselect_all_button.on_click(lambda event: self.hide_all())
 
-        # Initial refresh
-        # self._refresh_view()
 
     def _panel_refresh(self):
         

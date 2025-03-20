@@ -83,7 +83,7 @@ def create_settings(view, parent):
 # open help
 
 
-class MainWindow(QT.QMainWindow):
+class QtMainWindow(QT.QMainWindow):
     def __init__(self, controller, parent=None, layout_preset=None):
         QT.QMainWindow.__init__(self, parent)
         

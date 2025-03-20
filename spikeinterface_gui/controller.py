@@ -323,7 +323,10 @@ class  Controller():
         self.update_visible_spikes()
         super().on_unit_visibility_changed()
 
-    
+    def get_visible_unit_ids(self):
+        visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.keys())]
+        return visible_unit_ids
+
 
     def update_visible_spikes(self):
         # print('update_visible_spikes')

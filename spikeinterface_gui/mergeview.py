@@ -123,7 +123,6 @@ class MergeView(ViewBase):
         for unit_id in group_ids:
             self.controller.unit_visible_dict[unit_id] = True
 
-        # self.controller.update_visible_spikes()
         self.notify_unit_visibility_changed()
 
     def open_context_menu(self):

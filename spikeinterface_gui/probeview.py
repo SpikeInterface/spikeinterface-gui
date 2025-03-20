@@ -131,7 +131,7 @@ class ProbeView(ViewBase):
         # probes
         
 
-        probes = self.controller.get_probegroup().probes
+        # probes = self.controller.get_probegroup().probes
         # for probe in probes:
         #     contact_vertices = probe.get_contact_vertices()
         #     # small hack to connect to the first point
@@ -190,8 +190,6 @@ class ProbeView(ViewBase):
         self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
         self.plot.addItem(self.scatter)
 
-
-        
         # range
         xlim0, xlim1, ylim0, ylim1 = self.get_view_bounds()
         self.plot.setXRange(xlim0, xlim1)
@@ -249,7 +247,6 @@ class ProbeView(ViewBase):
             #     dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]]))**2, axis=1))
             #     for unit_index, unit_id in enumerate(self.controller.unit_ids):
             #         self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
-            #     self.controller.update_visible_spikes()
             #     self.unit_visibility_changed.emit()
             #     self.on_unit_visibility_changed(auto_zoom=False)
                 
@@ -271,7 +268,6 @@ class ProbeView(ViewBase):
             #     self.controller.unit_visible_dict[unit_id] = (dist[unit_index] < r)
             self.update_unit_visibility(x, y, r)
 
-            # self.controller.update_visible_spikes()
             self.notify_unit_visibility_changed()
             self._qt_on_unit_visibility_changed(auto_zoom=False)
                 
@@ -375,9 +371,7 @@ class ProbeView(ViewBase):
             self.roi_units.setPos(x - r, y - r)
             self.roi_units.blockSignals(False)
 
-            # self.controller.update_visible_spikes()
             self._qt_on_unit_visibility_changed()
-
             self.notify_unit_visibility_changed()
 
 

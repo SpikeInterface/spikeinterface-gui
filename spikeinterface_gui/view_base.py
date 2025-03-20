@@ -35,6 +35,7 @@ class ViewBase():
         self.notifyer.notify_spike_selection_changed()
 
     def notify_unit_visibility_changed(self):
+        self.controller.update_visible_spikes()
         self.notifyer.notify_unit_visibility_changed()
 
     def notify_channel_visibility_changed(self):
