@@ -1,38 +1,16 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
-import pandas as pd
 
-from .base import WidgetBase
-
-
-class MyViewBox(pg.ViewBox):
-    doubleclicked = QT.pyqtSignal()
-    gain_zoom = QT.pyqtSignal(float)
-    def __init__(self, *args, **kwds):
-        pg.ViewBox.__init__(self, *args, **kwds)
-        #~ self.disableAutoRange()
-    def mouseClickEvent(self, ev):
-        ev.accept()
-    def mouseDoubleClickEvent(self, ev):
-        self.doubleclicked.emit()
-        ev.accept()
-    #~ def mouseDragEvent(self, ev):
-        #~ ev.ignore()
-    def wheelEvent(self, ev, axis=None):
-        if ev.modifiers() == QT.Qt.ControlModifier:
-            z = 10 if ev.delta()>0 else 1/10.
-        else:
-            z = 1.3 if ev.delta()>0 else 1/1.3
-        self.gain_zoom.emit(z)
-        ev.accept()
+from .view_base import ViewBase
 
 
 
-class WaveformView(WidgetBase):
+# TODO sam : check the on_params_changed in change params and remove initialize_plot()
 
-    _params = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
+
+class WaveformView(ViewBase):
+    _supported_backend = ['qt']
+
+    _settings = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
                         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
                       {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
                       {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
@@ -45,25 +23,19 @@ class WaveformView(WidgetBase):
                       {'name': 'background_color', 'type': 'color', 'value' : 'k' },
                       ]
     
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+        self.ccg, self.bins = self.controller.get_correlograms()
+
+
+    def _qt_make_layout(self):
+        from .myqt import QT
+        import pyqtgraph as pg
         
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
         
-        #~ self.create_settings()
-        
-        self.create_toolbar()
-        self.layout.addWidget(self.toolbar)
 
-        self.graphicsview = pg.GraphicsView()
-        self.layout.addWidget(self.graphicsview)
-        self.initialize_plot()
-        
-        self.alpha = 60
-        self.refresh()
-    
-    def create_toolbar(self):
         tb = self.toolbar = QT.QToolBar()
         
         #Mode flatten or geometry
@@ -77,9 +49,9 @@ class WaveformView(WidgetBase):
         tb.addSeparator()
         
         
-        but = QT.QPushButton('settings')
-        but.clicked.connect(self.open_settings)
-        tb.addWidget(but)
+        # but = QT.QPushButton('settings')
+        # but.clicked.connect(self.open_settings)
+        # tb.addWidget(but)
 
         but = QT.QPushButton('scale')
         but.clicked.connect(self.zoom_range)
@@ -88,13 +60,22 @@ class WaveformView(WidgetBase):
         but = QT.QPushButton('refresh')
         but.clicked.connect(self.refresh)
         tb.addWidget(but)
+
+        self.layout.addWidget(self.toolbar)
+
+        self.graphicsview = pg.GraphicsView()
+        self.layout.addWidget(self.graphicsview)
+        self.initialize_plot()
+        
+        self.alpha = 60
+    
     
     def on_combo_mode_changed(self):
         self.mode = str(self.combo_mode.currentText())
         self.initialize_plot()
         self.refresh()
     
-    def on_params_changed(self, params, changes):
+    def _on_settings_changed_qt(self, params, changes):
         for param, change, data in changes:
             if change != 'value': continue
             if param.name()=='flip_bottom_up':
@@ -102,11 +83,14 @@ class WaveformView(WidgetBase):
         self.refresh()
 
     def initialize_plot(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+        from .utils_qt import ViewBoxHandlingDoubleclickAndGain
         
         nbefore, nafter = self.controller.get_waveform_sweep()
         width = nbefore + nafter
         
-        self.viewBox1 = MyViewBox()
+        self.viewBox1 = ViewBoxHandlingDoubleclickAndGain()
         self.viewBox1.disableAutoRange()
 
         grid = pg.GraphicsLayout(border=(100,100,100))
@@ -122,7 +106,7 @@ class WaveformView(WidgetBase):
         if self.mode=='flatten':
             grid.nextRow()
             grid.nextRow()
-            self.viewBox2 = MyViewBox()
+            self.viewBox2 = ViewBoxHandlingDoubleclickAndGain()
             self.viewBox2.disableAutoRange()
             self.plot2 = grid.addPlot(row=2, col=0, rowspan=1, viewBox=self.viewBox2)
             self.plot2.hideButtons()
@@ -142,7 +126,7 @@ class WaveformView(WidgetBase):
             
             self.contact_location = self.controller.get_contact_location().copy()
             
-            if self.params['flip_bottom_up']:
+            if self.settings['flip_bottom_up']:
                 self.contact_location[:, 1] *= -1.
             
             xpos = self.contact_location[:,0]
@@ -175,7 +159,7 @@ class WaveformView(WidgetBase):
         
         self.viewBox1.gain_zoom.connect(self.gain_zoom)
         
-        self.viewBox1.doubleclicked.connect(self.open_settings)
+        # self.viewBox1.doubleclicked.connect(self.open_settings)
         
         #~ self.viewBox.xsize_zoom.connect(self.xsize_zoom)    
     
@@ -183,15 +167,15 @@ class WaveformView(WidgetBase):
     def gain_zoom(self, factor_ratio):
         self.factor_y *= factor_ratio
         
-        self.refresh(keep_range=True)
+        self._qt_refresh(keep_range=True)
     
     def zoom_range(self):
         self._x_range = None
         self._y1_range = None
         self._y2_range = None
-        self.refresh(keep_range=False)
+        self._qt_refresh(keep_range=False)
     
-    def refresh(self, keep_range=False):
+    def _qt_refresh(self, keep_range=False):
         
         if not hasattr(self, 'viewBox1'):
             self.initialize_plot()
@@ -202,7 +186,7 @@ class WaveformView(WidgetBase):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         
-        if self.params['show_only_selected_cluster'] and n_selected==1:
+        if self.settings['show_only_selected_cluster'] and n_selected==1:
             unit_visible_dict = {k:False for k in self.controller.unit_visible_dict}
             ind = selected_inds[0]
             unit_index = self.controller.spikes[ind]['unit_index']
@@ -210,11 +194,11 @@ class WaveformView(WidgetBase):
             unit_visible_dict[unit_id] = True
         else:
             unit_visible_dict = self.controller.unit_visible_dict
-        self.viewBox1.setBackgroundColor(self.params['background_color'])
+        self.viewBox1.setBackgroundColor(self.settings['background_color'])
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self.refresh_mode_flatten(unit_visible_dict, keep_range)
-            self.viewBox2.setBackgroundColor(self.params['background_color'])
+            self.viewBox2.setBackgroundColor(self.settings['background_color'])
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self.refresh_mode_geometry(unit_visible_dict, keep_range)
@@ -223,6 +207,8 @@ class WaveformView(WidgetBase):
     
     
     def refresh_mode_flatten(self, unit_visible_dict, keep_range):
+        import pyqtgraph as pg
+        from .myqt import QT
         if self._x_range is not None and keep_range:
             #this may change with pyqtgraph
             self._x_range = tuple(self.viewBox1.state['viewRange'][0])
@@ -238,7 +224,7 @@ class WaveformView(WidgetBase):
         width = nbefore + nafter
         
         
-        sparse = self.params['sparse_display']
+        sparse = self.settings['sparse_display']
         
         visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
         
@@ -265,7 +251,7 @@ class WaveformView(WidgetBase):
                 vline = pg.InfiniteLine(pos = nbefore + width*i, angle=90, movable=False, pen = pg.mkPen('w'))
                 plot.addItem(vline)
         
-        if self.params['plot_limit_for_flatten']:
+        if self.settings['plot_limit_for_flatten']:
             addSpan(self.plot1)
             addSpan(self.plot2)
         
@@ -280,12 +266,12 @@ class WaveformView(WidgetBase):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             template_std = self.controller.templates_std[unit_index, :, :][:, common_channel_indexes]
             
-            color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
+            color = self.get_unit_color(unit_id)
             curve = pg.PlotCurveItem(xvect, template_avg.T.flatten(), pen=pg.mkPen(color, width=2))
             self.plot1.addItem(curve)
             
             
-            if self.params['fillbetween']:
+            if self.settings['fillbetween']:
                 color2 = QT.QColor(color)
                 color2.setAlpha(self.alpha)
                 curve1 = pg.PlotCurveItem(xvect, template_avg.T.flatten() + template_std.T.flatten(), pen=color2)
@@ -302,7 +288,7 @@ class WaveformView(WidgetBase):
                 self.plot2.addItem(curve)
                 min_std = min(min_std,template_std_flatten.min())
                 max_std = max(max_std,template_std_flatten.max())
-        if self.params['show_channel_id']:
+        if self.settings['show_channel_id']:
             for i, chan_ind in enumerate(common_channel_indexes):
                 chan_id = self.controller.channel_ids[chan_ind]
                 itemtxt = pg.TextItem(f'{chan_id}', anchor=(.5,.5), color='#FFFF00')
@@ -325,6 +311,8 @@ class WaveformView(WidgetBase):
 
 
     def refresh_mode_geometry(self, unit_visible_dict, keep_range):
+        import pyqtgraph as pg
+
         if self._x_range is not None and keep_range:
             #this may change with pyqtgraph
             self._x_range = tuple(self.viewBox1.state['viewRange'][0])
@@ -335,7 +323,7 @@ class WaveformView(WidgetBase):
         if self.xvect is None:
             return
 
-        sparse = self.params['sparse_display']
+        sparse = self.settings['sparse_display']
         visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
         
         if sparse:
@@ -374,12 +362,13 @@ class WaveformView(WidgetBase):
             
             
             
-            color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
+            # color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
+            color = self.get_unit_color(unit_id)
             
             curve = pg.PlotCurveItem(xvect.flatten(), wf.T.flatten(), pen=pg.mkPen(color, width=2), connect=connect.T.flatten())
             self.plot1.addItem(curve)
         
-        if self.params['show_channel_id']:
+        if self.settings['show_channel_id']:
             for chan_ind in common_channel_indexes:
                 chan_id = self.controller.channel_ids[chan_ind]
                 x, y = self.contact_location[chan_ind, : ]
@@ -403,7 +392,7 @@ class WaveformView(WidgetBase):
     
     def _refresh_one_spike(self, n_selected):
 
-        if n_selected!=1 or not self.params['plot_selected_spike']: 
+        if n_selected!=1 or not self.settings['plot_selected_spike']: 
             self.curve_one_waveform.setData([], [])
             return
         
@@ -442,12 +431,13 @@ class WaveformView(WidgetBase):
 
                 self.curve_one_waveform.setData(self.xvect.flatten(), wf.T.flatten(), connect=connect.T.flatten())
     
-    def on_spike_selection_changed(self):
-        self.refresh(keep_range=True)
+    def _qt_on_spike_selection_changed(self):
+        self._qt_refresh(keep_range=True)
     
-    def on_unit_visibility_changed(self):
-        keep_range = not(self.params['auto_zoom_on_unit_selection'])
-        self.refresh(keep_range=keep_range)
+    def _qt_on_unit_visibility_changed(self):
+        keep_range = not(self.settings['auto_zoom_on_unit_selection'])
+        self._qt_refresh(keep_range=keep_range)
+
 
 WaveformView._gui_help_txt = """Waveform view
 Display average template for visible units.

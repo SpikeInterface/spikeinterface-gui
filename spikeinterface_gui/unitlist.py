@@ -1,57 +1,56 @@
-from .myqt import QT
-import pyqtgraph as pg
-
 import numpy as np
 
-from .base import WidgetBase
-from .tools import ParamDialog, CustomItem, find_category, LabelComboBox
-
-
-# _column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
+from .view_base import ViewBase
 
 
 
 
-# _first_column_names = ['unit_id', 'visible',  'num_spikes', 'x', 'y', 'channel_id', 'sparsity']
 
 
-# TODO: Save categories / labels
+# TODO Sam : settings choix de column
 
 
-class UnitListView(WidgetBase):
-    """
-    """
+class UnitListView(ViewBase):
+    _supported_backend = ['qt', 'panel']
+    # _settings = [] # this is a hack to create the settings button
+    _settings = None
 
-    _params = [] # this is a hack to create the settings button
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+
+    ## common ##
+    def show_all(self):
+        for unit_id in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[unit_id] = True
+        self.refresh()
+        self.notify_unit_visibility_changed()
+    
+    def hide_all(self):
+        for unit_id in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[unit_id] = False
+        self.refresh()
+        self.notify_unit_visibility_changed()
+
+    ## Qt ##
+    def _qt_make_layout(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+        
 
         self.menu = None
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
-
-        # if self.controller.handle_metrics():
-        #     self.checkbox_metrics = QT.QCheckBox('metrics')
-        #     self.checkbox_metrics.setChecked(True)
-        #     h.addWidget(self.checkbox_metrics)
-        #     self.checkbox_metrics.stateChanged.connect(self.refresh)
-        
-        # self.categories = self._basic_categories.copy()
-        # self.labels_btn = QT.QPushButton('Labels')
-        # h.addWidget(self.labels_btn)
-        # self.labels_btn.clicked.connect(self.update_labels)
 
         h.addStretch()
         
         self.table = QT.QTableWidget()
         self.layout.addWidget(self.table)
-        self.table.itemChanged.connect(self.on_item_changed)
-        self.table.cellDoubleClicked.connect(self.on_double_clicked)
-        shortcut_visible = QT.QShortcut(self)
+        self.table.itemChanged.connect(self._qt_on_item_changed)
+        self.table.cellDoubleClicked.connect(self._qt_on_double_clicked)
+        shortcut_visible = QT.QShortcut(self.qt_widget)
         shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
         shortcut_visible.activated.connect(self.on_visible_shortcut)
         
@@ -63,64 +62,6 @@ class UnitListView(WidgetBase):
         # Store original column order
         self.column_order = None
         
-        self.make_menu()
-        self.refresh()
-
-    def on_column_moved(self, logical_index, old_visual_index, new_visual_index):
-        # Update stored column order
-        self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
-
-    def create_settings(self):
-        # hack to use settings to control visible columns
-
-        params = []
-        for col in self.controller.units_table.columns:
-            params.append(
-                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
-            )
-        self.params = pg.parametertree.Parameter.create( name='Visible', type='group', children=params)
-        
-        self.tree_params = pg.parametertree.ParameterTree(parent=self)
-        self.tree_params.header().hide()
-        self.tree_params.setParameters(self.params, showTop=True)
-        self.tree_params.setWindowTitle(u'Options for waveforms hist viewer')
-        self.tree_params.setWindowFlags(QT.Qt.Window)
-        
-        self.params.sigTreeStateChanged.connect(self.on_params_changed)
-
-    def on_params_changed(self):
-        
-        new_displayed = [col for col in self.controller.units_table.columns if self.params[col]]
-        self.controller.displayed_unit_properties = new_displayed
-        self.refresh()
-
-    # def update_labels(self):
-    #     print(self.categories)
-    #     label_add = LabelCreator(self)
-    #     r = label_add.edit_label(self.categories)
-    #     if r is None:
-    #         return
-    #     print(r)
-    #     cat, old_label, new_label = r
-    #     cat_info = find_category(self.categories, cat)
-    #     if cat_info is None:
-    #         # New category
-    #         self.categories.append({'name': cat, 'labels': [new_label]})
-    #         self.refresh()
-    #         return
-    #     else:
-    #         # Renaming a label or adding a new label
-    #         cat_ix, cat = cat_info
-    #     if old_label == '':
-    #         # Creating a new label
-    #         self.categories[cat_ix]['labels'].append(new_label)
-    #     else:
-    #         # Renaming a label
-    #         self.categories[cat_ix]['labels'] = [lbl for lbl in self.categories[cat_ix]['labels'] if lbl != old_label]
-    #         self.categories[cat_ix]['labels'].append(new_label)
-    #     self.refresh()
-
-    def make_menu(self):
         self.menu = QT.QMenu()
         act = self.menu.addAction('Show all')
         act.triggered.connect(self.show_all)
@@ -132,12 +73,42 @@ class UnitListView(WidgetBase):
             act.triggered.connect(self.delete_unit)
             act = self.menu.addAction('Merge selected')
             act.triggered.connect(self.merge_selected)
-            shortcut_delete = QT.QShortcut(self)
+            shortcut_delete = QT.QShortcut(self.qt_widget)
             shortcut_delete.setKey(QT.QKeySequence('d'))
             shortcut_delete.activated.connect(self.on_delete_shortcut)
 
-    def _refresh(self):
-        self.table.itemChanged.disconnect(self.on_item_changed)
+    def on_column_moved(self, logical_index, old_visual_index, new_visual_index):
+        # Update stored column order
+        self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
+
+    def create_settings_TODO(self):
+        # hack to use settings to control visible columns
+
+        params = []
+        for col in self.controller.units_table.columns:
+            params.append(
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
+            )
+        self.params = pg.parametertree.Parameter.create( name='Visible', type='group', children=params)
+        
+        self.tree_settings = pg.parametertree.ParameterTree(parent=self)
+        self.tree_settings.header().hide()
+        self.tree_settings.setParameters(self.params, showTop=True)
+        self.tree_settings.setWindowTitle(u'Options for waveforms hist viewer')
+        self.tree_settings.setWindowFlags(QT.Qt.Window)
+        
+        self.params.sigTreeStateChanged.connect(self.on_params_changed)
+
+    def on_params_changed_TODO(self):
+        new_displayed = [col for col in self.controller.units_table.columns if self.params[col]]
+        self.controller.displayed_unit_properties = new_displayed
+        self.refresh()
+
+    def _qt_refresh(self):
+        from .myqt import QT
+        from .utils_qt import OrderableCheckItem, CustomItem, LabelComboBox
+
+        self.table.itemChanged.disconnect(self._qt_on_item_changed)
         
         # Store current column order before clearing
         if self.table.columnCount() > 0:
@@ -161,25 +132,11 @@ class UnitListView(WidgetBase):
         
         column_labels += self.controller.displayed_unit_properties
         
-        # if self.controller.handle_metrics():
-        #     with_metrics = self.checkbox_metrics.isChecked()
-        # else:
-        #     with_metrics = False
-
-
-
-        # categories = [cat['name'] for cat in self.categories]
-        # labels += categories
-
-        # if with_metrics:
-        #     metrics = self.controller.metrics
-        #     labels += list(metrics.columns)
-        
         self.table.setColumnCount(len(column_labels))
         self.table.setHorizontalHeaderLabels(column_labels)
 
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self.open_context_menu)
+        self.table.customContextMenuRequested.connect(self._qt_on_open_context_menu)
         self.table.setSelectionMode(QT.QAbstractItemView.ExtendedSelection)
         self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
 
@@ -190,7 +147,7 @@ class UnitListView(WidgetBase):
 
         # internal_column_names
         for i, unit_id in enumerate(unit_ids):
-            color = self.controller.qcolors.get(unit_id, QT.QColor( 'black'))
+            color = self.get_unit_color(unit_id)
             pix = QT.QPixmap(16,16)
             pix.fill(color)
             icon = QT.QIcon(pix)
@@ -223,7 +180,7 @@ class UnitListView(WidgetBase):
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
                     label = self.controller.get_unit_label(unit_id, category)
-                    item = LabelComboBox(i, category, label_def['label_options'], self)
+                    item = LabelComboBox(i, category, label_def['label_options'], parent=self.qt_widget)
                     item.set_label(label)
                     item.remove_label_clicked.connect(self.on_remove_label)
                     item.label_changed.connect(self.on_label_changed)
@@ -243,7 +200,7 @@ class UnitListView(WidgetBase):
         for i in range(5):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
-        self.table.itemChanged.connect(self.on_item_changed)
+        self.table.itemChanged.connect(self._qt_on_item_changed)
         
         # Restore column order if it exists
         if self.column_order is not None and len(self.column_order) == self.table.columnCount():
@@ -261,16 +218,16 @@ class UnitListView(WidgetBase):
         unit_id = self.controller.unit_ids[unit_index]
         self.controller.set_label_to_unit(unit_id, category, None)
 
-    def on_item_changed(self, item):
+    def _qt_on_item_changed(self, item):
+        from .myqt import QT
         if item.column() != 1: return
         sel = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[item.checkState()]
         unit_id = item.unit_id
         self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
 
-        # self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
     
-    def on_double_clicked(self, row, col):
+    def _qt_on_double_clicked(self, row, col):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = False
             
@@ -278,28 +235,11 @@ class UnitListView(WidgetBase):
         self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
 
-        # self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
     
-    def open_context_menu(self):
+    def _qt_on_open_context_menu(self):
         self.menu.popup(self.cursor().pos())
     
-    def show_all(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = True
-        self.refresh()
-
-        # self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
-    
-    def hide_all(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = False
-        self.refresh()
-
-        # self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
-
     def _get_selected_rows(self):
         rows = []
         for item in self.table.selectedItems():
@@ -321,8 +261,7 @@ class UnitListView(WidgetBase):
         for unit_id in self.get_selected_unit_ids():
             self.controller.unit_visible_dict[unit_id] = True
         self.refresh()
-        # self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
         # self.table.set
         # self.table.setCurrentCell(rows[0], None, QT.QItemSelectionModel.Select)
         # self.table.scrollTo(index)
@@ -332,7 +271,7 @@ class UnitListView(WidgetBase):
     def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
-        self.manual_curation_updated.emit()
+        self.notigy_manual_curation_updated()
         self.refresh()
 
     def on_delete_shortcut(self):
@@ -344,19 +283,120 @@ class UnitListView(WidgetBase):
     def merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_merge_if_possible(merge_unit_ids)
-        self.manual_curation_updated.emit()
+        self.notify_manual_curation_updated()
         self.refresh()
 
 
-class OrderableCheckItem(QT.QTableWidgetItem):
+    ## panel zone ##
+    def _panel_make_layout(self):
+        import panel as pn
+        from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
+        from .utils_panel import _bg_color, table_stylesheet, checkbox_formatter_template
 
-    def is_checked(self):
-        checked = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[self.checkState()]
-        return checked
+        self.source = ColumnDataSource({})
 
-    def __lt__(self, other):
-        comp = float(self.is_checked()) < float(other.is_checked())
-        return comp
+        unit_formatter = HTMLTemplateFormatter(
+            template="""
+            <div style="color: <%= value ? value.color : '#ffffff' %>;">
+                ● <%= value ? value.id : '' %>
+            </div>
+        """
+        )
+
+        checkbox_formatter = HTMLTemplateFormatter(template=checkbox_formatter_template)
+
+        columns = [
+            TableColumn(field="unit_id", title="Unit", formatter=unit_formatter),
+            TableColumn(field="selected", title="✓", width=30, formatter=checkbox_formatter),
+            # TableColumn(field="channel_id", title="Channel"),
+            # TableColumn(field="num_channels", title="Sparsity"),
+        ]
+
+        self.table = DataTable(
+            source=self.source,
+            columns=columns,
+            sizing_mode="stretch_both",
+            selectable=True,
+            styles={
+                "background-color": _bg_color,
+                "color": "#ffffff",
+            },
+            stylesheets=[table_stylesheet]
+        )
+
+        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default", width=100)
+        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default", width=100)
+
+        self.info_text = pn.pane.HTML("")
+
+        self.layout = pn.Column(
+            self.info_text,
+            pn.Row(
+                self.select_all_button,
+                self.unselect_all_button,
+            ),
+            self.table,
+            sizing_mode="stretch_width",
+        )
+
+        self.source.selected.on_change("indices", self._panel_on_selection_changed)
+        self.select_all_button.on_click(lambda event: self.show_all())
+        self.unselect_all_button.on_click(lambda event: self.hide_all())
+
+
+    def _panel_refresh(self):
+        
+
+        # Prepare data for all units
+        unit_ids = self.controller.unit_ids
+        data = {
+            "unit_id": list(unit_ids),
+            "selected": list(self.controller.unit_visible_dict.values()),
+            # "channel_id": [],
+            # "num_channels": [],
+            # "raw_unit_id": []  # Keep track of original unit IDs
+        }
+
+        # ensure str
+        data["unit_index"] =  list(range(unit_ids.size))
+
+        self.source.data = data
+        n1 = len(unit_ids)
+        n2 = sum(self.controller.unit_visible_dict.values())
+        txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
+        self.info_text.object = txt
+
+    def _panel_on_selection_changed(self, attr, old, new):
+        # Get selected units and update visibility
+        selected_unit_ids = []
+        for row_idx in new:
+            unit_index = self.source.data["unit_index"][row_idx]
+            selected_unit_ids.append(self.controller.unit_ids[unit_index])
+
+        # Clear all selections first if using single select
+        if len(new) == 1 and len(old or []) != 0:
+            for unit_id in self.controller.unit_visible_dict:
+                self.controller.unit_visible_dict[unit_id] = False
+
+        # Set selected units as visible
+        for unit_id in selected_unit_ids:
+            self.controller.unit_visible_dict[unit_id] = True
+
+        # # Handle channel visibility
+        # if len(selected_unit_ids) == 1 and self.params["select_change_channel_visibility"]:
+        #     sparsity_mask = self.controller.get_sparsity_mask()
+        #     unit_index = self.controller.unit_ids.tolist().index(selected_unit_ids[0])
+        #     (visible_channel_inds,) = np.nonzero(sparsity_mask[unit_index, :])
+            
+        #     if not np.all(np.isin(visible_channel_inds, self.controller.visible_channel_inds)):
+        #         self.controller.set_channel_visibility(visible_channel_inds)
+        #         self.param.trigger("channel_visibility_changed")
+
+        self.notify_unit_visibility_changed()
+
+
+
+
 
 
 UnitListView._gui_help_txt = """Unit list

@@ -1,12 +1,7 @@
-from .myqt import QT
-import pyqtgraph as pg
-
-import numpy as np
 import json
 from pathlib import Path
 
-from .base import WidgetBase
-from .tools import ParamDialog, get_dict_from_group_param, CustomItem
+from .view_base import ViewBase
 
 from spikeinterface.core.core_tools import check_json
 
@@ -16,18 +11,20 @@ from spikeinterface.core.core_tools import check_json
 
 
 
-class CurationView(WidgetBase):
-    """
-    """
-
+class CurationView(ViewBase):
+    _supported_backend = ['qt']
     _need_compute = False
 
-    def __init__(self, controller=None, parent=None):
-        WidgetBase.__init__(self, parent=parent, controller=controller)
+    def __init__(self, controller=None, parent=None, backend="qt"):
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+    def _qt_make_layout(self):
+        from .myqt import QT
+        import pyqtgraph as pg
+
 
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
-        self.setLayout(self.layout)
 
         h = QT.QHBoxLayout()
         h.addStretch()
@@ -37,7 +34,7 @@ class CurationView(WidgetBase):
             h.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
         but = QT.QPushButton("Export JSON")
-        but.clicked.connect(self.export_json)        
+        but.clicked.connect(self._qt_export_json)        
         h.addWidget(but)
 
         h = QT.QHBoxLayout()
@@ -82,7 +79,8 @@ class CurationView(WidgetBase):
 
         self.refresh()
 
-    def _refresh(self):
+    def _qt_refresh(self):
+        from .myqt import QT
         # print("curation refresh")
         # print(self.controller.curation_data)
         # Merged
@@ -105,7 +103,7 @@ class CurationView(WidgetBase):
         self.table_delete.setHorizontalHeaderLabels(["unit_id"])
         self.table_delete.setSortingEnabled(False)
         for i, unit_id in enumerate(removed_units):
-            color = self.controller.qcolors.get(unit_id, QT.QColor( 'black'))
+            color = self.get_unit_color(unit_id)
             pix = QT.QPixmap(16,16)
             pix.fill(color)
             icon = QT.QIcon(pix)
@@ -124,7 +122,7 @@ class CurationView(WidgetBase):
     def restore_unit(self):
         unit_id = self.table_delete.selectedItems()[0].unit_id
         self.controller.make_manual_restore([unit_id])
-        self.manual_curation_updated.emit()
+        self.notify_manual_curation_updated()
         self.refresh()
     
 
@@ -132,7 +130,7 @@ class CurationView(WidgetBase):
         merge_index = self.table_merge.selectedItems()[0].row()
 
         self.controller.make_manual_restore_merge(merge_index)
-        self.manual_curation_updated.emit()
+        self.notify_manual_curation_updated()
         self.refresh()
     
     def on_item_selection_changed_merge(self):
@@ -145,8 +143,7 @@ class CurationView(WidgetBase):
             self.controller.unit_visible_dict[k] = False
         for unit_id in unit_ids:
             self.controller.unit_visible_dict[unit_id] = True
-        self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
 
     def on_item_selection_changed_delete(self):
         if len(self.table_delete.selectedIndexes()) == 0:
@@ -156,8 +153,7 @@ class CurationView(WidgetBase):
         for k in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[k] = False
         self.controller.unit_visible_dict[unit_id] = True
-        self.controller.update_visible_spikes()
-        self.unit_visibility_changed.emit()
+        self.notify_unit_visibility_changed()
 
     def on_manual_curation_updated(self):
         self.refresh()
@@ -165,7 +161,8 @@ class CurationView(WidgetBase):
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
 
-    def export_json(self):
+    def _qt_export_json(self):
+        from .myqt import QT
         fd = QT.QFileDialog(fileMode=QT.QFileDialog.AnyFile, acceptMode=QT.QFileDialog.AcceptSave)
         fd.setNameFilters(['JSON (*.json);'])
         fd.setDefaultSuffix('json')
