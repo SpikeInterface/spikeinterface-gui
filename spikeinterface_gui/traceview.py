@@ -4,6 +4,9 @@ import time
 from .view_base import ViewBase
 
 
+
+# TODO sam refactor Qt part with common stuff
+
 # This MixinViewTrace is used both in:
 #   * TraceView
 #   * TraceMapView
@@ -184,8 +187,7 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
 
-    @property
-    def visible_channel_inds(self):
+    def get_visible_channel_inds(self):
         # TODO add option to order by depth
         inds = self.controller.visible_channel_inds
         n_max =self.settings['max_visible_channel']
@@ -193,15 +195,152 @@ class TraceView(ViewBase, MixinViewTrace):
             inds = inds[:n_max]
         return inds
 
+    # TODO sam refactor Qt and this
     def reset_gain_and_offset(self):
         num_chans = len(self.controller.channel_ids)
         self.gains = np.zeros(num_chans, dtype='float32')
         self.offsets = np.zeros(num_chans, dtype='float32')
         
-        n = self.visible_channel_inds.size
-        self.gains[self.visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
-        self.offsets[self.visible_channel_inds] = np.arange(n)[::-1] - self.med[self.visible_channel_inds]*self.gains[self.visible_channel_inds]
+        visible_channel_inds = self.visible_channel_inds()
+        n = visible_channel_inds.size
+        self.gains[visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
+        self.offsets[visible_channel_inds] = np.arange(n)[::-1] - self.med[visible_channel_inds]*self.gains[visible_channel_inds]
 
+    # TODO sam refactor Qt and this
+    def estimate_auto_scale(self):
+        """Estimate automatic scaling factors"""
+        self.mad = self.controller.noise_levels.astype("float32").copy()
+        # we make the assumption that the signal is center on zero (HP filtered)
+        self.med = np.zeros(self.mad.shape, dtype="float32")
+        self.factor = 1.0
+        return self.med, self.mad, 15.0  # Default zoom factor
+
+    # TODO sam refactor Qt and this
+    def compute_gains_offsets(self, visible_channel_inds):
+        num_chans = len(self.controller.channel_ids)
+        gains = np.zeros(num_chans, dtype="float32")
+        offsets = np.zeros(num_chans, dtype="float32")
+
+        n = visible_channel_inds.size
+        gains[visible_channel_inds] = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad))
+        offsets[visible_channel_inds] = (
+            np.arange(n)[::-1] - self.med[visible_channel_inds] * gains[visible_channel_inds]
+        )
+
+        return gains, offsets
+
+    # TODO sam refactor Qt and this
+    def reset_gain_and_offset(self):
+        visible_inds = self.get_visible_channel_inds()
+        return self.compute_gains_offsets(visible_inds)
+
+    # TODO sam refactor Qt and this
+    def get_signals_chunk(self, t1, t2, segment_index):
+        t_start = 0.0
+        sr = self.controller.sampling_frequency
+
+        ind1 = max(0, int((t1 - t_start) * sr))
+        ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
+
+        return (
+            self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2),
+            ind1,
+            ind2,
+        )
+
+    # TODO sam refactor Qt and this
+    def find_nearest_spike(self, x, segment_index, max_distance_samples=None):
+        if max_distance_samples is None:
+            max_distance_samples = self.controller.sampling_frequency // 30
+
+        ind_click = int(x * self.controller.sampling_frequency)
+        (in_seg,) = np.nonzero(self.controller.spikes["segment_index"] == segment_index)
+
+        if len(in_seg) == 0:
+            return None
+
+        nearest = np.argmin(np.abs(self.controller.spikes[in_seg]["sample_index"] - ind_click))
+        ind_spike_nearest = in_seg[nearest]
+        sample_index = self.controller.spikes[ind_spike_nearest]["sample_index"]
+
+        if np.abs(ind_click - sample_index) > max_distance_samples:
+            return None
+
+        return ind_spike_nearest
+
+    # TODO sam refactor Qt and this
+    def get_spikes_in_chunk(self, ind1, ind2, segment_index):
+        sl = self.controller.segment_slices[segment_index]
+        spikes_seg = self.controller.spikes[sl]
+        i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
+        spikes_chunk = spikes_seg[i1:i2].copy()
+        spikes_chunk["sample_index"] -= ind1
+        return spikes_chunk
+
+    # TODO sam refactor Qt and this
+    def process_data_curves(self, sigs_chunk, visible_channel_inds, gains, offsets):
+        """Process data curves for display"""
+        data_curves = sigs_chunk[:, visible_channel_inds].T.copy()
+
+        if data_curves.dtype != "float32":
+            data_curves = data_curves.astype("float32")
+
+        data_curves *= gains[visible_channel_inds, None]
+        data_curves += offsets[visible_channel_inds, None]
+
+        connect = np.ones(data_curves.shape, dtype="bool")
+        connect[:, -1] = 0
+
+        return data_curves, connect
+
+    # TODO sam refactor Qt and this
+    def process_spikes_for_display(
+        self, spikes_chunk, sigs_chunk, visible_channel_inds, gains, offsets, times_chunk):
+        """Process spikes for display"""
+        all_x = []
+        all_y = []
+        all_colors = []
+        all_unit_ids = []
+
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if not self.controller.unit_visible_dict[unit_id]:
+                continue
+
+            unit_mask = spikes_chunk["unit_index"] == unit_index
+            if np.sum(unit_mask) == 0:
+                continue
+
+            # Get spikes for this unit
+            unit_spikes = spikes_chunk[unit_mask]
+            channel_inds = unit_spikes["channel_index"]
+            sample_inds = unit_spikes["sample_index"]
+
+            # Map channel indices to their positions in visible_channel_inds
+            chan_mask = np.isin(channel_inds, visible_channel_inds)
+            if not np.any(chan_mask):
+                continue
+
+            channel_inds = channel_inds[chan_mask]
+            sample_inds = sample_inds[chan_mask]
+
+            # Calculate y values using signal values
+            x = times_chunk[sample_inds]
+            y = sigs_chunk[sample_inds, channel_inds] * gains[channel_inds] + offsets[channel_inds]
+
+            # color = unit_colors.get(unit_id, "#FFFFFF")
+            # if isinstance(color, str):
+            #     color = QT.QColor(color)
+            color = self.get_unit_color(unit_id)
+
+            all_x.extend(x)
+            all_y.extend(y)
+            all_colors.extend([color] * len(x))
+            all_unit_ids.extend([str(unit_id)] * len(x))
+
+        if len(all_x) > 0:
+            return all_x, all_y, all_colors, all_unit_ids
+
+        return None, None, None, None
 
 
 
@@ -334,15 +473,16 @@ class TraceView(ViewBase, MixinViewTrace):
         if self.gains is None:
             self._qt_estimate_auto_scale()
 
-        nb_visible = self.visible_channel_inds.size
+        visible_channel_inds = self.visible_channel_inds()
+        nb_visible = visible_channel_inds.size
         
-        data_curves = sigs_chunk[:, self.visible_channel_inds].T.copy()
+        data_curves = sigs_chunk[:, visible_channel_inds].T.copy()
         
         if data_curves.dtype!='float32':
             data_curves = data_curves.astype('float32')
         
-        data_curves *= self.gains[self.visible_channel_inds, None]
-        data_curves += self.offsets[self.visible_channel_inds, None]
+        data_curves *= self.gains[visible_channel_inds, None]
+        data_curves += self.offsets[visible_channel_inds, None]
         
         connect = np.ones(data_curves.shape, dtype='bool')
         connect[:, -1] = 0
@@ -355,7 +495,7 @@ class TraceView(ViewBase, MixinViewTrace):
         for chan_ind, chan_id in enumerate(self.controller.channel_ids):
             self.channel_labels[chan_ind].hide()
         
-        for i, chan_ind in enumerate(self.visible_channel_inds):
+        for i, chan_ind in enumerate(visible_channel_inds):
             self.channel_labels[chan_ind].setPos(t1, nb_visible - 1 - i)
             self.channel_labels[chan_ind].show()
         
@@ -382,7 +522,7 @@ class TraceView(ViewBase, MixinViewTrace):
             channel_inds = spikes_chunk['channel_index'][unit_mask]
             sample_inds = spikes_chunk['sample_index'][unit_mask]
             
-            chan_mask = np.isin(channel_inds, self.visible_channel_inds)
+            chan_mask = np.isin(channel_inds, visible_channel_inds)
             if not np.any(chan_mask):
                 continue
             channel_inds = channel_inds[chan_mask]
@@ -416,7 +556,6 @@ class TraceView(ViewBase, MixinViewTrace):
         #ranges
         self.plot.setXRange( t1, t2, padding = 0.0)
         self.plot.setYRange(-.5, nb_visible-.5, padding = 0.0)
-
 
 
     ## panel ##
@@ -513,12 +652,12 @@ class TraceView(ViewBase, MixinViewTrace):
 
         # TODO sam
         # Connect events
-        # self.segment_selector.param.watch(self._on_segment_changed, "value")
-        # self.xsize_spinner.param.watch(self._on_xsize_changed, "value")
-        # self.auto_scale_button.on_click(self.auto_scale)
-        # self.time_slider.param.watch(self._on_time_slider_changed, "value")
-        # self.figure.on_event(Tap, self._on_tap)
-        # self.figure.on_event(DoubleTap, self._on_double_tap)
+        self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
+        self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
+        self.auto_scale_button.on_click(self._panel_auto_scale)
+        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value")
+        self.figure.on_event(Tap, self._panel_on_tap)
+        self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         # TODO generic toolbar
         self.toolbar = pn.Column(
@@ -535,8 +674,172 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
-        pass
+        t = self.time_by_seg[self.seg_num]
+        t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
+        # Get signal chunk
+        sigs_chunk, ind1, ind2 = self.get_signals_chunk(t1, t2, self.seg_num)
+        if sigs_chunk is None:
+            return
+
+        # Initialize gains if needed
+        if self.gains is None:
+            self.estimate_auto_scale()
+
+        # Get visible channels
+        visible_inds = self.get_visible_channel_inds()
+        self.gains, self.offsets = self.compute_gains_offsets(visible_inds)
+        nb_visible = visible_inds.size
+
+        # Process data curves
+        data_curves, _ = self.process_data_curves(sigs_chunk, visible_inds, self.gains, self.offsets)
+
+        # Update signal data - restructure for Bokeh's multi_line
+        times_chunk = np.arange(sigs_chunk.shape[0], dtype="float64") / self.controller.sampling_frequency + max(t1, 0)
+
+        # Prepare data in format Bokeh expects for multi_line: array of arrays
+        times = []
+        values = []
+        channel_ids = []
+        for i in range(nb_visible):
+            times.append(times_chunk.tolist())
+            values.append(data_curves[i].tolist())
+            channel_ids.append(self.controller.channel_ids[visible_inds[i]])
+
+        self.signal_source.data.update(
+            {"xs": times, "ys": values, "channel_id": channel_ids}  # Use xs/ys for multi_line
+        )
+
+        # Get and process spikes
+        spikes_chunk = self.get_spikes_in_chunk(ind1, ind2, self.seg_num)
+        x, y, colors, unit_ids = self.process_spikes_for_display(
+            spikes_chunk,
+            sigs_chunk,
+            visible_inds,
+            self.gains,
+            self.offsets,
+            times_chunk,
+        )
+
+        if x is not None:
+            self.spike_source.data.update({"x": x, "y": y, "color": colors, "unit_id": unit_ids})
+
+            if np.sum(spikes_chunk["selected"]) == 1:
+                sample_index = spikes_chunk["sample_index"][spikes_chunk["selected"]][0]
+                t = times_chunk[sample_index]
+                self.selection_line.data_source.data.update({"y": [-0.5, nb_visible - 0.5]})
+                self.selection_line.visible = True
+            else:
+                self.selection_line.visible = False
+        else:
+            self.spike_source.data.update({"x": [], "y": [], "color": [], "unit_id": []})
+            self.selection_line.visible = False
+
+        # Set y range
+        self.figure.y_range.start = -0.5
+        self.figure.y_range.end = nb_visible - 0.5
+
+        # Update plot ranges for x-axis too
+        self.figure.x_range.start = t1
+        self.figure.x_range.end = t2
+
+
+
+    def _panel_on_segment_changed(self, event):
+        seg_num = int(event.new.split()[-1])
+        self._panel_change_segment(seg_num)
+
+    def _panel_on_xsize_changed(self, event):
+        self.xsize = event.new
+        self.refresh()
+
+    def _panel_on_tap(self, event):
+        if not hasattr(event, "x") or not hasattr(event, "y"):
+            return
+
+        ind_spike_nearest = self.find_nearest_spike(event.x, self.seg_num)
+        if ind_spike_nearest is not None:
+            self.controller.set_indices_spike_selected([ind_spike_nearest])
+            self.seek_with_selected_spike()
+
+    def _panel_on_double_tap(self, event):
+        self._on_tap(event)  # Same behavior for now
+
+    def _panel_on_time_slider_changed(self, event):
+        self.time_by_seg[self.seg_num] = event.new
+        self.refresh()
+
+    def _panel_change_segment(self, seg_num):
+        self._seg_index = seg_num
+        if self._seg_index < 0:
+            self._seg_index = self.controller.num_segments - 1
+        if self._seg_index >= self.controller.num_segments:
+            self._seg_index = 0
+
+        self.seg_num = self._seg_index
+        self.segment_selector.value = f"Segment {self.seg_num}"
+
+        # Update time slider range
+        length = self.controller.get_num_samples(self.seg_num)
+        t_stop = length / self.controller.sampling_frequency
+        self.time_slider.start = 0
+        self.time_slider.end = t_stop
+        self.time_slider.value = 0
+
+        # Update plot ranges
+        self.figure.x_range.start = 0
+        self.figure.x_range.end = t_stop
+
+        # Reset data sources
+        self.signal_source.data.update({"xs": [], "ys": [], "channel_id": []})
+
+        self.spike_source.data.update({"x": [], "y": [], "color": [], "unit_id": []})
+
+        # Reset selection line
+        self.selection_line.visible = False
+        self.selection_line.data_source.data.update({"x": [], "y": []})
+
+        self.refresh()
+
+    def _panel_auto_scale(self, event=None):
+        self.med, self.mad, zoom = self.estimate_auto_scale()
+        self.factor *= zoom
+        visible_inds = self.get_visible_channel_inds()
+        self.gains, self.offsets = self.compute_gains_offsets(visible_inds)
+        self.refresh()
+
+    def _panel_estimate_auto_scale(self):
+        self.auto_scale()
+
+    def _panel_seek_with_selected_spike(self):
+        ind_selected = self.controller.get_indices_spike_selected()
+        n_selected = ind_selected.size
+
+        if self.settings['auto_zoom_on_select'] and n_selected == 1:
+            ind = ind_selected[0]
+            peak_ind = self.controller.spikes[ind]["sample_index"]
+            seg_num = self.controller.spikes[ind]["segment_index"]
+            peak_time = peak_ind / self.controller.sampling_frequency
+
+            if seg_num != self.seg_num:
+                self.change_segment(seg_num)
+
+            self.xsize = self.settings['zoom_size']
+            self.xsize_spinner.value = self.xsize
+
+            # Update time slider
+            self.time_slider.value = peak_time
+
+            self.refresh()
+
+            # Center view on spike
+            margin = self.xsize / 3
+            self.figure.x_range.start = peak_time - margin
+            self.figure.x_range.end = peak_time + 2 * margin
+            self.refresh()
+
+    def _panel_on_spike_selection_changed(self):
+        self._panel_seek_with_selected_spike()
 
 
     
