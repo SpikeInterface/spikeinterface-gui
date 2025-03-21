@@ -234,6 +234,80 @@ class TraceView(ViewBase, MixinViewTrace):
         visible_inds = self.get_visible_channel_inds()
         return self.compute_gains_offsets(visible_inds)
 
+    # def get_data_in_chunk(self, t1, t2, segment_index):
+    #     t_start = 0.0
+    #     sr = self.controller.sampling_frequency
+
+    #     ind1 = max(0, int((t1 - t_start) * sr))
+    #     ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
+
+    #     traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2),
+
+    #     sl = self.controller.segment_slices[segment_index]
+    #     spikes_seg = self.controller.spikes[sl]
+    #     i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
+    #     spikes_chunk = spikes_seg[i1:i2].copy()
+    #     spikes_chunk["sample_index"] -= ind1
+
+    #     visible_channel_inds = self.get_visible_channel_inds()
+    #     data_curves = traces_chunk[:, visible_channel_inds].T.copy()
+
+    #     if data_curves.dtype != "float32":
+    #         data_curves = data_curves.astype("float32")
+
+    #     data_curves *= self.gains[visible_channel_inds, None]
+    #     data_curves += self.offsets[visible_channel_inds, None]
+
+    #     connect = np.ones(data_curves.shape, dtype="bool")
+    #     connect[:, -1] = 0
+
+    #     times_chunk = np.arange(traces_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
+
+    #     all_x = []
+    #     all_y = []
+    #     all_colors = []
+    #     all_unit_ids = []
+
+    #     for unit_index, unit_id in enumerate(self.controller.unit_ids):
+    #         if not self.controller.unit_visible_dict[unit_id]:
+    #             continue
+
+    #         inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
+    #         if inds.size == 0:
+    #             continue
+
+    #         # Get spikes for this unit
+    #         unit_spikes = spikes_chunk[inds]
+    #         channel_inds = unit_spikes["channel_index"]
+    #         sample_inds = unit_spikes["sample_index"]
+
+    #         # Map channel indices to their positions in visible_channel_inds
+    #         chan_mask = np.isin(channel_inds, visible_channel_inds)
+    #         if not np.any(chan_mask):
+    #             continue
+
+    #         channel_inds = channel_inds[chan_mask]
+    #         sample_inds = sample_inds[chan_mask]
+
+    #         # Calculate y values using signal values
+    #         x = times_chunk[sample_inds]
+    #         y = data_curves[sample_inds, channel_inds]
+
+    #         # This should both for qt (QTColor) and panel (html color)
+    #         color = self.get_unit_color(unit_id)
+
+    #         all_x.extend(x)
+    #         all_y.extend(y)
+    #         all_colors.extend([color] * len(x))
+    #         all_unit_ids.extend([str(unit_id)] * len(x))
+
+    #     # if len(all_x) > 0:
+    #     #     return all_x, all_y, all_colors, all_unit_ids
+    
+    #     return times_chunk, connect, data_curves, all_x, all_y, all_colors, all_unit_ids
+
+
+
     # TODO sam refactor Qt and this
     def get_signals_chunk(self, t1, t2, segment_index):
         t_start = 0.0
@@ -763,7 +837,7 @@ class TraceView(ViewBase, MixinViewTrace):
             self.seek_with_selected_spike()
 
     def _panel_on_double_tap(self, event):
-        self._on_tap(event)  # Same behavior for now
+        self._panel_on_tap(event)  # Same behavior for now
 
     def _panel_on_time_slider_changed(self, event):
         self.time_by_seg[self.seg_num] = event.new
@@ -829,8 +903,6 @@ class TraceView(ViewBase, MixinViewTrace):
 
             # Update time slider
             self.time_slider.value = peak_time
-
-            self.refresh()
 
             # Center view on spike
             margin = self.xsize / 3
