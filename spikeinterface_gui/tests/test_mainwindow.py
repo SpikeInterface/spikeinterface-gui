@@ -23,7 +23,7 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False):
 
 
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
@@ -71,7 +71,7 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
         yop=np.array([f"yop{i}" for i in range(n)]),
         yip=np.array([f"yip{i}" for i in range(n)]),
     )
-    
+    win = None
     if from_si_api:
         from spikeinterface.widgets import plot_sorting_summary
         plot_sorting_summary(analyzer, backend='spikeinterface_gui',
@@ -80,26 +80,27 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
                             extra_unit_properties=extra_unit_properties,
                             )
     else:
-        run_mainwindow(
+        win = run_mainwindow(
             analyzer,
             # backend="qt",
             backend="panel",
-            start_qt_app=start_qt_app, verbose=verbose,
+            start_app=start_app, verbose=verbose,
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
             # layout_preset='default',
             layout_preset='yep',
         )
+    return win
 
 
 
 
 
-if __name__ == '__main__':
-    # setup_module()
+# if __name__ == '__main__':
+# setup_module()
     
-    test_mainwindow(start_qt_app=True, verbose=False)
+win = test_mainwindow(start_app=False, verbose=False)
     # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
     # test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
     # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)

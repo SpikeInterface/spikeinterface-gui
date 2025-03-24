@@ -335,7 +335,7 @@ class ProbeView(ViewBase):
     def _qt_on_pick_unit(self, x, y, multi_select=False):
         unit_id, _ = self.find_closest_unit(x, y)
         if unit_id is not None:
-            radius = self.params["radius_channel"]
+            radius = self.settings["radius_channel"]
             if multi_select:
                 self.controller.unit_visible_dict[unit_id] = not (self.controller.unit_visible_dict[unit_id])
             else:
@@ -669,9 +669,9 @@ class ProbeView(ViewBase):
                 # Update channel visibility
                 visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
                 self.controller.set_channel_visibility(visible_channel_inds)
-                self.param.trigger("channel_visibility_changed")
+                self.notifier.notify_channel_visibility_changed()
 
-            self.param.trigger("unit_visibility_changed")
+            self.notifier.notify_unit_visibility_changed()
             self.on_unit_visibility_changed()
             self._refresh()  # Ensure view is updated after visibility changes
 

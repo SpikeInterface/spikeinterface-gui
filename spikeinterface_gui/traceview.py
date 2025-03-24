@@ -201,7 +201,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self.gains = np.zeros(num_chans, dtype='float32')
         self.offsets = np.zeros(num_chans, dtype='float32')
         
-        visible_channel_inds = self.visible_channel_inds()
+        visible_channel_inds = self.controller.visible_channel_inds
         n = visible_channel_inds.size
         self.gains[visible_channel_inds] = np.ones(n, dtype=float) * 1./(self.factor*max(self.mad))
         self.offsets[visible_channel_inds] = np.arange(n)[::-1] - self.med[visible_channel_inds]*self.gains[visible_channel_inds]
@@ -229,10 +229,10 @@ class TraceView(ViewBase, MixinViewTrace):
 
         return gains, offsets
 
-    # TODO sam refactor Qt and this
-    def reset_gain_and_offset(self):
-        visible_inds = self.get_visible_channel_inds()
-        return self.compute_gains_offsets(visible_inds)
+    # # TODO sam refactor Qt and this
+    # def reset_gain_and_offset(self):
+    #     visible_inds = self.get_visible_channel_inds()
+    #     return self.compute_gains_offsets(visible_inds)
 
     # TODO sam refactor Qt and this
     def get_signals_chunk(self, t1, t2, segment_index):
@@ -387,7 +387,7 @@ class TraceView(ViewBase, MixinViewTrace):
         # self.plot.addItem(self.curve_residuals)
 
 
-    def _qt_on_settings_changed(self):
+    def _on_settings_changed_qt(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
         self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
         if self.xsize > self.settings['xsize_max']:
@@ -430,7 +430,7 @@ class TraceView(ViewBase, MixinViewTrace):
     def _qt_gain_zoom(self, factor_ratio):
         self.factor *= factor_ratio
         self.reset_gain_and_offset()
-        self.refresh()
+        # self.refresh()
 
     def _qt_estimate_auto_scale(self):
         self.mad = self.controller.noise_levels.astype('float32').copy()
@@ -473,7 +473,7 @@ class TraceView(ViewBase, MixinViewTrace):
         if self.gains is None:
             self._qt_estimate_auto_scale()
 
-        visible_channel_inds = self.visible_channel_inds()
+        visible_channel_inds = self.controller.visible_channel_inds
         nb_visible = visible_channel_inds.size
         
         data_curves = sigs_chunk[:, visible_channel_inds].T.copy()

@@ -16,6 +16,10 @@ class UnitListView(ViewBase):
     _settings = None
 
     def __init__(self, controller=None, parent=None, backend="qt"):
+        UnitListView._settings = [
+            {'name': col, 'type': 'bool', 'value': col in controller.displayed_unit_properties}
+            for col in controller.units_table.columns
+        ]
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
 
@@ -81,27 +85,9 @@ class UnitListView(ViewBase):
         # Update stored column order
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
-    def create_settings_TODO(self):
-        # hack to use settings to control visible columns
-
-        params = []
-        for col in self.controller.units_table.columns:
-            params.append(
-                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
-            )
-        self.params = pg.parametertree.Parameter.create( name='Visible', type='group', children=params)
-        
-        self.tree_settings = pg.parametertree.ParameterTree(parent=self)
-        self.tree_settings.header().hide()
-        self.tree_settings.setParameters(self.params, showTop=True)
-        self.tree_settings.setWindowTitle(u'Options for waveforms hist viewer')
-        self.tree_settings.setWindowFlags(QT.Qt.Window)
-        
-        self.params.sigTreeStateChanged.connect(self.on_params_changed)
-
-    def on_params_changed_TODO(self):
-        new_displayed = [col for col in self.controller.units_table.columns if self.params[col]]
-        self.controller.displayed_unit_properties = new_displayed
+    def _on_settings_changed(self):
+        displayed_unit_properties = [col for col in self.settings.keys() if self.settings[col]]
+        self.controller.displayed_unit_properties = displayed_unit_properties
         self.refresh()
 
     def _qt_refresh(self):
@@ -290,10 +276,10 @@ class UnitListView(ViewBase):
     ## panel zone ##
     def _panel_make_layout(self):
         import panel as pn
+        import matplotlib.colors as mcolors
         from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
         from .utils_panel import _bg_color, table_stylesheet, checkbox_formatter_template
 
-        self.source = ColumnDataSource({})
 
         unit_formatter = HTMLTemplateFormatter(
             template="""
@@ -305,16 +291,43 @@ class UnitListView(ViewBase):
 
         checkbox_formatter = HTMLTemplateFormatter(template=checkbox_formatter_template)
 
-        columns = [
+        main_cols = [
             TableColumn(field="unit_id", title="Unit", formatter=unit_formatter),
             TableColumn(field="selected", title="✓", width=30, formatter=checkbox_formatter),
-            # TableColumn(field="channel_id", title="Channel"),
-            # TableColumn(field="num_channels", title="Sparsity"),
+            TableColumn(field="channel_id", title="Channel ID"),
+            TableColumn(field="sparsity", title="Sparsity"),
         ]
+
+        unit_ids = self.controller.unit_ids
+
+        # set unmutable data
+        data = {
+            "unit_id": [],
+            "channel_id": [],
+            "sparsity": [],
+            "selected": list(self.controller.unit_visible_dict.values()),
+        }
+        self.main_cols = ["unit_id", "channel_id", "sparsity", "selected"]
+
+        sparsity_mask = self.controller.get_sparsity_mask()
+        for unit_index, unit_id in enumerate(unit_ids):
+            data["unit_id"].append(
+                {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
+            )
+            data["channel_id"].append(
+                self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
+            )
+            data["sparsity"].append(
+                np.sum(sparsity_mask[unit_index, :])
+            )
+            
+
+        self.source = ColumnDataSource({})
+        self.source.data = data
 
         self.table = DataTable(
             source=self.source,
-            columns=columns,
+            columns=main_cols,
             sizing_mode="stretch_both",
             selectable=True,
             styles={
@@ -330,7 +343,7 @@ class UnitListView(ViewBase):
         self.info_text = pn.pane.HTML("")
 
         self.layout = pn.Column(
-            self.info_text,
+            self.info_text, 
             pn.Row(
                 self.select_all_button,
                 self.unselect_all_button,
@@ -345,24 +358,30 @@ class UnitListView(ViewBase):
 
 
     def _panel_refresh(self):
-        import matplotlib.colors as mcolors
-
+        from bokeh.models import TableColumn
+        
         # Prepare data for all units
         unit_ids = self.controller.unit_ids
-        data = {
-            "unit_id": [
-                {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
-                for unit_id in unit_ids
-            ],
-            "selected": list(self.controller.unit_visible_dict.values()),
-            # "channel_id": [],
-            # "num_channels": [],
-            # "raw_unit_id": []  # Keep track of original unit IDs
-        }
+        data = {}
+        data["selected"] = list(self.controller.unit_visible_dict.values())
         # ensure str
         data["unit_index"] =  list(range(unit_ids.size))
 
-        self.source.data = data
+        table_columns = self.table.columns
+        table_fields = [col.field for col in table_columns]
+
+        for table_col in table_columns:
+            if table_col.field not in self.main_cols + self.controller.displayed_unit_properties:
+                table_columns.remove(table_col)
+
+        for col in self.controller.displayed_unit_properties:
+            if col not in table_fields:
+                table_columns.append(TableColumn(field=col, title=col))
+                data[col] = self.controller.units_table[col]
+
+        self.table.columns = table_columns
+
+        self.source.data.update(data)
         n1 = len(unit_ids)
         n2 = sum(self.controller.unit_visible_dict.values())
         txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"

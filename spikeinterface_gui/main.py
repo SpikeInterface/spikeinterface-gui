@@ -26,7 +26,7 @@ def run_mainwindow(
     displayed_unit_properties=None,
     extra_unit_properties=None,
     recording=None,
-    start_qt_app=True,
+    start_app=True,
     layout_preset=None,
     verbose=False,
 ):
@@ -86,19 +86,20 @@ def run_mainwindow(
         this_file = Path(__file__).absolute()
         win.setWindowIcon(QT.QIcon(str(this_file.parent / 'img' / 'si.png')))
         win.show()
-        if start_qt_app:
+        if start_app:
             app.exec()
- 
     elif backend == "panel":
-        from .backend_panel import PanelMainWindow, start_server
         import panel
+        from .backend_panel import PanelMainWindow, start_server
         win = PanelMainWindow(controller, layout_preset=layout_preset)
-        start_server(win)
-    
+        if start_app:
+            start_server(win)
+        else:
+            win.main_layout.servable()
     else:
         raise ValueError(f"spikeinterface-gui wrong backend {backend}")
 
-    
+    return win
  
 
 def run_mainwindow_cli():

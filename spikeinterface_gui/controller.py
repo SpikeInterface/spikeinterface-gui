@@ -29,7 +29,7 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 # class  SpikeinterfaceController(ControllerBase):
-class  Controller():
+class Controller():
     def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
@@ -219,7 +219,7 @@ class  Controller():
 
         t1 = time.perf_counter()
         if verbose:
-            print('Gatherung all spikes took', t1 - t0)
+            print('Gathering all spikes took', t1 - t0)
             
         self.visible_channel_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
 
@@ -232,8 +232,8 @@ class  Controller():
         self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
-            if extra_unit_properties is not None:
-                displayed_unit_properties += list(extra_unit_properties.keys())
+        if extra_unit_properties is not None:
+            displayed_unit_properties += list(extra_unit_properties.keys())
         displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
         self.displayed_unit_properties = displayed_unit_properties
         

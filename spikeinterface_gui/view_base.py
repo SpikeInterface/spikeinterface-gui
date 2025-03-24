@@ -9,40 +9,40 @@ class ViewBase():
     
     def __init__(self, controller=None, parent=None,  backend="qt"):
 
-
         self.backend = backend
         self.controller = controller
 
         if self.backend == "qt":
             # For QT the parent is the **widget**
-            from .backend_qt import SignalNotifyer, create_settings
+            from .backend_qt import SignalNotifier, create_settings
             self.qt_widget = parent
-            self.notifyer = SignalNotifyer(parent=parent)
+            self.notifier = SignalNotifier(parent=parent)
             if self._settings is not None:
                 create_settings(self, parent)
             self._qt_make_layout()
 
         elif self.backend == "panel":
-            from .backend_panel import SignalNotifyer, create_settings
-            self.notifyer = SignalNotifyer(parent=parent)
+            from .backend_panel import SignalNotifier, create_settings
+            self.notifier = SignalNotifier(parent=parent)
             if self._settings is not None:
+                print(f"Creating settings for {self.__class__.__name__}")
                 create_settings(self)
             self._panel_make_layout()
 
         self.controller.declare_a_view(self)
 
     def notify_spike_selection_changed(self):
-        self.notifyer.notify_spike_selection_changed()
+        self.notifier.notify_spike_selection_changed()
 
     def notify_unit_visibility_changed(self):
         self.controller.update_visible_spikes()
-        self.notifyer.notify_unit_visibility_changed()
+        self.notifier.notify_unit_visibility_changed()
 
     def notify_channel_visibility_changed(self):
-        self.notifyer.notify_channel_visibility_changed()
+        self.notifier.notify_channel_visibility_changed()
 
     def notify_manual_curation_updated(self):
-        self.notifyer.notify_manual_curation_updated()
+        self.notifier.notify_manual_curation_updated()
 
     
     def on_settings_changed(self, *params):

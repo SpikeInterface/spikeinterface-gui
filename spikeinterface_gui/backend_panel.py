@@ -6,7 +6,7 @@ from .viewlist import possible_class_views
 from .layout_presets import get_layout_description
 
 # Used by views to emit/trigger signals
-class SignalNotifyer(param.Parameterized):
+class SignalNotifier(param.Parameterized):
     spike_selection_changed = param.Event()
     unit_visibility_changed = param.Event()
     channel_visibility_changed = param.Event()
@@ -35,10 +35,10 @@ class SignalHandler(param.Parameterized):
         self.controller = controller
 
     def connect_view(self, view):
-        view.notifyer.param.watch(self.on_spike_selection_changed, "spike_selection_changed")
-        view.notifyer.param.watch(self.on_unit_visibility_changed, "unit_visibility_changed")
-        view.notifyer.param.watch(self.on_channel_visibility_changed, "channel_visibility_changed")
-        view.notifyer.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
+        view.notifier.param.watch(self.on_spike_selection_changed, "spike_selection_changed")
+        view.notifier.param.watch(self.on_unit_visibility_changed, "unit_visibility_changed")
+        view.notifier.param.watch(self.on_channel_visibility_changed, "channel_visibility_changed")
+        view.notifier.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
 
     def on_spike_selection_changed(self, param):
         # print('on_spike_selection_changed', type(param))
@@ -84,8 +84,11 @@ class SettingsProxy:
     def __init__(self, myparametrized):
         self._parametrized = myparametrized
     
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         return getattr(self._parametrized, key)
+
+    def keys(self):
+        return list(p for p in self._parametrized.param if p != "name")
 
 def create_settings(view):
     # Create the class attributes dynamically
@@ -145,9 +148,11 @@ class PanelMainWindow:
 
             if view_class._settings is not None:
                 settings_panel = pn.Card(
-                    pn.Param(view.settings._parametrized, name="Settings", show_name=True),
+                    pn.Param(view.settings._parametrized, name=""),
+                    title="Settings",
                     collapsed=True,
-                    styles={"flex": "0.1"}
+                    styles={"flex": "0.3"},
+                    sizing_mode="stretch_width",
                 )
                 items = (
                     settings_panel,
@@ -161,7 +166,7 @@ class PanelMainWindow:
             view_layout = pn.Column(
                 *items,
                 styles={"display": "flex", "flex-direction": "column"},
-                sizing_mode="stretch_both"
+                # sizing_mode="stretch_both"
             )
             self.view_layouts[view_name] = view_layout
 
