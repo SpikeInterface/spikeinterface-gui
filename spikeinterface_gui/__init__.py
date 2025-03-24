@@ -16,25 +16,3 @@ from .main import run_mainwindow
 
 # views imported for debuging
 from .viewlist import *
-
-
-
-# TODO sam
-#  * remove compute
-#  * QT settings not more dialog
-#  * remove custom docker
-#  * simple layout description
-#  * generic toolbar : handle segments + settings + help
-#  * handle segment change
-
-
-# DEBUG
-#  * similarity
-#  * spike list + spike selection
-#  * curation view
-# 
-
-
-# Discussion with Alessio:
-#  * panel use params but you want pydantic no ?
-#  * why not using plotly instead of bokeh

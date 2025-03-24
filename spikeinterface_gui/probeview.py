@@ -673,7 +673,7 @@ class ProbeView(ViewBase):
 
             self.param.trigger("unit_visibility_changed")
             self.on_unit_visibility_changed()
-            self._refresh_view()  # Ensure view is updated after visibility changes
+            self._refresh()  # Ensure view is updated after visibility changes
 
     def _panel_on_double_tap(self, event):
         # Find closest unit to click position
@@ -714,7 +714,7 @@ class ProbeView(ViewBase):
             # Notify other views
             self.notify_unit_visibility_changed()
             self.notify_channel_visibility_changed()
-            self._refresh_view()
+            self._refresh()
 
 
 

@@ -345,18 +345,20 @@ class UnitListView(ViewBase):
 
 
     def _panel_refresh(self):
-        
+        import matplotlib.colors as mcolors
 
         # Prepare data for all units
         unit_ids = self.controller.unit_ids
         data = {
-            "unit_id": list(unit_ids),
+            "unit_id": [
+                {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
+                for unit_id in unit_ids
+            ],
             "selected": list(self.controller.unit_visible_dict.values()),
             # "channel_id": [],
             # "num_channels": [],
             # "raw_unit_id": []  # Keep track of original unit IDs
         }
-
         # ensure str
         data["unit_index"] =  list(range(unit_ids.size))
 

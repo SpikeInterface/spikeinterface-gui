@@ -55,8 +55,7 @@ class  Controller():
         self.save_on_compute = save_on_compute
 
         self.verbose = verbose
-        if verbose:
-            t0 = time.perf_counter()
+        t0 = time.perf_counter()
 
         # sparsity
         if self.analyzer.sparsity is None:
@@ -155,12 +154,11 @@ class  Controller():
         
         self._potential_merges = None
 
-
+        t1 = time.perf_counter()
         if verbose:
-            t1 = time.perf_counter()
             print('Loading extensions took', t1 - t0)
 
-            t0 = time.perf_counter()
+        t0 = time.perf_counter()
 
         self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
 
@@ -180,9 +178,7 @@ class  Controller():
         self.unit_visible_dict[self.unit_ids[0]] = True
         
 
-        if verbose:
-            t0 = time.perf_counter()
-            print('Gather all spikes')
+        t0 = time.perf_counter()
         
         # make internal spike vector
         unit_ids = self.analyzer.unit_ids
@@ -221,27 +217,15 @@ class  Controller():
                 inds.append(spike_indices[seg_ind][unit_id] + int(np.sum(spike_per_seg[:seg_ind])))
             self._spike_index_by_units[unit_id] = np.concatenate(inds)
 
+        t1 = time.perf_counter()
         if verbose:
-            t1 = time.perf_counter()
-            print('Gather all spikes', t1 - t0)
+            print('Gatherung all spikes took', t1 - t0)
             
-            t0 = time.perf_counter()
-            print('similarity')
-
         self.visible_channel_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
 
         self._spike_visible_indices = np.array([], dtype='int64')
         self._spike_selected_indices = np.array([], dtype='int64')
         self.update_visible_spikes()
-
-
-        if verbose:
-            t1 = time.perf_counter()
-            print('similarity', t1 - t0)
-            
-            t0 = time.perf_counter()
-            # print('')
-        
 
         self._traces_cached = {}
 
