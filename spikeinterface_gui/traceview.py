@@ -822,7 +822,7 @@ class TraceView(ViewBase, MixinViewTrace):
             peak_time = peak_ind / self.controller.sampling_frequency
 
             if seg_num != self.seg_num:
-                self.change_segment(seg_num)
+                self._panel_change_segment(seg_num)
 
             self.xsize = self.settings['zoom_size']
             self.xsize_spinner.value = self.xsize

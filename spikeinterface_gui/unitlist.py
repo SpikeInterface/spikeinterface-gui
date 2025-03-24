@@ -352,6 +352,8 @@ class UnitListView(ViewBase):
             sizing_mode="stretch_width",
         )
 
+        # TODO: fix this
+        # self.table.on_change("row", self._on_change)
         self.source.selected.on_change("indices", self._panel_on_selection_changed)
         self.select_all_button.on_click(lambda event: self.show_all())
         self.unselect_all_button.on_click(lambda event: self.hide_all())
@@ -390,6 +392,7 @@ class UnitListView(ViewBase):
     def _panel_on_selection_changed(self, attr, old, new):
         # Get selected units and update visibility
         selected_unit_ids = []
+
         for row_idx in new:
             unit_index = self.source.data["unit_index"][row_idx]
             selected_unit_ids.append(self.controller.unit_ids[unit_index])
@@ -416,8 +419,8 @@ class UnitListView(ViewBase):
         self.notify_unit_visibility_changed()
 
 
-
-
+    # def _on_change(self, attr, old, new):
+    #     print(new, attr)
 
 
 UnitListView._gui_help_txt = """Unit list

@@ -4,7 +4,7 @@ import numpy as np
 from .view_base import ViewBase
 
 
-_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'rand_selected']
+_columns = ['num', 'unit_id', 'segment_index', 'sample_index', 'channel_index', 'rand_selected']
 
 
 
@@ -207,6 +207,8 @@ class SpikeListView(ViewBase):
 
 
     def _panel_refresh(self):
+        import matplotlib.colors as mcolors
+
         self.controller.update_visible_spikes()
         selected_inds = self.controller.get_indices_spike_selected()
         visible_inds = self.controller.get_indices_spike_visible()
@@ -216,12 +218,15 @@ class SpikeListView(ViewBase):
         data =  {
             'selected': np.isin(visible_inds, selected_inds),
             'num': visible_inds,
-            'unit_id': unit_ids[spikes['unit_index']],
             'segment_index': spikes['segment_index'],
             'sample_index': spikes['sample_index'],
             'channel_index': spikes['channel_index'],
             'rand_selected': spikes['rand_selected'],
         }
+        data['unit_id'] = [
+            {"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
+            for unit_id in unit_ids[spikes['unit_index']]
+        ]
 
         # Update source data
         self.source.data = data
