@@ -341,7 +341,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             self.color_limit = np.max(np.abs(data_curves))
 
         self.image_source.data.update({
-            "image": [data_curves],
+            "image": [data_curves.T],
             "x": [times_chunk[0]],
             "y": [0],
             "dw": [times_chunk[-1] - times_chunk[0]],
@@ -360,5 +360,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.figure.x_range.start = t1
         self.figure.x_range.end = t2
+        self.figure.y_range.start = 0
+        self.figure.y_range.end = data_curves.shape[1]
 
 
