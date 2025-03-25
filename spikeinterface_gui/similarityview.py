@@ -24,7 +24,7 @@ class SimilarityView(ViewBase):
         unit_ids = self.controller.unit_ids
 
         if self.similarity is None:
-            return None, None, None
+            return None, None
 
         if self.settings["show_all"]:
             visible_mask = np.ones(len(unit_ids), dtype="bool")
@@ -34,7 +34,7 @@ class SimilarityView(ViewBase):
             s = self.similarity[visible_mask, :][:, visible_mask]
 
         if not np.any(visible_mask):
-            return None, None, None
+            return None, None
 
         return s, visible_mask
 

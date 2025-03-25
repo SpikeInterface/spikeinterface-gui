@@ -49,10 +49,10 @@ class ViewBase():
         # what to do when one settings is changed
         # optionally views can implement custom method
         # but the general case is to refesh
-        if self.backend == "qt" and hasattr(self, '_on_settings_changed_qt'):
-            return self._on_settings_changed_qt()
-        elif self.backend == "panel" and hasattr(self, '_on_settings_changed_panel'):
-            return self._on_settings_changed_panel()
+        if self.backend == "qt" and hasattr(self, '_qt_on_settings_changed'):
+            return self._qt_on_settings_changed()
+        elif self.backend == "panel" and hasattr(self, '_panel_on_settings_changed'):
+            return self._panel_on_settings_changed()
         elif  hasattr(self, '_on_settings_changed'):
             self._on_settings_changed()
         else:

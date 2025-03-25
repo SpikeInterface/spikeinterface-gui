@@ -107,3 +107,4 @@ if __name__ == '__main__':
     # import spikeinterface.widgets as sw
     # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+
