@@ -182,7 +182,6 @@ class TraceView(ViewBase, MixinViewTrace):
 
     
     def on_channel_visibility_changed(self):
-        self.reset_gain_and_offset()
         self.refresh()
 
 
@@ -229,98 +228,108 @@ class TraceView(ViewBase, MixinViewTrace):
 
         return gains, offsets
 
-    # TODO sam refactor Qt and this
-    def reset_gain_and_offset(self):
-        visible_inds = self.get_visible_channel_inds()
-        return self.compute_gains_offsets(visible_inds)
+    def initialize_gain_and_offset(self):
+        self.mad = self.controller.noise_levels.astype("float32").copy()
+        # we make the assumption that the signal is center on zero (HP filtered)
+        self.med = np.zeros(self.mad.shape, dtype="float32")
+        self.factor = 15.0
 
-    # def get_data_in_chunk(self, t1, t2, segment_index):
-    #     t_start = 0.0
-    #     sr = self.controller.sampling_frequency
+        num_chans = len(self.controller.channel_ids)
+        self.gains = np.zeros(num_chans, dtype='float32')
+        self.offsets = np.zeros(num_chans, dtype='float32')
+        
+        visible_channel_inds = self.get_visible_channel_inds()
+        n = visible_channel_inds.size
+        self.gains[visible_channel_inds] = np.ones(n, dtype='float32') * 1./(self.factor*max(self.mad))
+        # self.offsets[visible_channel_inds] = np.arange(n)[::-1] - self.med[visible_channel_inds]*self.gains[visible_channel_inds]
 
-    #     ind1 = max(0, int((t1 - t_start) * sr))
-    #     ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
-
-    #     traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2),
-
-    #     sl = self.controller.segment_slices[segment_index]
-    #     spikes_seg = self.controller.spikes[sl]
-    #     i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
-    #     spikes_chunk = spikes_seg[i1:i2].copy()
-    #     spikes_chunk["sample_index"] -= ind1
-
-    #     visible_channel_inds = self.get_visible_channel_inds()
-    #     data_curves = traces_chunk[:, visible_channel_inds].T.copy()
-
-    #     if data_curves.dtype != "float32":
-    #         data_curves = data_curves.astype("float32")
-
-    #     data_curves *= self.gains[visible_channel_inds, None]
-    #     data_curves += self.offsets[visible_channel_inds, None]
-
-    #     connect = np.ones(data_curves.shape, dtype="bool")
-    #     connect[:, -1] = 0
-
-    #     times_chunk = np.arange(traces_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
-
-    #     all_x = []
-    #     all_y = []
-    #     all_colors = []
-    #     all_unit_ids = []
-
-    #     for unit_index, unit_id in enumerate(self.controller.unit_ids):
-    #         if not self.controller.unit_visible_dict[unit_id]:
-    #             continue
-
-    #         inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
-    #         if inds.size == 0:
-    #             continue
-
-    #         # Get spikes for this unit
-    #         unit_spikes = spikes_chunk[inds]
-    #         channel_inds = unit_spikes["channel_index"]
-    #         sample_inds = unit_spikes["sample_index"]
-
-    #         # Map channel indices to their positions in visible_channel_inds
-    #         chan_mask = np.isin(channel_inds, visible_channel_inds)
-    #         if not np.any(chan_mask):
-    #             continue
-
-    #         channel_inds = channel_inds[chan_mask]
-    #         sample_inds = sample_inds[chan_mask]
-
-    #         # Calculate y values using signal values
-    #         x = times_chunk[sample_inds]
-    #         y = data_curves[sample_inds, channel_inds]
-
-    #         # This should both for qt (QTColor) and panel (html color)
-    #         color = self.get_unit_color(unit_id)
-
-    #         all_x.extend(x)
-    #         all_y.extend(y)
-    #         all_colors.extend([color] * len(x))
-    #         all_unit_ids.extend([str(unit_id)] * len(x))
-
-    #     # if len(all_x) > 0:
-    #     #     return all_x, all_y, all_colors, all_unit_ids
-    
-    #     return times_chunk, connect, data_curves, all_x, all_y, all_colors, all_unit_ids
-
-
-
-    # TODO sam refactor Qt and this
-    def get_signals_chunk(self, t1, t2, segment_index):
+    def get_data_in_chunk(self, t1, t2, segment_index):
         t_start = 0.0
         sr = self.controller.sampling_frequency
 
         ind1 = max(0, int((t1 - t_start) * sr))
         ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
 
-        return (
-            self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2),
-            ind1,
-            ind2,
-        )
+        traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
+
+        sl = self.controller.segment_slices[segment_index]
+        spikes_seg = self.controller.spikes[sl]
+        i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
+        spikes_chunk = spikes_seg[i1:i2].copy()
+        spikes_chunk["sample_index"] -= ind1
+
+        visible_channel_inds = self.get_visible_channel_inds()
+        
+        data_curves = traces_chunk[:, visible_channel_inds].T.copy()
+
+        if data_curves.dtype != "float32":
+            data_curves = data_curves.astype("float32")
+        
+        if self.gains is None:
+            self.initialize_gain_and_offset()
+
+
+        n = visible_channel_inds.size
+        gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
+        offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
+        
+        data_curves *= gains[:, None]
+        data_curves += offsets[:, None]
+
+        connect = np.ones(data_curves.shape, dtype="bool")
+        connect[:, -1] = 0
+
+        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
+
+        scatter_x = []
+        scatter_y = []
+        scatter_colors = []
+        scatter_unit_ids = []
+
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if not self.controller.unit_visible_dict[unit_id]:
+                continue
+
+            inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
+            if inds.size == 0:
+                continue
+
+            # Get spikes for this unit
+            unit_spikes = spikes_chunk[inds]
+            channel_inds = unit_spikes["channel_index"]
+            sample_inds = unit_spikes["sample_index"]
+
+            
+            chan_mask = np.isin(channel_inds, visible_channel_inds)
+            if not np.any(chan_mask):
+                continue
+
+            sample_inds = sample_inds[chan_mask]
+            channel_inds = channel_inds[chan_mask]
+            # Map channel indices to their positions in visible_channel_inds
+            local_channel_inds = np.searchsorted(visible_channel_inds, channel_inds)
+            visible_channel_inds_ = list(visible_channel_inds)
+            local_channel_inds = [visible_channel_inds_.index(c) for c in channel_inds]
+
+
+            # Calculate y values using signal values
+            x = times_chunk[sample_inds]
+            y = data_curves[local_channel_inds, sample_inds]
+
+            # This should both for qt (QTColor) and panel (html color)
+            color = self.get_unit_color(unit_id)
+
+            scatter_x.extend(x)
+            scatter_y.extend(y)
+            scatter_colors.extend([color] * len(x))
+            scatter_unit_ids.extend([str(unit_id)] * len(x))
+
+        # if len(scatter_x) > 0:
+        #     return scatter_x, scatter_y, scatter_colors, scatter_unit_ids
+    
+        return times_chunk, connect, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids
+
+
 
     # TODO sam refactor Qt and this
     def find_nearest_spike(self, x, segment_index, max_distance_samples=None):
@@ -342,14 +351,6 @@ class TraceView(ViewBase, MixinViewTrace):
 
         return ind_spike_nearest
 
-    # TODO sam refactor Qt and this
-    def get_spikes_in_chunk(self, ind1, ind2, segment_index):
-        sl = self.controller.segment_slices[segment_index]
-        spikes_seg = self.controller.spikes[sl]
-        i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
-        spikes_chunk = spikes_seg[i1:i2].copy()
-        spikes_chunk["sample_index"] -= ind1
-        return spikes_chunk
 
     # TODO sam refactor Qt and this
     def process_data_curves(self, sigs_chunk, visible_channel_inds, gains, offsets):
@@ -751,71 +752,32 @@ class TraceView(ViewBase, MixinViewTrace):
         t = self.time_by_seg[self.seg_num]
         t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
-        # Get signal chunk
-        sigs_chunk, ind1, ind2 = self.get_signals_chunk(t1, t2, self.seg_num)
-        if sigs_chunk is None:
-            return
+        # TODO handle segment
+        seg_num = 0
+        times_chunk, connect, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+            self.get_data_in_chunk(t1, t2, self.seg_num)
 
-        # Initialize gains if needed
-        if self.gains is None:
-            self.estimate_auto_scale()
+        visible_channel_inds = self.get_visible_channel_inds()
 
-        # Get visible channels
-        visible_inds = self.get_visible_channel_inds()
-        self.gains, self.offsets = self.compute_gains_offsets(visible_inds)
-        nb_visible = visible_inds.size
+        n = visible_channel_inds.size
+        self.signal_source.data.update({   
+            "xs": [times_chunk]*n,
+            "ys": [data_curves[i, :] for i in range(n)],
+            "channel_id": self.get_visible_channel_inds(),
+        })
 
-        # Process data curves
-        data_curves, _ = self.process_data_curves(sigs_chunk, visible_inds, self.gains, self.offsets)
-
-        # Update signal data - restructure for Bokeh's multi_line
-        times_chunk = np.arange(sigs_chunk.shape[0], dtype="float64") / self.controller.sampling_frequency + max(t1, 0)
-
-        # Prepare data in format Bokeh expects for multi_line: array of arrays
-        times = []
-        values = []
-        channel_ids = []
-        for i in range(nb_visible):
-            times.append(times_chunk.tolist())
-            values.append(data_curves[i].tolist())
-            channel_ids.append(self.controller.channel_ids[visible_inds[i]])
-
-        self.signal_source.data.update(
-            {"xs": times, "ys": values, "channel_id": channel_ids}  # Use xs/ys for multi_line
-        )
-
-        # Get and process spikes
-        spikes_chunk = self.get_spikes_in_chunk(ind1, ind2, self.seg_num)
-        x, y, colors, unit_ids = self.process_spikes_for_display(
-            spikes_chunk,
-            sigs_chunk,
-            visible_inds,
-            self.gains,
-            self.offsets,
-            times_chunk,
-        )
-
-        if x is not None:
-            self.spike_source.data.update({"x": x, "y": y, "color": colors, "unit_id": unit_ids})
-
-            if np.sum(spikes_chunk["selected"]) == 1:
-                sample_index = spikes_chunk["sample_index"][spikes_chunk["selected"]][0]
-                t = times_chunk[sample_index]
-                self.selection_line.data_source.data.update({"y": [-0.5, nb_visible - 0.5]})
-                self.selection_line.visible = True
-            else:
-                self.selection_line.visible = False
-        else:
-            self.spike_source.data.update({"x": [], "y": [], "color": [], "unit_id": []})
-            self.selection_line.visible = False
-
-        # Set y range
-        self.figure.y_range.start = -0.5
-        self.figure.y_range.end = nb_visible - 0.5
+        self.spike_source.data.update({
+            "x": scatter_x,
+            "y": scatter_y,
+            "color": scatter_colors,
+            "unit_id": scatter_unit_ids,
+        })
 
         # Update plot ranges for x-axis too
         self.figure.x_range.start = t1
         self.figure.x_range.end = t2
+        self.figure.y_range.start = 0 - 1.5 
+        self.figure.y_range.end = n + 0.5
 
 
 
