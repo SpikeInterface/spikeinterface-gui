@@ -10,7 +10,7 @@ from .traceview import MixinViewTrace
 
 class TraceMapView(ViewBase, MixinViewTrace):
 
-    _supported_backend = ['qt']
+    _supported_backend = ['qt', 'panel']
     _depend_on = ['recording']
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
@@ -26,9 +26,32 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
 
     def __init__(self, controller=None, parent=None, backend="qt"):
+
+        self.time_by_seg = np.array([0.]*controller.num_segments, dtype='float64')
+        self.seg_index = 0
+        self.xsize = 0.5
+        pos = controller.get_contact_location()
+        self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], ))
+        self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
+        self.color_limit = None
+        self.last_data_curves = None
+
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
 
+        self.make_color_lut()
+
+        
+    def apply_gain_zoom(self, factor_ratio):
+        if self.color_limit is None:
+            return
+        self.color_limit = self.color_limit * factor_ratio
+        self.refresh()
+
+    def auto_scale(self):
+        if self.last_data_curves is not None:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+        self.refresh()
 
     def make_color_lut(self):
         N = 512
@@ -41,6 +64,63 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.lut = np.array(lut, dtype='uint8')
         if self.settings['reverse_colormap']:
             self.lut = self.lut[::-1]
+
+
+    def get_data_in_chunk(self, t1, t2, segment_index):
+        t_start = 0.0
+        sr = self.controller.sampling_frequency
+
+        ind1 = max(0, int((t1 - t_start) * sr))
+        ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
+
+        traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
+
+        sl = self.controller.segment_slices[segment_index]
+        spikes_seg = self.controller.spikes[sl]
+        i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
+        spikes_chunk = spikes_seg[i1:i2].copy()
+        spikes_chunk["sample_index"] -= ind1
+
+        data_curves = traces_chunk[:, self.channel_order]
+
+        if data_curves.dtype != "float32":
+            data_curves = data_curves.astype("float32")
+
+        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
+
+        scatter_x = []
+        scatter_y = []
+        scatter_colors = []
+        scatter_unit_ids = []
+
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if not self.controller.unit_visible_dict[unit_id]:
+                continue
+
+            inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
+            if inds.size == 0:
+                continue
+
+            # Get spikes for this unit
+            unit_spikes = spikes_chunk[inds]
+            channel_inds = unit_spikes["channel_index"]
+            sample_inds = unit_spikes["sample_index"]
+
+            x = times_chunk[sample_inds]
+            y = self.channel_order_reverse[channel_inds] + 0.5
+
+            # This should both for qt (QTColor) and panel (html color)
+            color = self.get_unit_color(unit_id)
+
+            scatter_x.extend(x)
+            scatter_y.extend(y)
+            scatter_colors.extend([color] * len(x))
+            scatter_unit_ids.extend([str(unit_id)] * len(x))
+
+        # used for auto scaled
+        self.last_data_curves = data_curves
+
+        return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids
 
 
     ## Qt ##
@@ -58,19 +138,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.layout.addLayout(g)
         self.graphicsview = pg.GraphicsView()
         g.addWidget(self.graphicsview, 0,1)
-        self._qt_initialize_plot()
+
+        MixinViewTrace._qt_initialize_plot(self)
+        self.image = pg.ImageItem()
+        self.plot.addItem(self.image)
+        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
+        self.plot.addItem(self.scatter)
+
+
         self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
         g.addWidget(self.scroll_time, 1,1)
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
-
-
-
-        pos = self.controller.get_contact_location()
-        self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], ))
-        self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
-        
-        self.make_color_lut()
-
 
         #handle time by segments
         self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
@@ -78,17 +156,9 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # self.on_params_changed(do_refresh=False)
         #this do refresh
         self._qt_change_segment(0)
-        self.color_limit = None
+        
 
-    def _qt_initialize_plot(self):
-        MixinViewTrace._qt_initialize_plot(self)
-        import pyqtgraph as pg
-        self.image = pg.ImageItem()
-        self.plot.addItem(self.image)
-        self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
-        self.plot.addItem(self.scatter)
-
-    def _on_settings_changed_qt(self, do_refresh=True):
+    def _qt_on_settings_changed(self, do_refresh=True):
 
         self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
         if self.xsize > self.settings['xsize_max']:
@@ -111,28 +181,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # useless but needed for the MixinViewTrace
         pass
 
-
-    def _qt_gain_zoom(self, factor_ratio, ):
-        if self.color_limit is None:
-            return
-        self.color_limit = self.color_limit * factor_ratio
-        self.image.setLevels([-self.color_limit, self.color_limit], update=True)
-        self.refresh()
-
-    def _qt_auto_scale(self):
-        self._qt_seek(self.time_by_seg[self.seg_num], auto_scale=True)
-
     def _qt_refresh(self):
-        self._qt_seek(self.time_by_seg[self.seg_num])
+        self._qt_seek(self.time_by_seg[self.seg_index])
 
-    def _qt_seek(self, t, auto_scale=False):
+    def _qt_seek(self, t):
         from .myqt import QT
         import pyqtgraph as pg
 
         if self.qt_widget.sender() is not self.timeseeker:
             self.timeseeker.seek(t, emit=False)
 
-        self.time_by_seg[self.seg_num] = t
+        self.time_by_seg[self.seg_index] = t
         t1,t2 = t-self.xsize/3. , t+self.xsize*2/3.
         t_start = 0.
         sr = self.controller.sampling_frequency
@@ -141,88 +200,165 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scroll_time.setValue(int(sr*t))
         self.scroll_time.setPageStep(int(sr*self.xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
+
         
-        ind1 = max(0, int((t1-t_start)*sr))
-        ind2 = min(self.controller.get_num_samples(self.seg_num), int((t2-t_start)*sr))
-
-        sigs_chunk = self.controller.get_traces(trace_source='preprocessed',
-                segment_index=self.seg_num, 
-                start_frame=ind1, end_frame=ind2)
-
-        if sigs_chunk is None: 
-            self.image.hide()
-            return
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+            self.get_data_in_chunk(t1, t2, self.seg_index)
         
-        data_curves = sigs_chunk[:, self.channel_order]
-
-        times_chunk = np.arange(sigs_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
-        real_t1 = max(t1, 0)
-        real_t2 = real_t1 + sigs_chunk.shape[0] / self.controller.sampling_frequency
-
-        if self.color_limit is None or auto_scale:
+        if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
 
-        if data_curves.dtype != 'float32':
-            data_curves = data_curves.astype('float32')
-        
         num_chans = data_curves.shape[1]
 
         self.image.setImage(data_curves, lut=self.lut, levels=[-self.color_limit, self.color_limit])
-        self.image.setRect(QT.QRectF(real_t1, 0, real_t2-real_t1, num_chans))
+        self.image.setRect(QT.QRectF(times_chunk[0], 0, times_chunk[-1] - times_chunk[0], num_chans))
         self.image.show()
 
-        # plot peaks
-        sl = self.controller.segment_slices[self.seg_num]
-        spikes_seg = self.controller.spikes[sl]
-        i1, i2 = np.searchsorted(spikes_seg['sample_index'], [ind1, ind2])
-        spikes_chunk = spikes_seg[i1:i2].copy()
-        spikes_chunk['sample_index'] -= ind1
+        # self.scatter.clear()
+        self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors)
 
-        
-
-        self.scatter.clear()
-        all_x = []
-        all_y = []
-        all_brush = []
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if self.settings['show_on_selected_units'] and not self.controller.unit_visible_dict[unit_id]:
-                continue
-            
-            unit_mask = (spikes_chunk['unit_index'] == unit_index)
-            if np.sum(unit_mask)==0:
-                continue
-            
-            channel_inds = spikes_chunk['channel_index'][unit_mask]
-            sample_inds = spikes_chunk['sample_index'][unit_mask]
-            
-            # chan_mask = np.isin(channel_inds, self.visible_channel_inds)
-            # if not np.any(chan_mask):
-            #     continue
-            # channel_inds = channel_inds[chan_mask]
-            # sample_inds = sample_inds[chan_mask]
-            
-            x = times_chunk[sample_inds]
-            # print(channel_inds)
-            y = self.channel_order_reverse[channel_inds] + 0.5
-            # print(y)
-
-
-            # color = QT.QColor(self.controller.qcolors.get(unit_id, self._default_color))
-            color = QT.QColor(self.get_unit_color(unit_id))
-            color.setAlpha(int(self.settings['alpha']*255))
-            
-            all_x.append(x)
-            all_y.append(y)
-            all_brush.append(np.array([pg.mkBrush(color)]*len(x)))
-
-        if len(all_x) > 0:
-            all_x = np.concatenate(all_x)
-            all_y = np.concatenate(all_y)
-            all_brush = np.concatenate(all_brush)
-            self.scatter.setData(x=all_x, y=all_y, brush=all_brush)
-
-
-        #ranges
         self.plot.setXRange( t1, t2, padding = 0.0)
         self.plot.setYRange(0, num_chans, padding = 0.0)
+
+
+    ## Panel ##
+    def _panel_make_layout(self):
+        import panel as pn
+        import bokeh.plotting as bpl
+        from .utils_panel import _bg_color
+        from bokeh.models import ColumnDataSource, Range1d, HoverTool, LinearColorMapper
+        from bokeh.events import Tap, DoubleTap
+
+
+        # Initialize state
+        self.time_by_seg = np.array([0.0] * self.controller.num_segments, dtype="float64")
+
+        # Create figure
+        self.figure = bpl.figure(
+            sizing_mode="stretch_both",
+            tools="box_zoom,wheel_zoom,pan,reset",
+            active_scroll="wheel_zoom",
+            background_fill_color=_bg_color,
+            border_fill_color=_bg_color,
+            outline_line_color="white",
+            styles={"flex": "1"}
+        )
+
+        # Add selection line
+        self.selection_line = self.figure.line(
+            x=[], y=[], line_color="purple", line_width=2, line_dash="dashed", visible=False
+        )
+
+
+        # Add grid
+        self.figure.grid.visible = False
+        self.figure.xgrid.grid_line_color = None
+        self.figure.ygrid.grid_line_color = None
+
+        # Configure axes
+        self.figure.xaxis.axis_label = "Time (s)"
+        self.figure.xaxis.axis_label_text_color = "white"
+        self.figure.xaxis.axis_line_color = "white"
+        self.figure.xaxis.major_label_text_color = "white"
+        self.figure.xaxis.major_tick_line_color = "white"
+        self.figure.yaxis.visible = False
+
+
+        # Add data sources
+        self.image_source = ColumnDataSource({"image": [], "x": [], "y": [], "dw": [], "dh": []})
+
+        self.spike_source = ColumnDataSource({"x": [], "y": [], "color": [], "unit_id": []})
+
+        # Create color mapper
+        self.color_mapper = LinearColorMapper(palette="Greys256", low=-1, high=1)
+
+        # Plot heatmap
+        self.image_renderer = self.figure.image(
+            image="image", x="x", y="y", dw="dw", dh="dh", color_mapper=self.color_mapper, source=self.image_source
+        )
+
+        # Plot spikes
+        self.spike_renderer = self.figure.scatter(
+            x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
+        )
+
+        # # Add hover tool for spikes
+        # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
+        # self.figure.add_tools(hover_spikes)
+
+
+        MixinViewTrace._panel_create_toolbar(self)
+
+        self.layout = pn.Column(
+            pn.Column(  # Main content area
+                self.toolbar,
+                # pn.Row(
+                #     self.time_slider,
+                #     styles={"flex": "0 0 auto"},
+                #     sizing_mode="stretch_width"
+                # ),
+                self.figure,
+                self.time_slider,
+                styles={"flex": "1"},
+                sizing_mode="stretch_both"
+            ),
+            styles={"display": "flex", "flex-direction": "column"},
+            sizing_mode="stretch_both"
+        )
+
+        # Initial setup
+        # self.change_segment(0)
+
+    def _panel_on_xsize_changed(self, event):
+        self.xsize = event.new
+        self.refresh()
+
+    def _panel_on_time_changed(self, event):
+        self.time_by_seg[self.seg_index] = event.new
+        self.refresh()
+
+    def _panel_on_settings_changed(self):
+
+        # self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
+        # if self.xsize > self.settings['xsize_max']:
+        #     self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
+        #     self.spinbox_xsize.setValue(self.settings['xsize_max'])
+        #     self.xsize = self.settings['xsize_max']
+        #     self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
+
+        self.make_color_lut()
+        self.refresh()
+
+
+    def _panel_refresh(self):
+        t = self.time_by_seg[self.seg_index]
+        t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
+
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+            self.get_data_in_chunk(t1, t2, self.seg_index)
+
+        if self.color_limit is None:
+            self.color_limit = np.max(np.abs(data_curves))
+
+        self.image_source.data.update({
+            "image": [data_curves],
+            "x": [times_chunk[0]],
+            "y": [0],
+            "dw": [times_chunk[-1] - times_chunk[0]],
+            "dh": [data_curves.shape[1]]
+        })
+
+        self.spike_source.data.update({
+            "x": scatter_x,
+            "y": scatter_y,
+            "color": scatter_colors,
+            "unit_id": scatter_unit_ids,
+        })
+
+        self.color_mapper.low = -self.color_limit
+        self.color_mapper.high = self.color_limit
+
+        self.figure.x_range.start = t1
+        self.figure.x_range.end = t2
+
 

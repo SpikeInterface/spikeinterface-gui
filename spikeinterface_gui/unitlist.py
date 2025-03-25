@@ -238,7 +238,7 @@ class UnitListView(ViewBase):
         self.notify_unit_visibility_changed()
     
     def _qt_on_open_context_menu(self):
-        self.menu.popup(self.cursor().pos())
+        self.menu.popup(self.qt_widget.cursor().pos())
     
     def _get_selected_rows(self):
         rows = []

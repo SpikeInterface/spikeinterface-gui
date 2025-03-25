@@ -75,7 +75,7 @@ class WaveformView(ViewBase):
         self.initialize_plot()
         self.refresh()
     
-    def _on_settings_changed_qt(self, params, changes):
+    def _qt_on_settings_changed(self, params, changes):
         for param, change, data in changes:
             if change != 'value': continue
             if param.name()=='flip_bottom_up':
