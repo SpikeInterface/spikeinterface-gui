@@ -73,8 +73,10 @@ def create_settings(view, parent):
     view.tree_settings.setWindowTitle(u'View options')
     view.tree_settings.setWindowFlags(QT.Qt.Window)
     
-    view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
+    # view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
+def listen_setting_changes(view, parent):
+    view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
 
 
@@ -109,17 +111,29 @@ class QtMainWindow(QT.QMainWindow):
             
             if view_name == 'curation' and not self.controller.curation:
                 continue
+            
+            # The old way : the toolbar is inside the dock titlebar
+            # widget = QT.QWidget()
+            # view = view_class(controller=self.controller, parent=widget, backend='qt')
+            # widget.setLayout(view.layout)
+            # dock = MyDock(view_name)
+            # dock.setWidget(widget)
+            # dock.make_custum_title_bar(title=view_name, view=view, widget=widget)
+            # dock.visibilityChanged.connect(view.refresh)
 
-            # widget = QT.QWidget(parent=self)
-            widget = QT.QWidget()
+            # the new way : the toolbar is inside the widget (should be less buggy on mac) but at the moement do not look nice
+
+            widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
-            widget.setLayout(view.layout)
-
-            # dock = MyDock(view_name, parent=self)
+            widget.set_view(view)
             dock = MyDock(view_name)
             dock.setWidget(widget)
-            dock.make_custum_title_bar(title=view_name, view=view, widget=widget)
             dock.visibilityChanged.connect(view.refresh)
+
+            # toolbar = make_toolbar(view)
+            # dock = QT.QDockWidget(view_name)
+            # dock.setWidget(widget)
+            # dock.visibilityChanged.connect(view.refresh)
             
             self.views[view_name] = view
             self.docks[view_name] = dock
@@ -206,6 +220,121 @@ class QtMainWindow(QT.QMainWindow):
         for zone, view_names in widgets_zone.items():
             if len(view_names) > 1:
                 self.docks[view_names[0]].raise_()
+
+
+import weakref
+
+class ViewWidget(QT.QWidget):
+    def __init__(self, view_class, parent=None):
+        QT.QWidget.__init__(self, parent=parent)
+
+        
+
+        self.layout = QT.QVBoxLayout()
+        self.setLayout(self.layout)
+
+        h = QT.QHBoxLayout()
+        h.setContentsMargins(0, 0, 0, 0)
+        self.layout.addLayout(h)
+        
+        h.addSpacing(10)
+
+        # but_style = "QPushButton{border-style: outset; font: 5; padding: 1px; border-radius: 5px;}"
+        # but_style = "QPushButton{font: 5; padding: 1px; border-radius: 5px;}"
+        but_style = "QPushButton{font: 5; }"
+
+        if view_class._settings is not None:
+            but = QT.QPushButton('settings')
+            h.addWidget(but)
+            # TODO open settings
+            but.clicked.connect(self.open_settings)
+            but.setStyleSheet(but_style)
+
+        if view_class._need_compute:
+            but = QT.QPushButton('compute')
+            h.addWidget(but)
+            # but.clicked.connect(view.compute)
+            but.setStyleSheet(but_style)
+
+        but = QT.QPushButton('↻ refresh')
+        h.addWidget(but)
+        but.clicked.connect(self.refresh)
+        but.setStyleSheet(but_style)
+        
+        but = QT.QPushButton('?')
+        but.setStyleSheet(but_style)
+        h.addWidget(but)
+        but.clicked.connect(self.open_help)
+        # but.setFixedSize(12,12)
+        but.setToolTip(view_class._gui_help_txt)
+
+        h.addSpacing(10)
+        h.addStretch()
+    
+    def set_view(self, view):
+        self._view =  weakref.ref(view)
+        self.layout.addLayout(view.layout)
+
+    def open_settings(self):
+        view = self._view()
+        if not view.tree_settings.isVisible():
+            view.tree_settings.show()
+        else:
+            view.tree_settings.hide()
+    
+    def open_help(self):
+        view = self._view()
+        but = self.sender()
+        txt = view._gui_help_txt
+        QT.QToolTip.showText(but.mapToGlobal(QT.QPoint()), txt, but)
+    
+    def refresh(self):
+        view = self._view()
+        view.refresh()
+        
+
+
+
+
+def make_toolbar(view):
+    toolbar = QT.QWidget()
+
+    # titlebar.setMaximumHeight(14)
+
+    
+    h = QT.QHBoxLayout()
+    toolbar.setLayout(h)
+    h.setContentsMargins(0, 0, 0, 0)
+    
+    h.addSpacing(10)
+
+    but_style = "QPushButton{border-width: 1px; font: 10px; padding: 10px}"
+
+    if view._settings is not None:
+        but = QT.QPushButton('settings')
+        h.addWidget(but)
+        # TODO open settings
+        but.clicked.connect(view.open_settings)
+        but.setStyleSheet(but_style)
+
+    if view._need_compute:
+        but = QT.QPushButton('compute')
+        h.addWidget(but)
+        # but.clicked.connect(view.compute)
+        # but.setStyleSheet(but_style)
+
+    but = QT.QPushButton('refresh')
+    h.addWidget(but)
+    but.clicked.connect(view.refresh)
+    # but.setStyleSheet(but_style)
+    
+    but = QT.QPushButton('?')
+    h.addWidget(but)
+    # but.clicked.connect(view.open_help)
+    but.setFixedSize(12,12)
+    but.setToolTip(view._gui_help_txt)
+
+    return toolbar
 
 
 

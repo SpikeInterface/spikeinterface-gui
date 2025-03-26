@@ -311,6 +311,7 @@ class WaveformView(ViewBase):
 
 
     def refresh_mode_geometry(self, unit_visible_dict, keep_range):
+        from .myqt import QT
         import pyqtgraph as pg
 
         if self._x_range is not None and keep_range:

@@ -337,7 +337,7 @@ class  Controller():
         super().on_unit_visibility_changed()
 
     def get_visible_unit_ids(self):
-        visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.keys())]
+        visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
         return visible_unit_ids
 
     def get_visible_unit_indices(self):

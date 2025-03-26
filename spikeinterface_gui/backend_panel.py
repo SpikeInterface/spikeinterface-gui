@@ -81,11 +81,15 @@ param_type_map = {
 class SettingsProxy:
     # this make the setting dict like (to mimic pyqtgraph)
     # for instance self.settings['my_params'] instead of self.settings.my_params
+    # self.settings['my_params'] = value instead of self.settings.my_params = value
     def __init__(self, myparametrized):
         self._parametrized = myparametrized
     
     def __getitem__(self,key):
         return getattr(self._parametrized, key)
+    
+    def __setitem__(self, key, value):
+        self._parametrized.param.update(**{key:value})
 
 def create_settings(view):
     # Create the class attributes dynamically
@@ -107,7 +111,7 @@ def create_settings(view):
 
     view.settings = SettingsProxy(MyParameterized())
 
-    # Alessio : how to handle the change on steeing is it like this
+def listen_setting_changes(view):
     for setting_data in view._settings:
         view.settings._parametrized.param.watch(view.on_settings_changed, setting_data["name"])
 

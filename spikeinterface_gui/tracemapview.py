@@ -173,7 +173,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
             self.refresh()
 
     def _qt_on_spike_selection_changed(self):
-        print('tracemap _qt_on_spike_selection_changed')
         self._qt_seek_with_selected_spike()
 
 
@@ -227,7 +226,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, Range1d, HoverTool, LinearColorMapper
-        from bokeh.events import Tap, DoubleTap
+        from bokeh.events import MouseWheel
 
 
         # Initialize state
@@ -236,13 +235,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # Create figure
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
-            tools="box_zoom,wheel_zoom,pan,reset",
-            active_scroll="wheel_zoom",
+            tools="box_zoom,pan,reset",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
             styles={"flex": "1"}
         )
+
+        self.figure.on_event(MouseWheel, self._panel_gain_zoom)
+
 
         # Add selection line
         self.selection_line = self.figure.line(
@@ -362,5 +363,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.x_range.end = t2
         self.figure.y_range.start = 0
         self.figure.y_range.end = data_curves.shape[1]
+
+    def _panel_gain_zoom(self, event):
+        factor = 1.3 if event.delta > 0 else 1 / 1.3
+        self.color_mapper.high = self.color_mapper.high * factor
+        self.color_mapper.low = -self.color_mapper.high
 
 
