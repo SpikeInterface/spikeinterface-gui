@@ -45,7 +45,7 @@ class NDScatterView(ViewBase):
             inds = np.random.choice(data.shape[0], 1000, replace=False)
             data = data[inds, :]
         projected = self.apply_dot(data)
-        self.limit = np.percentile(np.abs(projected), 95) * 2.
+        self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
 
         self.hyper_faces = list(itertools.permutations(range(ndim), 2))
         self.n_face = -1
@@ -118,7 +118,6 @@ class NDScatterView(ViewBase):
         self.random_projection()
 
     def apply_dot(self, data):
-        #~ print(data.shape, self.projection.shape)
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
         return projected
     
@@ -203,10 +202,6 @@ class NDScatterView(ViewBase):
         
         ndim = self.data.shape[1]
 
-        # self._qt_gain_zoom(1.)
-        
-        # self.point_visible = np.zeros(self.data.shape[0], dtype=bool)
-        
         self.plot2 = pg.PlotItem(viewBox=ViewBoxHandlingLassoAndGain(lockAspect=True))
         self.graphicsview2.setCentralItem(self.plot2)
         self.plot2.hideButtons()
@@ -232,10 +227,7 @@ class NDScatterView(ViewBase):
         
         self.graphicsview2.setMaximumSize(200, 200)
         
-        #~ self.hyper_faces = list(itertools.product(range(ndim), range(ndim)))
-
         self.settings.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
-
 
         # the color vector is precomputed
         spike_colors = self.controller.get_spike_colors(self.pc_unit_index)
@@ -279,7 +271,10 @@ class NDScatterView(ViewBase):
         self.direction_data[::, :] =0
         self.direction_data[::2, :] = proj
         self.direction_lines.setData(self.direction_data[:,0], self.direction_data[:,1])
-        
+
+        self.plot.setXRange(-self.limit, self.limit)
+        self.plot.setYRange(-self.limit, self.limit)
+
         for i, label in enumerate(self.proj_labels):
             if self.selected_comp[i]:
                 label.setPos(self.projection[i,0], self.projection[i,1])
@@ -301,9 +296,9 @@ class NDScatterView(ViewBase):
     def _qt_gain_zoom(self, factor):
         self.limit /= factor
         l = float(self.limit)
-        self.plot.setXRange(-l, l)
-        self.plot.setYRange(-l, l)
-        self.refresh()
+        self.plot.setXRange(-self.limit, self.limit)
+        self.plot.setYRange(-self.limit, self.limit)
+        # self.refresh()
     
     def _qt_on_lasso_drawing(self, points):
         points = np.array(points)
@@ -314,16 +309,11 @@ class NDScatterView(ViewBase):
         vertices = np.array(points)
         
         # inside lasso and visibles
-        #~ ind_visibles,  = np.nonzero(self.controller.spikes[self.random_spikes_indices]['visible'])
         ind_visibles,   = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
-        
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
         
-        # set on controller.spikes selected
         inds = self.random_spikes_indices[ind_visibles[inside]]
-        #~ self.controller.spikes['selected'][:] = False
-        #~ self.controller.spikes['selected'][inds] = True
         self.controller.set_indices_spike_selected(inds)
         
         self.refresh()
@@ -353,7 +343,7 @@ class NDScatterView(ViewBase):
         self.scatter_fig.ygrid.grid_line_color = None
         
         # TODO alessio : remove the bokeh mousewheel zoom and keep only this one
-        self.scatter_fig.on_event(MouseWheel, self._panel_on_mousewheel)
+        self.scatter_fig.on_event(MouseWheel, self._panel_gain_zoom)
 
         self.scatter_source = ColumnDataSource({"x": [], "y": [], "color": []})
         self.scatter_select_source = ColumnDataSource({"x": [], "y": [], "color": []})
@@ -410,11 +400,15 @@ class NDScatterView(ViewBase):
         self.scatter_fig.y_range.end = self.limit
 
 
-    def _panel_on_mousewheel(self, event):
+    def _panel_gain_zoom(self, event):
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.limit /= factor
-        print(self.limit)
-        self.refresh()
+        self.scatter_fig.x_range.start = -self.limit
+        self.scatter_fig.x_range.end = self.limit
+        self.scatter_fig.y_range.start = -self.limit
+        self.scatter_fig.y_range.end = self.limit
+
+        # self.refresh()
 
     def _panel_next_face(self, event):
         self.next_face()
