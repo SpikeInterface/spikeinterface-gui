@@ -23,7 +23,6 @@ from .viewlist import *
 #  * remove compute
 #  * QT settings not more dialog
 #  * remove custom docker
-#  * simple layout description
 #  * generic toolbar : handle segments + settings + help
 #  * handle segment change
 

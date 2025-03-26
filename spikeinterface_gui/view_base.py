@@ -15,19 +15,26 @@ class ViewBase():
 
         if self.backend == "qt":
             # For QT the parent is the **widget**
-            from .backend_qt import SignalNotifyer, create_settings
+            from .backend_qt import SignalNotifyer, create_settings, listen_setting_changes
             self.qt_widget = parent
             self.notifyer = SignalNotifyer(parent=parent)
             if self._settings is not None:
                 create_settings(self, parent)
             self._qt_make_layout()
+            if self._settings is not None:
+                listen_setting_changes(self, parent)
+
 
         elif self.backend == "panel":
-            from .backend_panel import SignalNotifyer, create_settings
+            from .backend_panel import SignalNotifyer, create_settings, listen_setting_changes
             self.notifyer = SignalNotifyer(parent=parent)
             if self._settings is not None:
                 create_settings(self)
             self._panel_make_layout()
+            if self._settings is not None:
+                listen_setting_changes(self)
+
+
 
         self.controller.declare_a_view(self)
 

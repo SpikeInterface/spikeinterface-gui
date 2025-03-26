@@ -503,29 +503,25 @@ class TraceView(ViewBase, MixinViewTrace):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, Range1d, HoverTool
-        from bokeh.events import Tap, DoubleTap
+        from bokeh.events import Tap, MouseWheel
 
-        # Create figure
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
-            tools="box_zoom,wheel_zoom,reset",
-            active_scroll="wheel_zoom",
+            tools="box_zoom,reset",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
             styles={"flex": "1"}
         )
-
-        # Initialize plot ranges
+        
         length = self.controller.get_num_samples(self.seg_index)
         t_stop = length / self.controller.sampling_frequency
-        self.figure.x_range = Range1d(start=0, end=t_stop)
-        self.figure.y_range = Range1d(start=-0.5, end=len(self.controller.channel_ids) - 0.5)
+        # self.figure.x_range = Range1d(start=0, end=t_stop)
+        # self.figure.y_range = Range1d(start=-0.5, end=len(self.controller.channel_ids) - 0.5)
 
-        # Add grid
         self.figure.grid.visible = False
-        self.figure.xgrid.grid_line_color = None
-        self.figure.ygrid.grid_line_color = None
+        self.figure.toolbar.logo = None
+        self.figure.on_event(MouseWheel, self._panel_gain_zoom)
 
         # Configure axes
         self.figure.xaxis.axis_label = "Time (s)"
@@ -633,6 +629,9 @@ class TraceView(ViewBase, MixinViewTrace):
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()
 
+    def _panel_gain_zoom(self, event):
+        factor = 1.3 if event.delta > 0 else 1 / 1.3
+        self.apply_gain_zoom(factor)
 
     
 TraceView._gui_help_txt = """Trace view

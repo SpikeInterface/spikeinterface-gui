@@ -168,9 +168,10 @@ class  Controller():
         self.num_segments = self.analyzer.get_num_segments()
         self.sampling_frequency = self.analyzer.sampling_frequency
 
-
+        # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
+
         # self.qcolors = {}
         # for unit_id, color in self.colors.items():
         #     r, g, b, a = color
@@ -192,7 +193,7 @@ class  Controller():
 
         spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
         
-        random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
+        self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
         self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
         self.spikes['sample_index'] = spike_vector['sample_index']
@@ -200,7 +201,7 @@ class  Controller():
         self.spikes['segment_index'] = spike_vector['segment_index']
         self.spikes['channel_index'] = spike_vector['channel_index']
         self.spikes['rand_selected'][:] = False
-        self.spikes['rand_selected'][random_spikes_indices] = True
+        self.spikes['rand_selected'][self.random_spikes_indices] = True
 
         # self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
@@ -311,7 +312,19 @@ class  Controller():
         return self.analyzer.sorting.unit_ids
     
     def get_unit_color(self, unit_id):
+        # scalar unit_id -> color html or QtColor
         return self.colors[unit_id]
+    
+    def get_spike_colors(self, unit_indices):
+        # array[unit_ind] ->  array[color html or QtColor]
+        colors = np.zeros((unit_indices.size, 4), dtype="uint8")
+        unit_inds = np.unique(unit_indices)
+        for unit_ind in unit_inds:
+            unit_id = self.unit_ids[unit_ind]
+            mask = unit_indices == unit_ind
+            colors[mask] = np.array(self.get_unit_color(unit_id)) * 255
+        return colors
+
     
     def get_extremum_channel(self, unit_id):
         chan_ind = self._extremum_channel[unit_id]
@@ -324,8 +337,12 @@ class  Controller():
         super().on_unit_visibility_changed()
 
     def get_visible_unit_ids(self):
-        visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.keys())]
+        visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
         return visible_unit_ids
+
+    def get_visible_unit_indices(self):
+        visible_unit_indices = np.flatnonzero(list(self.unit_visible_dict.values()))
+        return visible_unit_indices
 
 
     def update_visible_spikes(self):
