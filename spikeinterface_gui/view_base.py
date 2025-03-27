@@ -102,19 +102,7 @@ class ViewBase():
             html_color = matplotlib.colors.rgb2hex(color, keep_alpha=True)
             return html_color
 
-    # def open_settings(self):
-    #     NON mauvaise idée
-    #     if self.backend == "qt":
-    #         if not self.tree_settings.isVisible():
-    #             self.tree_settings.show()
-    #         else:
-    #             self.tree_settings.hide()
-
-    # def open_help(self):
-    #     but = self.sender()
-    #     QT.QToolTip.showText(but.mapToGlobal(QT.QPoint()),self._gui_help_txt, but)
-    
-    # Default behavior for all views : this can be changed view by view for perfs reaons    
+    # Default behavior for all views : this can be changed view by view for perfs reaons
     def on_spike_selection_changed(self):
         if self.backend == "qt":
             self._qt_on_spike_selection_changed()

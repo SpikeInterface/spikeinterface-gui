@@ -3,6 +3,7 @@ import time
 
 from .view_base import ViewBase
 
+from .utils_qt import add_stretch_to_qtoolbar
 
 
 # TODO sam refactor Qt part with common stuff
@@ -22,14 +23,52 @@ class MixinViewTrace:
         import pyqtgraph as pg
         from .utils_qt import TimeSeeker
 
-        tb = self.toolbar = QT.QToolBar()
+        # tb = self.toolbar = QT.QToolBar()
         
+        # #Segment selection
+        # self.combo_seg = QT.QComboBox()
+        # tb.addWidget(self.combo_seg)
+        # self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
+        # self.combo_seg.currentIndexChanged.connect(self._qt_on_combo_seg_changed)
+        # tb.addSeparator()
+        
+        # # time slider
+        # self.timeseeker = TimeSeeker(show_slider=False)
+        # tb.addWidget(self.timeseeker)
+        # self.timeseeker.time_changed.connect(self._qt_seek)
+        
+        # # winsize
+        # self.xsize = .5
+        # tb.addWidget(QT.QLabel(u'X size (s)'))
+        # self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.settings['xsize_max']], suffix = 's',
+        #                     siPrefix = True, step = 0.1, dec = True)
+        # self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
+        # tb.addWidget(self.spinbox_xsize)
+        # tb.addSeparator()
+        # self.spinbox_xsize.sigValueChanged.connect(self.refresh)
+        
+        # #
+        # but = QT.QPushButton('auto scale')
+        # but.clicked.connect(self.auto_scale)
+
+        # tb.addWidget(but)
+        
+        # self.layout.addWidget(self.toolbar)
+
+
+        # tb = self.qt_widget.toolbar_layout
+
+        tb = self.qt_widget.view_toolbar
+
+
         #Segment selection
         self.combo_seg = QT.QComboBox()
         tb.addWidget(self.combo_seg)
         self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
         self.combo_seg.currentIndexChanged.connect(self._qt_on_combo_seg_changed)
-        tb.addSeparator()
+        add_stretch_to_qtoolbar(tb)
+        # tb.addSeparator()
+        # tb.addStretch()
         
         # time slider
         self.timeseeker = TimeSeeker(show_slider=False)
@@ -39,20 +78,22 @@ class MixinViewTrace:
         # winsize
         self.xsize = .5
         tb.addWidget(QT.QLabel(u'X size (s)'))
-        self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.settings['xsize_max']], suffix = 's',
-                            siPrefix = True, step = 0.1, dec = True)
+        self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.settings['xsize_max']],
+                                        suffix = 's', siPrefix = True, step = 0.1, dec = True)
         self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
         tb.addWidget(self.spinbox_xsize)
-        tb.addSeparator()
+        # tb.addSeparator()
+        add_stretch_to_qtoolbar(tb)
+        # tb.addStretch()
         self.spinbox_xsize.sigValueChanged.connect(self.refresh)
         
-        #
+        
         but = QT.QPushButton('auto scale')
         but.clicked.connect(self.auto_scale)
 
         tb.addWidget(but)
         
-        self.layout.addWidget(self.toolbar)
+        # self.layout.addWidget(self.toolbar)
 
     def _qt_initialize_plot(self):
         from .myqt import QT
@@ -91,19 +132,19 @@ class MixinViewTrace:
         self.gains = None
         self.offsets = None
 
-    def _qt_change_segment(self, seg_index):
-        #TODO: dirty because now seg_pos IS seg_index
-        self.seg_index = seg_index
-        self.combo_seg.setCurrentIndex(self.seg_index)
-        
+    def _qt_update_scroll_limits(self):
         length = self.controller.get_num_samples(self.seg_index)
         t_start = 0.
         t_stop = length/self.controller.sampling_frequency
-        self.timeseeker.set_start_stop(t_start, t_stop, seek = False)
-
+        self.timeseeker.set_start_stop(t_start, t_stop, seek=False)
         self.scroll_time.setMinimum(0)
         self.scroll_time.setMaximum(length)
-        
+
+    def _qt_change_segment(self, seg_index):
+        #TODO: dirty because now seg_pos IS seg_index
+        self.seg_index = seg_index
+
+        self._qt_update_scroll_limits()
         if self.is_view_visible():
             self.refresh()
 
@@ -411,7 +452,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
         
 
-        self._qt_change_segment(0)
+        self._qt_update_scroll_limits()
 
 
     def _qt_on_settings_changed(self):

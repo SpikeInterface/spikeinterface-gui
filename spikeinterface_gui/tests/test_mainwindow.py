@@ -88,8 +88,8 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
-            # layout_preset='default',
-            layout_preset='yep',
+            layout_preset='default',
+            # layout_preset='yep',
         )
 
 
@@ -99,9 +99,9 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
 if __name__ == '__main__':
     # setup_module()
     
-    test_mainwindow(start_qt_app=True, verbose=False)
+    # test_mainwindow(start_qt_app=True, verbose=False)
     # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
-    # test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
+    test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
     # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)
 
     # import spikeinterface.widgets as sw

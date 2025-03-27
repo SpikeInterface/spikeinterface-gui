@@ -13,6 +13,7 @@ class NDScatterView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _depend_on = ['principal_components']
     _settings = [
+           {'name': 'show_projection', 'type': 'bool', 'value': True },
            {'name': 'refresh_interval', 'type': 'int', 'value': 80 },
            {'name': 'num_step', 'type': 'int', 'value':  20, 'limits' : [5, 100] },
            {'name': 'num_pc_per_channel', 'type': 'int', 'value':  2, 'limits' : [1, 100] },
@@ -143,35 +144,38 @@ class NDScatterView(ViewBase):
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import ViewBoxHandlingLassoAndGain
+        from .utils_qt import ViewBoxHandlingLassoAndGain, add_stretch_to_qtoolbar
 
 
         self.layout = QT.QHBoxLayout()
         # self.setLayout(self.layout)
 
         # toolbar
-        tb = self.toolbar = QT.QVBoxLayout()
-        self.layout.addLayout(tb)
-        but = QT.QPushButton('next face')
-        tb.addWidget(but)
-        but.clicked.connect(self.next_face)
+        # tb = self.toolbar = QT.QVBoxLayout()
+        # self.layout.addLayout(tb)
+        tb = self.qt_widget.view_toolbar
         but = QT.QPushButton('Random')
         tb.addWidget(but)
         but.clicked.connect(self.random_projection)
         but = QT.QPushButton('Random tour', checkable = True)
         tb.addWidget(but)
         but.clicked.connect(self._qt_start_stop_tour)
-        but = QT.QPushButton('settings')
-        # but.clicked.connect(self.open_settings)
+
+        but = QT.QPushButton('next face')
         tb.addWidget(but)
+        but.clicked.connect(self.next_face)
+
+        # but = QT.QPushButton('settings')
+        # but.clicked.connect(self.open_settings)
+        # tb.addWidget(but)
 
         
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
 
-        self.toolbar.addStretch()
-        self.graphicsview2 = pg.GraphicsView()
-        self.toolbar.addWidget(self.graphicsview2)
+        # self.toolbar.addStretch()
+        # self.graphicsview2 = pg.GraphicsView()
+        # self.toolbar.addWidget(self.graphicsview2)
 
         self.timer_tour = QT.QTimer(interval=100)
         self.timer_tour.timeout.connect(self.new_tour_step)
@@ -202,30 +206,35 @@ class NDScatterView(ViewBase):
         
         ndim = self.data.shape[1]
 
-        self.plot2 = pg.PlotItem(viewBox=ViewBoxHandlingLassoAndGain(lockAspect=True))
-        self.graphicsview2.setCentralItem(self.plot2)
-        self.plot2.hideButtons()
-        angles = np.arange(0,360, .1)
-        self.circle = pg.PlotCurveItem(x=np.cos(angles), y=np.sin(angles), pen=(255,255,255))
-        self.plot2.addItem(self.circle)
         self.direction_lines = pg.PlotCurveItem(x=[], y=[], pen=(255,255,255))
         self.direction_data = np.zeros( (ndim*2, 2))
-        self.plot2.addItem(self.direction_lines)
-        self.plot2.setXRange(-1, 1)
-        self.plot2.setYRange(-1, 1)
+        self.plot.addItem(self.direction_lines)
+
+
+        # self.plot2 = pg.PlotItem(viewBox=ViewBoxHandlingLassoAndGain(lockAspect=True))
+        # self.graphicsview2.setCentralItem(self.plot2)
+        # self.plot2.hideButtons()
+        # angles = np.arange(0,360, .1)
+        # self.circle = pg.PlotCurveItem(x=np.cos(angles), y=np.sin(angles), pen=(255,255,255))
+        # self.plot2.addItem(self.circle)
+        # self.direction_lines = pg.PlotCurveItem(x=[], y=[], pen=(255,255,255))
+        # self.direction_data = np.zeros( (ndim*2, 2))
+        # self.plot2.addItem(self.direction_lines)
+        # self.plot2.setXRange(-1, 1)
+        # self.plot2.setYRange(-1, 1)
         
-        n_pc_per_channel = self.pc_data.shape[1]
-        self.proj_labels = []
-        for i in range(ndim):
-            chan_ind = i // n_pc_per_channel
-            chan_id = self.controller.channel_ids[chan_ind]
-            pc = i % n_pc_per_channel
-            text = f'{chan_id}PC{pc}'
-            label = pg.TextItem(text, color=(1,1,1), anchor=(0.5, 0.5), border=None, fill=pg.mkColor((128,128,128, 180)))
-            self.proj_labels.append(label)
-            self.plot2.addItem(label)
+        # n_pc_per_channel = self.pc_data.shape[1]
+        # self.proj_labels = []
+        # for i in range(ndim):
+        #     chan_ind = i // n_pc_per_channel
+        #     chan_id = self.controller.channel_ids[chan_ind]
+        #     pc = i % n_pc_per_channel
+        #     text = f'{chan_id}PC{pc}'
+        #     label = pg.TextItem(text, color=(1,1,1), anchor=(0.5, 0.5), border=None, fill=pg.mkColor((128,128,128, 180)))
+        #     self.proj_labels.append(label)
+        #     self.plot2.addItem(label)
         
-        self.graphicsview2.setMaximumSize(200, 200)
+        # self.graphicsview2.setMaximumSize(200, 200)
         
         self.settings.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
 
@@ -265,24 +274,33 @@ class NDScatterView(ViewBase):
         #     color = self.get_unit_color(unit_id)
         #     self.scatter.addPoints(x=projected[:,0], y=projected[:,1],  pen=pg.mkPen(None), brush=color)
 
+        if self.settings['show_projection']:
+            proj = self.projection.copy()
+            proj[~self.selected_comp, :] = 0
+            self.direction_data[::, :] =0
+            self.direction_data[::2, :] = proj
+            self.direction_lines.setData(self.direction_data[:,0], self.direction_data[:,1])
+        else:
+            self.direction_lines.setData([], [])
+
+
         #projection axes
-        proj = self.projection.copy()
-        proj[~self.selected_comp, :] = 0
-        self.direction_data[::, :] =0
-        self.direction_data[::2, :] = proj
-        self.direction_lines.setData(self.direction_data[:,0], self.direction_data[:,1])
+        # proj = self.projection.copy()
+        # proj[~self.selected_comp, :] = 0
+        # self.direction_data[::, :] =0
+        # self.direction_data[::2, :] = proj
+        # self.direction_lines.setData(self.direction_data[:,0], self.direction_data[:,1])
+        # for i, label in enumerate(self.proj_labels):
+        #     if self.selected_comp[i]:
+        #         label.setPos(self.projection[i,0], self.projection[i,1])
+        #         label.show()
+        #     else:
+        #         label.hide()
 
         self.plot.setXRange(-self.limit, self.limit)
         self.plot.setYRange(-self.limit, self.limit)
-
-        for i, label in enumerate(self.proj_labels):
-            if self.selected_comp[i]:
-                label.setPos(self.projection[i,0], self.projection[i,1])
-                label.show()
-            else:
-                label.hide()
         
-        self.graphicsview.repaint()
+        # self.graphicsview.repaint()
             
     
     def _qt_start_stop_tour(self, checked):

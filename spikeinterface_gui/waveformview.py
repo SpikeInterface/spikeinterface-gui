@@ -10,33 +10,35 @@ from .view_base import ViewBase
 class WaveformView(ViewBase):
     _supported_backend = ['qt']
 
-    _settings = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
-                        {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
-                      {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-                      {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
-                      {'name': 'fillbetween', 'type': 'bool', 'value': True },
-                      {'name': 'show_channel_id', 'type': 'bool', 'value': False},
-                      {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},
-                      {'name': 'display_threshold', 'type': 'bool', 'value' : True },
-                      {'name': 'sparse_display', 'type': 'bool', 'value' : True },
-                      {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
-                      {'name': 'background_color', 'type': 'color', 'value' : 'k' },
-                      ]
+    _settings = [
+        {'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
+        {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
+        {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
+        {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
+        {'name': 'fillbetween', 'type': 'bool', 'value': True },
+        {'name': 'show_channel_id', 'type': 'bool', 'value': False},
+        {'name': 'display_threshold', 'type': 'bool', 'value' : True },
+        {'name': 'sparse_display', 'type': 'bool', 'value' : True },
+        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
+        # {'name': 'background_color', 'type': 'color', 'value' : 'k' },
+    ]
     
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
         self.ccg, self.bins = self.controller.get_correlograms()
 
-
+    ## Qt ##
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
+        from .utils_qt import add_stretch_to_qtoolbar
         
         self.layout = QT.QVBoxLayout()
         
 
-        tb = self.toolbar = QT.QToolBar()
+        # tb = self.toolbar = QT.QToolBar()
+        tb = self.qt_widget.view_toolbar
         
         #Mode flatten or geometry
         self.combo_mode = QT.QComboBox()
@@ -45,8 +47,9 @@ class WaveformView(ViewBase):
         #~ self.combo_mode.addItems([ 'flatten', 'geometry'])
         self.mode = 'geometry'
         self.combo_mode.addItems([ 'geometry', 'flatten'])
-        self.combo_mode.currentIndexChanged.connect(self.on_combo_mode_changed)
-        tb.addSeparator()
+        self.combo_mode.currentIndexChanged.connect(self._qt_on_combo_mode_changed)
+        # tb.addSeparator()
+        add_stretch_to_qtoolbar(tb)
         
         
         # but = QT.QPushButton('settings')
@@ -54,35 +57,29 @@ class WaveformView(ViewBase):
         # tb.addWidget(but)
 
         but = QT.QPushButton('scale')
-        but.clicked.connect(self.zoom_range)
+        but.clicked.connect(self._qt_zoom_range)
         tb.addWidget(but)
 
-        but = QT.QPushButton('refresh')
-        but.clicked.connect(self.refresh)
-        tb.addWidget(but)
-
-        self.layout.addWidget(self.toolbar)
+        # self.layout.addWidget(self.toolbar)
 
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
-        self.initialize_plot()
+        self._qt_initialize_plot()
         
         self.alpha = 60
     
     
-    def on_combo_mode_changed(self):
+    def _qt_on_combo_mode_changed(self):
         self.mode = str(self.combo_mode.currentText())
-        self.initialize_plot()
+        self._qt_initialize_plot()
         self.refresh()
     
-    def _qt_on_settings_changed(self, params, changes):
-        for param, change, data in changes:
-            if change != 'value': continue
-            if param.name()=='flip_bottom_up':
-                self.initialize_plot()
-        self.refresh()
+    # def _qt_on_settings_changed(self, params, changes):
+    #     for param, change, data in changes:
+    #         if change != 'value': continue
+    #     self.refresh()
 
-    def initialize_plot(self):
+    def _qt_initialize_plot(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import ViewBoxHandlingDoubleclickAndGain
@@ -126,9 +123,6 @@ class WaveformView(ViewBase):
             
             self.contact_location = self.controller.get_contact_location().copy()
             
-            if self.settings['flip_bottom_up']:
-                self.contact_location[:, 1] *= -1.
-            
             xpos = self.contact_location[:,0]
             ypos = self.contact_location[:,1]
             
@@ -157,19 +151,14 @@ class WaveformView(ViewBase):
         self._y1_range = None
         self._y2_range = None
         
-        self.viewBox1.gain_zoom.connect(self.gain_zoom)
+        self.viewBox1.gain_zoom.connect(self._qt_gain_zoom)
         
-        # self.viewBox1.doubleclicked.connect(self.open_settings)
-        
-        #~ self.viewBox.xsize_zoom.connect(self.xsize_zoom)    
-    
 
-    def gain_zoom(self, factor_ratio):
+    def _qt_gain_zoom(self, factor_ratio):
         self.factor_y *= factor_ratio
-        
         self._qt_refresh(keep_range=True)
     
-    def zoom_range(self):
+    def _qt_zoom_range(self):
         self._x_range = None
         self._y1_range = None
         self._y2_range = None
@@ -178,7 +167,7 @@ class WaveformView(ViewBase):
     def _qt_refresh(self, keep_range=False):
         
         if not hasattr(self, 'viewBox1'):
-            self.initialize_plot()
+            self._qt_initialize_plot()
         
         if not hasattr(self, 'viewBox1'):
             return
@@ -194,11 +183,11 @@ class WaveformView(ViewBase):
             unit_visible_dict[unit_id] = True
         else:
             unit_visible_dict = self.controller.unit_visible_dict
-        self.viewBox1.setBackgroundColor(self.settings['background_color'])
+        # self.viewBox1.setBackgroundColor(self.settings['background_color'])
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self.refresh_mode_flatten(unit_visible_dict, keep_range)
-            self.viewBox2.setBackgroundColor(self.settings['background_color'])
+            # self.viewBox2.setBackgroundColor(self.settings['background_color'])
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self.refresh_mode_geometry(unit_visible_dict, keep_range)
@@ -339,7 +328,7 @@ class WaveformView(ViewBase):
         width = nbefore + nafter
 
         if width != self.xvect.shape[1]:
-            self.initialize_plot()
+            self._qt_initialize_plot()
         
         self.plot1.addItem(self.curve_one_waveform)
 

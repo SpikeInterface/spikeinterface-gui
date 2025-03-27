@@ -53,10 +53,12 @@ class SpikeListView(ViewBase):
         self.label = QT.QLabel('') 
         h.addWidget(self.label)
         
-        h.addStretch()
+        # h.addStretch()
 
         but = QT.QPushButton('↻ spikes')
-        h.addWidget(but)
+        # h.addWidget(but)
+        tb = self.qt_widget.view_toolbar
+        tb.addWidget(but)
         but.clicked.connect(self.refresh)
         
         self.tree = QT.QTreeView(minimumWidth = 100, uniformRowHeights = True,

@@ -63,20 +63,35 @@ class SpikeAmplitudeView(ViewBase):
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
+        from .utils_qt import add_stretch_to_qtoolbar
 
         self.layout = QT.QVBoxLayout()
         # self.setLayout(self.layout)
 
-        h = QT.QHBoxLayout()
-        self.layout.addLayout(h)
+
+        
+
+        # h = QT.QHBoxLayout()
+        # self.layout.addLayout(h)
+        # self.combo_seg = QT.QComboBox()
+        # h.addWidget(self.combo_seg)
+        # self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
+        # self.combo_seg.currentIndexChanged.connect(self.refresh)
+        # self.lasso_but = but = QT.QPushButton("select", checkable = True)
+        # self.lasso_but.setMaximumWidth(50)
+        # h.addWidget(self.lasso_but)
+        # self.lasso_but.clicked.connect(self.enable_disable_lasso)
+        tb = self.qt_widget.view_toolbar
         self.combo_seg = QT.QComboBox()
-        h.addWidget(self.combo_seg)
+        tb.addWidget(self.combo_seg)
         self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
         self.combo_seg.currentIndexChanged.connect(self.refresh)
-        self.lasso_but = but = QT.QPushButton("select", checkable = True)
-        self.lasso_but.setMaximumWidth(50)
-        h.addWidget(self.lasso_but)
+        add_stretch_to_qtoolbar(tb)
+        self.lasso_but = QT.QPushButton("select", checkable = True)
+        # self.lasso_but.setMaximumWidth(50)
+        tb.addWidget(self.lasso_but)
         self.lasso_but.clicked.connect(self.enable_disable_lasso)
+
 
         
         h = QT.QHBoxLayout()
@@ -180,8 +195,7 @@ class SpikeAmplitudeView(ViewBase):
                                         brush=(255, 255, 255, int(i * alpha_factor)), pen=(0, 0, 0, 0))
                 )
         
-        # TODO sam  seg_index
-        seg_index = 0
+        seg_index =  self.combo_seg.currentIndex()
         time_max = self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
 
         self.plot.setXRange( 0., time_max, padding = 0.0)
