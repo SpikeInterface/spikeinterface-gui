@@ -4,6 +4,8 @@ import pyqtgraph as pg
 from .viewlist import possible_class_views
 from .layout_presets import get_layout_description
 
+from .utils_qt import qt_style, add_stretch_to_qtoolbar
+
 import time
 
 # Used by views to emit/trigger signals
@@ -71,7 +73,7 @@ def create_settings(view, parent):
     view.tree_settings.header().hide()
     view.tree_settings.setParameters(view.settings, showTop=True)
     view.tree_settings.setWindowTitle(u'View options')
-    view.tree_settings.setWindowFlags(QT.Qt.Window)
+    # view.tree_settings.setWindowFlags(QT.Qt.Window)
     
     # view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
@@ -232,47 +234,84 @@ class ViewWidget(QT.QWidget):
 
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
+        self.layout.setContentsMargins(4,4,4,4)
+        self.layout.setSpacing(4)
 
-        h = QT.QHBoxLayout()
-        h.setContentsMargins(0, 0, 0, 0)
-        self.layout.addLayout(h)
-        
-        h.addSpacing(10)
 
-        # but_style = "QPushButton{border-style: outset; font: 5; padding: 1px; border-radius: 5px;}"
-        # but_style = "QPushButton{font: 5; padding: 1px; border-radius: 5px;}"
-        but_style = "QPushButton{font: 5; }"
+        tb = self.view_toolbar = QT.QToolBar()
+        self.layout.addWidget(self.view_toolbar)
+
+        tb.setStyleSheet(qt_style)
 
         if view_class._settings is not None:
-            but = QT.QPushButton('settings')
-            h.addWidget(but)
-            # TODO open settings
+            but = QT.QPushButton('⚙ settings')
+            tb.addWidget(but)
             but.clicked.connect(self.open_settings)
-            but.setStyleSheet(but_style)
+            # but.setStyleSheet(qt_style)
 
         if view_class._need_compute:
             but = QT.QPushButton('compute')
-            h.addWidget(but)
+            tb.addWidget(but)
             # but.clicked.connect(view.compute)
-            but.setStyleSheet(but_style)
+            # but.setStyleSheet(qt_style)
 
         but = QT.QPushButton('↻ refresh')
-        h.addWidget(but)
+        tb.addWidget(but)
         but.clicked.connect(self.refresh)
-        but.setStyleSheet(but_style)
+        # but.setStyleSheet(qt_style)
         
         but = QT.QPushButton('?')
-        but.setStyleSheet(but_style)
-        h.addWidget(but)
+        # but.setStyleSheet(qt_style)
+        tb.addWidget(but)
         but.clicked.connect(self.open_help)
-        # but.setFixedSize(12,12)
         but.setToolTip(view_class._gui_help_txt)
 
-        h.addSpacing(10)
-        h.addStretch()
+        add_stretch_to_qtoolbar(tb)
+
+        # tb.addSpacing(10)
+        # tb.addStretch()
+
+
+
+        # h = QT.QHBoxLayout()
+        # self.toolbar_layout = h
+        # h.setContentsMargins(0, 0, 0, 0)
+        # self.layout.addLayout(h)
+        
+        # h.addSpacing(10)
+
+        # if view_class._settings is not None:
+        #     but = QT.QPushButton('settings')
+        #     h.addWidget(but)
+        #     but.clicked.connect(self.open_settings)
+        #     but.setStyleSheet(qt_style)
+
+        # if view_class._need_compute:
+        #     but = QT.QPushButton('compute')
+        #     h.addWidget(but)
+        #     # but.clicked.connect(view.compute)
+        #     but.setStyleSheet(qt_style)
+
+        # but = QT.QPushButton('↻ refresh')
+        # h.addWidget(but)
+        # but.clicked.connect(self.refresh)
+        # but.setStyleSheet(qt_style)
+        
+        # but = QT.QPushButton('?')
+        # but.setStyleSheet(qt_style)
+        # h.addWidget(but)
+        # but.clicked.connect(self.open_help)
+        # but.setToolTip(view_class._gui_help_txt)
+
+        # h.addSpacing(10)
+        # h.addStretch()
     
     def set_view(self, view):
         self._view =  weakref.ref(view)
+        if view._settings is not None:
+            self.layout.addWidget(view.tree_settings)
+            view.tree_settings.hide()
+
         self.layout.addLayout(view.layout)
 
     def open_settings(self):

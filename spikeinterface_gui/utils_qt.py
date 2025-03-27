@@ -4,6 +4,54 @@ import pyqtgraph as pg
 import numpy as np
 
 
+# TODO make a cm to px scaling
+
+qt_style = """
+QPushButton {
+    min-width: 50px;
+    max-width: 70px;
+    min-height: 20px;
+    max-height: 20px;
+
+    font-size: 10px;
+}
+
+QComboBox{
+    min-width: 100px;
+    max-width: 120px;
+    min-height: 20px;
+    max-height: 20px;
+
+    font-size: 10px;
+}
+
+QSpinBox{
+    min-width: 100px;
+    max-width: 120px;
+    min-height: 20px;
+    max-height: 20px;
+
+    font-size: 10px;
+}
+
+"""
+    # border-style: outset;
+    # border-width: 1px;
+    # border-color: #050018;
+    
+    # color: #050018;
+    # padding: 0px 15px 4px;
+
+
+def add_stretch_to_qtoolbar(tb):
+    # add an expending widget + a seprator
+    empty = QT.QWidget()
+    empty.setSizePolicy(QT.QSizePolicy.Expanding, QT.QSizePolicy.Preferred)
+    tb.addWidget(empty)
+    tb.addSeparator()
+
+
+
 class ViewBoxHandlingLasso(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     lasso_drawing = QT.pyqtSignal(object)
