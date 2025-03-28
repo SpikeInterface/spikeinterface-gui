@@ -21,3 +21,5 @@ from .main import run_mainwindow
 
 # TODO alessio:
 #  * signal handler for panel : avoid self refresh
+#  * MergeView
+#  * CurationView

@@ -12,9 +12,6 @@ import spikeinterface.qualitymetrics
 
 from spikeinterface_gui.controller import Controller
 
-# from spikeinterface_gui import MainWindow, mkQApp
-
-
 
 def run_mainwindow(
     analyzer,

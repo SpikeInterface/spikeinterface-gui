@@ -6,9 +6,6 @@ from .view_base import ViewBase
 from spikeinterface.core.core_tools import check_json
 
 
-# TODO
-#  * manual labels
-
 
 
 class CurationView(ViewBase):
@@ -28,17 +25,12 @@ class CurationView(ViewBase):
 
 
         tb = self.qt_widget.view_toolbar
-        # h = QT.QHBoxLayout()
-        # h.addStretch()
-        # self.layout.addLayout(h)
         if self.controller.curation_can_be_saved():
             but = QT.QPushButton("Save in analyzer")
-            # h.addWidget(but)
             tb.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)        
-        # h.addWidget(but)
         tb.addWidget(but)
 
         h = QT.QHBoxLayout()
@@ -82,8 +74,6 @@ class CurationView(ViewBase):
 
     def _qt_refresh(self):
         from .myqt import QT
-        # print("curation refresh")
-        # print(self.controller.curation_data)
         # Merged
         merged_units = self.controller.curation_data["merge_unit_groups"]
         self.table_merge.clear()

@@ -106,30 +106,6 @@ class UnitListView(ViewBase):
         self.controller.displayed_unit_properties = new_displayed
         self.refresh()
 
-
-    # def create_settings_TODO(self):
-    #     # hack to use settings to control visible columns
-
-    #     params = []
-    #     for col in self.controller.units_table.columns:
-    #         params.append(
-    #             {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
-    #         )
-    #     self.params = pg.parametertree.Parameter.create( name='Visible', type='group', children=params)
-        
-    #     self.tree_settings = pg.parametertree.ParameterTree(parent=self)
-    #     self.tree_settings.header().hide()
-    #     self.tree_settings.setParameters(self.params, showTop=True)
-    #     self.tree_settings.setWindowTitle(u'Options for waveforms hist viewer')
-    #     self.tree_settings.setWindowFlags(QT.Qt.Window)
-        
-    #     self.params.sigTreeStateChanged.connect(self.on_params_changed)
-
-    # def on_params_changed_TODO(self):
-    #     new_displayed = [col for col in self.controller.units_table.columns if self.params[col]]
-    #     self.controller.displayed_unit_properties = new_displayed
-    #     self.refresh()
-
     def _qt_refresh(self):
         from .myqt import QT
         from .utils_qt import OrderableCheckItem, CustomItem, LabelComboBox

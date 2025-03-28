@@ -4,7 +4,6 @@ from matplotlib.path import Path as mpl_path
 from .view_base import ViewBase
 
 
-# TODO sam : handle segment idnex
 # TODO alessio : handle lasso
 
 
@@ -32,8 +31,6 @@ class SpikeAmplitudeView(ViewBase):
 
 
     def get_unit_data(self, unit_id, seg_index=0):
-        # TODO sam : handle segment idnex
-
         inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
         spike_times = self.controller.spikes["sample_index"][inds] / self.controller.sampling_frequency
         spike_amps = self.controller.spike_amplitudes[inds]
@@ -43,8 +40,6 @@ class SpikeAmplitudeView(ViewBase):
         return spike_times, spike_amps, hist_count, hist_bins
 
     def get_selected_spikes_data(self, seg_index=0):
-        # TODO sam : handle segment idnex
-
         sl = self.controller.segment_slices[seg_index]
         spikes_in_seg = self.controller.spikes[sl]
         selected_indices = self.controller.get_indices_spike_selected()
@@ -55,32 +50,14 @@ class SpikeAmplitudeView(ViewBase):
         return (spike_times, amps)
 
 
-
-
-
     ## QT zone ##
-
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import add_stretch_to_qtoolbar
 
         self.layout = QT.QVBoxLayout()
-        # self.setLayout(self.layout)
 
-
-        
-
-        # h = QT.QHBoxLayout()
-        # self.layout.addLayout(h)
-        # self.combo_seg = QT.QComboBox()
-        # h.addWidget(self.combo_seg)
-        # self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
-        # self.combo_seg.currentIndexChanged.connect(self.refresh)
-        # self.lasso_but = but = QT.QPushButton("select", checkable = True)
-        # self.lasso_but.setMaximumWidth(50)
-        # h.addWidget(self.lasso_but)
-        # self.lasso_but.clicked.connect(self.enable_disable_lasso)
         tb = self.qt_widget.view_toolbar
         self.combo_seg = QT.QComboBox()
         tb.addWidget(self.combo_seg)
@@ -88,7 +65,7 @@ class SpikeAmplitudeView(ViewBase):
         self.combo_seg.currentIndexChanged.connect(self.refresh)
         add_stretch_to_qtoolbar(tb)
         self.lasso_but = QT.QPushButton("select", checkable = True)
-        # self.lasso_but.setMaximumWidth(50)
+
         tb.addWidget(self.lasso_but)
         self.lasso_but.clicked.connect(self.enable_disable_lasso)
 
@@ -98,15 +75,10 @@ class SpikeAmplitudeView(ViewBase):
         self.layout.addLayout(h)
         
         self.graphicsview = pg.GraphicsView()
-        #~ self.graphicsview.setHorizontalStretch(3)
-        #~ self.layout.addWidget(self.graphicsview)
         h.addWidget(self.graphicsview, 3)
 
         self.graphicsview2 = pg.GraphicsView()
-        #~ self.layout.addWidget(self.graphicsview2)
         h.addWidget(self.graphicsview2, 1)
-        #~ self.graphicsview2.setHorizontalStretch(1)
-
 
         self.initialize_plot()
         
@@ -128,7 +100,6 @@ class SpikeAmplitudeView(ViewBase):
         from .utils_qt import ViewBoxHandlingLasso
 
         self.viewBox = ViewBoxHandlingLasso()
-        # self.viewBox.doubleclicked.connect(self.open_settings)
         self.viewBox.lasso_drawing.connect(self.on_lasso_drawing)
         self.viewBox.lasso_finished.connect(self.on_lasso_finished)
         self.viewBox.disableAutoRange()
@@ -137,7 +108,6 @@ class SpikeAmplitudeView(ViewBase):
         self.plot.hideButtons()
     
         self.viewBox2 = ViewBoxHandlingLasso()
-        # self.viewBox2.doubleclicked.connect(self.open_settings)
         self.viewBox2.disableAutoRange()
         self.plot2 = pg.PlotItem(viewBox=self.viewBox2)
         self.graphicsview2.setCentralItem(self.plot2)

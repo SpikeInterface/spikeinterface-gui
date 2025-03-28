@@ -20,7 +20,6 @@ class WaveformView(ViewBase):
         {'name': 'display_threshold', 'type': 'bool', 'value' : True },
         {'name': 'sparse_display', 'type': 'bool', 'value' : True },
         {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
-        # {'name': 'background_color', 'type': 'color', 'value' : 'k' },
     ]
     
     def __init__(self, controller=None, parent=None, backend="qt"):
@@ -74,7 +73,6 @@ class WaveformView(ViewBase):
         self.layout = QT.QVBoxLayout()
         
 
-        # tb = self.toolbar = QT.QToolBar()
         tb = self.qt_widget.view_toolbar
         
         #Mode flatten or geometry
@@ -136,43 +134,12 @@ class WaveformView(ViewBase):
             self.plot2.hideButtons()
             self.plot2.showAxis('left', True)
             self.viewBox2.setXLink(self.viewBox1)
-            # self.factor_y = 1.
             
             self._common_channel_indexes_flat = None
 
         elif self.mode=='geometry':
             self.plot2 = None
 
-        #     num_chan = len(self.controller.channel_ids)
-
-        #     self.xvect = np.zeros((num_chan, width), dtype='float32')
-            
-        #     self.contact_location = self.controller.get_contact_location().copy()
-            
-        #     xpos = self.contact_location[:,0]
-        #     ypos = self.contact_location[:,1]
-            
-        #     unique_x = np.sort(np.unique(np.round(xpos)))
-        #     if unique_x.size>1:
-        #         self.delta_x = np.min(np.diff(unique_x))
-        #     else:
-        #         self.delta_x = 40. # um
-            
-        #     unique_y = np.sort(np.unique(np.round(ypos)))
-        #     if unique_y.size>1:
-        #         self.delta_y = np.min(np.diff(unique_y))
-        #     else:
-        #         self.delta_y = 40. # um
-
-        #     self.factor_y = .05
-            
-        #     espx = self.delta_x / 2.5
-        #     for chan_ind, chan_id in enumerate(self.controller.channel_ids):
-        #         x, y = self.contact_location[chan_ind, :]
-        #         self.xvect[chan_ind, :] = np.linspace(x-espx, x+espx, num=width)
-
-        # self.wf_min, self.wf_max = self.controller.get_waveforms_range()
-        
         self._x_range = None
         self._y1_range = None
         self._y2_range = None
@@ -210,11 +177,9 @@ class WaveformView(ViewBase):
             unit_visible_dict[unit_id] = True
         else:
             unit_visible_dict = self.controller.unit_visible_dict
-        # self.viewBox1.setBackgroundColor(self.settings['background_color'])
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self.refresh_mode_flatten(unit_visible_dict, keep_range)
-            # self.viewBox2.setBackgroundColor(self.settings['background_color'])
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self.refresh_mode_geometry(unit_visible_dict, keep_range)

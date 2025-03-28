@@ -35,12 +35,6 @@ QSpinBox{
 }
 
 """
-    # border-style: outset;
-    # border-width: 1px;
-    # border-color: #050018;
-    
-    # color: #050018;
-    # padding: 0px 15px 4px;
 
 
 def add_stretch_to_qtoolbar(tb):

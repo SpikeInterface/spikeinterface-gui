@@ -4,8 +4,6 @@ import numpy as np
 
 import json
 
-# from .base import ControllerBase
-# from .myqt import QT
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
@@ -28,13 +26,11 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
 
-# class  SpikeinterfaceController(ControllerBase):
 class  Controller():
     def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
                  extra_unit_properties=None):
-        # ControllerBase.__init__(self, parent=parent)
         
         self.views = []
         self.backend = backend
@@ -171,11 +167,6 @@ class  Controller():
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
-
-        # self.qcolors = {}
-        # for unit_id, color in self.colors.items():
-        #     r, g, b, a = color
-            # self.qcolors[unit_id] = QT.QColor(int(r*255), int(g*255), int(b*255))
 
         self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
@@ -378,8 +369,6 @@ class  Controller():
         return self._spike_selected_indices
     
     def set_indices_spike_selected(self, inds):
-        #~ self.controller.spikes['selected'][:] = False
-        #~ self.controller.spikes['selected'][inds] = True
         self._spike_selected_indices = np.array(inds)
 
     def get_spike_indices(self, unit_id, seg_index=None):
