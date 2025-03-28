@@ -26,24 +26,27 @@ class CurationView(ViewBase):
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
 
-        h = QT.QHBoxLayout()
-        h.addStretch()
-        self.layout.addLayout(h)
+
+        tb = self.qt_widget.view_toolbar
+        # h = QT.QHBoxLayout()
+        # h.addStretch()
+        # self.layout.addLayout(h)
         if self.controller.curation_can_be_saved():
             but = QT.QPushButton("Save in analyzer")
-            h.addWidget(but)
+            # h.addWidget(but)
+            tb.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)        
-        h.addWidget(but)
+        # h.addWidget(but)
+        tb.addWidget(but)
 
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
 
-
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        v.addWidget(QT.QLabel("<b>Merge</b>"))
+        v.addWidget(QT.QLabel("<b>Merges</b>"))
         self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         # self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
@@ -63,7 +66,7 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        v.addWidget(QT.QLabel("<b>Delete</b>"))
+        v.addWidget(QT.QLabel("<b>Deleted</b>"))
         self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         v.addWidget(self.table_delete)
@@ -76,8 +79,6 @@ class CurationView(ViewBase):
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')
         act.triggered.connect(self.restore_unit)
-
-        self.refresh()
 
     def _qt_refresh(self):
         from .myqt import QT

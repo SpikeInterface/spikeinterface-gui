@@ -271,7 +271,7 @@ class UnitListView(ViewBase):
     def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
-        self.notigy_manual_curation_updated()
+        self.notify_manual_curation_updated()
         self.refresh()
 
     def on_delete_shortcut(self):

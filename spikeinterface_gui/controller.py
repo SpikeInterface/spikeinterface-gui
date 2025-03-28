@@ -344,6 +344,11 @@ class  Controller():
         visible_unit_indices = np.flatnonzero(list(self.unit_visible_dict.values()))
         return visible_unit_indices
 
+    def iter_visible_units(self):
+        visible_unit_indices = self.get_visible_unit_indices()
+        visible_unit_ids = self.unit_ids[visible_unit_indices]
+        return zip(visible_unit_indices, visible_unit_ids)
+
 
     def update_visible_spikes(self):
         # print('update_visible_spikes')

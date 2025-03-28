@@ -1,17 +1,11 @@
 """
-A preset need 6 zones with list:
-    * upper_right
-    * bottom_right
-    * upper_left
-    * bottom_left
-    * upper_sidebar
-    * bottom_sidebar
+A preset need 8 zones like this:
 
-+----------------+-------------+--------------+
-| [upper_sidebar   upper_left] | upper_right  |
-+----------------+-------------+              |
-| [bottom_sidebar bottom_left] | bottom_right |
-+----------------+-------------+--------------+
++-----------------+-----------------+
+| [zone1   zone2] | [zone3   zone4] |
++-----------------+-----------------+
+| [zone5   zone6] | [zone7   zone8] |
++-----------------+-----------------+
 
 """
 
@@ -23,24 +17,41 @@ def get_layout_description(preset_name):
     return _presets[preset_name]
 
 
-# default is legacy layout we can change it later
 default_layout = dict(
-    upper_right=['trace', 'tracemap', 'waveform', 'waveformheatmap', 'isi', 'correlogram', 'spikeamplitude'],
-    bottom_right=[],
-    upper_left=['unitlist', 'mergelist'],
-    bottom_left=['ndscatter', 'similarity'],
-    upper_sidebar=['curation', 'spikelist'],
-    bottom_sidebar=['probe'],
+    zone1=['curation', 'spikelist'],
+    zone2=['unitlist', 'mergelist'],
+    zone3=['trace', 'tracemap',  'spikeamplitude'],
+    zone4=[],
+    zone5=['probe'],
+    zone6=['ndscatter', 'similarity'],
+    zone7=['waveform', 'waveformheatmap', ],
+    zone8=['correlogram', 'isi'],
 )
 _presets['default'] = default_layout
 
 
+# legacy layout for nostalgic people like me
+legacy_layout = dict(
+    zone1=['curation', 'spikelist'],
+    zone2=['unitlist', 'mergelist'],
+    zone3=['trace', 'tracemap', 'waveform', 'waveformheatmap', 'isi', 'correlogram', 'spikeamplitude'],
+    zone4=[],
+    zone5=['probe'],
+    zone6=['ndscatter', 'similarity'],
+    zone7=[],
+    zone8=[],
+)
+_presets['legacy'] = legacy_layout
+
+# yep is for testing
 yep_layout = dict(
-    upper_right=['trace', 'tracemap',  'correlogram', 'spikeamplitude'],
-    bottom_right=['waveform', 'waveformheatmap', 'isi',],
-    upper_left=['unitlist', 'mergelist'],
-    bottom_left=['ndscatter', 'similarity'],
-    upper_sidebar=['curation', 'spikelist'],
-    bottom_sidebar=['probe'],
+    zone1=['curation', 'spikelist'],
+    zone2=['unitlist', 'mergelist'],
+    zone3=['trace', 'tracemap',  'spikeamplitude'],
+    zone4=['similarity'],
+    zone5=['probe'],
+    zone6=['ndscatter', ],
+    zone7=['waveform', 'waveformheatmap', ],
+    zone8=['correlogram', 'isi'],
 )
 _presets['yep'] = yep_layout

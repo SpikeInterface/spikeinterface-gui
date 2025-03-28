@@ -12,7 +12,7 @@ class SignalNotifyer(param.Parameterized):
     channel_visibility_changed = param.Event()
     manual_curation_updated = param.Event()
 
-    def __init__(self, parent=None):
+    def __init__(self):
         param.Parameterized.__init__(self)
 
     def notify_spike_selection_changed(self):
@@ -33,6 +33,14 @@ class SignalHandler(param.Parameterized):
     def __init__(self, controller, parent=None):
         param.Parameterized.__init__(self)
         self.controller = controller
+        self._active = True
+    
+    def activate(self):
+        self._active = True
+
+    def deactivate(self):
+        self._active = False
+        
 
     def connect_view(self, view):
         view.notifyer.param.watch(self.on_spike_selection_changed, "spike_selection_changed")
@@ -41,21 +49,25 @@ class SignalHandler(param.Parameterized):
         view.notifyer.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
 
     def on_spike_selection_changed(self, param):
-        # print('on_spike_selection_changed', type(param))
+        if not self._active:
+            return
+
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view==self.sender(): continue
             view.on_spike_selection_changed()
 
     def on_unit_visibility_changed(self, param):
-        # print('on_unit_visibility_changed', type(param))
+        if not self._active:
+            return
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view==self.sender(): continue
             view.on_unit_visibility_changed()
 
     def on_channel_visibility_changed(self, param):
-        # print('on_channel_visibility_changed', type(param))
+        if not self._active:
+            return
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view==self.sender(): continue
@@ -63,7 +75,8 @@ class SignalHandler(param.Parameterized):
 
 
     def on_manual_curation_updated(self, param):
-        # print('on_manual_curation_updated', type(param))
+        if not self._active:
+            return
         for view in self.controller.views:
             # Alessio : how do you avoid callback on the own view ? 
             # if view == self.sender(): continue
@@ -128,9 +141,11 @@ class PanelMainWindow:
         self.make_views()
         self.create_main_layout()
         
-        # refresh all views
+        # refresh all views wihtout notiying
+        self.controller.signal_handler.deactivate()
         for view in self.views.values():
-            view.refresh()        
+            view.refresh()
+        self.controller.signal_handler.activate()
 
     def make_views(self):
         self.views = {}
@@ -194,16 +209,21 @@ class PanelMainWindow:
 
         left = pn.Column(
             pn.Row(
-                *(layout_zone[zone] for zone in ('upper_sidebar', 'upper_left') if layout_zone[zone] is not None),
+                *(layout_zone[zone] for zone in ('zone1', 'zone2') if layout_zone[zone] is not None),
             ),
             pn.Row(
-                *(layout_zone[zone] for zone in ('bottom_sidebar', 'bottom_left') if layout_zone[zone] is not None),
+                *(layout_zone[zone] for zone in ('zone5', 'zone6') if layout_zone[zone] is not None),
             ),
             sizing_mode="stretch_both",
         )
 
         right = pn.Column(
-            *(layout_zone[zone] for zone in ('upper_right', 'bottom_right') if layout_zone[zone] is not None),
+            pn.Row(
+                *(layout_zone[zone] for zone in ('zone3', 'zone4') if layout_zone[zone] is not None),
+            ),
+            pn.Row(
+                *(layout_zone[zone] for zone in ('zone7', 'zone8') if layout_zone[zone] is not None),
+            ),
             sizing_mode="stretch_both",
         )
 
