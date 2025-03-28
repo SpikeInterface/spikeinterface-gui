@@ -73,23 +73,12 @@ class SimilarityView(ViewBase):
         from .utils_qt import ViewBoxHandlingClickToPositionWithCtrl
 
         self.layout = QT.QVBoxLayout()
-        # self.setLayout(self.layout)
-        
-        #~ h = QT.QHBoxLayout()
-        #~ self.layout.addLayout(h)
-        #~ h.addWidget(QT.QLabel('<b>Similarity</b>') )
-
-        #~ but = QT.QPushButton('settings')
-        #~ but.clicked.connect(self.open_settings)
-        #~ h.addWidget(but)
-        
         
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
         
         self.viewBox = ViewBoxHandlingClickToPositionWithCtrl()
         self.viewBox.clicked.connect(self._qt_select_pair)
-        # self.viewBox.doubleclicked.connect(self.open_settings)
         self.viewBox.disableAutoRange()
         
         self.plot = pg.PlotItem(viewBox=self.viewBox)
@@ -125,9 +114,6 @@ class SimilarityView(ViewBase):
         
         
         self.refresh()
-
-    # def on_similarity_method_changed(self):
-    #     self.refresh()
 
     def compute(self):
         self.similarity = self.controller.compute_similarity(method=self.settings['method'])

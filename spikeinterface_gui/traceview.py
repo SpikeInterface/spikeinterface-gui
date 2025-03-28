@@ -6,8 +6,6 @@ from .view_base import ViewBase
 from .utils_qt import add_stretch_to_qtoolbar
 
 
-# TODO sam refactor Qt part with common stuff
-
 # This MixinViewTrace is used both in TraceView and TraceMapView) handling:
 #   * toolbar
 #   * time slider
@@ -23,43 +21,7 @@ class MixinViewTrace:
         import pyqtgraph as pg
         from .utils_qt import TimeSeeker
 
-        # tb = self.toolbar = QT.QToolBar()
-        
-        # #Segment selection
-        # self.combo_seg = QT.QComboBox()
-        # tb.addWidget(self.combo_seg)
-        # self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
-        # self.combo_seg.currentIndexChanged.connect(self._qt_on_combo_seg_changed)
-        # tb.addSeparator()
-        
-        # # time slider
-        # self.timeseeker = TimeSeeker(show_slider=False)
-        # tb.addWidget(self.timeseeker)
-        # self.timeseeker.time_changed.connect(self._qt_seek)
-        
-        # # winsize
-        # self.xsize = .5
-        # tb.addWidget(QT.QLabel(u'X size (s)'))
-        # self.spinbox_xsize = pg.SpinBox(value = self.xsize, bounds = [0.001, self.settings['xsize_max']], suffix = 's',
-        #                     siPrefix = True, step = 0.1, dec = True)
-        # self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
-        # tb.addWidget(self.spinbox_xsize)
-        # tb.addSeparator()
-        # self.spinbox_xsize.sigValueChanged.connect(self.refresh)
-        
-        # #
-        # but = QT.QPushButton('auto scale')
-        # but.clicked.connect(self.auto_scale)
-
-        # tb.addWidget(but)
-        
-        # self.layout.addWidget(self.toolbar)
-
-
-        # tb = self.qt_widget.toolbar_layout
-
         tb = self.qt_widget.view_toolbar
-
 
         #Segment selection
         self.combo_seg = QT.QComboBox()
@@ -67,8 +29,6 @@ class MixinViewTrace:
         self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
         self.combo_seg.currentIndexChanged.connect(self._qt_on_combo_seg_changed)
         add_stretch_to_qtoolbar(tb)
-        # tb.addSeparator()
-        # tb.addStretch()
         
         # time slider
         self.timeseeker = TimeSeeker(show_slider=False)
@@ -82,19 +42,14 @@ class MixinViewTrace:
                                         suffix = 's', siPrefix = True, step = 0.1, dec = True)
         self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
         tb.addWidget(self.spinbox_xsize)
-        # tb.addSeparator()
         add_stretch_to_qtoolbar(tb)
-        # tb.addStretch()
         self.spinbox_xsize.sigValueChanged.connect(self.refresh)
-        
         
         but = QT.QPushButton('auto scale')
         but.clicked.connect(self.auto_scale)
 
         tb.addWidget(but)
         
-        # self.layout.addWidget(self.toolbar)
-
     def _qt_initialize_plot(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -115,8 +70,6 @@ class MixinViewTrace:
         self.signals_curve = pg.PlotCurveItem(pen='#7FFF00', connect='finite')
         self.plot.addItem(self.signals_curve)
 
-        #~ self.scatter.sigClicked.connect(self._qt_scatter_item_clicked)
-        
         self.channel_labels = []
         self.threshold_lines =[]
         for i, channel_id in enumerate(self.controller.channel_ids):

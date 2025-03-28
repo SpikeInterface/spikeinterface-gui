@@ -15,10 +15,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
         {'name': 'zoom_size', 'type': 'float', 'value':  0.03, 'step' : 0.001 },
-        # {'name': 'plot_threshold', 'type': 'bool', 'value':  True },
         {'name': 'alpha', 'type': 'float', 'value' : 0.8, 'limits':(0, 1.), 'step':0.05 },
         {'name': 'xsize_max', 'type': 'float', 'value': 4.0, 'step': 1.0, 'limits':(1.0, np.inf)},
-        # {'name': 'max_visible_channel', 'type': 'int', 'value':  16},
         {'name': 'colormap', 'type': 'list', 'limits' : ['gray', 'bwr',  'PiYG', 'jet', 'hot', ] },
         {'name': 'reverse_colormap', 'type': 'bool', 'value': True },
         {'name': 'show_on_selected_units', 'type': 'bool', 'value': True },
@@ -192,7 +190,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.time_by_seg[self.seg_index] = t
         t1,t2 = t-self.xsize/3. , t+self.xsize*2/3.
-        t_start = 0.
+
         sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
@@ -319,14 +317,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.refresh()
 
     def _panel_on_settings_changed(self):
-
-        # self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
-        # if self.xsize > self.settings['xsize_max']:
-        #     self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
-        #     self.spinbox_xsize.setValue(self.settings['xsize_max'])
-        #     self.xsize = self.settings['xsize_max']
-        #     self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
-
         self.make_color_lut()
         self.refresh()
 

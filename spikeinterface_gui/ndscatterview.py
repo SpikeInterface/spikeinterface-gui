@@ -99,8 +99,6 @@ class NDScatterView(ViewBase):
 
     def random_projection(self):
         self.projection = self.get_one_random_projection()
-        # if self.timer_tour.isActive():
-        #     self.tour_step == 0
         self.tour_step = 0
         self.refresh()
 
@@ -109,12 +107,10 @@ class NDScatterView(ViewBase):
         self.refresh()
 
     def on_unit_visibility_changed(self):
-        #~ self.refresh()
         # this do refreh also
         self.random_projection()
     
     def on_channel_visibility_changed(self):
-        #~ self.refresh()
         # this do refreh also
         self.random_projection()
 
@@ -148,11 +144,8 @@ class NDScatterView(ViewBase):
 
 
         self.layout = QT.QHBoxLayout()
-        # self.setLayout(self.layout)
 
         # toolbar
-        # tb = self.toolbar = QT.QVBoxLayout()
-        # self.layout.addLayout(tb)
         tb = self.qt_widget.view_toolbar
         but = QT.QPushButton('Random')
         tb.addWidget(but)
@@ -165,11 +158,7 @@ class NDScatterView(ViewBase):
         tb.addWidget(but)
         but.clicked.connect(self.next_face)
 
-        # but = QT.QPushButton('settings')
-        # but.clicked.connect(self.open_settings)
-        # tb.addWidget(but)
 
-        
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
 

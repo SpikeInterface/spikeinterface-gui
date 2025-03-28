@@ -8,7 +8,7 @@ import numpy as np
 
 qt_style = """
 QPushButton {
-    min-width: 50px;
+    min-width: 30px;
     max-width: 70px;
     min-height: 20px;
     max-height: 20px;
@@ -35,12 +35,6 @@ QSpinBox{
 }
 
 """
-    # border-style: outset;
-    # border-width: 1px;
-    # border-color: #050018;
-    
-    # color: #050018;
-    # padding: 0px 15px 4px;
 
 
 def add_stretch_to_qtoolbar(tb):

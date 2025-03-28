@@ -89,6 +89,7 @@ def test_mainwindow(start_qt_app=False, verbose=True, curation=False, only_some_
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
             layout_preset='default',
+            # layout_preset='legacy',
             # layout_preset='yep',
         )
 
