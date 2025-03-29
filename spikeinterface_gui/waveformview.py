@@ -8,81 +8,103 @@ from .view_base import ViewBase
 
 
 class WaveformView(ViewBase):
-    _supported_backend = ['qt']
+    _supported_backend = ['qt', 'panel']
 
-    _settings = [{'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
-                        {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
-                      {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-                      {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
-                      {'name': 'fillbetween', 'type': 'bool', 'value': True },
-                      {'name': 'show_channel_id', 'type': 'bool', 'value': False},
-                      {'name': 'flip_bottom_up', 'type': 'bool', 'value': False},
-                      {'name': 'display_threshold', 'type': 'bool', 'value' : True },
-                      {'name': 'sparse_display', 'type': 'bool', 'value' : True },
-                      {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
-                      {'name': 'background_color', 'type': 'color', 'value' : 'k' },
-                      ]
+    _settings = [
+        {'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
+        {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
+        {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
+        {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
+        {'name': 'fillbetween', 'type': 'bool', 'value': True },
+        {'name': 'show_channel_id', 'type': 'bool', 'value': False},
+        {'name': 'display_threshold', 'type': 'bool', 'value' : True },
+        {'name': 'sparse_display', 'type': 'bool', 'value' : True },
+        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
+    ]
     
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-        self.ccg, self.bins = self.controller.get_correlograms()
+        nbefore, nafter = self.controller.get_waveform_sweep()
+        width = nbefore + nafter
+        num_chan = len(self.controller.channel_ids)
+        self.xvect = np.zeros((num_chan, width), dtype='float32')
+        self.contact_location = self.controller.get_contact_location().copy()
+        xpos = self.contact_location[:,0]
+        ypos = self.contact_location[:,1]
+        unique_x = np.sort(np.unique(np.round(xpos)))
+        if unique_x.size>1:
+            self.delta_x = np.min(np.diff(unique_x))
+        else:
+            self.delta_x = 40. # um
+        unique_y = np.sort(np.unique(np.round(ypos)))
+        if unique_y.size>1:
+            self.delta_y = np.min(np.diff(unique_y))
+        else:
+            self.delta_y = 40. # um
+        self.factor_y = .05
+        espx = self.delta_x / 2.5
+        for chan_ind, chan_id in enumerate(self.controller.channel_ids):
+            x, y = self.contact_location[chan_ind, :]
+            self.xvect[chan_ind, :] = np.linspace(x-espx, x+espx, num=width)
+        self.wf_min, self.wf_max = self.controller.get_waveforms_range()
 
 
+    def get_common_channels(self):
+        sparse = self.settings['sparse_display']
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+        if sparse:
+            if len(visible_unit_ids) > 0:
+                common_channel_indexes = self.controller.get_common_sparse_channels(visible_unit_ids)
+            else:
+                common_channel_indexes = None
+        else:
+            common_channel_indexes = np.arange(len(self.controller.channel_ids), dtype='int64')
+
+        return common_channel_indexes
+
+
+    ## Qt ##
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
+        from .utils_qt import add_stretch_to_qtoolbar
         
         self.layout = QT.QVBoxLayout()
         
 
-        tb = self.toolbar = QT.QToolBar()
+        tb = self.qt_widget.view_toolbar
         
         #Mode flatten or geometry
         self.combo_mode = QT.QComboBox()
         tb.addWidget(self.combo_mode)
-        #~ self.mode = 'flatten'
-        #~ self.combo_mode.addItems([ 'flatten', 'geometry'])
         self.mode = 'geometry'
         self.combo_mode.addItems([ 'geometry', 'flatten'])
-        self.combo_mode.currentIndexChanged.connect(self.on_combo_mode_changed)
-        tb.addSeparator()
+        self.combo_mode.currentIndexChanged.connect(self._qt_on_combo_mode_changed)
+        add_stretch_to_qtoolbar(tb)
         
-        
-        # but = QT.QPushButton('settings')
-        # but.clicked.connect(self.open_settings)
-        # tb.addWidget(but)
-
         but = QT.QPushButton('scale')
-        but.clicked.connect(self.zoom_range)
+        but.clicked.connect(self._qt_zoom_range)
         tb.addWidget(but)
-
-        but = QT.QPushButton('refresh')
-        but.clicked.connect(self.refresh)
-        tb.addWidget(but)
-
-        self.layout.addWidget(self.toolbar)
 
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
-        self.initialize_plot()
+        self._qt_initialize_plot()
         
         self.alpha = 60
     
     
-    def on_combo_mode_changed(self):
+    def _qt_on_combo_mode_changed(self):
         self.mode = str(self.combo_mode.currentText())
-        self.initialize_plot()
+        self._qt_initialize_plot()
         self.refresh()
     
-    def _on_settings_changed_qt(self, params, changes):
-        for param, change, data in changes:
-            if change != 'value': continue
-            if param.name()=='flip_bottom_up':
-                self.initialize_plot()
-        self.refresh()
+    # def _qt_on_settings_changed(self, params, changes):
+    #     for param, change, data in changes:
+    #         if change != 'value': continue
+    #     self.refresh()
 
-    def initialize_plot(self):
+    def _qt_initialize_plot(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import ViewBoxHandlingDoubleclickAndGain
@@ -112,64 +134,25 @@ class WaveformView(ViewBase):
             self.plot2.hideButtons()
             self.plot2.showAxis('left', True)
             self.viewBox2.setXLink(self.viewBox1)
-            self.factor_y = 1.
             
             self._common_channel_indexes_flat = None
 
         elif self.mode=='geometry':
             self.plot2 = None
-            
 
-            num_chan = len(self.controller.channel_ids)
-
-            self.xvect = np.zeros((num_chan, width), dtype='float32')
-            
-            self.contact_location = self.controller.get_contact_location().copy()
-            
-            if self.settings['flip_bottom_up']:
-                self.contact_location[:, 1] *= -1.
-            
-            xpos = self.contact_location[:,0]
-            ypos = self.contact_location[:,1]
-            
-            unique_x = np.sort(np.unique(np.round(xpos)))
-            if unique_x.size>1:
-                self.delta_x = np.min(np.diff(unique_x))
-            else:
-                self.delta_x = 40. # um
-            
-            unique_y = np.sort(np.unique(np.round(ypos)))
-            if unique_y.size>1:
-                self.delta_y = np.min(np.diff(unique_y))
-            else:
-                self.delta_y = 40. # um
-
-            self.factor_y = .05
-            
-            espx = self.delta_x / 2.5
-            for chan_ind, chan_id in enumerate(self.controller.channel_ids):
-                x, y = self.contact_location[chan_ind, :]
-                self.xvect[chan_ind, :] = np.linspace(x-espx, x+espx, num=width)
-
-        self.wf_min, self.wf_max = self.controller.get_waveforms_range()
-        
         self._x_range = None
         self._y1_range = None
         self._y2_range = None
         
-        self.viewBox1.gain_zoom.connect(self.gain_zoom)
+        self.viewBox1.gain_zoom.connect(self._qt_gain_zoom)
         
-        # self.viewBox1.doubleclicked.connect(self.open_settings)
-        
-        #~ self.viewBox.xsize_zoom.connect(self.xsize_zoom)    
-    
 
-    def gain_zoom(self, factor_ratio):
-        self.factor_y *= factor_ratio
-        
-        self._qt_refresh(keep_range=True)
+    def _qt_gain_zoom(self, factor_ratio):
+        if self.mode=='geometry':
+            self.factor_y *= factor_ratio
+            self._qt_refresh(keep_range=True)
     
-    def zoom_range(self):
+    def _qt_zoom_range(self):
         self._x_range = None
         self._y1_range = None
         self._y2_range = None
@@ -178,7 +161,7 @@ class WaveformView(ViewBase):
     def _qt_refresh(self, keep_range=False):
         
         if not hasattr(self, 'viewBox1'):
-            self.initialize_plot()
+            self._qt_initialize_plot()
         
         if not hasattr(self, 'viewBox1'):
             return
@@ -194,11 +177,9 @@ class WaveformView(ViewBase):
             unit_visible_dict[unit_id] = True
         else:
             unit_visible_dict = self.controller.unit_visible_dict
-        self.viewBox1.setBackgroundColor(self.settings['background_color'])
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self.refresh_mode_flatten(unit_visible_dict, keep_range)
-            self.viewBox2.setBackgroundColor(self.settings['background_color'])
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self.refresh_mode_geometry(unit_visible_dict, keep_range)
@@ -311,6 +292,7 @@ class WaveformView(ViewBase):
 
 
     def refresh_mode_geometry(self, unit_visible_dict, keep_range):
+        from .myqt import QT
         import pyqtgraph as pg
 
         if self._x_range is not None and keep_range:
@@ -324,8 +306,7 @@ class WaveformView(ViewBase):
             return
 
         sparse = self.settings['sparse_display']
-        visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
-        
+        visible_unit_ids = self.controller.get_visible_unit_ids()
         if sparse:
             if len(visible_unit_ids) > 0:
                 common_channel_indexes = self.controller.get_common_sparse_channels(visible_unit_ids)
@@ -338,7 +319,7 @@ class WaveformView(ViewBase):
         width = nbefore + nafter
 
         if width != self.xvect.shape[1]:
-            self.initialize_plot()
+            self._qt_initialize_plot()
         
         self.plot1.addItem(self.curve_one_waveform)
 
@@ -437,6 +418,124 @@ class WaveformView(ViewBase):
     def _qt_on_unit_visibility_changed(self):
         keep_range = not(self.settings['auto_zoom_on_unit_selection'])
         self._qt_refresh(keep_range=keep_range)
+
+    def _panel_make_layout(self):
+        import panel as pn
+        import bokeh.plotting as bpl
+        from .utils_panel import _bg_color
+        from bokeh.models import ColumnDataSource, Range1d, HoverTool
+        from bokeh.events import Tap, MouseWheel
+
+
+        self.mode_selector = pn.widgets.Select(name='mode', options=['geometry', 'flatten'])
+        self.mode_selector.param.watch(self._panel_on_mode_selector_changed, "value")
+
+        # Create figure with basic tools
+        self.figure = bpl.figure(
+            sizing_mode="stretch_both",
+            tools="pan,box_zoom,reset",
+            # toolbar_location="above",
+            active_drag="pan",
+            # match_aspect=True,
+            y_axis_type="auto",
+            y_range=Range1d(start=-1000, end=1000),  # Invert y-axis to match Qt
+            background_fill_color=_bg_color,
+            border_fill_color=_bg_color,
+            outline_line_color="white",
+            styles={"flex": "1"},
+        )
+        
+        self.figure.grid.visible = False
+        self.figure.on_event(MouseWheel, self._panel_gain_zoom)
+        
+        self.lines = {}
+
+
+        self.layout = pn.Column(
+                pn.Row(
+                    self.mode_selector
+                ),
+                self.figure,
+            styles={"display": "flex", "flex-direction": "column"},
+            sizing_mode="stretch_both"
+        )
+
+
+    def _panel_on_mode_selector_changed(self, event):
+        # TODO alessio : reset figure and add secondary figure    
+        self.mode = self.mode_selector.value
+        self.refresh()
+
+    def _panel_gain_zoom(self, event):
+        if self.mode == 'geometry':
+            factor = 1.3 if event.delta > 0 else 1 / 1.3
+            self.factor_y *= factor
+            self._panel_refresh_mode_geometry()
+
+    def _panel_refresh(self):
+        self.mode = self.mode_selector.value
+        if self.mode=='geometry':
+            # zoom factor is reset
+            self.factor_y = .05
+            self._panel_refresh_mode_geometry()
+        elif self.mode=='flatten':
+            self._panel_refresh_mode_flatten()
+
+    def _panel_refresh_mode_geometry(self):
+        # this clear the figure
+        self.figure.renderers = []
+        self.lines = {}
+
+        common_channel_indexes = self.get_common_channels()
+        if common_channel_indexes is None:
+            return
+
+        nbefore, nafter = self.controller.get_waveform_sweep()
+        width = nbefore + nafter
+
+        for unit_index, unit_id in self.controller.iter_visible_units():            
+            template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
+            
+            ypos = self.contact_location[common_channel_indexes,1]
+            
+            wf = template_avg
+            wf = wf * self.factor_y * self.delta_y + ypos[None, :]
+            
+            # this disconnect
+            wf[0, :] = np.nan
+            xvect = self.xvect[common_channel_indexes, :]
+            
+            color = self.get_unit_color(unit_id)
+            
+            source = {"x": xvect.flatten(), "y" : wf.T.flatten() }
+            self.lines[unit_id] = self.figure.line("x", "y", source=source, line_color=color, line_width=2)
+        
+        # TODO : alessio handle range
+        # TODO : alessio handle spike
+
+
+    def _panel_refresh_mode_flatten(self):
+        # this clear the figure
+        self.figure.renderers = []
+        self.lines = {}
+
+        common_channel_indexes = self.get_common_channels()
+        if common_channel_indexes is None:
+            return
+
+
+        for unit_index, unit_id in self.controller.iter_visible_units():            
+            template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
+
+            y = template_avg.T.flatten()
+            x = np.arange(y.size)
+            
+            color = self.get_unit_color(unit_id)
+            self.lines[unit_id] = self.figure.line("x", "y", source=dict(x=x, y=y), line_color=color, line_width=2)
+
+        # TODO : alessio handle range
+        # TODO : alessio handle spike
+        # TODO : alessio handle STD on second figure
 
 
 WaveformView._gui_help_txt = """Waveform view

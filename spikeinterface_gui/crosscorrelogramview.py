@@ -35,7 +35,6 @@ class CrossCorrelogramView(ViewBase):
         import pyqtgraph as pg
 
         self.layout = QT.QVBoxLayout()
-        # self.setLayout(self.layout)
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
@@ -88,22 +87,16 @@ class CrossCorrelogramView(ViewBase):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
 
-        # Initialize plot pane
         empty_fig = bpl.figure(
             sizing_mode="stretch_both",
-            # height=300,
-            # width=300,
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
         )
         self.empty_plot_pane = pn.pane.Bokeh(empty_fig, sizing_mode="stretch_both")
 
-
-        # Main layout with improved sizing and spacing
         self.layout = pn.Column(
             self.empty_plot_pane,
-            # sizing_mode="stretch_width",
             sizing_mode="stretch_both",
         )
         self.is_warning_active = False

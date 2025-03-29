@@ -88,8 +88,9 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
-            # layout_preset='default',
-            layout_preset='yep',
+            layout_preset='default',
+            # layout_preset='legacy',
+            # layout_preset='yep',
         )
     return win
 
@@ -100,7 +101,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 # if __name__ == '__main__':
 # setup_module()
     
-win = test_mainwindow(start_app=False, verbose=False)
+    # test_mainwindow(start_qt_app=True, verbose=False)
     # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
     # test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
     # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)
@@ -108,3 +109,5 @@ win = test_mainwindow(start_app=False, verbose=False)
     # import spikeinterface.widgets as sw
     # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+
+win = test_mainwindow(start_app=False, verbose=False)

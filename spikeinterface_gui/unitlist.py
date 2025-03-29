@@ -4,12 +4,6 @@ from .view_base import ViewBase
 
 
 
-
-
-
-# TODO Sam : settings choix de column
-
-
 class UnitListView(ViewBase):
     _supported_backend = ['qt', 'panel']
     # _settings = [] # this is a hack to create the settings button
@@ -45,10 +39,30 @@ class UnitListView(ViewBase):
         self.menu = None
         self.layout = QT.QVBoxLayout()
         
-        h = QT.QHBoxLayout()
-        self.layout.addLayout(h)
+        tb = self.qt_widget.view_toolbar
+        but = QT.QPushButton('columns')
+        but.clicked.connect(self._qt_select_columns)
+        tb.addWidget(but)
 
-        h.addStretch()
+
+        visible_cols = []
+        for col in self.controller.units_table.columns:
+            visible_cols.append(
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
+            )
+        self.visible_columns = pg.parametertree.Parameter.create( name='Visible columns', type='group', children=visible_cols)
+        self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
+        self.tree_visible_columns.header().hide()
+        self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
+        # self.tree_visible_columns.setWindowTitle(u'Visible columns')
+        # self.tree_visible_columns.setWindowFlags(QT.Qt.Window)
+        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_coumns_changed)
+        self.layout.addWidget(self.tree_visible_columns)
+        self.tree_visible_columns.hide()
+
+        # h = QT.QHBoxLayout()
+        # self.layout.addLayout(h)
+        # h.addStretch()
         
         self.table = QT.QTableWidget()
         self.layout.addWidget(self.table)
@@ -85,9 +99,15 @@ class UnitListView(ViewBase):
         # Update stored column order
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
-    def _on_settings_changed(self):
-        displayed_unit_properties = [col for col in self.settings.keys() if self.settings[col]]
-        self.controller.displayed_unit_properties = displayed_unit_properties
+    def _qt_select_columns(self):
+        if not self.tree_visible_columns.isVisible():
+            self.tree_visible_columns.show()
+        else:
+            self.tree_visible_columns.hide()
+
+    def _qt_on_visible_coumns_changed(self):
+        new_displayed = [col for col in self.controller.units_table.columns if self.visible_columns[col]]
+        self.controller.displayed_unit_properties = new_displayed
         self.refresh()
 
     def _qt_refresh(self):
@@ -224,7 +244,7 @@ class UnitListView(ViewBase):
         self.notify_unit_visibility_changed()
     
     def _qt_on_open_context_menu(self):
-        self.menu.popup(self.cursor().pos())
+        self.menu.popup(self.qt_widget.cursor().pos())
     
     def _get_selected_rows(self):
         rows = []
@@ -257,7 +277,7 @@ class UnitListView(ViewBase):
     def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
-        self.notigy_manual_curation_updated()
+        self.notify_manual_curation_updated()
         self.refresh()
 
     def on_delete_shortcut(self):
