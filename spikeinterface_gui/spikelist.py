@@ -194,8 +194,8 @@ class SpikeListView(ViewBase):
 
         # Create main layout
         self.layout = pn.Column(
-            self.info_text,
             pn.Row(
+                self.info_text,
                 self.clear_button,
                 self.refresh_button,
             ),

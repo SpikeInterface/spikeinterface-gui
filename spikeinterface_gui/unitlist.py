@@ -363,8 +363,8 @@ class UnitListView(ViewBase):
         self.info_text = pn.pane.HTML("")
 
         self.layout = pn.Column(
-            self.info_text, 
             pn.Row(
+                self.info_text,
                 self.select_all_button,
                 self.unselect_all_button,
             ),
@@ -375,8 +375,8 @@ class UnitListView(ViewBase):
         # TODO: fix this
         # self.table.on_change("row", self._on_change)
         self.source.selected.on_change("indices", self._panel_on_selection_changed)
-        self.select_all_button.on_click(lambda event: self.show_all())
-        self.unselect_all_button.on_click(lambda event: self.hide_all())
+        self.select_all_button.on_click(self.show_all)
+        self.unselect_all_button.on_click(self.hide_all)
 
 
     def _panel_refresh(self):
