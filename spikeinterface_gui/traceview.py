@@ -151,15 +151,17 @@ class MixinViewTrace:
         import panel as pn
 
         self.segment_selector = pn.widgets.Select(
-            name="Segment",
+            name="",
             options=[f"Segment {i}" for i in range(self.controller.num_segments)],
             value=f"Segment {self.seg_index}",
         )
 
         # Window size control
         self.xsize_spinner = pn.widgets.FloatInput(
-            name="Window Size (s)", value=self.xsize, start=0.001, end=self.settings['xsize_max'], step=0.1
+            name="", value=self.xsize, start=0.001, end=self.settings['xsize_max'], step=0.1
         )
+        xsize_label = pn.widgets.StaticText(name="", value="Window Size (s)")
+        xsize = pn.Row(xsize_label, self.xsize_spinner)
 
         # Auto scale button
         self.auto_scale_button = pn.widgets.Button(name="Auto Scale", button_type="default")
@@ -170,21 +172,15 @@ class MixinViewTrace:
         t_stop = length / self.controller.sampling_frequency
         self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1)
 
-        # TODO sam
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
         self.auto_scale_button.on_click(lambda event: self.auto_scale)
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value")
 
-        # TODO generic toolbar
-        # self.toolbar = pn.Column(
-        #     pn.Row(self.segment_selector, self.xsize_spinner, self.auto_scale_button),
-        #     pn.Row(self.time_slider, width=800),
-        # )
         self.toolbar = pn.Row(
             self.segment_selector,
-            self.xsize_spinner,
+            xsize,
             self.auto_scale_button
         )
 
@@ -507,6 +503,7 @@ class TraceView(ViewBase, MixinViewTrace):
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.figure.toolbar.logo = None
         
         length = self.controller.get_num_samples(self.seg_index)
         t_stop = length / self.controller.sampling_frequency
@@ -518,7 +515,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
 
         # Configure axes
-        self.figure.xaxis.axis_label = "Time (s)"
         self.figure.xaxis.axis_label_text_color = "white"
         self.figure.xaxis.axis_line_color = "white"
         self.figure.xaxis.major_label_text_color = "white"
@@ -554,6 +550,8 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
+        from bokeh.models import Range1d
+
         t = self.time_by_seg[self.seg_index]
         t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
@@ -578,10 +576,8 @@ class TraceView(ViewBase, MixinViewTrace):
         })
 
         # Update plot ranges for x-axis too
-        self.figure.x_range.start = t1
-        self.figure.x_range.end = t2
-        self.figure.y_range.start = 0 - 1.5 
-        self.figure.y_range.end = n + 0.5
+        self.figure.x_range = Range1d(start=t1, end=t2)
+        self.figure.y_range = Range1d(start=-0.5, end=n - 0.5)
 
     def _panel_on_tap(self, event):
         if not hasattr(event, "x") or not hasattr(event, "y"):
@@ -606,7 +602,7 @@ class TraceView(ViewBase, MixinViewTrace):
             peak_time = peak_ind / self.controller.sampling_frequency
 
             if seg_index != self.seg_index:
-                self.change_segment(seg_index)
+                self._panel_change_segment(seg_index)
 
             self.xsize = self.settings['zoom_size']
             self.xsize_spinner.value = self.xsize
@@ -618,7 +614,7 @@ class TraceView(ViewBase, MixinViewTrace):
             margin = self.xsize / 3
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
-            self.refresh()
+            self._panel_refresh()
 
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()

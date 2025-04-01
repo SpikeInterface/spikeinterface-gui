@@ -14,6 +14,7 @@ class MergeView(ViewBase):
             'similarity_correlograms', 'temporal_splits', 'x_contaminations', 'feature_neighbors'
             ]
         },
+    ]
 
     _similarity_params = [
         {'name': 'threshold_similarity', 'type': 'float', 'value': .9, 'step': 0.01},

@@ -184,6 +184,7 @@ class SimilarityView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.figure.toolbar.logo = None
 
         # Create initial color mapper
         N = 512

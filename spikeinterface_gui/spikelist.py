@@ -184,24 +184,23 @@ class SpikeListView(ViewBase):
             stylesheets=[table_stylesheet]
         )
 
-        self.refresh_button = pn.widgets.Button(name="↻ spikes", button_type="default", width=100)
+        self.refresh_button = pn.widgets.Button(name="↻ spikes", button_type="default", sizing_mode="stretch_width")
         self.refresh_button.on_click(self._panel_on_refresh_click)
 
-        self.clear_button = pn.widgets.Button(name="Clear Selection", button_type="default", width=100)
+        self.clear_button = pn.widgets.Button(name="Clear", button_type="default",  sizing_mode="stretch_width")
         self.clear_button.on_click(self._panel_on_clear_click)
 
         self.info_text = pn.pane.HTML("")
 
         # Create main layout
         self.layout = pn.Column(
+            self.info_text,
             pn.Row(
-                self.info_text,
-                pn.Spacer(),
                 self.clear_button,
                 self.refresh_button,
             ),
             self.table,
-            sizing_mode="stretch_width",
+            sizing_mode="stretch_both",
         )
 
         # Connect events
@@ -274,6 +273,11 @@ class SpikeListView(ViewBase):
         self._panel_refresh_label()
         self.controller.set_indices_spike_selected([])
         self.refresh()
+
+    def _panel_on_visible_change(self, event):
+        # Refresh the table data when the panel becomes visible
+        if event.new:  # If panel becomes visible
+            self._panel_refresh()
 
     def _panel_on_spike_selection_changed(self):
         selected_inds = self.controller.get_indices_spike_selected()

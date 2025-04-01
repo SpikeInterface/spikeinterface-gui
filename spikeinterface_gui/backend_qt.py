@@ -17,8 +17,9 @@ class SignalNotifier(QT.QObject):
     channel_visibility_changed = QT.pyqtSignal()
     manual_curation_updated = QT.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, view=None):
         QT.QObject.__init__(self, parent=parent)
+        self.view = view
 
     def notify_spike_selection_changed(self):
         self.spike_selection_changed.emit()
@@ -100,7 +101,7 @@ def create_settings(view, parent):
     view.tree_settings.setWindowTitle(u'View options')
     # view.tree_settings.setWindowFlags(QT.Qt.Window)
 
-def listen_setting_changes(view, parent):
+def listen_setting_changes(view):
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
 

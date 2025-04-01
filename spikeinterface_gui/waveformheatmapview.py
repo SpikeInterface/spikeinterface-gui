@@ -46,6 +46,8 @@ class WaveformHeatMapView(ViewBase):
 
         intersect_sparse_indexes = self.controller.get_intersect_sparse_channels(visible_unit_ids)
 
+        if len(intersect_sparse_indexes) == 0:
+            return None
 
         waveforms = []
         for unit_id in visible_unit_ids:
@@ -54,6 +56,8 @@ class WaveformHeatMapView(ViewBase):
             keep = np.isin(chan_inds, intersect_sparse_indexes)
             waveforms.append(wfs[:, :, keep])
         waveforms = np.concatenate(waveforms)
+        if len(waveforms) == 0:
+            return
         data  = waveforms.swapaxes(1,2).reshape(waveforms.shape[0], -1)
         
         bin_min, bin_max = self.settings['bin_min'], self.settings['bin_max']
@@ -66,10 +70,10 @@ class WaveformHeatMapView(ViewBase):
         hist2d = np.zeros((data.shape[1], bins.size))
         indexes0 = np.arange(data.shape[1])
         
-        data_bined = np.floor((data-bin_min)/bin_size).astype('int32')
-        data_bined = data_bined.clip(0, bins.size-1)
+        data_binned = np.floor((data-bin_min)/bin_size).astype('int32')
+        data_binned = data_binned.clip(0, bins.size-1)
         
-        for d in data_bined:
+        for d in data_binned:
             hist2d[indexes0, d] += 1
         
         return hist2d
@@ -235,6 +239,7 @@ class WaveformHeatMapView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.figure.toolbar.logo = None
         self.figure.grid.visible = False
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
 
@@ -254,6 +259,14 @@ class WaveformHeatMapView(ViewBase):
 
     def _panel_refresh(self):
         hist2d = self.get_plotting_data()
+
+        if hist2d is None:
+            self.image_source.data.update({
+                "image": [],
+                "dw": [],
+                "dh": []
+            })
+            return
 
         self.image_source.data.update({
             "image": [hist2d.T],

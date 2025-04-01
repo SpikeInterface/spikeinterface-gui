@@ -421,7 +421,7 @@ class UnitListView(ViewBase):
         if len(new) == 1 and len(old or []) != 0:
             for unit_id in self.controller.unit_visible_dict:
                 self.controller.unit_visible_dict[unit_id] = False
-
+                self.controller.unit_visible_dict[unit_id] = False
         # Set selected units as visible
         for unit_id in selected_unit_ids:
             self.controller.unit_visible_dict[unit_id] = True

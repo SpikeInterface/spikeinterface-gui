@@ -239,6 +239,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.figure.toolbar.logo = None
 
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
 
@@ -308,6 +309,31 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # Initial setup
         # self.change_segment(0)
 
+    def _panel_seek_with_selected_spike(self):
+        ind_selected = self.controller.get_indices_spike_selected()
+        n_selected = ind_selected.size
+
+        if self.settings['auto_zoom_on_select'] and n_selected == 1:
+            ind = ind_selected[0]
+            peak_ind = self.controller.spikes[ind]["sample_index"]
+            seg_index = self.controller.spikes[ind]["segment_index"]
+            peak_time = peak_ind / self.controller.sampling_frequency
+
+            if seg_index != self.seg_index:
+                self._panel_change_segment(seg_index)
+
+            self.xsize = self.settings['zoom_size']
+            self.xsize_spinner.value = self.xsize
+
+            # Update time slider
+            self.time_slider.value = peak_time
+
+            # Center view on spike
+            margin = self.xsize / 3
+            self.figure.x_range.start = peak_time - margin
+            self.figure.x_range.end = peak_time + 2 * margin
+            self._panel_refresh()
+
     def _panel_on_xsize_changed(self, event):
         self.xsize = event.new
         self.refresh()
@@ -320,8 +346,12 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.make_color_lut()
         self.refresh()
 
+    def _panel_on_spike_selection_changed(self):
+        self._panel_seek_with_selected_spike()
 
     def _panel_refresh(self):
+        from bokeh.models import Range1d
+
         t = self.time_by_seg[self.seg_index]
         t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
@@ -349,10 +379,9 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.color_mapper.low = -self.color_limit
         self.color_mapper.high = self.color_limit
 
-        self.figure.x_range.start = t1
-        self.figure.x_range.end = t2
-        self.figure.y_range.start = 0
-        self.figure.y_range.end = data_curves.shape[1]
+
+        self.figure.x_range = Range1d(start=t1, end=t2)
+        self.figure.y_range = Range1d(start=0, end=data_curves.shape[1])
 
     def _panel_gain_zoom(self, event):
         factor = 1.3 if event.delta > 0 else 1 / 1.3
