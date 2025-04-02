@@ -15,8 +15,6 @@ class ProbeView(ViewBase):
             {'name': 'radius_units', 'type': 'float', 'value': 30.},
             {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
             {'name': 'method_localize_unit', 'type': 'list', 'limits': possible_localization_methods},
-            
-            
         ]
     
     _need_compute = True
@@ -263,7 +261,7 @@ class ProbeView(ViewBase):
     def _qt_on_pick_unit(self, x, y, multi_select=False):
         unit_id, _ = self.find_closest_unit(x, y)
         if unit_id is not None:
-            radius = self.params["radius_channel"]
+            radius = self.settings["radius_channel"]
             if multi_select:
                 self.controller.unit_visible_dict[unit_id] = not (self.controller.unit_visible_dict[unit_id])
             else:

@@ -155,6 +155,7 @@ class CrossCorrelogramView(ViewBase):
                     border_fill_color=_bg_color,
                     outline_line_color="white",
                 )
+                p.toolbar.logo = None
 
                 # Get color from controller
                 if r == c:
@@ -164,6 +165,7 @@ class CrossCorrelogramView(ViewBase):
                 else:
                     color = "#787878"
                     fill_alpha = 0.4
+
 
                 p.quad(
                     top=count,
@@ -181,8 +183,8 @@ class CrossCorrelogramView(ViewBase):
             self.plots.append(full_row)
 
         if len(self.plots) > 0:
-            grid = gridplot(self.plots, toolbar_location="right")
-            self.layout[0] = pn.pane.Bokeh(grid, sizing_mode="stretch_both")
+            grid = gridplot(self.plots, toolbar_location="right", sizing_mode="stretch_both")
+            self.layout[0] = grid
         else:
             self.layout[0] = self.empty_plot_pane
 
@@ -190,7 +192,4 @@ class CrossCorrelogramView(ViewBase):
 
 CrossCorrelogramView._gui_help_txt = """Crosscorrelogram of units/autocorrelogram of one unit
 Shows only the selected unit(s).
-Settings control the bin size in ms.
-Right mouse : zoom
-Left mouse : drags the correlograms"""
-
+Settings control the bin size in ms."""

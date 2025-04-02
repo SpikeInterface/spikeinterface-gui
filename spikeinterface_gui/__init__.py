@@ -14,12 +14,3 @@ from .version import version as __version__
 
 from .main import run_mainwindow
 
-
-# TODO sam
-#  * remove compute
-
-
-# TODO alessio:
-#  * signal handler for panel : avoid self refresh
-#  * MergeView
-#  * CurationView

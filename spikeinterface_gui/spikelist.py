@@ -4,7 +4,7 @@ import numpy as np
 from .view_base import ViewBase
 
 
-_columns = ['num', 'unit_id', 'segment', 'sample_index', 'channel_index', 'rand_selected']
+_columns = ['num', 'unit_id', 'segment_index', 'sample_index', 'channel_index', 'rand_selected']
 
 
 
@@ -184,10 +184,10 @@ class SpikeListView(ViewBase):
             stylesheets=[table_stylesheet]
         )
 
-        self.refresh_button = pn.widgets.Button(name="↻ spikes", button_type="default", width=100)
+        self.refresh_button = pn.widgets.Button(name="↻ spikes", button_type="default", sizing_mode="stretch_width")
         self.refresh_button.on_click(self._panel_on_refresh_click)
 
-        self.clear_button = pn.widgets.Button(name="Clear Selection", button_type="default", width=100)
+        self.clear_button = pn.widgets.Button(name="Clear", button_type="default",  sizing_mode="stretch_width")
         self.clear_button.on_click(self._panel_on_clear_click)
 
         self.info_text = pn.pane.HTML("")
@@ -196,12 +196,11 @@ class SpikeListView(ViewBase):
         self.layout = pn.Column(
             pn.Row(
                 self.info_text,
-                pn.Spacer(),
                 self.clear_button,
                 self.refresh_button,
             ),
             self.table,
-            sizing_mode="stretch_width",
+            sizing_mode="stretch_both",
         )
 
         # Connect events
@@ -209,6 +208,8 @@ class SpikeListView(ViewBase):
 
 
     def _panel_refresh(self):
+        import matplotlib.colors as mcolors
+
         self.controller.update_visible_spikes()
         selected_inds = self.controller.get_indices_spike_selected()
         visible_inds = self.controller.get_indices_spike_visible()
@@ -218,12 +219,15 @@ class SpikeListView(ViewBase):
         data =  {
             'selected': np.isin(visible_inds, selected_inds),
             'num': visible_inds,
-            'unit_id': unit_ids[spikes['unit_index']],
             'segment_index': spikes['segment_index'],
             'sample_index': spikes['sample_index'],
             'channel_index': spikes['channel_index'],
             'rand_selected': spikes['rand_selected'],
         }
+        data['unit_id'] = [
+            {"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
+            for unit_id in unit_ids[spikes['unit_index']]
+        ]
 
         # Update source data
         self.source.data = data
@@ -269,6 +273,11 @@ class SpikeListView(ViewBase):
         self._panel_refresh_label()
         self.controller.set_indices_spike_selected([])
         self.refresh()
+
+    def _panel_on_visible_change(self, event):
+        # Refresh the table data when the panel becomes visible
+        if event.new:  # If panel becomes visible
+            self._panel_refresh()
 
     def _panel_on_spike_selection_changed(self):
         selected_inds = self.controller.get_indices_spike_selected()

@@ -241,6 +241,7 @@ class SpikeAmplitudeView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.scatter_fig.toolbar.logo = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = "Amplitude"
 
@@ -252,6 +253,7 @@ class SpikeAmplitudeView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"}  # Make histogram narrower than scatter plot
         )
+        self.hist_fig.toolbar.logo = None
         self.hist_fig.yaxis.axis_label = "Amplitude"
         self.hist_fig.xaxis.axis_label = "Count"
 

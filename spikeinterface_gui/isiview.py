@@ -77,6 +77,7 @@ class ISIView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.figure.toolbar.logo = None
 
         self.layout = pn.Column(
                 self.figure,

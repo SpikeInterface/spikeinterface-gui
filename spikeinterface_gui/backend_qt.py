@@ -11,14 +11,15 @@ from .utils_qt import qt_style, add_stretch_to_qtoolbar
 import time
 
 # Used by views to emit/trigger signals
-class SignalNotifyer(QT.QObject):
+class SignalNotifier(QT.QObject):
     spike_selection_changed = QT.pyqtSignal()
     unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
     manual_curation_updated = QT.pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, view=None):
         QT.QObject.__init__(self, parent=parent)
+        self.view = view
 
     def notify_spike_selection_changed(self):
         self.spike_selection_changed.emit()
@@ -47,10 +48,10 @@ class SignalHandler(QT.QObject):
         self._active = False
 
     def connect_view(self, view):
-        view.notifyer.spike_selection_changed.connect(self.on_spike_selection_changed)
-        view.notifyer.unit_visibility_changed.connect(self.on_unit_visibility_changed)
-        view.notifyer.channel_visibility_changed.connect(self.on_channel_visibility_changed)
-        view.notifyer.manual_curation_updated.connect(self.on_manual_curation_updated)
+        view.notifier.spike_selection_changed.connect(self.on_spike_selection_changed)
+        view.notifier.unit_visibility_changed.connect(self.on_unit_visibility_changed)
+        view.notifier.channel_visibility_changed.connect(self.on_channel_visibility_changed)
+        view.notifier.manual_curation_updated.connect(self.on_manual_curation_updated)
 
     def on_spike_selection_changed(self):
         if not self._active:
@@ -91,7 +92,7 @@ class SignalHandler(QT.QObject):
 
 
 def create_settings(view, parent):
-    view.settings = pg.parametertree.Parameter.create( name='settings', type='group', children=view._settings)
+    view.settings = pg.parametertree.Parameter.create(name='settings', type='group', children=view._settings)
     
     # not that the parent is not the view (not Qt anymore) itself but the widget
     view.tree_settings = pg.parametertree.ParameterTree(parent=parent)
@@ -100,7 +101,7 @@ def create_settings(view, parent):
     view.tree_settings.setWindowTitle(u'View options')
     # view.tree_settings.setWindowFlags(QT.Qt.Window)
 
-def listen_setting_changes(view, parent):
+def listen_setting_changes(view):
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
 

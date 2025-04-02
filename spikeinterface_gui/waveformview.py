@@ -43,6 +43,7 @@ class WaveformView(ViewBase):
         else:
             self.delta_y = 40. # um
         self.factor_y = .05
+        self.factor_x = 1.0
         espx = self.delta_x / 2.5
         for chan_ind, chan_id in enumerate(self.controller.channel_ids):
             x, y = self.contact_location[chan_ind, :]
@@ -423,7 +424,7 @@ class WaveformView(ViewBase):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
-        from bokeh.models import ColumnDataSource, Range1d, HoverTool
+        from bokeh.models import WheelZoomTool, Range1d, HoverTool
         from bokeh.events import Tap, MouseWheel
 
 
@@ -444,7 +445,10 @@ class WaveformView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"},
         )
-        
+        self.zoom_tool = WheelZoomTool()
+        self.figure.toolbar.logo = None
+        self.figure.add_tools(self.zoom_tool)
+        self.figure.toolbar.active_scroll = self.zoom_tool
         self.figure.grid.visible = False
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
         
@@ -467,10 +471,22 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _panel_gain_zoom(self, event):
-        if self.mode == 'geometry':
-            factor = 1.3 if event.delta > 0 else 1 / 1.3
-            self.factor_y *= factor
-            self._panel_refresh_mode_geometry()
+        modifiers = event.modifiers
+        if modifiers["shift"]:
+            self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
+            if self.mode == 'geometry':
+                factor = 1.3 if event.delta > 0 else 1 / 1.3
+                self.factor_y *= factor
+                self._panel_refresh_mode_geometry()
+        elif modifiers["alt"]:
+            self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
+            if self.mode == 'geometry':
+                factor = 1.3 if event.delta > 0 else 1 / 1.3
+                self.factor_x *= factor
+                self._panel_refresh_mode_geometry()
+                print(self.factor_x)
+        elif not modifiers["ctrl"]:
+            self.figure.toolbar.active_scroll = self.zoom_tool
 
     def _panel_refresh(self):
         self.mode = self.mode_selector.value
@@ -503,14 +519,17 @@ class WaveformView(ViewBase):
             
             # this disconnect
             wf[0, :] = np.nan
-            xvect = self.xvect[common_channel_indexes, :]
+            xvect = self.xvect[common_channel_indexes, :] * self.factor_x
             
             color = self.get_unit_color(unit_id)
             
             source = {"x": xvect.flatten(), "y" : wf.T.flatten() }
             self.lines[unit_id] = self.figure.line("x", "y", source=source, line_color=color, line_width=2)
-        
-        # TODO : alessio handle range
+
+        self.figure.x_range.start = np.min(self.xvect) - 50
+        self.figure.x_range.end = np.max(self.xvect) + 50
+        self.figure.y_range.start = np.min(ypos) - 50
+        self.figure.y_range.end = np.max(ypos) + 50
         # TODO : alessio handle spike
 
 

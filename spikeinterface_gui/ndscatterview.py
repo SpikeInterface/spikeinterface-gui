@@ -344,7 +344,7 @@ class NDScatterView(ViewBase):
             outline_line_color="white",
             styles={"flex": "1"}
         )
-
+        self.scatter_fig.toolbar.logo = None
         self.scatter_fig.grid.visible = False
         self.scatter_fig.xgrid.grid_line_color = None
         self.scatter_fig.ygrid.grid_line_color = None
@@ -371,7 +371,7 @@ class NDScatterView(ViewBase):
 
         self.toolbar = pn.Row(
             self.next_face_button, self.random_button, self.random_tour_button, sizing_mode="stretch_both",
-            styles={"flex": "0.1"}
+            styles={"flex": "0.15"}
         )
 
         self.layout = pn.Column(
