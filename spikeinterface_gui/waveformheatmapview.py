@@ -43,6 +43,8 @@ class WaveformHeatMapView(ViewBase):
     def get_plotting_data(self):
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
+        if len(visible_unit_ids) == 0:
+            return None
 
         intersect_sparse_indexes = self.controller.get_intersect_sparse_channels(visible_unit_ids)
 
@@ -56,8 +58,6 @@ class WaveformHeatMapView(ViewBase):
             keep = np.isin(chan_inds, intersect_sparse_indexes)
             waveforms.append(wfs[:, :, keep])
         waveforms = np.concatenate(waveforms)
-        if len(waveforms) == 0:
-            return
         data  = waveforms.swapaxes(1,2).reshape(waveforms.shape[0], -1)
         
         bin_min, bin_max = self.settings['bin_min'], self.settings['bin_max']

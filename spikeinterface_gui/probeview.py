@@ -538,10 +538,6 @@ class ProbeView(ViewBase):
             self.should_update_channel_circle = False
             self.should_update_unit_circle = False
 
-    def _panel_on_unit_visibility_changed(self):
-        # TODO sam
-        pass
-
     
     def _panel_on_tap(self, event):
         x, y = event.x, event.y
@@ -568,9 +564,9 @@ class ProbeView(ViewBase):
                 self.controller.set_channel_visibility(visible_channel_inds)
                 self.notify_channel_visibility_changed()
 
+            self._panel_update_unit_glyphs()
             self.notify_unit_visibility_changed()
-            self._panel_on_unit_visibility_changed()
-            self.refresh()
+            # self._panel_refresh()
 
     def _panel_on_double_tap(self, event):
         # Find closest unit to click position
@@ -609,9 +605,9 @@ class ProbeView(ViewBase):
                 self.figure.y_range.end = y + margin
 
             # Notify other views
+            self._panel_update_unit_glyphs()
             self.notify_unit_visibility_changed()
             self.notify_channel_visibility_changed()
-            self.refresh()
 
 
 

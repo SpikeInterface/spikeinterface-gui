@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from .view_base import ViewBase
 
@@ -18,16 +19,16 @@ class UnitListView(ViewBase):
 
 
     ## common ##
-    def show_all(self):
+    def show_all(self, event=None):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = True
-        self.refresh()
+        self._refresh()
         self.notify_unit_visibility_changed()
     
-    def hide_all(self):
+    def hide_all(self, event=None):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = False
-        self.refresh()
+        self._refresh()
         self.notify_unit_visibility_changed()
 
     ## Qt ##
@@ -296,10 +297,13 @@ class UnitListView(ViewBase):
     ## panel zone ##
     def _panel_make_layout(self):
         import panel as pn
+        import pandas as pd
         import matplotlib.colors as mcolors
+        from bokeh.models.widgets.tables import BooleanFormatter
         from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
         from .utils_panel import _bg_color, table_stylesheet, checkbox_formatter_template
 
+        pn.extension("tabulator")
 
         unit_formatter = HTMLTemplateFormatter(
             template="""
@@ -322,40 +326,64 @@ class UnitListView(ViewBase):
 
         # set unmutable data
         data = {
-            "unit_id": [],
-            "channel_id": [],
-            "sparsity": [],
-            "selected": list(self.controller.unit_visible_dict.values()),
+            "Unit ID": [],
+            "Channel ID": [],
+            "Sparsity": [],
+            "Visible": list(self.controller.unit_visible_dict.values()),
         }
-        self.main_cols = ["unit_id", "channel_id", "sparsity", "selected"]
+        self.main_cols = list(data.keys())
 
         sparsity_mask = self.controller.get_sparsity_mask()
         for unit_index, unit_id in enumerate(unit_ids):
-            data["unit_id"].append(
+            data["Unit ID"].append(
                 {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
             )
-            data["channel_id"].append(
+            data["Channel ID"].append(
                 self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
             )
-            data["sparsity"].append(
+            data["Sparsity"].append(
                 np.sum(sparsity_mask[unit_index, :])
             )
-            
+        for col in self.controller.displayed_unit_properties:
+            data[col.capitalize().replace("_", " ")] = self.controller.units_table[col]
 
-        self.source = ColumnDataSource({})
-        self.source.data = data
-
-        self.table = DataTable(
-            source=self.source,
-            columns=main_cols,
-            sizing_mode="stretch_both",
-            selectable=True,
-            styles={
-                "background-color": _bg_color,
-                "color": "#ffffff",
-            },
-            stylesheets=[table_stylesheet]
+        self.df = pd.DataFrame(
+            data=data,
+            index=unit_ids
         )
+        formatters = {
+            "Unit ID": unit_formatter,
+            "Visible": BooleanFormatter()
+        }
+        editors = {}
+        for col in self.df.columns:
+            if col != "Visible":
+                editors[col] = {'type': 'editable', 'value': False}
+        self.table = pn.widgets.Tabulator(
+            self.df,
+            formatters=formatters,
+            frozen_columns=["Unit ID"],
+            sizing_mode="stretch_both",
+            layout="fit_data",
+            show_index=False,
+            hidden_columns=[],
+            editors=editors,
+        )
+
+        # self.source = ColumnDataSource({})
+        # self.source.data = data
+
+        # self.table = DataTable(
+        #     source=self.source,
+        #     columns=main_cols,
+        #     sizing_mode="stretch_both",
+        #     selectable=True,
+        #     styles={
+        #         "background-color": _bg_color,
+        #         "color": "#ffffff",
+        #     },
+        #     stylesheets=[table_stylesheet]
+        # )
 
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default", width=100)
         self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default", width=100)
@@ -372,11 +400,13 @@ class UnitListView(ViewBase):
             sizing_mode="stretch_width",
         )
 
-        # TODO: fix this
-        # self.table.on_change("row", self._on_change)
-        self.source.selected.on_change("indices", self._panel_on_selection_changed)
+        # self.source.selected.on_change("indices", self._panel_on_selection_changed)
+        self.table.on_click(self._panel_on_selection_changed)
         self.select_all_button.on_click(self.show_all)
         self.unselect_all_button.on_click(self.hide_all)
+
+        self.last_row = None
+        self.last_clicked = None
 
 
     def _panel_refresh(self):
@@ -384,47 +414,95 @@ class UnitListView(ViewBase):
         
         # Prepare data for all units
         unit_ids = self.controller.unit_ids
-        data = {}
-        data["selected"] = list(self.controller.unit_visible_dict.values())
-        # ensure str
-        data["unit_index"] =  list(range(unit_ids.size))
+        # data = {}
+        # data["Visible"] = list(self.controller.unit_visible_dict.values())
+        # # ensure str
+        # data["unit_index"] =  list(range(unit_ids.size))
+        df = self.table.value
+        df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
 
-        table_columns = self.table.columns
-        table_fields = [col.field for col in table_columns]
+        # table_columns = self.table.columns
+        # table_fields = [col.field for col in table_columns]
+
+        # for table_col in table_columns:
+        #     if table_col.field not in self.main_cols + self.controller.displayed_unit_properties:
+        #         table_columns.remove(table_col)
+
+        # for col in self.controller.displayed_unit_properties:
+        #     if col not in table_fields:
+        #         table_columns.append(TableColumn(field=col, title=col))
+        #         data[col] = self.controller.units_table[col]
+
+        table_columns = self.df.columns
 
         for table_col in table_columns:
-            if table_col.field not in self.main_cols + self.controller.displayed_unit_properties:
-                table_columns.remove(table_col)
+            main_cols = [col.capitalize() for col in self.main_cols]
+            displayed_cols = [col.capitalize().replace("_", " ") for col in self.controller.displayed_unit_properties]
+            col_name = table_col.capitalize().replace("_", " ")
+            if col_name not in main_cols + displayed_cols:
+                print("Removing column", col_name)
+                df.drop(columns=[col_name], inplace=True)
 
         for col in self.controller.displayed_unit_properties:
-            if col not in table_fields:
-                table_columns.append(TableColumn(field=col, title=col))
-                data[col] = self.controller.units_table[col]
+            col_name = col.capitalize().replace("_", " ")
+            if col_name not in table_columns:
+                self.table.hidden_columns.append(col_name)
 
-        self.table.columns = table_columns
+        self.table.value = df
 
-        self.source.data.update(data)
+        # self.source.data.update(data)
         n1 = len(unit_ids)
         n2 = sum(self.controller.unit_visible_dict.values())
         txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
         self.info_text.object = txt
 
-    def _panel_on_selection_changed(self, attr, old, new):
-        # Get selected units and update visibility
-        selected_unit_ids = []
+    # TODO: clean up
+    def _panel_on_selection_changed(self, event):
+        row = event.row
+        col = event.column
+        unit_ids = self.controller.unit_ids
+        selected_unit_id = unit_ids[row]
+        time_clicked = time.perf_counter()
+        df = self.table.value
+        if self.last_clicked is not None:
+            
+            if (time_clicked - self.last_clicked) < 0.8 and self.last_row == row:
+                # select only this unit
+                for unit_id in self.controller.unit_visible_dict:
+                    self.controller.unit_visible_dict[unit_id] = False
+                self.controller.unit_visible_dict[selected_unit_id] = True
+                self.notify_unit_visibility_changed()
+            else:
+                if col == "Visible":
+                    self.controller.unit_visible_dict[selected_unit_id] = True
+                    self.notify_unit_visibility_changed()
+                else:
+                    unit_id = self.df.index[row]
 
-        for row_idx in new:
-            unit_index = self.source.data["unit_index"][row_idx]
-            selected_unit_ids.append(self.controller.unit_ids[unit_index])
+        df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
+        self.table.value = df
+        self.last_clicked = time_clicked
+        self.last_row = row
 
-        # Clear all selections first if using single select
-        if len(new) == 1 and len(old or []) != 0:
-            for unit_id in self.controller.unit_visible_dict:
-                self.controller.unit_visible_dict[unit_id] = False
-                self.controller.unit_visible_dict[unit_id] = False
-        # Set selected units as visible
-        for unit_id in selected_unit_ids:
-            self.controller.unit_visible_dict[unit_id] = True
+        print(f"Current selection: {self.table.selection  + [row]}")
+        # new_selected = self.source.data["selected"]
+        # for row_idx in new:
+        #     unit_index = self.source.data["unit_index"][row_idx]
+        #     new_selected[row_idx] = True
+        #     selected_unit_ids.append(self.controller.unit_ids[unit_index])
+
+        # # Update the source data
+        # self.source.data.update({"selected": new_selected})
+
+        # # # Clear all selections first if using single select
+        # # if len(new) == 1 and len(old or []) != 0:
+        # #     for unit_id in self.controller.unit_visible_dict:
+        # #         self.controller.unit_visible_dict[unit_id] = False
+        # #         self.controller.unit_visible_dict[unit_id] = False
+        # # Set selected units as visible
+        # print(f"Selected unit ids: {selected_unit_ids}")
+        # for unit_id in selected_unit_ids:
+        #     self.controller.unit_visible_dict[unit_id] = True
 
         # # Handle channel visibility
         # if len(selected_unit_ids) == 1 and self.params["select_change_channel_visibility"]:
@@ -436,7 +514,7 @@ class UnitListView(ViewBase):
         #         self.controller.set_channel_visibility(visible_channel_inds)
         #         self.param.trigger("channel_visibility_changed")
 
-        self.notify_unit_visibility_changed()
+        # self.notify_unit_visibility_changed()
 
 
     # def _on_change(self, attr, old, new):

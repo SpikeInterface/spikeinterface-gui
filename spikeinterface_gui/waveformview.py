@@ -434,10 +434,7 @@ class WaveformView(ViewBase):
         # Create figure with basic tools
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
-            tools="pan,box_zoom,reset",
-            # toolbar_location="above",
-            active_drag="pan",
-            # match_aspect=True,
+            tools="",
             y_axis_type="auto",
             y_range=Range1d(start=-1000, end=1000),  # Invert y-axis to match Qt
             background_fill_color=_bg_color,
@@ -473,11 +470,7 @@ class WaveformView(ViewBase):
     def _panel_gain_zoom(self, event):
         modifiers = event.modifiers
         if modifiers["shift"]:
-            self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
-            if self.mode == 'geometry':
-                factor = 1.3 if event.delta > 0 else 1 / 1.3
-                self.factor_y *= factor
-                self._panel_refresh_mode_geometry()
+            self.figure.toolbar.active_scroll = self.zoom_tool
         elif modifiers["alt"]:
             self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
             if self.mode == 'geometry':
@@ -486,7 +479,11 @@ class WaveformView(ViewBase):
                 self._panel_refresh_mode_geometry()
                 print(self.factor_x)
         elif not modifiers["ctrl"]:
-            self.figure.toolbar.active_scroll = self.zoom_tool
+            self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
+            if self.mode == 'geometry':
+                factor = 1.3 if event.delta > 0 else 1 / 1.3
+                self.factor_y *= factor
+                self._panel_refresh_mode_geometry()
 
     def _panel_refresh(self):
         self.mode = self.mode_selector.value

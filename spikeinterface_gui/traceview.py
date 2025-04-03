@@ -170,7 +170,7 @@ class MixinViewTrace:
         length = self.controller.get_num_samples(self.seg_index)
         t_start = 0
         t_stop = length / self.controller.sampling_frequency
-        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1)
+        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, sizing_mode="stretch_width")
 
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
@@ -404,7 +404,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self._qt_update_scroll_limits()
 
 
-    def _on_settings_changed_qt(self):
+    def _qt_on_settings_changed(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
         self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
         if self.xsize > self.settings['xsize_max']:

@@ -235,6 +235,8 @@ class SpikeListView(ViewBase):
 
 
     def _panel_on_refresh_click(self, event):
+        self._panel_refresh_label()
+        self.controller.set_indices_spike_selected([])
         self.refresh()
 
     def _panel_on_clear_click(self, event):
@@ -270,9 +272,10 @@ class SpikeListView(ViewBase):
         self.info_text.object = txt
 
     def _panel_on_unit_visibility_changed(self):
-        self._panel_refresh_label()
-        self.controller.set_indices_spike_selected([])
-        self.refresh()
+        from bokeh.models import ColumnDataSource
+        self.source.data = {
+            col: [] for col in _columns
+        }
 
     def _panel_on_visible_change(self, event):
         # Refresh the table data when the panel becomes visible

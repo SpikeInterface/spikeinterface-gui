@@ -45,6 +45,7 @@ table_stylesheet = """
 }
 """
 
+# TODO: fix this (maybe using a Tabulator)
 checkbox_formatter_template = """
 <input type="checkbox" <%= value ? 'checked' : '' %> onclick="
     var indices = source.selected.indices;

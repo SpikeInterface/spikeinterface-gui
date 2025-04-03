@@ -220,13 +220,10 @@ class ViewWidget(QT.QWidget):
     def __init__(self, view_class, parent=None):
         QT.QWidget.__init__(self, parent=parent)
 
-        
-
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
         self.layout.setContentsMargins(4,4,4,4)
         self.layout.setSpacing(4)
-
 
         tb = self.view_toolbar = QT.QToolBar()
         self.layout.addWidget(self.view_toolbar)
@@ -242,8 +239,7 @@ class ViewWidget(QT.QWidget):
         if view_class._need_compute:
             but = QT.QPushButton('compute')
             tb.addWidget(but)
-            # but.clicked.connect(view.compute)
-            # TODO sam make new compute
+            but.clicked.connect(self.compute)
 
         but = QT.QPushButton('↻ refresh')
         tb.addWidget(but)
@@ -271,6 +267,11 @@ class ViewWidget(QT.QWidget):
             view.tree_settings.show()
         else:
             view.tree_settings.hide()
+
+    def compute(self):
+        view = self._view()
+        if view._need_compute:
+            view.compute()
     
     def open_help(self):
         view = self._view()

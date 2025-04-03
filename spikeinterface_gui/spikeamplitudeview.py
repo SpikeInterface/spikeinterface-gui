@@ -287,6 +287,7 @@ class SpikeAmplitudeView(ViewBase):
 
         max_count = 1
         scatter_data = {"x": [], "y": [], "color": []}
+        self.hist_fig.renderers = []
         for unit_id in self.controller.unit_ids:
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
@@ -311,6 +312,7 @@ class SpikeAmplitudeView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         # Add scatter plot with correct alpha parameter
+        self.scatter_fig.renderers = []
         self.scatter = self.scatter_fig.scatter(
             "x",
             "y",

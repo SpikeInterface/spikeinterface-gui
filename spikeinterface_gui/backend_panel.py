@@ -153,7 +153,7 @@ class PanelMainWindow:
 
     def make_views(self):
         self.views = {}
-        # this contains view layout + settings
+        # this contains view layout + settings + compute
         self.view_layouts = {}
         for view_name, view_class in possible_class_views.items():
             if 'panel' not in view_class._supported_backend:
@@ -166,12 +166,16 @@ class PanelMainWindow:
 
             if view_class._settings is not None:
                 settings = pn.Param(view.settings._parametrized, sizing_mode="stretch_height", name="")
+                if view_class._need_compute:
+                    compute_button = pn.widgets.Button(name="Compute", button_type="primary")
+                    compute_button.on_click(view.compute)
+                    settings = pn.Row(settings, compute_button)
                 view_layout = pn.Tabs(
-                    ("View", view.layout), 
+                    ("📊", view.layout), 
                     ("⚙️", settings),
                     sizing_mode="stretch_both",
                     dynamic=True,
-                    tabs_location="above",
+                    tabs_location="left",
                 )
             else:
                 view_layout = pn.Column(
@@ -206,14 +210,17 @@ class PanelMainWindow:
                 )
 
         # Create GridStack layout with resizable regions
-        grid_per_zone = 4
+        grid_per_zone = 2
         gs = pn.GridStack(
             sizing_mode='stretch_both',
             allow_resize=True,
             allow_drag=False,
-            ncols=4 * grid_per_zone,
-            nrows=4 * grid_per_zone,
+            # ncols=4 * grid_per_zone,
+            # nrows=4 * grid_per_zone,
         )
+        # gs = pn.GridSpec(
+        #     sizing_mode='stretch_both',
+        # )
 
         # Add the zones to the gridstack layout
         # Left side
@@ -256,6 +263,7 @@ class PanelMainWindow:
                 print(row_slice, col_slice, zone)
             else:
                 print('no view', zone)
+            print("Placing view", view.__class__.__name__, zone, "at", row_slice, col_slice)
             gs[col_slice, row_slice] = view
 
         # Right side

@@ -13,6 +13,13 @@ from pathlib import Path
 
 import numpy as np
 
+# import logging
+
+
+# logger = logging.getLogger('bokeh')
+# logger.setLevel(logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+
 test_folder = Path('my_dataset')
 
 
