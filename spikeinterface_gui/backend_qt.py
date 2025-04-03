@@ -89,15 +89,10 @@ class SignalHandler(QT.QObject):
                 # do not refresh it self
                 continue
             view.on_manual_curation_updated()
-    
 
 
 def create_settings(view, parent):
-    settings_ = view._settings
-    for setting_data in settings_:
-        if "default" not in setting_data:
-            setting_data["default"] = setting_data.get("value", None)
-    view.settings = pg.parametertree.Parameter.create(name='settings', type='group', children=settings_)
+    view.settings = pg.parametertree.Parameter.create(name="settings", type='group', children=view._settings)
     
     # not that the parent is not the view (not Qt anymore) itself but the widget
     view.tree_settings = pg.parametertree.ParameterTree(parent=parent)

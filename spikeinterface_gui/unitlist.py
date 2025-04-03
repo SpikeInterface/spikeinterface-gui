@@ -397,6 +397,7 @@ class UnitListView(ViewBase):
         shortcuts = [
             KeyboardShortcut(name="delete", key="d", ctrlKey=False),
             KeyboardShortcut(name="merge", key="m", ctrlKey=False),
+            KeyboardShortcut(name="visible", key=" ", ctrlKey=False),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -490,11 +491,19 @@ class UnitListView(ViewBase):
         return self.table.selection
 
     def _panel_handle_shortcut(self, event):
+        print(event.data)
         if event.data == "delete":
             self.delete_unit()
         elif event.data == "merge":
             self.merge_selected()
-
+        elif event.data == "visible":
+            selected_rows = self._panel_get_selected_unit_ids()
+            for unit_id in self.controller.unit_ids:
+                self.controller.unit_visible_dict[unit_id] = False
+            for unit_id in self.controller.unit_ids[selected_rows]:
+                self.controller.unit_visible_dict[unit_id] = True
+            self.notify_unit_visibility_changed()
+            self._refresh()
 
 UnitListView._gui_help_txt = """# Unit List
 

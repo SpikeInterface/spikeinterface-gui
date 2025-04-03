@@ -180,6 +180,7 @@ class KeyboardShortcuts(ReactComponent):
       }
 
       function onKeyDown(e) {
+        console.log(e);
         const name = keyedShortcuts[hashShortcut(e)];
         if (name) {
           e.preventDefault();

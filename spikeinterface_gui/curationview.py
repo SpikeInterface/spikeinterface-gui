@@ -55,7 +55,6 @@ class CurationView(ViewBase):
         act.triggered.connect(self.unmerge_groups)
 
 
-
         v = QT.QVBoxLayout()
         h.addLayout(v)
         v.addWidget(QT.QLabel("<b>Deleted</b>"))

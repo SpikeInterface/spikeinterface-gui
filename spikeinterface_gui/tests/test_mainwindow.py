@@ -114,6 +114,6 @@ if not test_folder.is_dir():
     # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
 
 win = test_mainwindow(start_app=False, verbose=True, curation=True)
-print("Saving to HTML")
-win.main_layout.save(filename=str(test_folder.parent / "panel_app.html"), embed=True)
+# print("Saving to HTML")
+# win.main_layout.save(filename=str(test_folder.parent / "panel_app.html"), embed=True)
 

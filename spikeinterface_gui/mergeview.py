@@ -9,37 +9,61 @@ from .curation_tools import adding_group
 class MergeView(ViewBase):
     _supported_backend = ['qt']
 
-    _settings = [
-        {"name": "method", "type": "list", "limits": ["similarity", "automerge"]},
-        {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
-        {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
-        {"name": "automerge_preset", "type": "list", "limits": [
-            'similarity_correlograms',
-            'temporal_splits',
-            'x_contaminations',
-            'feature_neighbors'
-            ]
-        },
-    ]
+    _settings = None
 
-    _need_compute = True
+    _methods = [{"name": "method", "type": "list", "limits": ["similarity", "automerge"]}]
+
+    _method_params = {
+        "similarity": [
+            {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
+            {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
+        ],
+        "automerge": [
+            {"name": "automerge_preset", "type": "list", "limits": [
+                'similarity_correlograms',
+                'temporal_splits',
+                'x_contaminations',
+                'feature_neighbors'
+            ]}
+        ]
+    }
+        
+    # [
+    #     {"name": "method", "type": "list", "limits": ["similarity", "automerge"]},
+    #     {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
+    #     {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
+    #     {"name": "automerge_preset", "type": "list", "limits": [
+    #         'similarity_correlograms',
+    #         'temporal_splits',
+    #         'x_contaminations',
+    #         'feature_neighbors'
+    #         ]
+    #     },
+    # ]
+
+    _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        # self.method = None
 
-    def compute(self):
-        method = self.settings['method']
+    def get_potential_merges(self):
+        method = self.method
+        print(f"Computing potential merges using {method} method")
         if method == 'similarity':
-            similarity = self.controller.get_similarity(self.settings['similarity_method'])
+            similarity_params = self.method_params['similarity']
+            print(similarity_params)
+            similarity = self.controller.get_similarity(similarity_params['similarity_method'])
             if similarity is None:
-                similarity = self.controller.compute_similarity(self.settings['similarity_threshold'])
-            th_sim = similarity > self.settings['similarity_threshold']
+                similarity = self.controller.compute_similarity(similarity_params['similarity_threshold'])
+            th_sim = similarity > similarity_params['similarity_threshold']
             unit_ids = self.controller.unit_ids
             self.proposed_merge_unit_groups = [[unit_ids[i], unit_ids[j]] for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
         elif method == 'automerge':
+            automerge_params = self.method_params['automerge']
             params = {
-                'preset': self.settings['automerge_preset']
+                'preset': automerge_params['automerge_preset']
             }
             self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
         else:
@@ -135,12 +159,48 @@ class MergeView(ViewBase):
     def _qt_on_double_click(self, item):
         self.accept_group_merge(item.group_ids)
 
+    def _qt_on_method_change(self):
+        self.method = self.method_selector['method']
+        for method in self.method_params_selectors:
+            self.method_params_selectors[method].setVisible(method == self.method)
+        
 
     def _qt_make_layout(self):
         from .myqt import QT
+        import pyqtgraph as pg
+
+        # create method and arguments layout
+        self.method_selector = pg.parametertree.Parameter.create(name="method", type='group', children=self._methods)
+        method_select = pg.parametertree.ParameterTree(parent=None)
+        method_select.header().hide()
+        method_select.setParameters(self.method_selector, showTop=True)
+        method_select.setWindowTitle(u'View options')
+        method_select.setFixedHeight(50)
+        self.method_selector.sigTreeStateChanged.connect(self._qt_on_method_change)
 
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
+        self.layout.addWidget(method_select)
+
+        self.method_params_selectors = {}
+        self.method_params = {}
+        for method, params in self._method_params.items():
+            method_params = pg.parametertree.Parameter.create(name="params", type='group', children=params)
+            method_tree_settings = pg.parametertree.ParameterTree(parent=None)
+            method_tree_settings.header().hide()
+            method_tree_settings.setParameters(method_params, showTop=True)
+            method_tree_settings.setWindowTitle(u'View options')
+            method_tree_settings.setFixedHeight(100)
+            self.method_params_selectors[method] = method_tree_settings
+            self.method_params[method] = method_params
+            self.layout.addWidget(method_tree_settings)
+        self.method = self.method_selector['method']
+        self._qt_on_method_change()
+        print(f"Initial method: {self.method}")
+
+        but = QT.QPushButton('Calculate merges')
+        self.layout.addWidget(but)
+        but.clicked.connect(self.get_potential_merges)
 
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
@@ -184,11 +244,10 @@ class MergeView(ViewBase):
             for c, label in enumerate(labels):
                 value = row.get(label, "")
                 if label.startswith("unit_id") and "_color" not in label:
-                    unit_id = row.get(label)
                     color = row.get(f"{label}_color")
-                    print(color)
                     pix = QT.QPixmap(16, 16)
-                    pix.fill(color)
+                    print(color)
+                    pix.fill(QT.QColor(color[:3]))
                     icon = QT.QIcon(pix)
                     item = QT.QTableWidgetItem(value)
                     item.setIcon(icon)
@@ -231,7 +290,8 @@ class MergeView(ViewBase):
     def _panel_refresh(self):
         """Update the table with current data"""
         import pandas as pd
-        labels, rows = self.core.get_table_data()
+        from bokeh.models import HTMLTemplateFormatter
+        labels, rows = self.get_table_data()
         if not rows:
             if self.table is not None:
                 self.layout.pop(-1)
