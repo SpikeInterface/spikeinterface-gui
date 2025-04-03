@@ -1,5 +1,3 @@
-import PySide6
-import spikeinterface_gui as sigui
 from spikeinterface_gui import run_mainwindow
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
@@ -20,7 +18,7 @@ import numpy as np
 # logger.setLevel(logging.DEBUG)
 # logging.basicConfig(level=logging.DEBUG)
 
-test_folder = Path('my_dataset')
+test_folder = Path(__file__).parent / 'my_dataset'
 
 
 def setup_module():
@@ -89,15 +87,12 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     else:
         win = run_mainwindow(
             analyzer,
-            # backend="qt",
             backend="panel",
             start_app=start_app, verbose=verbose,
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
             layout_preset='default',
-            # layout_preset='legacy',
-            # layout_preset='yep',
         )
     return win
 
@@ -106,7 +101,8 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 
 
 # if __name__ == '__main__':
-# setup_module()
+if not test_folder.is_dir():
+    setup_module()
     
     # test_mainwindow(start_qt_app=True, verbose=False)
     # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
@@ -117,4 +113,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
 
-win = test_mainwindow(start_app=False, verbose=False)
+win = test_mainwindow(start_app=False, verbose=True, curation=True)
+print("Saving to HTML")
+win.main_layout.save(filename=str(test_folder.parent / "panel_app.html"), embed=True)
+

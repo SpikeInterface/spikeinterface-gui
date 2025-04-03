@@ -555,6 +555,8 @@ class Controller():
             if unit_id in all_merged_units:
                 continue
             self.curation_data["removed_units"].append(unit_id)
+            if self.verbose:
+                print(f"Unit {unit_id} is removed from the curation data")
     
     def make_manual_restore(self, restire_unit_ids):
         """
@@ -565,6 +567,8 @@ class Controller():
 
         for unit_id in restire_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
+                if self.verbose:
+                    print(f"Unit {unit_id} is restored from the curation data")
                 self.curation_data["removed_units"].remove(unit_id)
 
     def make_manual_merge_if_possible(self, merge_unit_ids):
@@ -578,24 +582,31 @@ class Controller():
 
         """
         if not self.curation:
-            return
+            return False
 
         if len(merge_unit_ids) < 2:
-            return
+            return False
 
         for unit_id in merge_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
-                return
+                return False
 
         merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
         self.curation_data["merge_unit_groups"] = merged_groups
+        if self.verbose:
+            print(f"Merged unit group: {merge_unit_ids}")
+        return True
     
-    def make_manual_restore_merge(self, merge_group_index):
+    def make_manual_restore_merge(self, merge_group_indices):
         if not self.curation:
             return
 
+        merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
 
-        del self.curation_data["merge_unit_groups"][merge_group_index]
+        for merge_group in merge_groups_to_remove:
+            if self.verbose:
+                print(f"Unmerge merge group {merge_group}")
+            self.curation_data["merge_unit_groups"].remove(merge_group)
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive

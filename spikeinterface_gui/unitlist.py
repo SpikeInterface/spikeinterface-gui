@@ -9,13 +9,15 @@ class UnitListView(ViewBase):
     _supported_backend = ['qt', 'panel']
     # _settings = [] # this is a hack to create the settings button
     _settings = None
+    _support_curation = True
 
-    def __init__(self, controller=None, parent=None, backend="qt"):
+    def __init__(self, controller=None, parent=None, backend="qt", curation=False):
         UnitListView._settings = [
-            {'name': col, 'type': 'bool', 'value': col in controller.displayed_unit_properties}
+            {'name': col, 'type': 'bool', 'value': col in controller.displayed_unit_properties, 'default': True}
             for col in controller.units_table.columns
         ]
-        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        self.curation = curation
+        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
 
     ## common ##
@@ -49,7 +51,7 @@ class UnitListView(ViewBase):
         visible_cols = []
         for col in self.controller.units_table.columns:
             visible_cols.append(
-                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
             )
         self.visible_columns = pg.parametertree.Parameter.create( name='Visible columns', type='group', children=visible_cols)
         self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
@@ -254,12 +256,19 @@ class UnitListView(ViewBase):
             rows.append(item.row())
         return sorted(rows)
 
-    def get_selected_unit_ids(self):
+    def _qt_get_selected_unit_ids(self):
         unit_ids = []
         for item in self.table.selectedItems():
             if item.column() != 1: continue
             unit_ids.append(item.unit_id)
         return unit_ids
+
+    def get_selected_unit_ids(self):
+        if self.backend == 'qt':
+            return self._qt_get_selected_unit_ids()
+        elif self.backend == 'panel':
+            return self._panel_get_selected_unit_ids()
+       
 
     def on_visible_shortcut(self):
         rows = self._get_selected_rows()
@@ -275,7 +284,7 @@ class UnitListView(ViewBase):
         for row in rows:
             self.table.selectRow(row)
 
-    def delete_unit(self):
+    def delete_unit(self, event=None):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
         self.notify_manual_curation_updated()
@@ -287,11 +296,15 @@ class UnitListView(ViewBase):
         if len(sel_rows) > 0:
             self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
-    def merge_selected(self):
+    def merge_selected(self, event=None):
         merge_unit_ids = self.get_selected_unit_ids()
-        self.controller.make_manual_merge_if_possible(merge_unit_ids)
-        self.notify_manual_curation_updated()
-        self.refresh()
+        merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
+        if merge_successful:
+            self.notify_manual_curation_updated()
+            self.refresh()
+        else:
+            print("Merge not possible, some units are already deleted or in a merge group")
+            # optional: notify.failed merge?
 
 
     ## panel zone ##
@@ -300,8 +313,8 @@ class UnitListView(ViewBase):
         import pandas as pd
         import matplotlib.colors as mcolors
         from bokeh.models.widgets.tables import BooleanFormatter
-        from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
-        from .utils_panel import _bg_color, table_stylesheet, checkbox_formatter_template
+        from bokeh.models import HTMLTemplateFormatter
+        from .utils_panel import _bg_color, KeyboardShortcut, KeyboardShortcuts
 
         pn.extension("tabulator")
 
@@ -312,16 +325,6 @@ class UnitListView(ViewBase):
             </div>
         """
         )
-
-        checkbox_formatter = HTMLTemplateFormatter(template=checkbox_formatter_template)
-
-        main_cols = [
-            TableColumn(field="unit_id", title="Unit", formatter=unit_formatter),
-            TableColumn(field="selected", title="✓", width=30, formatter=checkbox_formatter),
-            TableColumn(field="channel_id", title="Channel ID"),
-            TableColumn(field="sparsity", title="Sparsity"),
-        ]
-
         unit_ids = self.controller.unit_ids
 
         # set unmutable data
@@ -370,33 +373,41 @@ class UnitListView(ViewBase):
             editors=editors,
         )
 
-        # self.source = ColumnDataSource({})
-        # self.source.data = data
+        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
+        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default")
 
-        # self.table = DataTable(
-        #     source=self.source,
-        #     columns=main_cols,
-        #     sizing_mode="stretch_both",
-        #     selectable=True,
-        #     styles={
-        #         "background-color": _bg_color,
-        #         "color": "#ffffff",
-        #     },
-        #     stylesheets=[table_stylesheet]
-        # )
+        button_list = [
+            self.select_all_button,
+            self.unselect_all_button,
+        ]
+        self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
+        self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
 
-        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default", width=100)
-        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default", width=100)
+        if self.curation:
+            button_list += [
+                self.delete_button,
+                self.merge_button,
+            ]
 
         self.info_text = pn.pane.HTML("")
+
+        buttons = pn.Row(*button_list, sizing_mode="stretch_width")
+
+        # # shortcuts
+        shortcuts = [
+            KeyboardShortcut(name="delete", key="d", ctrlKey=False),
+            KeyboardShortcut(name="merge", key="m", ctrlKey=False),
+        ]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         self.layout = pn.Column(
             pn.Row(
                 self.info_text,
-                self.select_all_button,
-                self.unselect_all_button,
             ),
+            buttons,
             self.table,
+            shortcuts_component,
             sizing_mode="stretch_width",
         )
 
@@ -405,33 +416,18 @@ class UnitListView(ViewBase):
         self.select_all_button.on_click(self.show_all)
         self.unselect_all_button.on_click(self.hide_all)
 
+        if self.curation:
+            self.delete_button.on_click(self.delete_unit)
+            self.merge_button.on_click(self.merge_selected)
+
         self.last_row = None
         self.last_clicked = None
 
 
     def _panel_refresh(self):
-        from bokeh.models import TableColumn
-        
-        # Prepare data for all units
         unit_ids = self.controller.unit_ids
-        # data = {}
-        # data["Visible"] = list(self.controller.unit_visible_dict.values())
-        # # ensure str
-        # data["unit_index"] =  list(range(unit_ids.size))
         df = self.table.value
         df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
-
-        # table_columns = self.table.columns
-        # table_fields = [col.field for col in table_columns]
-
-        # for table_col in table_columns:
-        #     if table_col.field not in self.main_cols + self.controller.displayed_unit_properties:
-        #         table_columns.remove(table_col)
-
-        # for col in self.controller.displayed_unit_properties:
-        #     if col not in table_fields:
-        #         table_columns.append(TableColumn(field=col, title=col))
-        #         data[col] = self.controller.units_table[col]
 
         table_columns = self.df.columns
 
@@ -456,7 +452,6 @@ class UnitListView(ViewBase):
         txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
         self.info_text.object = txt
 
-    # TODO: clean up
     def _panel_on_selection_changed(self, event):
         row = event.row
         col = event.column
@@ -464,67 +459,54 @@ class UnitListView(ViewBase):
         selected_unit_id = unit_ids[row]
         time_clicked = time.perf_counter()
         df = self.table.value
+        double_clicked = False
+        visibility_changed = False
         if self.last_clicked is not None:
-            
             if (time_clicked - self.last_clicked) < 0.8 and self.last_row == row:
+                double_clicked = True
+                
                 # select only this unit
                 for unit_id in self.controller.unit_visible_dict:
                     self.controller.unit_visible_dict[unit_id] = False
                 self.controller.unit_visible_dict[selected_unit_id] = True
                 self.notify_unit_visibility_changed()
+                visibility_changed = True
+        if not double_clicked:
+            if col == "Visible":
+                self.controller.unit_visible_dict[selected_unit_id] = True
+                self.notify_unit_visibility_changed()
+                visibility_changed = True
             else:
-                if col == "Visible":
-                    self.controller.unit_visible_dict[selected_unit_id] = True
-                    self.notify_unit_visibility_changed()
-                else:
-                    unit_id = self.df.index[row]
+                unit_id = self.df.index[row]
 
-        df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
-        self.table.value = df
+        if visibility_changed:
+            df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
+            self.table.value = df
+
         self.last_clicked = time_clicked
         self.last_row = row
 
-        print(f"Current selection: {self.table.selection  + [row]}")
-        # new_selected = self.source.data["selected"]
-        # for row_idx in new:
-        #     unit_index = self.source.data["unit_index"][row_idx]
-        #     new_selected[row_idx] = True
-        #     selected_unit_ids.append(self.controller.unit_ids[unit_index])
+    def _panel_get_selected_unit_ids(self):
+        return self.table.selection
 
-        # # Update the source data
-        # self.source.data.update({"selected": new_selected})
-
-        # # # Clear all selections first if using single select
-        # # if len(new) == 1 and len(old or []) != 0:
-        # #     for unit_id in self.controller.unit_visible_dict:
-        # #         self.controller.unit_visible_dict[unit_id] = False
-        # #         self.controller.unit_visible_dict[unit_id] = False
-        # # Set selected units as visible
-        # print(f"Selected unit ids: {selected_unit_ids}")
-        # for unit_id in selected_unit_ids:
-        #     self.controller.unit_visible_dict[unit_id] = True
-
-        # # Handle channel visibility
-        # if len(selected_unit_ids) == 1 and self.params["select_change_channel_visibility"]:
-        #     sparsity_mask = self.controller.get_sparsity_mask()
-        #     unit_index = self.controller.unit_ids.tolist().index(selected_unit_ids[0])
-        #     (visible_channel_inds,) = np.nonzero(sparsity_mask[unit_index, :])
-            
-        #     if not np.all(np.isin(visible_channel_inds, self.controller.visible_channel_inds)):
-        #         self.controller.set_channel_visibility(visible_channel_inds)
-        #         self.param.trigger("channel_visibility_changed")
-
-        # self.notify_unit_visibility_changed()
+    def _panel_handle_shortcut(self, event):
+        if event.data == "delete":
+            self.delete_unit()
+        elif event.data == "merge":
+            self.merge_selected()
 
 
-    # def _on_change(self, attr, old, new):
-    #     print(new, attr)
+UnitListView._gui_help_txt = """# Unit List
 
+This view controls the visibility of units: 
 
-UnitListView._gui_help_txt = """Unit list
-This control the visibility of units : check/uncheck visible
-Check box : make visible or unvisible
-Double click on a row : make it visible  alone
-Right click : context menu (delete or merge if curation=True)
-Drag column headers : reorder columns
+* Check box : make visible or unvisible
+* Double click on a row : make it visible alone
+* Drag column headers : reorder columns
+* Click on column headers : sort columns
+
+### Curation
+* Press d : delete selected units (if curation=True)
+* Press m : merge selected units (if curation=True)
+* Right click (QT) : context menu (delete or merge if curation=True)
 """

@@ -1,5 +1,7 @@
 from .myqt import QT
 import pyqtgraph as pg
+import markdown
+
 
 import weakref
 
@@ -8,7 +10,6 @@ from .layout_presets import get_layout_description
 
 from .utils_qt import qt_style, add_stretch_to_qtoolbar
 
-import time
 
 # Used by views to emit/trigger signals
 class SignalNotifier(QT.QObject):
@@ -92,7 +93,11 @@ class SignalHandler(QT.QObject):
 
 
 def create_settings(view, parent):
-    view.settings = pg.parametertree.Parameter.create(name='settings', type='group', children=view._settings)
+    settings_ = view._settings
+    for setting_data in settings_:
+        if "default" not in setting_data:
+            setting_data["default"] = setting_data.get("value", None)
+    view.settings = pg.parametertree.Parameter.create(name='settings', type='group', children=settings_)
     
     # not that the parent is not the view (not Qt anymore) itself but the widget
     view.tree_settings = pg.parametertree.ParameterTree(parent=parent)
@@ -147,6 +152,9 @@ class QtMainWindow(QT.QMainWindow):
 
 
     def create_main_layout(self):
+        import warnings
+
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
 
         self.setDockNestingEnabled(True)
 
@@ -248,7 +256,8 @@ class ViewWidget(QT.QWidget):
         but = QT.QPushButton('?')
         tb.addWidget(but)
         but.clicked.connect(self.open_help)
-        but.setToolTip(view_class._gui_help_txt)
+        tooltip_html = markdown.markdown(view_class._gui_help_txt)
+        but.setToolTip(tooltip_html)
 
         add_stretch_to_qtoolbar(tb)
 
@@ -277,6 +286,7 @@ class ViewWidget(QT.QWidget):
         view = self._view()
         but = self.sender()
         txt = view._gui_help_txt
+        txt = markdown.markdown(txt)
         QT.QToolTip.showText(but.mapToGlobal(QT.QPoint()), txt, but)
     
     def refresh(self):

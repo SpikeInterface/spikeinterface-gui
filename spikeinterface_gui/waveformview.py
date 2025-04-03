@@ -448,9 +448,7 @@ class WaveformView(ViewBase):
         self.figure.toolbar.active_scroll = self.zoom_tool
         self.figure.grid.visible = False
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
-        
         self.lines = {}
-
 
         self.layout = pn.Column(
                 pn.Row(
@@ -469,6 +467,7 @@ class WaveformView(ViewBase):
 
     def _panel_gain_zoom(self, event):
         modifiers = event.modifiers
+        print(modifiers)
         if modifiers["shift"]:
             self.figure.toolbar.active_scroll = self.zoom_tool
         elif modifiers["alt"]:

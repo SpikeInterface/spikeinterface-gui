@@ -23,10 +23,9 @@ class CrossCorrelogramView(ViewBase):
         self.ccg = None
         self.refresh()
 
-    def compute(self):
+    def _compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
                 self.settings['window_ms'],  self.settings['bin_ms'])
-        self.refresh()
     
     ## Qt ##
 

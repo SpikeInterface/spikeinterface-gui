@@ -115,9 +115,8 @@ class SimilarityView(ViewBase):
         
         self.refresh()
 
-    def compute(self):
+    def _compute(self):
         self.similarity = self.controller.compute_similarity(method=self.settings['method'])
-        self.refresh()
 
     def _qt_refresh(self):
         import pyqtgraph as pg

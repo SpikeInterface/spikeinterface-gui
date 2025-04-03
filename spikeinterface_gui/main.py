@@ -2,6 +2,7 @@ import sys
 import argparse
 from pathlib import Path
 import numpy as np
+import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
@@ -75,6 +76,11 @@ def run_mainwindow(
     if backend == "qt":
         from spikeinterface_gui.myqt import QT, mkQApp
         from spikeinterface_gui.backend_qt import QtMainWindow
+
+        # Suppress a known pyqtgraph warning
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
+        warnings.filterwarnings('ignore', category=UserWarning, message=".*QObject::connect.*")
+
 
         app = mkQApp()
         

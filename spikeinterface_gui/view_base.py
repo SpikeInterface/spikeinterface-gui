@@ -6,8 +6,9 @@ class ViewBase():
     _settings = None
     _gui_help_txt = "The help for this view is not done yet"
     _depend_on = None
+    _support_curation = False
     
-    def __init__(self, controller=None, parent=None,  backend="qt"):
+    def __init__(self, controller=None, parent=None, backend="qt"):
 
         self.backend = backend
         self.controller = controller
@@ -69,6 +70,13 @@ class ViewBase():
         if not self.is_view_visible():
             return
         self._refresh()
+
+    def compute(self, event=None):
+        self._compute()
+        self.refresh()
+
+    def _compute(self):
+        pass
 
     def _refresh(self):
         if self.backend == "qt":

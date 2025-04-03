@@ -1,13 +1,14 @@
+from typing import TypedDict, NotRequired
 import numpy as np
 
 import panel as pn
+from panel.param import param
+from panel.custom import ReactComponent
 
 from bokeh.models import ColumnDataSource, Patches
 
 
-
 _bg_color = "#181818"
-
 
 
 table_stylesheet = """
@@ -130,3 +131,71 @@ class CustomCircle:
         return abs(distance - self.radius) < 5
 
 
+# Shortcut handler, taken from https://github.com/holoviz/panel/issues/3193#issuecomment-2357189979
+class KeyboardShortcut(TypedDict):
+    name: str
+    key: str
+    altKey: NotRequired[bool]
+    ctrlKey: NotRequired[bool]
+    metaKey: NotRequired[bool]
+    shiftKey: NotRequired[bool]
+
+
+class KeyboardShortcuts(ReactComponent):
+    """
+    Class to install global keyboard shortcuts into a Panel app.
+
+    Pass in shortcuts as a list of KeyboardShortcut dictionaries, and then handle shortcut events in Python
+    by calling `on_msg` on this component. The `name` field of the matching KeyboardShortcut will be sent as the `data`
+    field in the `DataEvent`.
+
+    Example:
+    >>> shortcuts = [
+        KeyboardShortcut(name="save", key="s", ctrlKey=True),
+        KeyboardShortcut(name="print", key="p", ctrlKey=True),
+    ]
+    >>> shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+    >>> def handle_shortcut(event: DataEvent):
+            if event.data == "save":
+                print("Save shortcut pressed!")
+            elif event.data == "print":
+                print("Print shortcut pressed!")
+    >>> shortcuts_component.on_msg(handle_shortcut)
+    """
+
+    shortcuts = param.List(item_type=dict)
+
+    _esm = """
+    // Hash a shortcut into a string for use in a dictionary key (booleans / null / undefined are coerced into 1 or 0)
+    function hashShortcut({ key, altKey, ctrlKey, metaKey, shiftKey }) {
+      return `${key}.${+!!altKey}.${+!!ctrlKey}.${+!!metaKey}.${+!!shiftKey}`;
+    }
+
+    export function render({ model }) {
+      const [shortcuts] = model.useState("shortcuts");
+
+      const keyedShortcuts = {};
+      for (const shortcut of shortcuts) {
+        keyedShortcuts[hashShortcut(shortcut)] = shortcut.name;
+      }
+
+      function onKeyDown(e) {
+        const name = keyedShortcuts[hashShortcut(e)];
+        if (name) {
+          e.preventDefault();
+          e.stopPropagation();
+          model.send_msg(name);
+          return;
+        }
+      }
+
+      React.useEffect(() => {
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+          window.removeEventListener('keydown', onKeyDown);
+        };
+      });
+
+      return <></>;
+    }
+    """

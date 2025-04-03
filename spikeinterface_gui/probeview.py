@@ -23,6 +23,7 @@ class ProbeView(ViewBase):
         self.contact_positions = controller.get_contact_location()
         self.probes = controller.get_probegroup().probes
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        self._unit_positions = self.controller.unit_positions
 
     def get_probe_vertices(self):
         all_vertices = []
@@ -144,6 +145,11 @@ class ProbeView(ViewBase):
         self.plot.setYRange(ylim0, ylim1)
     
     def _qt_refresh(self):
+        current_unit_positions = self.controller.unit_positions
+        if not np.array_equal(current_unit_positions, self._unit_positions):
+            self._unit_positions = current_unit_positions
+            brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
+            self.scatter.setData(pos=current_unit_positions, pxMode=False, size=10, brush=brush)
         r, x, y = circle_from_roi(self.roi_channel)
         radius = self.settings['radius_channel']
         self.roi_channel.setSize(radius * 2)
@@ -289,17 +295,10 @@ class ProbeView(ViewBase):
     def _qt_on_add_units(self, x, y):
         self._qt_on_pick_unit(x, y, multi_select=True)
     
-    # TODO handle better compte this is only for qt
-    def compute(self):
-        # TODO : option by method
+    def _compute(self):
         method_kwargs ={} 
         self.controller.compute_unit_positions(self.settings['method_localize_unit'], method_kwargs)
-        unit_positions = self.controller.unit_positions
-        brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
-        self.scatter.setData(pos=unit_positions, pxMode=False, size=10, brush=brush)
         
-        self.refresh()
-
     ## panel ##
     def _panel_make_layout(self):
         import panel as pn
