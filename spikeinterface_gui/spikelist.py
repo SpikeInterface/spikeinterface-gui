@@ -246,7 +246,7 @@ class SpikeListView(ViewBase):
         # Create tabulator instance
         self.table = Tabulator(
             df,
-            layout="fit_columns",
+            layout="fit_data",
             formatters=formatters,
             sizing_mode="stretch_both",
             show_index=False,
