@@ -46,9 +46,7 @@ class CurationView(ViewBase):
 
         self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_merge.customContextMenuRequested.connect(self.open_context_menu_merge)
-
         self.table_merge.itemSelectionChanged.connect(self.on_item_selection_changed_merge)
-
 
         self.merge_menu = QT.QMenu()
         act = self.merge_menu.addAction('Remove merge group')
@@ -63,7 +61,6 @@ class CurationView(ViewBase):
         v.addWidget(self.table_delete)
         self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_delete.customContextMenuRequested.connect(self.open_context_menu_delete)
-
         self.table_delete.itemSelectionChanged.connect(self.on_item_selection_changed_delete)
 
 
@@ -84,6 +81,8 @@ class CurationView(ViewBase):
             item = QT.QTableWidgetItem(str(group))
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table_merge.setItem(ix, 0, item)
+        for i in range(self.table_merge.columnCount()):
+            self.table_merge.resizeColumnToContents(i)
 
         ## deleted        
         removed_units = self.controller.curation_data["removed_units"]
@@ -102,6 +101,9 @@ class CurationView(ViewBase):
             self.table_delete.setItem(i,0, item)
             item.setIcon(icon)
             item.unit_id = unit_id
+        self.table_delete.resizeColumnToContents(0)
+
+
 
     def _qt_get_delete_table_selection(self):
         selected_items = self.table_delete.selectedItems()
@@ -118,10 +120,10 @@ class CurationView(ViewBase):
             return [s.row for s in selected_items]
 
     def open_context_menu_delete(self):
-        self.delete_menu.popup(self.cursor().pos())
+        self.delete_menu.popup(self.qt_widget.cursor().pos())
 
     def open_context_menu_merge(self):
-        self.merge_menu.popup(self.cursor().pos())
+        self.merge_menu.popup(self.qt_widget.cursor().pos())
 
     def restore_unit(self, event=None):
         if self.backend == 'qt':

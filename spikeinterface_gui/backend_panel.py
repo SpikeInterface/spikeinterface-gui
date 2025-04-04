@@ -108,10 +108,13 @@ class SettingsProxy:
     def keys(self):
         return list(p for p in self._parametrized.param if p != "name")
 
-def create_settings(view):
-    # Create the class attributes dynamically
+
+def create_dynamic_parameterized(settings):
+    """
+    Create a dynamic parameterized class based on the settings provided.
+    """
     attributes = {}
-    for setting_data in view._settings:
+    for setting_data in settings:
         if setting_data["type"] == "list":
             if "value" in setting_data:
                 default = setting_data["value"]
@@ -125,8 +128,14 @@ def create_settings(view):
                 setting_data["value"], doc=f"{setting_data['name']} parameter"
             )
     MyParameterized = type("MyParameterized", (param.Parameterized,), attributes)
+    return MyParameterized()
 
-    view.settings = SettingsProxy(MyParameterized())
+
+def create_settings(view):
+    # Create the class attributes dynamically
+    settings = create_dynamic_parameterized(view._settings)
+
+    view.settings = SettingsProxy(settings)
 
 def listen_setting_changes(view):
     for setting_data in view._settings:

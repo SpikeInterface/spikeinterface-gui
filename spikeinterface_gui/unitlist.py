@@ -314,17 +314,10 @@ class UnitListView(ViewBase):
         import matplotlib.colors as mcolors
         from bokeh.models.widgets.tables import BooleanFormatter
         from bokeh.models import HTMLTemplateFormatter
-        from .utils_panel import _bg_color, KeyboardShortcut, KeyboardShortcuts
+        from .utils_panel import unit_formatter, KeyboardShortcut, KeyboardShortcuts
 
         pn.extension("tabulator")
 
-        unit_formatter = HTMLTemplateFormatter(
-            template="""
-            <div style="color: <%= value ? value.color : '#ffffff' %>;">
-                ● <%= value ? value.id : '' %>
-            </div>
-        """
-        )
         unit_ids = self.controller.unit_ids
 
         # set unmutable data
@@ -393,7 +386,7 @@ class UnitListView(ViewBase):
 
         buttons = pn.Row(*button_list, sizing_mode="stretch_width")
 
-        # # shortcuts
+        # shortcuts
         shortcuts = [
             KeyboardShortcut(name="delete", key="d", ctrlKey=False),
             KeyboardShortcut(name="merge", key="m", ctrlKey=False),
@@ -437,7 +430,6 @@ class UnitListView(ViewBase):
             displayed_cols = [col.capitalize().replace("_", " ") for col in self.controller.displayed_unit_properties]
             col_name = table_col.capitalize().replace("_", " ")
             if col_name not in main_cols + displayed_cols:
-                print("Removing column", col_name)
                 df.drop(columns=[col_name], inplace=True)
 
         for col in self.controller.displayed_unit_properties:
@@ -491,7 +483,6 @@ class UnitListView(ViewBase):
         return self.table.selection
 
     def _panel_handle_shortcut(self, event):
-        print(event.data)
         if event.data == "delete":
             self.delete_unit()
         elif event.data == "merge":

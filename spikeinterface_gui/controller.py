@@ -493,9 +493,6 @@ class Controller():
     def get_units_table(self):
         return self.units_table
 
-    def get_merge_list(self):
-        return self._potential_merges
-
     def compute_auto_merge(self, **params):
         
         from spikeinterface.curation import compute_merge_unit_groups
@@ -535,7 +532,6 @@ class Controller():
                 sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
-    
 
 
     def make_manual_delete_if_possible(self, removed_unit_ids):

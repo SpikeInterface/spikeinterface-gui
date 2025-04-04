@@ -5,7 +5,7 @@ import panel as pn
 from panel.param import param
 from panel.custom import ReactComponent
 
-from bokeh.models import ColumnDataSource, Patches
+from bokeh.models import ColumnDataSource, Patches, HTMLTemplateFormatter
 
 
 _bg_color = "#181818"
@@ -45,6 +45,14 @@ table_stylesheet = """
     background-color: #1a1a1a !important;
 }
 """
+
+unit_formatter = HTMLTemplateFormatter(
+    template="""
+    <div style="color: <%= value ? value.color : '#ffffff' %>;">
+        ● <%= value ? value.id : '' %>
+    </div>
+"""
+)
 
 # TODO: fix this (maybe using a Tabulator)
 checkbox_formatter_template = """

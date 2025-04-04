@@ -256,6 +256,20 @@ class ViewWidget(QT.QWidget):
 
         add_stretch_to_qtoolbar(tb)
 
+        # TODO: make _qt method for all existing methods that don't start with _qt or _panel
+        # skip = ['__init__', 'set_view', 'open_settings', 'compute', 'refresh', 'open_help',
+        #         'on_spike_selection_changed', 'on_unit_visibility_changed',
+        #         'on_channel_visibility_changed', 'on_manual_curation_updated']
+        # for name in dir(view_class):
+        #     if name.startswith('_qt_') or name.startswith('_panel_') or name in skip:
+        #         continue
+        #     if hasattr(view_class, name):
+        #         method = getattr(view_class, name)
+        #         if callable(method):
+        #             if name == "save_in_analyzer":
+        #                 print(f'creating _qt_save_in_analyzer for {view_class}')
+        #             setattr(view_class, '_qt_' + name, method)
+
 
     def set_view(self, view):
         self._view =  weakref.ref(view)

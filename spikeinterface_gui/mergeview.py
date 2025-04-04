@@ -7,7 +7,7 @@ from .curation_tools import adding_group
 
 
 class MergeView(ViewBase):
-    _supported_backend = ['qt']
+    _supported_backend = ['qt', 'panel']
 
     _settings = None
 
@@ -27,32 +27,17 @@ class MergeView(ViewBase):
             ]}
         ]
     }
-        
-    # [
-    #     {"name": "method", "type": "list", "limits": ["similarity", "automerge"]},
-    #     {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
-    #     {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
-    #     {"name": "automerge_preset", "type": "list", "limits": [
-    #         'similarity_correlograms',
-    #         'temporal_splits',
-    #         'x_contaminations',
-    #         'feature_neighbors'
-    #         ]
-    #     },
-    # ]
 
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
-        # self.method = None
 
     def get_potential_merges(self):
         method = self.method
         print(f"Computing potential merges using {method} method")
         if method == 'similarity':
             similarity_params = self.method_params['similarity']
-            print(similarity_params)
             similarity = self.controller.get_similarity(similarity_params['similarity_method'])
             if similarity is None:
                 similarity = self.controller.compute_similarity(similarity_params['similarity_threshold'])
@@ -68,7 +53,7 @@ class MergeView(ViewBase):
             self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
         else:
             raise ValueError(f"Unknown method: {method}")
-        print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method:\n{self.proposed_merge_unit_groups}")
+        print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
         self.refresh()
 
     def get_table_data(self):
@@ -86,7 +71,7 @@ class MergeView(ViewBase):
                 else:
                     more_labels.append([lbl + "_min", lbl + "_max"])
 
-        labels = [f"unit_id{i}" for i in range(max_group_size)] + more_labels
+        labels = [f"unit_id{i}" for i in range(max_group_size)] + more_labels + ["group_ids"]
 
         rows = []
         unit_ids = list(self.controller.unit_ids)
@@ -95,7 +80,7 @@ class MergeView(ViewBase):
             # Add unit information
             for i, unit_id in enumerate(group_ids):
                 row[f"unit_id{i}"] = unit_id
-                row[f"unit_id{i}_color"] = self.controller.get_unit_color(unit_id)
+                # row[f"unit_id{i}_color"] = self.controller.get_unit_color(unit_id)
                 row["group_ids"] = group_ids
 
             # Add metrics information
@@ -132,7 +117,7 @@ class MergeView(ViewBase):
         item = self.table.item(row_ix, 0)
         group_ids = item.group_ids
         return row_ix, group_ids
-    
+
     def _qt_on_merge_shorcut(self):
         row_ix, group_ids = self._qt_get_selected_group_ids()
         if group_ids is None:
@@ -169,6 +154,8 @@ class MergeView(ViewBase):
         from .myqt import QT
         import pyqtgraph as pg
 
+        self.proposed_merge_unit_groups = []
+
         # create method and arguments layout
         self.method_selector = pg.parametertree.Parameter.create(name="method", type='group', children=self._methods)
         method_select = pg.parametertree.ParameterTree(parent=None)
@@ -196,7 +183,6 @@ class MergeView(ViewBase):
             self.layout.addWidget(method_tree_settings)
         self.method = self.method_selector['method']
         self._qt_on_method_change()
-        print(f"Initial method: {self.method}")
 
         but = QT.QPushButton('Calculate merges')
         self.layout.addWidget(but)
@@ -215,7 +201,6 @@ class MergeView(ViewBase):
         shortcut_merge = QT.QShortcut(self.qt_widget)
         shortcut_merge.setKey(QT.QKeySequence('m'))
         shortcut_merge.activated.connect(self._qt_on_merge_shorcut)
-        self.proposed_merge_unit_groups = [] # self.controller.get_merge_list()
 
         self.refresh()
 
@@ -227,9 +212,8 @@ class MergeView(ViewBase):
         self.table.setSortingEnabled(False)
 
         labels, rows = self.get_table_data()
-
-        for row in rows:
-            print(row)
+        if "group_ids" in labels:
+            labels.remove("group_ids")
 
         if not rows:
             self.table.setColumnCount(0)
@@ -240,22 +224,26 @@ class MergeView(ViewBase):
         self.table.setHorizontalHeaderLabels(labels)
         self.table.setRowCount(len(rows))
 
-        # TODO: Fix colors here
         for r, row in enumerate(rows):
             for c, label in enumerate(labels):
-                value = row.get(label, "")
-                if label.startswith("unit_id") and "_color" not in label:
-                    color = row.get(f"{label}_color")
+                if label.startswith("unit_id"):
+                    unit_id = row[label]
+                    n = self.controller.num_spikes[unit_id]
+                    name = f'{unit_id} n={n}'
+                    color = self.get_unit_color(unit_id)
                     pix = QT.QPixmap(16, 16)
-                    pix.fill(QT.QColor(*color))
+                    pix.fill(color)
                     icon = QT.QIcon(pix)
-                    item = QT.QTableWidgetItem(value)
+                    item = QT.QTableWidgetItem(name)
+                    item.setData(QT.Qt.ItemDataRole.UserRole, unit_id)
+                    item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
+                    self.table.setItem(r, c, item)
                     item.setIcon(icon)
-                else:
+                    item.group_ids = row.get("group_ids", [])
+                elif "_color" not in label:
+                    value = row[label]
                     item = CustomItem(value)
-                item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
-                item.group_ids = row.get("group_ids", [])
-                self.table.setItem(r, c, item)
+                    self.table.setItem(r, c, item)
 
         for i in range(self.table.columnCount()):
             self.table.resizeColumnToContents(i)
@@ -269,124 +257,121 @@ class MergeView(ViewBase):
 
     ## PANEL
     def _panel_make_layout(self):
-        from bokeh.models import ColumnDataSource
         import panel as pn
-        from bokeh.models import TableColumn, DataTable
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts
+        from .backend_panel import create_dynamic_parameterized, SettingsProxy
+
+        pn.extension("tabulator")
+
+        self.proposed_merge_unit_groups = []
+
+        # Create method and arguments layout
+        method_settings = SettingsProxy(create_dynamic_parameterized(self._methods))
+        self.method_selector = pn.Param(method_settings._parametrized, sizing_mode="stretch_width", name="Method")
+        for setting_data in self._methods:
+            method_settings._parametrized.param.watch(self._panel_on_method_change, setting_data["name"])
+
+        self.method_params = {}
+        self.method_params_selectors = {}
+        for method, params in self._method_params.items():
+            method_params = SettingsProxy(create_dynamic_parameterized(params))
+            self.method_params[method] = method_params
+            self.method_params_selectors[method] = pn.Param(method_params._parametrized, sizing_mode="stretch_width",
+                                                            name=f"{method.capitalize()} parameters")
+        self.method = list(self.method_params.keys())[0]
+
+        # shortcuts
+        shortcuts = [
+            KeyboardShortcut(name="merge", key="m", ctrlKey=False),
+        ]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         # Create data source and table
-        self.source = ColumnDataSource({})
         self.table = None
         self.table_area = pn.pane.Placeholder("No merges computed yet.", sizing_mode="stretch_width")
 
-        self.compute_button = pn.widgets.Button(name="Compute", button_type="primary")
-        self.compute_button.on_click(self.compute)
+        self.caluculate_merges_button = pn.widgets.Button(name="Calculate merges", button_type="primary", sizing_mode="stretch_width")
+        self.caluculate_merges_button.on_click(self._panel_calculate_merges)
 
-        # Create main layout with table area
-        self.layout = self.table_area
+        self.layout = pn.Column(
+            # add params
+            self.method_selector,
+            self.method_params_selectors[self.method],
+            self.caluculate_merges_button,
+            self.table_area,
+            shortcuts_component,
+            sizing_mode="stretch_width",
+        )
 
-        # Initial refresh
-        self.refresh()
 
     def _panel_refresh(self):
         """Update the table with current data"""
         import pandas as pd
-        from bokeh.models import HTMLTemplateFormatter
+        import panel as pn
+        import matplotlib.colors as mcolors
+        from .utils_panel import unit_formatter
+
+        pn.extension("tabulator")
+        # Create table
         labels, rows = self.get_table_data()
-        if not rows:
-            if self.table is not None:
-                self.layout.pop(-1)
-                self.table = None
-            return
-
-        # Prepare data for ColumnDataSource
+        # set unmutable data
         data = {label: [] for label in labels}
-        data["group_ids"] = []
-
         for row in rows:
             for label in labels:
-                data[label].append(row.get(label, ""))
-            data["group_ids"].append(row["group_ids"])
-
-        self.source.data = data
-
-        # Create table if it doesn't exist
-        if self.table is None:
-            columns = []
-            for label in labels:
-                column_args = {"field": label, "title": label}
                 if label.startswith("unit_id"):
-                    column_args["formatter"] = HTMLTemplateFormatter(
-                        template="""
-                        <div style="color: <%= value %>"><%= value %></div>
-                    """
-                    )
-                columns.append(TableColumn(**column_args))
+                    unit_id = row[label]
+                    data[label].append({"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))})
+                else:
+                    data[label].append(row[label])
 
-            # Convert data to DataFrame
-            df_data = []
-            for i, group_ids in enumerate(data["group_ids"]):
-                row = {}
-                for label in labels:
-                    if label.startswith("unit_id"):
-                        # Get value and ensure it's a string
-                        value = str(data[label][i])
-                        # Get color from the original data in rows
-                        unit_id = group_ids[int(label[-1])]  # Extract unit number from label
-                        color = self.controller.qcolors.get(unit_id, "#FFFFFF").name()
-                        # Format with color
-                        row[label] = f'<span style="color: {color}">{value}</span>'
-                    else:
-                        row[label] = data[label][i]
-                row["_group_ids"] = group_ids  # Store group_ids in DataFrame
-                df_data.append(row)
+        df = pd.DataFrame(data=data)
+        formatters = {label: unit_formatter for label in labels if label.startswith("unit_id")}
+        self.table = pn.widgets.Tabulator(
+            df,
+            formatters=formatters,
+            sizing_mode="stretch_both",
+            layout="fit_data",
+            show_index=False,
+            hidden_columns=["group_ids"],
+            disabled=True
+        )
 
-            # Create DataFrame
-            df = pd.DataFrame(df_data)
+        # Add click handler with double click detection
+        self.table.on_click(self._panel_on_click)
+        self.table_area.update(self.table)
 
-            # Configure columns
-            column_configs = []
-            for label in labels:
-                config = {
-                    "field": label,
-                    "title": label,
-                    "headerSort": True,
-                    "editor": False,  # Make all columns non-editable
-                }
-                if label.startswith("unit_id"):
-                    config["formatter"] = "html"
-                column_configs.append(config)
+    def _panel_calculate_merges(self, event):
+        import panel as pn
+        self.table_area.update(pn.indicators.LoadingSpinner(size=50, value=True))
+        self.get_potential_merges()
+        self._panel_refresh()
 
-            # Add hidden group_ids column
-            column_configs.append(
-                {
-                    "field": "_group_ids",
-                    "visible": False,
-                    "headerSort": False,
-                    "editor": False,
-                }
-            )
+    def _panel_on_method_change(self, event):
+        self.method = self.method_selector.value
+        self.layout[1] = self.method_params_selectors[self.method]
 
-            # Create tabulator widget
-            self.table = pn.widgets.Tabulator(
-                df,
-                show_index=False,
-                height=400,
-                sizing_mode="stretch_width",
-                configuration={
-                    "columns": column_configs,
-                    "selectable": True,
-                    "headerVisible": True,
-                    "movableColumns": True,
-                },
-            )
+    def _panel_on_click(self, event):
+        # set unit visibility
+        row = event.row
+        table_row = self.table.value.iloc[row]
+        # set all unit visibility to False
+        for k in self.controller.unit_ids:
+            self.controller.unit_visible_dict[k] = False
+        for name, value in zip(table_row.index, table_row):
+            if name.startswith("unit_id"):
+                unit_id = value["id"]
+                self.controller.unit_visible_dict[unit_id] = True
+        self.notify_unit_visibility_changed()
 
-            # Add click handler with double click detection
-            self.table.on_click(self._on_click)
-            self._last_click = None
-            self._last_clicked_row = None
-
-            self.table_area.clear()
-            self.table_area.append(self.table)
+    def _panel_handle_shortcut(self, event):
+        if event.data == "merge":
+            selected = self.table.selection
+            for row in selected:
+                group_ids = self.table.value.iloc[row].group_ids
+                self.accept_group_merge(group_ids)
+            self.notify_manual_curation_updated()
+            self._panel_refresh()
 
     def _panel_on_spike_selection_changed(self):
         pass
