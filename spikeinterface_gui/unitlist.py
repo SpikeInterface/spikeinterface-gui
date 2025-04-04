@@ -363,6 +363,7 @@ class UnitListView(ViewBase):
             layout="fit_data",
             show_index=False,
             hidden_columns=[],
+            selectable=True,
             editors=editors,
         )
 

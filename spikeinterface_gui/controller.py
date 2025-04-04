@@ -326,9 +326,6 @@ class Controller():
 
 
     def update_visible_spikes(self):
-        # print('update_visible_spikes')
-        # t0 = time.perf_counter()
-        
         inds = []
         for unit_index, unit_id in enumerate(self.unit_ids):
             if self.unit_visible_dict[unit_id]:
@@ -342,9 +339,6 @@ class Controller():
         self._spike_visible_indices = inds
         
         self._spike_selected_indices = np.array([], dtype='int64')
-
-        # t1 = time.perf_counter()
-        # print('update_visible_spikes', t1-t0, self.spikes.size)
     
     def get_indices_spike_visible(self):
         return self._spike_visible_indices

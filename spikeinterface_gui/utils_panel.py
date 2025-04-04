@@ -54,6 +54,18 @@ unit_formatter = HTMLTemplateFormatter(
 """
 )
 
+spike_formatter = HTMLTemplateFormatter(
+        template="""
+        <div style="background-color: <%= value ? value.color : 'transparent' %>; 
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    color: #ffffff;
+                    text-align: center;">
+            <%= value ? value.id : '' %>
+        </div>
+    """
+    )
+
 # TODO: fix this (maybe using a Tabulator)
 checkbox_formatter_template = """
 <input type="checkbox" <%= value ? 'checked' : '' %> onclick="
