@@ -142,7 +142,7 @@ class MergeView(ViewBase):
         self.table.setCurrentCell(min(n_rows - 1, row_ix + 1), 0)
 
     def _qt_on_item_selection_changed(self):
-        r = self._get_selected_group_ids()
+        r = self._qt_get_selected_group_ids()
         if r is None:
             return
         row_ix, group_ids = r
@@ -240,14 +240,14 @@ class MergeView(ViewBase):
         self.table.setHorizontalHeaderLabels(labels)
         self.table.setRowCount(len(rows))
 
+        # TODO: Fix colors here
         for r, row in enumerate(rows):
             for c, label in enumerate(labels):
                 value = row.get(label, "")
                 if label.startswith("unit_id") and "_color" not in label:
                     color = row.get(f"{label}_color")
                     pix = QT.QPixmap(16, 16)
-                    print(color)
-                    pix.fill(QT.QColor(color[:3]))
+                    pix.fill(QT.QColor(*color))
                     icon = QT.QIcon(pix)
                     item = QT.QTableWidgetItem(value)
                     item.setIcon(icon)
