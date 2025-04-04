@@ -173,10 +173,7 @@ class PanelMainWindow:
             if view_name == 'curation' and not self.controller.curation:
                 continue
 
-            if view_class._support_curation and self.controller.curation:
-                view = view_class(controller=self.controller, parent=None, backend='panel', curation=True)
-            else:
-                view = view_class(controller=self.controller, parent=None, backend='panel')
+            view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
             info = pn.pane.Markdown(view_class._gui_help_txt, sizing_mode="stretch_both")
@@ -299,9 +296,6 @@ class PanelMainWindow:
 def start_server(mainwindow, address="localhost", port=0):
 
     pn.config.sizing_mode = "stretch_width"
-    
-    # Enable bokeh and other required extensions with required CSS resources
-    pn.extension("bokeh", "design")
 
     mainwindow.main_layout.servable()
 

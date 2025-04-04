@@ -6,7 +6,6 @@ class ViewBase():
     _settings = None
     _gui_help_txt = "The help for this view is not done yet"
     _depend_on = None
-    _support_curation = False
     
     def __init__(self, controller=None, parent=None, backend="qt"):
 

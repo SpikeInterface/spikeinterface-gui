@@ -317,9 +317,12 @@ class SpikeListView(ViewBase):
         self._panel_refresh_label()
 
     def _panel_on_selection_changed(self, event=None):
-        # TODO fix this
         row = event.row
-        selected_indices = self.table.selection # + [row]
+        if row in self.table.selection:
+            self.table.selection.remove(row)
+        else:
+            self.table.selection.append(row)
+        selected_indices = self.table.selection
         self.handle_selection(selected_indices)
         self._panel_refresh_label()
         self._panel_refresh()
@@ -337,17 +340,6 @@ class SpikeListView(ViewBase):
         self.table.value = pd.DataFrame(columns=_columns, data=[])
         self._panel_refresh_label()
 
-    # def _panel_on_spike_selection_changed(self):
-    #     print("On spike selection changed in SpikeListView")
-    #     selected_inds = self.controller.get_indices_spike_selected()
-    #     visible_inds = self.controller.get_indices_spike_visible()
-        
-    #     # Find indices of selected spikes in the visible set
-    #     selected_rows = [i for i, ind in enumerate(visible_inds) if ind in selected_inds]
-        
-    #     # Update table selection
-    #     self.table.selection = selected_rows
-    #     self._panel_refresh_label()
 
 SpikeListView._gui_help_txt = """Spike list view
 Show all spikes of the visible units.

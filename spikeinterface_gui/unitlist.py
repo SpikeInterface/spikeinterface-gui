@@ -9,14 +9,12 @@ class UnitListView(ViewBase):
     _supported_backend = ['qt', 'panel']
     # _settings = [] # this is a hack to create the settings button
     _settings = None
-    _support_curation = True
 
-    def __init__(self, controller=None, parent=None, backend="qt", curation=False):
+    def __init__(self, controller=None, parent=None, backend="qt"):
         UnitListView._settings = [
             {'name': col, 'type': 'bool', 'value': col in controller.displayed_unit_properties, 'default': True}
             for col in controller.units_table.columns
         ]
-        self.curation = curation
         ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
 
@@ -53,11 +51,11 @@ class UnitListView(ViewBase):
             visible_cols.append(
                 {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
             )
-        self.visible_columns = pg.parametertree.Parameter.create( name='Visible columns', type='group', children=visible_cols)
+        self.visible_columns = pg.parametertree.Parameter.create( name='visible columns', type='group', children=visible_cols)
         self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
         self.tree_visible_columns.header().hide()
         self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
-        # self.tree_visible_columns.setWindowTitle(u'Visible columns')
+        # self.tree_visible_columns.setWindowTitle(u'visible columns')
         # self.tree_visible_columns.setWindowFlags(QT.Qt.Window)
         self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_coumns_changed)
         self.layout.addWidget(self.tree_visible_columns)
@@ -103,7 +101,7 @@ class UnitListView(ViewBase):
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
     def _qt_select_columns(self):
-        if not self.tree_visible_columns.isVisible():
+        if not self.tree_visible_columns.isvisible():
             self.tree_visible_columns.show()
         else:
             self.tree_visible_columns.hide()
@@ -312,53 +310,65 @@ class UnitListView(ViewBase):
         import panel as pn
         import pandas as pd
         import matplotlib.colors as mcolors
-        from bokeh.models.widgets.tables import BooleanFormatter
-        from bokeh.models import HTMLTemplateFormatter
+        from bokeh.models.widgets.tables import BooleanFormatter, SelectEditor
         from .utils_panel import unit_formatter, KeyboardShortcut, KeyboardShortcuts
 
         pn.extension("tabulator")
+
+        if self.controller.curation:
+            self.label_definitions = self.controller.get_curation_label_definitions()
+        else:
+            self.label_definitions = None
 
         unit_ids = self.controller.unit_ids
 
         # set unmutable data
         data = {
-            "Unit ID": [],
-            "Channel ID": [],
-            "Sparsity": [],
-            "Visible": list(self.controller.unit_visible_dict.values()),
+            "unit_id": [],
+            "visible": list(self.controller.unit_visible_dict.values()),
         }
-        self.main_cols = list(data.keys())
+        frozen_columns = ["unit_id", "visible"]
+        if self.label_definitions is not None:
+            for label in self.label_definitions:
+                data[label] = [None] * len(unit_ids)
+                frozen_columns.append(label)
+        data["channel_id"] = []
+        data["sparsity"] = []
 
+        self.main_cols = list(data.keys())
         sparsity_mask = self.controller.get_sparsity_mask()
         for unit_index, unit_id in enumerate(unit_ids):
-            data["Unit ID"].append(
+            data["unit_id"].append(
                 {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
             )
-            data["Channel ID"].append(
+            data["channel_id"].append(
                 self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
             )
-            data["Sparsity"].append(
+            data["sparsity"].append(
                 np.sum(sparsity_mask[unit_index, :])
             )
         for col in self.controller.displayed_unit_properties:
-            data[col.capitalize().replace("_", " ")] = self.controller.units_table[col]
+            data[col] = self.controller.units_table[col]
 
         self.df = pd.DataFrame(
             data=data,
             index=unit_ids
         )
         formatters = {
-            "Unit ID": unit_formatter,
-            "Visible": BooleanFormatter()
+            "unit_id": unit_formatter,
+            "visible": BooleanFormatter()
         }
         editors = {}
         for col in self.df.columns:
-            if col != "Visible":
+            if col != "visible":
                 editors[col] = {'type': 'editable', 'value': False}
+        if self.label_definitions is not None:
+            for label in self.label_definitions:
+                editors[label] = SelectEditor(options=self.label_definitions[label]['label_options'])
         self.table = pn.widgets.Tabulator(
             self.df,
             formatters=formatters,
-            frozen_columns=["Unit ID"],
+            frozen_columns=frozen_columns,
             sizing_mode="stretch_both",
             layout="fit_data",
             show_index=False,
@@ -377,12 +387,11 @@ class UnitListView(ViewBase):
         self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
         self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
 
-        if self.curation:
+        if self.controller.curation:
             button_list += [
                 self.delete_button,
                 self.merge_button,
             ]
-
         self.info_text = pn.pane.HTML("")
 
         buttons = pn.Row(*button_list, sizing_mode="stretch_width")
@@ -411,7 +420,7 @@ class UnitListView(ViewBase):
         self.select_all_button.on_click(self.show_all)
         self.unselect_all_button.on_click(self.hide_all)
 
-        if self.curation:
+        if self.controller.curation:
             self.delete_button.on_click(self.delete_unit)
             self.merge_button.on_click(self.merge_selected)
 
@@ -422,21 +431,17 @@ class UnitListView(ViewBase):
     def _panel_refresh(self):
         unit_ids = self.controller.unit_ids
         df = self.table.value
-        df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
+        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
 
         table_columns = self.df.columns
 
         for table_col in table_columns:
-            main_cols = [col.capitalize() for col in self.main_cols]
-            displayed_cols = [col.capitalize().replace("_", " ") for col in self.controller.displayed_unit_properties]
-            col_name = table_col.capitalize().replace("_", " ")
-            if col_name not in main_cols + displayed_cols:
-                df.drop(columns=[col_name], inplace=True)
+            if table_col not in self.main_cols + self.controller.displayed_unit_properties:
+                df.drop(columns=[table_col], inplace=True)
 
         for col in self.controller.displayed_unit_properties:
-            col_name = col.capitalize().replace("_", " ")
-            if col_name not in table_columns:
-                self.table.hidden_columns.append(col_name)
+            if col not in table_columns:
+                self.table.hidden_columns.append(col)
 
         self.table.value = df
 
@@ -466,7 +471,7 @@ class UnitListView(ViewBase):
                 self.notify_unit_visibility_changed()
                 visibility_changed = True
         if not double_clicked:
-            if col == "Visible":
+            if col == "visible":
                 self.controller.unit_visible_dict[selected_unit_id] = True
                 self.notify_unit_visibility_changed()
                 visibility_changed = True
@@ -474,7 +479,7 @@ class UnitListView(ViewBase):
                 unit_id = self.df.index[row]
 
         if visibility_changed:
-            df.loc[:, "Visible"] = list(self.controller.unit_visible_dict.values())
+            df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
             self.table.value = df
 
         self.last_clicked = time_clicked
