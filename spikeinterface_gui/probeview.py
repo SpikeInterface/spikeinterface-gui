@@ -305,7 +305,7 @@ class ProbeView(ViewBase):
         from .utils_panel import _bg_color
         import bokeh.plotting as bpl
         from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool
-        from bokeh.events import DoubleTap, Tap, Pan, PanEnd
+        from bokeh.events import DoubleTap, Tap, Pan, PanStart, PanEnd
         from .utils_panel import CustomCircle
 
         # Plot probe shape
@@ -437,10 +437,10 @@ class ProbeView(ViewBase):
         # Add pan tool for dragging
         pan_tool = PanTool()
         self.figure.add_tools(pan_tool)
-        self.figure.toolbar.active_drag = pan_tool
+        self.figure.toolbar.active_drag = None
 
         # Connect pan events for circle dragging
-        self.figure.on_event(Pan, self._panel_on_pan)
+        self.figure.on_event(PanStart, self._panel_on_pan_start)
         self.figure.on_event(PanEnd, self._panel_on_pan_end)
         self.should_update_channel_circle = False
         self.should_update_unit_circle = False
@@ -498,21 +498,20 @@ class ProbeView(ViewBase):
             label.visible = self.settings['show_channel_id']
             
 
-    def _panel_on_pan(self, event):
+    def _panel_on_pan_start(self, event):
+        self.figure.toolbar.active_drag = None
         if hasattr(event, "x") and hasattr(event, "y"):
             x, y = event.x, event.y
-            print(f"On pan: {x}, {y}")
             if self.channel_circle.is_close_to_border(x, y):
+                self.figure.toolbar.active_drag = None
                 # Update channel circle
                 self.should_update_channel_circle = True
-                print("Should update channel circle")
             if self.unit_circle.is_close_to_border(x, y):
+                self.figure.toolbar.active_drag = None
                 # Update unit circle
                 self.should_update_unit_circle = True
-                print("Should update unit circle")
 
     def _panel_on_pan_end(self, event):
-        print("On pan end")
         if hasattr(event, "x") and hasattr(event, "y"):
             x, y = event.x, event.y
 

@@ -251,7 +251,8 @@ class SpikeListView(ViewBase):
             sizing_mode="stretch_both",
             show_index=False,
             selectable=True,
-            disabled=True
+            disabled=True,
+            pagination=None
         )
 
         # Add selection event handler
