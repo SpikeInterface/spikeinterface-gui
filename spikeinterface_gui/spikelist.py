@@ -248,6 +248,7 @@ class SpikeListView(ViewBase):
             df,
             layout="fit_data",
             formatters=formatters,
+            frozen_columns=["#", "unit_id"],
             sizing_mode="stretch_both",
             show_index=False,
             selectable=True,
@@ -285,20 +286,21 @@ class SpikeListView(ViewBase):
         unit_ids = self.controller.unit_ids
         spikes = self.controller.spikes[visible_inds]
 
-        # Prepare data for tabulator
-        data = {
-            '#': visible_inds,
-            'segment_index': spikes['segment_index'],
-            'sample_index': spikes['sample_index'],
-            'channel_index': spikes['channel_index'],
-            'rand_selected': spikes['rand_selected']
-        }
         spike_unit_ids = []
         for i, spike in enumerate(spikes):
             unit_id = unit_ids[spike['unit_index']]
             color = mcolors.to_hex(self.controller.get_unit_color(unit_id))
             spike_unit_ids.append({"id": unit_id, "color": color})
-        data['unit_id'] = spike_unit_ids
+
+        # Prepare data for tabulator
+        data = {
+            '#': visible_inds,
+            'unit_id': spike_unit_ids,
+            'segment_index': spikes['segment_index'],
+            'sample_index': spikes['sample_index'],
+            'channel_index': spikes['channel_index'],
+            'rand_selected': spikes['rand_selected']
+        }
 
         # Update table data
         self.table.value = pd.DataFrame(data)
@@ -317,6 +319,7 @@ class SpikeListView(ViewBase):
         self.notify_spike_selection_changed()
         self._panel_refresh_label()
 
+    # TODO: fix this
     def _panel_on_selection_changed(self, event=None):
         row = event.row
         if row in self.table.selection:
@@ -340,6 +343,16 @@ class SpikeListView(ViewBase):
         # Clear the table when visibility changes
         self.table.value = pd.DataFrame(columns=_columns, data=[])
         self._panel_refresh_label()
+
+    def _panel_on_spike_selection_changed(self):
+        selected_inds = self.controller.get_indices_spike_selected()
+        visible_inds = self.controller.get_indices_spike_visible()
+        row_selected, = np.nonzero(np.isin(visible_inds, selected_inds))
+        row_selected = [int(r) for r in row_selected]
+        # Update the selection in the table
+        self.table.selection = row_selected
+        self._panel_refresh_label()
+        self._panel_refresh()
 
 
 SpikeListView._gui_help_txt = """Spike list view
