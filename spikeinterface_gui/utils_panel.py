@@ -100,6 +100,29 @@ def clear_warning(view):
             view.layout.remove(item)
 
 
+def slow_lasso(source, callback):
+    """
+    Implements a slow lasso selection that only triggers a callback every 100ms.
+
+    source: ColumnDataSource
+        The source to which the lasso selection is applied.
+    callback: function
+        The function to trigger on lasso selection.
+    """
+    from bokeh.models import CustomJS
+    # Helper source to trigger Python callback
+    trigger_source = ColumnDataSource(data=dict(trigger=[0]))
+    callback_code = """
+    if (window._lasso_timeout) {
+        clearTimeout(window._lasso_timeout);
+    }
+    window._lasso_timeout = setTimeout(() => {
+        // Replace trigger_source data to force Python-side update
+        trigger_source.data = {trigger: [Math.random()]};
+    }, 100);
+    """
+    source.selected.js_on_change('indices', CustomJS(args=dict(trigger_source=trigger_source), code=callback_code))
+    trigger_source.on_change('data', callback)
 
 
 class CustomCircle:

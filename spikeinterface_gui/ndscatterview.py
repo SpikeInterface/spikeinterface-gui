@@ -331,9 +331,12 @@ class NDScatterView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from .utils_panel import _bg_color
-        from bokeh.models import ColumnDataSource, Range1d, HoverTool, LinearColorMapper
+        from bokeh.models import ColumnDataSource, LassoSelectTool
         from bokeh.events import MouseWheel
+
+        from .utils_panel import _bg_color, slow_lasso
+
+        self.lasso_tool = LassoSelectTool()
 
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
@@ -345,6 +348,8 @@ class NDScatterView(ViewBase):
         )
         self.scatter_fig.toolbar.logo = None
         self.scatter_fig.grid.visible = False
+        self.scatter_fig.add_tools(self.lasso_tool)
+        self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xgrid.grid_line_color = None
         self.scatter_fig.ygrid.grid_line_color = None
         
@@ -368,8 +373,14 @@ class NDScatterView(ViewBase):
         self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
+        self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
+
+        # TODO: add a lasso selection
+        # slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
+
         self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, sizing_mode="stretch_both",
+            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, sizing_mode="stretch_both",
             styles={"flex": "0.15"}
         )
 
@@ -400,6 +411,11 @@ class NDScatterView(ViewBase):
             "y": selected_scatter_y,
         }
 
+        # TODO: handle selection with lasso
+        # mask = np.isin(self.random_spikes_indices, self.controller.get_indices_spike_selected())
+        # selected_indices = np.flatnonzero(mask)
+        # self.scatter_source.selected.indices = selected_indices.tolist()
+
         self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
         self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
 
@@ -411,8 +427,6 @@ class NDScatterView(ViewBase):
         self.limit /= factor
         self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
         self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
-
-        # self.refresh()
 
     def _panel_next_face(self, event):
         self.next_face()
@@ -430,18 +444,44 @@ class NDScatterView(ViewBase):
                 self.tour_timer.stop()
                 self.tour_timer = None
 
+    def _panel_on_select_button(self, event):
+        if self.select_toggle_button.value:
+            self.scatter_fig.toolbar.active_drag = self.lasso_tool
+        else:
+            self.scatter_fig.toolbar.active_drag = None
+            self.scatter_source.selected.indices = []
+            # self._on_panel_lasso_selected(None, None, None)
 
 
+    # TODO: Handle lasso selection and updates
+    # def _on_panel_lasso_selected(self, attr, old, new):
+    #     if len(self.scatter_source.selected.indices) == 0:
+    #         self.notify_spike_selection_changed()
+    #         self.refresh()
+    #         return
+
+    #     # inside lasso and visibles
+    #     inside = self.scatter_source.selected.indices
+
+    #     inds = self.random_spikes_indices[inside]
+    #     self.controller.set_indices_spike_selected(inds)
+
+    #     self.refresh()
+    #     self.notify_spike_selection_changed()
 
 
 def inside_poly(data, vertices):
     return mpl_path(vertices).contains_points(data)
 
 
-NDScatterView._gui_help_txt = """N-dimensional scatter for the principal components
-Projects (num_chan x num_pc) into 2 dim.
-Button randomtour runs dynamic "tour" of the pcs
-mouse wheel : zoom
-left click: draw a lasso for spike selection
-settings controls : num_pc_per_channel displayed
+NDScatterView._gui_help_txt = """
+## N-dimensional scatter for the principal components
+
+Projects (num_chan x num_pc) into 2 dimensions.
+
+### Controls
+- Button next face rotates the projection
+- Button random projection randomly choose a projection
+- Button random tour runs dynamic "tour" of the pcs
+- Button select toggles the lasso selection
 """

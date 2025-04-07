@@ -501,7 +501,8 @@ class UnitListView(ViewBase):
             self.notify_unit_visibility_changed()
             self._refresh()
 
-UnitListView._gui_help_txt = """# Unit List
+UnitListView._gui_help_txt = """
+## Unit List
 
 This view controls the visibility of units: 
 

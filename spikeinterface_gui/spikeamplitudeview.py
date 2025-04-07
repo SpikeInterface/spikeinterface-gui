@@ -231,8 +231,8 @@ class SpikeAmplitudeView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import ColumnDataSource, CustomJS, LassoSelectTool
-        from .utils_panel import _bg_color
+        from bokeh.models import ColumnDataSource, LassoSelectTool
+        from .utils_panel import _bg_color, slow_lasso
 
         self.lasso_tool = LassoSelectTool()
 
@@ -261,23 +261,11 @@ class SpikeAmplitudeView(ViewBase):
         
         self.scatter_fig.toolbar.logo = None
         self.scatter_fig.add_tools(self.lasso_tool)
+        self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = "Amplitude"
 
-        # This is a only make the lasso selection refresh every 50ms
-        # Helper source to trigger Python callback
-        trigger_source = ColumnDataSource(data=dict(trigger=[0]))
-        callback_code = """
-        if (window._lasso_timeout) {
-            clearTimeout(window._lasso_timeout);
-        }
-        window._lasso_timeout = setTimeout(() => {
-            // Replace trigger_source data to force Python-side update
-            trigger_source.data = {trigger: [Math.random()]};
-        }, 100);
-        """
-        self.scatter_source.selected.js_on_change('indices', CustomJS(args=dict(trigger_source=trigger_source), code=callback_code))
-        trigger_source.on_change('data', self._on_panel_lasso_selected)
+        slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
 
         self.hist_fig = bpl.figure(
             tools="reset,wheel_zoom",
