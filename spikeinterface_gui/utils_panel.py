@@ -205,6 +205,7 @@ class KeyboardShortcuts(ReactComponent):
                 print("Print shortcut pressed!")
     >>> shortcuts_component.on_msg(handle_shortcut)
     """
+    _model_name = "KeyboardShortcuts"
 
     shortcuts = param.List(item_type=dict)
 
