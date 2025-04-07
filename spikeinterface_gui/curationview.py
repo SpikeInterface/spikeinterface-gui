@@ -125,7 +125,7 @@ class CurationView(ViewBase):
     def open_context_menu_merge(self):
         self.merge_menu.popup(self.qt_widget.cursor().pos())
 
-    def restore_unit(self, event=None):
+    def restore_unit(self):
         if self.backend == 'qt':
             unit_ids = self._qt_get_delete_table_selection()
         else:
@@ -136,7 +136,7 @@ class CurationView(ViewBase):
             self.refresh()
     
 
-    def unmerge_groups(self, event=None):
+    def unmerge_groups(self):
         if self.backend == 'qt':
             merge_indices = self._qt_get_merge_table_row()
         else:
@@ -171,7 +171,7 @@ class CurationView(ViewBase):
     def on_manual_curation_updated(self):
         self.refresh()
     
-    def save_in_analyzer(self, event=None):
+    def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
 
     def _qt_export_json(self):
@@ -203,16 +203,16 @@ class CurationView(ViewBase):
 
         # Create buttons
         save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary")
-        save_button.on_click(self.save_in_analyzer)
+        save_button.on_click(lambda event: self.save_in_analyzer)
 
         self.export_path = pn.widgets.TextInput(name="Export Path", placeholder="Enter path to save JSON")
         export_button = pn.widgets.Button(name="Export JSON", button_type="primary")
-        export_button.on_click(self._panel_export_json)
+        export_button.on_click(lambda event: self._panel_export_json)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary")
-        restore_button.on_click(self.restore_unit)
+        restore_button.on_click(lambda event: self.restore_unit)
         remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary")
-        remove_merge_button.on_click(self.unmerge_groups)
+        remove_merge_button.on_click(lambda event: self.unmerge_groups)
 
         submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary")
         # Create layout
@@ -271,7 +271,7 @@ class CurationView(ViewBase):
         self.table_delete.selection = []
 
 
-    def _panel_export_json(self, event=None):
+    def _panel_export_json(self):
         # Get the path from the text input
         export_path = Path(self.export_path.value)
 

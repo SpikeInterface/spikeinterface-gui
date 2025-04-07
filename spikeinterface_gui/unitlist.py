@@ -19,13 +19,13 @@ class UnitListView(ViewBase):
 
 
     ## common ##
-    def show_all(self, event=None):
+    def show_all(self):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = True
         self._refresh()
         self.notify_unit_visibility_changed()
     
-    def hide_all(self, event=None):
+    def hide_all(self):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = False
         self._refresh()
@@ -282,7 +282,7 @@ class UnitListView(ViewBase):
         for row in rows:
             self.table.selectRow(row)
 
-    def delete_unit(self, event=None):
+    def delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
         self.notify_manual_curation_updated()
@@ -294,7 +294,7 @@ class UnitListView(ViewBase):
         if len(sel_rows) > 0:
             self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
-    def merge_selected(self, event=None):
+    def merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
         merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
         if merge_successful:
@@ -416,12 +416,12 @@ class UnitListView(ViewBase):
 
         # self.source.selected.on_change("indices", self._panel_on_selection_changed)
         self.table.on_click(self._panel_on_selection_changed)
-        self.select_all_button.on_click(self.show_all)
-        self.unselect_all_button.on_click(self.hide_all)
+        self.select_all_button.on_click(lambda event: self.show_all)
+        self.unselect_all_button.on_click(lambda event: self.hide_all)
 
         if self.controller.curation:
-            self.delete_button.on_click(self.delete_unit)
-            self.merge_button.on_click(self.merge_selected)
+            self.delete_button.on_click(lambda event: self.delete_unit)
+            self.merge_button.on_click(lambda event: self.merge_selected)
 
         self.last_row = None
         self.last_clicked = None

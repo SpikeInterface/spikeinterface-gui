@@ -168,13 +168,14 @@ class MixinViewTrace:
         length = self.controller.get_num_samples(self.seg_index)
         t_start = 0
         t_stop = length / self.controller.sampling_frequency
-        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, sizing_mode="stretch_width")
+        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
+                                                  value_throttled=0, sizing_mode="stretch_width")
 
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
         self.auto_scale_button.on_click(lambda event: self.auto_scale)
-        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value")
+        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
         self.toolbar = pn.Row(
             self.segment_selector,
