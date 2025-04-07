@@ -7,8 +7,6 @@ from panel.custom import ReactComponent
 
 from bokeh.models import ColumnDataSource, Patches, HTMLTemplateFormatter
 
-pn.extension("react")
-
 
 _bg_color = "#181818"
 
