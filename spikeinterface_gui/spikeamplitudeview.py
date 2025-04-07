@@ -232,6 +232,9 @@ class SpikeAmplitudeView(ViewBase):
         import panel as pn
         from .utils_panel import _bg_color
         import bokeh.plotting as bpl
+        from bokeh.models import ColumnDataSource, CustomJS, LassoSelectTool
+
+        self.lasso_tool = LassoSelectTool()
 
         self.segment_index = 0
         self.segment_selector = pn.widgets.Select(
@@ -242,17 +245,40 @@ class SpikeAmplitudeView(ViewBase):
         )
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
+        self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')        
+
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
-            tools="reset,wheel_zoom,lasso_select",
+            tools="reset,wheel_zoom",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
+        
         self.scatter_fig.toolbar.logo = None
+        self.scatter_fig.add_tools(self.lasso_tool)
+        self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = "Amplitude"
+
+        # This is a trick to only trigger the Python callback when the lasso selection is finished
+        # Helper source to trigger Python callback
+        # TODO: fix timing issue with lasso selection
+        trigger_source = ColumnDataSource(data=dict(trigger=[0]))
+        callback_code = """
+        if (window._lasso_timeout) {
+            clearTimeout(window._lasso_timeout);
+        }
+        window._lasso_timeout = setTimeout(() => {
+            // Replace trigger_source data to force Python-side update
+            trigger_source.data = {trigger: [Math.random()]};
+        }, 50);
+        """
+        self.scatter_source.selected.js_on_change('indices', CustomJS(args=dict(trigger_source=trigger_source), code=callback_code))
+        trigger_source.on_change('data', self._on_panel_lasso_selected)
 
         self.hist_fig = bpl.figure(
             tools="reset,wheel_zoom",
@@ -267,7 +293,7 @@ class SpikeAmplitudeView(ViewBase):
         self.hist_fig.xaxis.axis_label = "Count"
 
         self.layout = pn.Column(
-            self.segment_selector,
+            pn.Row(self.segment_selector, self.select_toggle_button, sizing_mode="stretch_width"),
             pn.Row(
                 pn.Column(
                     self.scatter_fig,
@@ -286,12 +312,8 @@ class SpikeAmplitudeView(ViewBase):
         self.hist_lines = {}
         self.noise_harea = []
 
-    def _panel_change_segment(self, event):
-        self.segment_index = int(self.segment_selector.value.split()[-1])
-        self._panel_refresh()
-
     def _panel_refresh(self):
-        from bokeh.models import ColumnDataSource, HoverTool
+        from bokeh.models import ColumnDataSource
 
         # clear figures
         self.hist_fig.renderers = []
@@ -331,16 +353,16 @@ class SpikeAmplitudeView(ViewBase):
 
         # Add scatter plot with correct alpha parameter
         self.scatter_fig.renderers = []
-        scatter_source = ColumnDataSource(data=scatter_data)
+        self.scatter_source.data.update(scatter_data)
         self.scatter = self.scatter_fig.scatter(
             "x",
             "y",
-            source=scatter_source,
+            source=self.scatter_source,
             size=self.settings['scatter_size'],
             color="color",
             fill_alpha=self.settings['alpha'],
         )
-        scatter_source.selected.on_change("indices", self._on_panel_selected)
+        # scatter_source.selected.on_change("indices", self._on_panel_selected)
 
         if self.settings['noise_level']:
             noise = np.mean(self.controller.noise_levels)
@@ -371,15 +393,24 @@ class SpikeAmplitudeView(ViewBase):
         self.hist_fig.x_range.start = 0
         self.hist_fig.x_range.end = max_count
 
-    # TODO fix this
-    def _on_panel_selected(self, attr, old, new):
+    def _panel_on_select_button(self, event):
+        if self.select_toggle_button.value:
+            self.scatter_fig.toolbar.active_drag = self.lasso_tool
+        else:
+            self.scatter_fig.toolbar.active_drag = None
+            self.scatter_source.selected.indices = []
+            self._on_panel_lasso_selected(None, None, None)
+
+    def _panel_change_segment(self, event):
+        self.segment_index = int(self.segment_selector.value.split()[-1])
+        self._panel_refresh()
+
+    def _on_panel_lasso_selected(self, attr, old, new): #event):
         """
         Handle selection changes in the scatter plot.
         """
-        if len(new) > 0:
-            # Get the indices of the selected points
-            inside = new
-        else:
+        inside = self.scatter_source.selected.indices
+        if len(inside) == 0:
             self.controller.set_indices_spike_selected([])
             self.notify_spike_selection_changed()
             return
@@ -393,14 +424,6 @@ class SpikeAmplitudeView(ViewBase):
             if self.controller.unit_visible_dict[unit_id]:
                 visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
         
-        # Only consider spikes from visible units
-        visible_spikes = spikes_in_seg[visible_mask]
-        if len(visible_spikes) == 0:
-            # Clear selection if no visible spikes
-            self.controller.set_indices_spike_selected([])
-            self.notify_spike_selection_changed()
-            return
-        
         # Map back to original indices
         visible_indices = np.nonzero(visible_mask)[0]
         selected_indices = sl.start + visible_indices[inside]
@@ -408,8 +431,11 @@ class SpikeAmplitudeView(ViewBase):
         self.notify_spike_selection_changed()
 
 
-SpikeAmplitudeView._gui_help_txt = """Spike Amplitude view
+SpikeAmplitudeView._gui_help_txt = """
+## Spike Amplitude View
 Check amplitudes of spikes across the recording time or in a histogram
-comparing the distribution of ampltidues to the noise levels
+comparing the distribution of ampltidues to the noise levels.
+
+### Controls
 Mouse click : change scaling
 Left click drag : draw lasso to select spikes"""
