@@ -206,6 +206,8 @@ class KeyboardShortcuts(ReactComponent):
     >>> shortcuts_component.on_msg(handle_shortcut)
     """
     _model_name = "KeyboardShortcuts"
+    _model_module = "keyboard_shortcuts"
+    _model_module_version = "0.0.1"
 
     shortcuts = param.List(item_type=dict)
 
