@@ -18,7 +18,7 @@ class SimilarityView(ViewBase):
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
-        self.similarity = self.controller.get_similarity(method=self.settings["method"])
+        self.similarity = self.controller.get_similarity(method=None)
 
     def get_similarity_data(self):
         unit_ids = self.controller.unit_ids

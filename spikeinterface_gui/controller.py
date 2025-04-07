@@ -450,7 +450,9 @@ class Controller():
         else:
             return self.analyzer_sparsity.mask
 
-    def get_similarity(self, method='l1'):
+    def get_similarity(self, method=None):
+        if method is None and len(self._similarity_by_method) == 1:
+            method = list(self._similarity_by_method.keys())[0]
         similarity = self._similarity_by_method.get(method, None)
         return similarity
     

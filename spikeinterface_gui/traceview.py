@@ -3,8 +3,6 @@ import time
 
 from .view_base import ViewBase
 
-from .utils_qt import add_stretch_to_qtoolbar
-
 
 # This MixinViewTrace is used both in TraceView and TraceMapView) handling:
 #   * toolbar
@@ -19,7 +17,7 @@ class MixinViewTrace:
     def _qt_create_toolbar(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import TimeSeeker
+        from .utils_qt import TimeSeeker, add_stretch_to_qtoolbar
 
         tb = self.qt_widget.view_toolbar
 

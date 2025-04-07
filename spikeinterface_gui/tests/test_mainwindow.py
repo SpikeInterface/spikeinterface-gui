@@ -85,10 +85,12 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
                             extra_unit_properties=extra_unit_properties,
                             )
     else:
+        make_servable = not start_app
         win = run_mainwindow(
             analyzer,
             backend="panel",
             start_app=start_app, verbose=verbose,
+            make_servable=make_servable,
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
