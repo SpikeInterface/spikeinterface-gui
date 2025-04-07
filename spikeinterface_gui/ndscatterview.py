@@ -327,7 +327,6 @@ class NDScatterView(ViewBase):
         self.notify_spike_selection_changed()
 
 
-    # TODO alessio : lasso
     ## panel ##
     def _panel_make_layout(self):
         import panel as pn
@@ -349,7 +348,7 @@ class NDScatterView(ViewBase):
         self.scatter_fig.xgrid.grid_line_color = None
         self.scatter_fig.ygrid.grid_line_color = None
         
-        # TODO alessio : remove the bokeh mousewheel zoom and keep only this one
+        # remove the bokeh mousewheel zoom and keep only this one
         self.scatter_fig.on_event(MouseWheel, self._panel_gain_zoom)
 
         self.scatter_source = ColumnDataSource({"x": [], "y": [], "color": []})
@@ -384,7 +383,7 @@ class NDScatterView(ViewBase):
         self.tour_timer = None
 
     def _panel_refresh(self):
-
+        from bokeh.models import Range1d
         scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
 
         # format rgba
@@ -401,19 +400,17 @@ class NDScatterView(ViewBase):
             "y": selected_scatter_y,
         }
 
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
+        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
 
 
     def _panel_gain_zoom(self, event):
+        from bokeh.models import Range1d
+
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.limit /= factor
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
+        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
 
         # self.refresh()
 

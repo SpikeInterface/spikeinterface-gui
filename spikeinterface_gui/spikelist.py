@@ -1,10 +1,11 @@
 import numpy as np
+import time
 
 from .view_base import ViewBase
 
+
 _columns = ['#', 'unit_id', 'segment_index', 'sample_index', 'channel_index', 'rand_selected']
 
-# TODO alessio + sam : handle selection in the list
 
 def get_qt_spike_model():
     # this getter is to protect import QT when using panel
@@ -255,6 +256,7 @@ class SpikeListView(ViewBase):
             disabled=True,
             pagination=None
         )
+        self.selection = []
 
         # Add selection event handler
         self.table.on_click(self._panel_on_selection_changed)
@@ -277,6 +279,9 @@ class SpikeListView(ViewBase):
             self.table,
             sizing_mode="stretch_both",
         )
+
+        self.last_clicked = None
+        self.last_row = None
 
     def _panel_refresh(self):
         import matplotlib.colors as mcolors
@@ -319,17 +324,29 @@ class SpikeListView(ViewBase):
         self.notify_spike_selection_changed()
         self._panel_refresh_label()
 
-    # TODO: fix this
     def _panel_on_selection_changed(self, event=None):
         row = event.row
-        if row in self.table.selection:
-            self.table.selection.remove(row)
-        else:
-            self.table.selection.append(row)
-        selected_indices = self.table.selection
-        self.handle_selection(selected_indices)
+        time_clicked = time.perf_counter()
+        double_clicked = False
+        if self.last_clicked is not None:
+            if (time_clicked - self.last_clicked) < 0.8 and self.last_row == row:
+                double_clicked = True
+                self.selection = [row]
+        if not double_clicked:
+            if row in self.selection:
+                self.selection.remove(row)
+            else:
+                self.selection.append(row)
+
+        self.table.selection = self.selection
+        # make index absolute
+        absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
+        self.handle_selection(absolute_indices)
         self._panel_refresh_label()
         self._panel_refresh()
+
+        self.last_clicked = time_clicked
+        self.last_row = row
 
     def _panel_refresh_label(self):
         n1 = self.controller.spikes.size

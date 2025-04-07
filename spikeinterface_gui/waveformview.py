@@ -423,62 +423,96 @@ class WaveformView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
+        from bokeh.models import WheelZoomTool, Range1d
+        from bokeh.events import MouseWheel
+
         from .utils_panel import _bg_color
-        from bokeh.models import WheelZoomTool, Range1d, HoverTool
-        from bokeh.events import Tap, MouseWheel
 
 
         self.mode_selector = pn.widgets.Select(name='mode', options=['geometry', 'flatten'])
         self.mode_selector.param.watch(self._panel_on_mode_selector_changed, "value")
 
-        # Create figure with basic tools
-        self.figure = bpl.figure(
+        # Create figures with basic tools
+        self.figure_geom = bpl.figure(
             sizing_mode="stretch_both",
             tools="",
             y_axis_type="auto",
-            y_range=Range1d(start=-1000, end=1000),  # Invert y-axis to match Qt
+            background_fill_color=_bg_color,
+            border_fill_color=_bg_color,
+            outline_line_color="white",
+        )
+        self.zoom_tool = WheelZoomTool()
+        self.figure_geom.toolbar.logo = None
+        self.figure_geom.add_tools(self.zoom_tool)
+        self.figure_geom.toolbar.active_scroll = self.zoom_tool
+        self.figure_geom.grid.visible = False
+        self.figure_geom.on_event(MouseWheel, self._panel_gain_zoom)
+        self.lines_geom = {}
+
+        # figures for flatten
+        self.shared_x_range = Range1d(start=0, end=1500)
+        self.figure_avg = bpl.figure(
+            sizing_mode="stretch_both",
+            tools="wheel_zoom,reset",
+            active_scroll="wheel_zoom",
+            y_axis_type="auto",
+            x_range=self.shared_x_range,
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
             styles={"flex": "1"},
         )
-        self.zoom_tool = WheelZoomTool()
-        self.figure.toolbar.logo = None
-        self.figure.add_tools(self.zoom_tool)
-        self.figure.toolbar.active_scroll = self.zoom_tool
-        self.figure.grid.visible = False
-        self.figure.on_event(MouseWheel, self._panel_gain_zoom)
-        self.lines = {}
+        self.figure_avg.toolbar.logo = None
+        self.figure_avg.grid.visible = False
+        self.lines_avg = {}
+
+        self.figure_std = bpl.figure(
+            sizing_mode="stretch_both",
+            tools="",
+            y_axis_type="auto",
+            background_fill_color=_bg_color,
+            border_fill_color=_bg_color,
+            outline_line_color="white",
+            x_range=self.shared_x_range,
+            styles={"flex": "0.5"},
+        )
+        self.figure_std.toolbar.logo = None
+        self.figure_std.grid.visible = False
+        self.figure_std.toolbar.active_scroll = None
+        self.lines_std = {}
+
+        self.figure_pane = pn.Column(
+            self.figure_geom
+        )
 
         self.layout = pn.Column(
                 pn.Row(
                     self.mode_selector
                 ),
-                self.figure,
+                self.figure_pane,
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both"
         )
 
 
     def _panel_on_mode_selector_changed(self, event):
-        # TODO alessio : reset figure and add secondary figure    
+        import panel as pn
         self.mode = self.mode_selector.value
+        self.layout[1] = self.figure_geom if self.mode == 'geometry' else pn.Column(self.figure_avg, self.figure_std)
         self.refresh()
 
     def _panel_gain_zoom(self, event):
         modifiers = event.modifiers
-        print(modifiers)
         if modifiers["shift"]:
-            self.figure.toolbar.active_scroll = self.zoom_tool
+            self.figure_geom.toolbar.active_scroll = self.zoom_tool
         elif modifiers["alt"]:
-            self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
+            self.figure_geom.toolbar.active_scroll = None  # Disable zooming temporarily
             if self.mode == 'geometry':
                 factor = 1.3 if event.delta > 0 else 1 / 1.3
                 self.factor_x *= factor
                 self._panel_refresh_mode_geometry()
-                print(self.factor_x)
         elif not modifiers["ctrl"]:
-            self.figure.toolbar.active_scroll = None  # Disable zooming temporarily
+            self.figure_geom.toolbar.active_scroll = None  # Disable zooming temporarily
             if self.mode == 'geometry':
                 factor = 1.3 if event.delta > 0 else 1 / 1.3
                 self.factor_y *= factor
@@ -494,16 +528,14 @@ class WaveformView(ViewBase):
             self._panel_refresh_mode_flatten()
 
     def _panel_refresh_mode_geometry(self):
+        from bokeh.models import Range1d
         # this clear the figure
-        self.figure.renderers = []
-        self.lines = {}
+        self.figure_geom.renderers = []
+        self.lines_geom = {}
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
-
-        nbefore, nafter = self.controller.get_waveform_sweep()
-        width = nbefore + nafter
 
         for unit_index, unit_id in self.controller.iter_visible_units():            
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
@@ -520,44 +552,61 @@ class WaveformView(ViewBase):
             color = self.get_unit_color(unit_id)
             
             source = {"x": xvect.flatten(), "y" : wf.T.flatten() }
-            self.lines[unit_id] = self.figure.line("x", "y", source=source, line_color=color, line_width=2)
+            self.lines_geom[unit_id] = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=2)
 
-        self.figure.x_range.start = np.min(self.xvect) - 50
-        self.figure.x_range.end = np.max(self.xvect) + 50
-        self.figure.y_range.start = np.min(ypos) - 50
-        self.figure.y_range.end = np.max(ypos) + 50
+        self.figure_geom.x_range = Range1d(np.min(self.xvect) - 50, np.max(self.xvect) + 50)
+        self.figure_geom.y_range = Range1d(np.min(ypos) - 50, np.max(ypos) + 50)
+
         # TODO : alessio handle spike
 
 
     def _panel_refresh_mode_flatten(self):
+        from bokeh.models import Range1d, Span
         # this clear the figure
-        self.figure.renderers = []
-        self.lines = {}
+        self.figure_avg.renderers = []
+        self.figure_std.renderers = []
+        self.lines_avg = {}
+        self.lines_std = {}
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
 
-
-        for unit_index, unit_id in self.controller.iter_visible_units():            
+        for unit_index, unit_id in self.controller.iter_visible_units():
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
+            template_std = self.controller.templates_std[unit_index, :, :][:, common_channel_indexes]
+            nsamples, nchannels = template_avg.shape
 
-            y = template_avg.T.flatten()
-            x = np.arange(y.size)
+            offset = 1.5*np.max(template_std)
+            y_avg = template_avg.T.flatten() + offset
+            y_std = template_std.T.flatten()
+            x = np.arange(y_avg.size)
             
             color = self.get_unit_color(unit_id)
-            self.lines[unit_id] = self.figure.line("x", "y", source=dict(x=x, y=y), line_color=color, line_width=2)
+            self.lines_avg[unit_id] = self.figure_avg.line("x", "y", source=dict(x=x, y=y_avg), line_color=color, line_width=2)
+            self.lines_std[unit_id] = self.figure_std.line("x", "y", source=dict(x=x, y=y_std), line_color=color, line_width=2)
 
-        # TODO : alessio handle range
+            # add dashed vertical lines corresponding to the channels
+            for ch in range(nchannels - 1):
+                # Add vertical line at x=5
+                vline = Span(location=(ch + 1) * nsamples, dimension='height', line_color='grey', line_width=1, line_dash='dashed')
+                self.figure_avg.add_layout(vline)
+                self.figure_std.add_layout(vline)
+
+        self.shared_x_range = Range1d(start=0, end=x[-1])
+        self.figure_avg.x_range = self.shared_x_range
+        self.figure_std.x_range = self.shared_x_range
+        
         # TODO : alessio handle spike
-        # TODO : alessio handle STD on second figure
 
 
-WaveformView._gui_help_txt = """Waveform view
+WaveformView._gui_help_txt = """
+## Waveform view
+
 Display average template for visible units.
 If one spike is selected (in spike list) then the spike is super imposed (white trace).
 
-2 mode :
+2 modes :
   * 'geometry' : snippets are displayed centered on the contact position
   * 'flatten' : snippets are concatenated in a flatten way (better to check the variance)
 
