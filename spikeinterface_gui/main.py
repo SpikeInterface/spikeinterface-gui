@@ -25,6 +25,7 @@ def run_mainwindow(
     extra_unit_properties=None,
     recording=None,
     start_app=True,
+    make_servable=False,
     layout_preset=None,
     verbose=False,
 ):
@@ -70,7 +71,7 @@ def run_mainwindow(
         label_definitions=label_definitions,
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
-        extra_unit_properties=extra_unit_properties
+        extra_unit_properties=extra_unit_properties,
     )
 
     if backend == "qt":
@@ -97,7 +98,7 @@ def run_mainwindow(
         win = PanelMainWindow(controller, layout_preset=layout_preset)
         if start_app:
             start_server(win)
-        else:
+        elif make_servable:
             win.main_layout.servable()
     else:
         raise ValueError(f"spikeinterface-gui wrong backend {backend}")

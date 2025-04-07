@@ -237,15 +237,16 @@ class SpikeListView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import pandas as pd
-        from panel.widgets import Tabulator
         from .utils_panel import spike_formatter
+
+        pn.extension('tabulator')
 
         # Configure columns for tabulator
         df = pd.DataFrame(columns=_columns)
         formatters = {"unit_id": spike_formatter}
 
         # Create tabulator instance
-        self.table = Tabulator(
+        self.table = pn.widgets.Tabulator(
             df,
             layout="fit_data",
             formatters=formatters,
@@ -313,14 +314,14 @@ class SpikeListView(ViewBase):
         self._panel_refresh_label()
 
     def _panel_on_refresh_click(self, event):
-        print("Refresh button clicked in SpikeListView")
         self._panel_refresh_label()
         self.controller.set_indices_spike_selected([])
         self._panel_refresh()
 
     def _panel_on_clear_click(self, event):
         self.controller.set_indices_spike_selected([])
-        self.table.selection = []
+        self.selection = []
+        self.table.selection = self.selection
         self.notify_spike_selection_changed()
         self._panel_refresh_label()
 

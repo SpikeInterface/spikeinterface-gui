@@ -532,7 +532,7 @@ class Controller():
         """
         Check if a unit_ids can be removed.
 
-        If unit are already deleted or in a merge group then the delete operation is skiped.
+        If unit are already deleted or in a merge group then the delete operation is skipped.
         """
         if not self.curation:
             return
@@ -565,7 +565,7 @@ class Controller():
         """
         Check if the a list of unit_ids can be added as a new merge to the curation_data.
 
-        If some unit_ids are already in the removed list then the merge is skiped.
+        If some unit_ids are already in the removed list then the merge is skipped.
 
         If unit_ids are already is some other merge then the connectivity graph is resolved groups can be
         eventually merged.

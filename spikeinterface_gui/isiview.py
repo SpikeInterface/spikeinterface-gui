@@ -7,6 +7,7 @@ class ISIView(ViewBase):
                 {'name': 'window_ms', 'type': 'float', 'value' : 50. },
                 {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
         ]
+    _depend_on = ["isi_histograms"]
     _need_compute = True
 
 
