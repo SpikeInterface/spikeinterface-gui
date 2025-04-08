@@ -166,7 +166,7 @@ class Controller():
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
 
-        self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
+        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
         
 

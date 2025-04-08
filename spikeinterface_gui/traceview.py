@@ -196,7 +196,7 @@ class MixinViewTrace:
         t_stop = length / self.controller.sampling_frequency
         self.time_slider.start = 0
         self.time_slider.end = t_stop
-        self.time_slider.value = 0
+        self.time_slider.value_throttled = 0
 
         # # Update plot ranges
         # self.figure.x_range.start = 0
@@ -259,7 +259,7 @@ class TraceView(ViewBase, MixinViewTrace):
     def get_visible_channel_inds(self):
         # TODO add option to order by depth
         inds = self.controller.visible_channel_inds
-        n_max =self.settings['max_visible_channel']
+        n_max = self.settings['max_visible_channel']
         if inds.size > n_max:
             inds = inds[:n_max]
         return inds
@@ -587,9 +587,6 @@ class TraceView(ViewBase, MixinViewTrace):
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self.seek_with_selected_spike()
 
-    # def _panel_on_double_tap(self, event):
-    #     self._panel_on_tap(event)
-
     def _panel_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
@@ -608,12 +605,13 @@ class TraceView(ViewBase, MixinViewTrace):
 
             # Update time slider
             self.time_slider.value = peak_time
+            self.time_by_seg[self.seg_index] = peak_time
 
             # Center view on spike
             margin = self.xsize / 3
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
-            self._panel_refresh()
+            self.refresh()
 
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()

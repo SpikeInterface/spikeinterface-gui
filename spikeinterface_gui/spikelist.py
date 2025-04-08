@@ -237,7 +237,7 @@ class SpikeListView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import pandas as pd
-        from .utils_panel import spike_formatter
+        from .utils_panel import spike_formatter, KeyboardShortcut, KeyboardShortcuts
 
         pn.extension('tabulator')
 
@@ -269,15 +269,25 @@ class SpikeListView(ViewBase):
         self.clear_button.on_click(self._panel_on_clear_click)
 
         self.info_text = pn.pane.HTML("")
+        # shortcuts
+        shortcuts = [
+            KeyboardShortcut(name="first", key="Home", shiftKey=True),
+            KeyboardShortcut(name="last", key="End", shiftKey=True),
+            KeyboardShortcut(name="next_only", key="ArrowDown", shiftKey=True),
+            KeyboardShortcut(name="previous_only", key="ArrowUp", shiftKey=True),
+        ]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         # Create main layout
         self.layout = pn.Column(
+            self.info_text,
             pn.Row(
-                self.info_text,
                 self.clear_button,
                 self.refresh_button,
             ),
             self.table,
+            shortcuts_component,
             sizing_mode="stretch_both",
         )
 
@@ -314,9 +324,9 @@ class SpikeListView(ViewBase):
         self._panel_refresh_label()
 
     def _panel_on_refresh_click(self, event):
-        self._panel_refresh_label()
         self.controller.set_indices_spike_selected([])
-        self._panel_refresh()
+        self._panel_refresh_label()
+        self.refresh()
 
     def _panel_on_clear_click(self, event):
         self.controller.set_indices_spike_selected([])
@@ -341,10 +351,12 @@ class SpikeListView(ViewBase):
 
         self.table.selection = self.selection
         # make index absolute
-        absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
-        self.handle_selection(absolute_indices)
+        if len(self.selection) == 0:
+            self.handle_selection([])
+        else:
+            absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
+            self.handle_selection(absolute_indices)
         self._panel_refresh_label()
-        self._panel_refresh()
 
         self.last_clicked = time_clicked
         self.last_row = row
@@ -370,10 +382,49 @@ class SpikeListView(ViewBase):
         # Update the selection in the table
         self.table.selection = row_selected
         self._panel_refresh_label()
-        self._panel_refresh()
+
+    def _panel_handle_shortcut(self, event):
+        if event.data == "next_only":
+            selected_rows = self.selection
+            if len(selected_rows) == 0:
+                next_row = 0
+            else:
+                next_row = max(selected_rows) + 1
+            if next_row < self.table.value.shape[0]:
+                self.selection = [next_row]
+                self.table.selection = self.selection
+                absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
+                self.handle_selection(absolute_indices)
+                self._panel_refresh_label()
+        elif event.data == "previous_only":
+            selected_rows = self.selection
+            if len(selected_rows) == 0:
+                previous_row = 0
+            else:
+                previous_row = min(selected_rows) - 1
+            if previous_row >= 0:
+                self.selection = [previous_row]
+                self.table.selection = self.selection
+                absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
+                self.handle_selection(absolute_indices)
+                self._panel_refresh_label()
+        elif event.data == "first":
+            self.selection = [0]
+            self.table.selection = self.selection
+            absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
+            self.handle_selection(absolute_indices)
+            self._panel_refresh_label()
+        elif event.data == "last":
+            self.selection = [self.table.value.shape[0] - 1]
+            self.table.selection = self.selection
+            absolute_indices = self.controller.get_indices_spike_visible()[np.array(self.selection)]
+            self.handle_selection(absolute_indices)
+            self._panel_refresh_label()
 
 
-SpikeListView._gui_help_txt = """Spike list view
+SpikeListView._gui_help_txt = """
+## Spike list view
+
 Show all spikes of the visible units.
 When on spike is selected then:
   * the trace scroll to it

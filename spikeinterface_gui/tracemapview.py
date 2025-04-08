@@ -292,11 +292,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.layout = pn.Column(
             pn.Column(  # Main content area
                 self.toolbar,
-                # pn.Row(
-                #     self.time_slider,
-                #     styles={"flex": "0 0 auto"},
-                #     sizing_mode="stretch_width"
-                # ),
                 self.figure,
                 self.time_slider,
                 styles={"flex": "1"},
@@ -327,12 +322,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
             # Update time slider
             self.time_slider.value = peak_time
+            self.time_by_seg[self.seg_index] = peak_time
 
             # Center view on spike
             margin = self.xsize / 3
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
-            self._panel_refresh()
+            self.refresh()
 
     def _panel_on_xsize_changed(self, event):
         self.xsize = event.new

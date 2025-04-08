@@ -345,7 +345,7 @@ class MergeView(ViewBase):
         import panel as pn
         self.table_area.update(pn.indicators.LoadingSpinner(size=50, value=True))
         self.get_potential_merges()
-        self._panel_refresh()
+        self.refresh()
 
     def _panel_on_method_change(self, event):
         self.method = self.method_selector.value
@@ -371,7 +371,7 @@ class MergeView(ViewBase):
                 group_ids = self.table.value.iloc[row].group_ids
                 self.accept_group_merge(group_ids)
             self.notify_manual_curation_updated()
-            self._panel_refresh()
+            self.refresh()
 
     def _panel_on_spike_selection_changed(self):
         pass

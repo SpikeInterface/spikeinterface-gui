@@ -170,15 +170,14 @@ class ProbeView(ViewBase):
             
     
     def _qt_update_channel_visibility_from_roi(self, emit_signals=False):
-            r, x, y = circle_from_roi(self.roi_channel)
-            visible_channel_inds = self.update_channel_visibility(x, y, r)
-            self.controller.set_channel_visibility(visible_channel_inds)
-            if emit_signals:
-                self.notify_channel_visibility_changed()
+        r, x, y = circle_from_roi(self.roi_channel)
+        visible_channel_inds = self.update_channel_visibility(x, y, r)
+        self.controller.set_channel_visibility(visible_channel_inds)
+        if emit_signals:
+            self.notify_channel_visibility_changed()
 
     
     def _qt_on_roi_channel_changed(self, emit_signals=True):
-        
         r, x, y = circle_from_roi(self.roi_channel)
         
         self.settings.blockSignals(True)
@@ -459,10 +458,14 @@ class ProbeView(ViewBase):
         if sum(list(self.controller.unit_visible_dict.values())) == 1:
             selected_unit = np.flatnonzero(list(self.controller.unit_visible_dict.values()))[0]
             unit_positions = self.controller.unit_positions
-            self.unit_circle.update_position(unit_positions[selected_unit, 0], unit_positions[selected_unit, 1])
-            self.channel_circle.update_position(unit_positions[selected_unit, 0], unit_positions[selected_unit, 1])
-
-
+            x, y = unit_positions[selected_unit, 0], unit_positions[selected_unit, 1]
+            # Update circles position
+            self.unit_circle.update_position(x, y)
+            self.channel_circle.update_position(x, y)
+            # Update channel visibility
+            visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
+            self.controller.set_channel_visibility(visible_channel_inds)
+            self.notify_channel_visibility_changed()
 
     def _panel_update_unit_glyphs(self):
         # Prepare unit appearance data
@@ -564,7 +567,6 @@ class ProbeView(ViewBase):
 
             self._panel_update_unit_glyphs()
             self.notify_unit_visibility_changed()
-            # self._panel_refresh()
 
     def _panel_on_double_tap(self, event):
         # Find closest unit to click position
