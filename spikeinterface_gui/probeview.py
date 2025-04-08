@@ -463,7 +463,6 @@ class ProbeView(ViewBase):
             self.unit_circle.update_position(x, y)
             self.channel_circle.update_position(x, y)
             # Update channel visibility
-            print("Updating channel visibility")
             visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
             self.controller.set_channel_visibility(visible_channel_inds)
             self.notify_channel_visibility_changed()
