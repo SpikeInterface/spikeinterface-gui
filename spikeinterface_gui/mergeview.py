@@ -40,7 +40,7 @@ class MergeView(ViewBase):
             similarity_params = self.method_params['similarity']
             similarity = self.controller.get_similarity(similarity_params['similarity_method'])
             if similarity is None:
-                similarity = self.controller.compute_similarity(similarity_params['similarity_threshold'])
+                similarity = self.controller.compute_similarity(similarity_params['similarity_method'])
             th_sim = similarity > similarity_params['similarity_threshold']
             unit_ids = self.controller.unit_ids
             self.proposed_merge_unit_groups = [[unit_ids[i], unit_ids[j]] for i, j in zip(*np.nonzero(th_sim)) if i < j]
@@ -54,7 +54,6 @@ class MergeView(ViewBase):
         else:
             raise ValueError(f"Unknown method: {method}")
         print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
-        self.refresh()
 
     def get_table_data(self):
         """Get data for displaying in table"""
@@ -289,18 +288,19 @@ class MergeView(ViewBase):
 
         # Create data source and table
         self.table = None
-        self.table_area = pn.pane.Placeholder("No merges computed yet.", sizing_mode="stretch_width")
+        self.table_area = pn.pane.Placeholder("No merges computed yet.", height=400)
 
         self.caluculate_merges_button = pn.widgets.Button(name="Calculate merges", button_type="primary", sizing_mode="stretch_width")
         self.caluculate_merges_button.on_click(self._panel_calculate_merges)
 
         self.layout = pn.Column(
             # add params
-            self.method_selector,
+            self.method_selector, 
             self.method_params_selectors[self.method],
             self.caluculate_merges_button,
             self.table_area,
             shortcuts_component,
+            scroll=True,
             sizing_mode="stretch_width",
         )
 
@@ -330,7 +330,7 @@ class MergeView(ViewBase):
         self.table = pn.widgets.Tabulator(
             df,
             formatters=formatters,
-            sizing_mode="stretch_both",
+            height=400,
             layout="fit_data",
             show_index=False,
             hidden_columns=["group_ids"],
