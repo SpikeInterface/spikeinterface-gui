@@ -170,6 +170,9 @@ class CurationView(ViewBase):
 
     def on_manual_curation_updated(self):
         self.refresh()
+
+    def on_unit_visibility_changed(self):
+        pass
     
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()

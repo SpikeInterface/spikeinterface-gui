@@ -22,13 +22,13 @@ class UnitListView(ViewBase):
     def show_all(self):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = True
-        self._refresh()
+        self.refresh()
         self.notify_unit_visibility_changed()
     
     def hide_all(self):
         for unit_id in self.controller.unit_visible_dict:
             self.controller.unit_visible_dict[unit_id] = False
-        self._refresh()
+        self.refresh()
         self.notify_unit_visibility_changed()
 
     ## Qt ##
@@ -400,6 +400,10 @@ class UnitListView(ViewBase):
             KeyboardShortcut(name="delete", key="d", ctrlKey=False),
             KeyboardShortcut(name="merge", key="m", ctrlKey=False),
             KeyboardShortcut(name="visible", key=" ", ctrlKey=False),
+            KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
+            KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
+            KeyboardShortcut(name="next_only", key="ArrowDown", ctrlKey=True),
+            KeyboardShortcut(name="previous_only", key="ArrowUp", ctrlKey=True),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -499,7 +503,55 @@ class UnitListView(ViewBase):
             for unit_id in self.controller.unit_ids[selected_rows]:
                 self.controller.unit_visible_dict[unit_id] = True
             self.notify_unit_visibility_changed()
-            self._refresh()
+            self.refresh()
+        elif event.data == "next":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                next_row = 0
+            else:
+                next_row = max(selected_rows) + 1
+            if next_row < len(self.controller.unit_ids):
+                if next_row not in self.table.selection:
+                    self.table.selection.append(next_row)
+                    self.refresh()
+        elif event.data == "previous":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                previous_row = 0
+            else:
+                previous_row = min(selected_rows) - 1
+            if previous_row >= 0:
+                if previous_row not in self.table.selection:
+                    self.table.selection.append(previous_row)
+                    self.refresh()
+        elif event.data == "next_only":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                next_row = 0
+            else:
+                next_row = max(selected_rows) + 1
+            if next_row < len(self.controller.unit_ids):
+                for unit_id in self.controller.unit_visible_dict:
+                    self.controller.unit_visible_dict[unit_id] = False
+                unit_id = self.controller.unit_ids[next_row]
+                self.controller.unit_visible_dict[unit_id] = True
+                self.table.selection = [next_row]
+                self.notify_unit_visibility_changed()
+                self.refresh()
+        elif event.data == "previous_only":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                previous_row = 0
+            else:
+                previous_row = min(selected_rows) - 1
+            if previous_row >= 0:
+                for unit_id in self.controller.unit_visible_dict:
+                    self.controller.unit_visible_dict[unit_id] = False
+                unit_id = self.controller.unit_ids[previous_row]
+                self.controller.unit_visible_dict[unit_id] = True
+                self.table.selection = [previous_row]
+                self.notify_unit_visibility_changed()
+                self.refresh()
 
 UnitListView._gui_help_txt = """
 ## Unit List

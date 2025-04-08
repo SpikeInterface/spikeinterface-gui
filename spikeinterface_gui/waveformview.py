@@ -1,8 +1,11 @@
+import time
 import numpy as np
 
 from .view_base import ViewBase
 
 
+
+_wheel_refresh_time = 0.1
 
 # TODO sam : check the on_params_changed in change params and remove initialize_plot()
 
@@ -50,6 +53,8 @@ class WaveformView(ViewBase):
             self.xvect[chan_ind, :] = np.linspace(x-espx, x+espx, num=width)
         self.wf_min, self.wf_max = self.controller.get_waveforms_range()
 
+        self.last_wheel_event_time = None
+
 
     def get_common_channels(self):
         sparse = self.settings['sparse_display']
@@ -63,6 +68,21 @@ class WaveformView(ViewBase):
             common_channel_indexes = np.arange(len(self.controller.channel_ids), dtype='int64')
 
         return common_channel_indexes
+
+    def get_spike_waveform(self, ind):
+        seg_num = self.controller.spikes['segment_index'][ind]
+        peak_ind = self.controller.spikes['sample_index'][ind]
+        
+        nbefore, nafter = self.controller.get_waveform_sweep()
+        width = nbefore + nafter
+        
+        # TODO handle return_scaled
+        wf = self.controller.get_traces(
+            trace_source='preprocessed', 
+            segment_index=seg_num, 
+            start_frame=peak_ind - nbefore, end_frame=peak_ind + nafter,
+        )
+        return wf, width
 
 
     ## Qt ##
@@ -180,15 +200,15 @@ class WaveformView(ViewBase):
             unit_visible_dict = self.controller.unit_visible_dict
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
-            self.refresh_mode_flatten(unit_visible_dict, keep_range)
+            self._qt_refresh_mode_flatten(unit_visible_dict, keep_range)
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
-            self.refresh_mode_geometry(unit_visible_dict, keep_range)
+            self._qt_refresh_mode_geometry(unit_visible_dict, keep_range)
         
-        self._refresh_one_spike(n_selected)
+        self._qt_refresh_one_spike()
     
     
-    def refresh_mode_flatten(self, unit_visible_dict, keep_range):
+    def _qt_refresh_mode_flatten(self, unit_visible_dict, keep_range):
         import pyqtgraph as pg
         from .myqt import QT
         if self._x_range is not None and keep_range:
@@ -290,9 +310,7 @@ class WaveformView(ViewBase):
             self.plot1.setYRange(*self._y1_range, padding = 0.0)
             self.plot2.setYRange(*self._y2_range, padding = 0.0)
 
-
-
-    def refresh_mode_geometry(self, unit_visible_dict, keep_range):
+    def _qt_refresh_mode_geometry(self, unit_visible_dict, keep_range):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -342,8 +360,6 @@ class WaveformView(ViewBase):
             
             xvect = self.xvect[common_channel_indexes, :]
             
-            
-            
             # color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
             color = self.get_unit_color(unit_id)
             
@@ -359,7 +375,7 @@ class WaveformView(ViewBase):
                 self.plot1.addItem(itemtxt)
                 itemtxt.setPos(x, y)
         
-        if self._x_range is None or not keep_range :
+        if self._x_range is None or not keep_range:
 
             x_margin =50
             y_margin =150
@@ -372,49 +388,49 @@ class WaveformView(ViewBase):
         self.plot1.setYRange(*self._y1_range, padding = 0.0)
         
     
-    def _refresh_one_spike(self, n_selected):
+    def _qt_refresh_one_spike(self):
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
 
-        if n_selected!=1 or not self.settings['plot_selected_spike']: 
+        if n_selected != 1 or not self.settings['plot_selected_spike']: 
             self.curve_one_waveform.setData([], [])
             return
         
         selected_inds = self.controller.get_indices_spike_selected()
         ind = selected_inds[0]
-        
-        seg_num = self.controller.spikes['segment_index'][ind]
-        peak_ind = self.controller.spikes['sample_index'][ind]
-        
-        nbefore, nafter = self.controller.get_waveform_sweep()
-        width = nbefore + nafter
-        
-        # TODO handle return_scaled
-        wf = self.controller.get_traces(trace_source='preprocessed', 
-                segment_index=seg_num, 
-                start_frame=peak_ind - nbefore, end_frame=peak_ind + nafter,
-                )
+
+        common_channel_indexes = self.get_common_channels()
+        if common_channel_indexes is None:
+            self.curve_one_waveform.setData([], [])
+            return
+        wf, width = self.get_spike_waveform(ind)
+        wf = wf[:, common_channel_indexes]
         
         if wf.shape[0] == width:
             #this avoid border bugs
             if self.mode=='flatten':
-                if self._common_channel_indexes_flat is None:
-                    self.curve_one_waveform.setData([], [])
-                    return
-                
-                wf = wf[:, self._common_channel_indexes_flat].T.flatten()
+                wf = wf[:, common_channel_indexes].T.flatten()
                 xvect = np.arange(wf.size)
                 self.curve_one_waveform.setData(xvect, wf)
             elif self.mode=='geometry':
-                ypos = self.contact_location[:,1]
+                ypos = self.contact_location[common_channel_indexes, 1]
                 wf = wf*self.factor_y*self.delta_y + ypos[None, :]
                 
                 connect = np.ones(wf.shape, dtype='bool')
                 connect[0, :] = 0
                 connect[-1, :] = 0
+                xvect = self.xvect[common_channel_indexes, :]
 
-                self.curve_one_waveform.setData(self.xvect.flatten(), wf.T.flatten(), connect=connect.T.flatten())
+                self.curve_one_waveform.setData(xvect.flatten(), wf.T.flatten(), connect=connect.T.flatten())
     
     def _qt_on_spike_selection_changed(self):
-        self._qt_refresh(keep_range=True)
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
+        if n_selected == 1 and self.settings['plot_selected_spike']:
+            self._qt_refresh(keep_range=True)
+        else:
+            # remove the line
+            self.curve_one_waveform.setData([], [])
     
     def _qt_on_unit_visibility_changed(self):
         keep_range = not(self.settings['auto_zoom_on_unit_selection'])
@@ -435,7 +451,7 @@ class WaveformView(ViewBase):
         # Create figures with basic tools
         self.figure_geom = bpl.figure(
             sizing_mode="stretch_both",
-            tools="",
+            tools="reset",
             y_axis_type="auto",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
@@ -481,6 +497,8 @@ class WaveformView(ViewBase):
         self.figure_std.toolbar.active_scroll = None
         self.lines_std = {}
 
+        self.lines_wfs = []
+
         self.figure_pane = pn.Column(
             self.figure_geom
         )
@@ -494,7 +512,6 @@ class WaveformView(ViewBase):
             sizing_mode="stretch_both"
         )
 
-
     def _panel_on_mode_selector_changed(self, event):
         import panel as pn
         self.mode = self.mode_selector.value
@@ -502,42 +519,68 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _panel_gain_zoom(self, event):
-        modifiers = event.modifiers
-        if modifiers["shift"]:
-            self.figure_geom.toolbar.active_scroll = self.zoom_tool
-        elif modifiers["alt"]:
-            self.figure_geom.toolbar.active_scroll = None  # Disable zooming temporarily
-            if self.mode == 'geometry':
-                factor = 1.3 if event.delta > 0 else 1 / 1.3
-                self.factor_x *= factor
-                self._panel_refresh_mode_geometry()
-        elif not modifiers["ctrl"]:
-            self.figure_geom.toolbar.active_scroll = None  # Disable zooming temporarily
-            if self.mode == 'geometry':
-                factor = 1.3 if event.delta > 0 else 1 / 1.3
-                self.factor_y *= factor
-                self._panel_refresh_mode_geometry()
+        current_time = time.perf_counter()
+        if self.last_wheel_event_time is not None:
+            time_elapsed = current_time - self.last_wheel_event_time
+        else:
+            time_elapsed = 1000
+        if time_elapsed > _wheel_refresh_time:
+            modifiers = event.modifiers
+            if modifiers["shift"]:
+                self.figure_geom.toolbar.active_scroll = self.zoom_tool
+            elif modifiers["alt"]:
+                self.figure_geom.toolbar.active_scroll = None
+                if self.mode == 'geometry':
+                    factor = 1.3 if event.delta > 0 else 1 / 1.3
+                    self.factor_x *= factor
+                    self._panel_refresh_mode_geometry(keep_range=True)
+            elif not modifiers["ctrl"]:
+                self.figure_geom.toolbar.active_scroll = None
+                if self.mode == 'geometry':
+                    factor = 1.3 if event.delta > 0 else 1 / 1.3
+                    self.factor_y *= factor
+                    self._panel_refresh_mode_geometry(keep_range=True)
+        else:
+            # Ignore the event if it occurs too quickly
+            self.figure_geom.toolbar.active_scroll = None
+        self.last_wheel_event_time = current_time
 
     def _panel_refresh(self):
         self.mode = self.mode_selector.value
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
+        if self.settings['show_only_selected_cluster'] and n_selected == 1:
+            unit_visible_dict = {k: False for k in self.controller.unit_visible_dict}
+            ind = selected_inds[0]
+            unit_index = self.controller.spikes[ind]['unit_index']
+            unit_id = self.controller.unit_ids[unit_index]
+            unit_visible_dict[unit_id] = True
+        else:
+            unit_visible_dict = self.controller.unit_visible_dict
         if self.mode=='geometry':
             # zoom factor is reset
+            self.factor_x = 1.0
             self.factor_y = .05
-            self._panel_refresh_mode_geometry()
+            self._panel_refresh_mode_geometry(unit_visible_dict)
         elif self.mode=='flatten':
-            self._panel_refresh_mode_flatten()
+            self._panel_refresh_mode_flatten(unit_visible_dict)
 
-    def _panel_refresh_mode_geometry(self):
+        self._panel_refresh_one_spike()
+
+    def _panel_refresh_mode_geometry(self, unit_visible_dict=None, keep_range=False):
         from bokeh.models import Range1d
         # this clear the figure
         self.figure_geom.renderers = []
         self.lines_geom = {}
+        unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
 
-        for unit_index, unit_id in self.controller.iter_visible_units():            
+        for unit_index, (unit_id, visible) in enumerate(unit_visible_dict.items()):
+            if not visible:
+                continue
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             
             ypos = self.contact_location[common_channel_indexes,1]
@@ -554,31 +597,31 @@ class WaveformView(ViewBase):
             source = {"x": xvect.flatten(), "y" : wf.T.flatten() }
             self.lines_geom[unit_id] = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=2)
 
-        self.figure_geom.x_range = Range1d(np.min(self.xvect) - 50, np.max(self.xvect) + 50)
-        self.figure_geom.y_range = Range1d(np.min(ypos) - 50, np.max(ypos) + 50)
+        if not keep_range:
+            self.figure_geom.x_range = Range1d(np.min(self.xvect) - 50, np.max(self.xvect) + 50)
+            self.figure_geom.y_range = Range1d(np.min(ypos) - 50, np.max(ypos) + 50)
 
-        # TODO : alessio handle spike
-
-
-    def _panel_refresh_mode_flatten(self):
+    def _panel_refresh_mode_flatten(self, unit_visible_dict=None):
         from bokeh.models import Range1d, Span
         # this clear the figure
         self.figure_avg.renderers = []
         self.figure_std.renderers = []
         self.lines_avg = {}
         self.lines_std = {}
+        unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
 
-        for unit_index, unit_id in self.controller.iter_visible_units():
+        for unit_index, (unit_id, visible) in enumerate(unit_visible_dict.items()):
+            if not visible:
+                continue
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             template_std = self.controller.templates_std[unit_index, :, :][:, common_channel_indexes]
             nsamples, nchannels = template_avg.shape
 
-            offset = 1.5*np.max(template_std)
-            y_avg = template_avg.T.flatten() + offset
+            y_avg = template_avg.T.flatten()
             y_std = template_std.T.flatten()
             x = np.arange(y_avg.size)
             
@@ -596,8 +639,59 @@ class WaveformView(ViewBase):
         self.shared_x_range = Range1d(start=0, end=x[-1])
         self.figure_avg.x_range = self.shared_x_range
         self.figure_std.x_range = self.shared_x_range
+
+    def _panel_refresh_one_spike(self):
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
+        # clean existing lines
+        for line in self.lines_wfs:
+            if line in self.figure_geom.renderers:
+                self.figure_geom.renderers.remove(line)
+            if line in self.figure_avg.renderers:
+                self.figure_avg.renderers.remove(line)
+
+        if self.settings["plot_selected_spike"] and n_selected == 1:
+            ind = selected_inds[0]
+            common_channel_indexes = self.get_common_channels()
+            wf, width = self.get_spike_waveform(ind)
+            wf = wf[:, common_channel_indexes]
         
-        # TODO : alessio handle spike
+            if wf.shape[0] == width:
+                #this avoid border bugs
+                if self.mode=='flatten':
+                    wf = wf.T.flatten()
+                    x = np.arange(wf.size)
+                    
+                    color = "white"
+                    line = self.figure_avg.line("x", "y", source=dict(x=x, y=wf), line_color=color, line_width=0.5)
+                    self.lines_wfs.append(line)
+                elif self.mode=='geometry':
+                    ypos = self.contact_location[common_channel_indexes,1]
+            
+                    wf = wf * self.factor_y * self.delta_y + ypos[None, :]
+            
+                    # this disconnect
+                    wf[0, :] = np.nan
+                    xvect = self.xvect[common_channel_indexes, :] * self.factor_x
+                    
+                    color = "white"
+                    
+                    source = {"x": xvect.flatten(), "y" : wf.T.flatten() }
+                    line = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=0.5)
+                    self.lines_wfs.append(line)
+
+    def _panel_on_spike_selection_changed(self):
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
+        if n_selected == 1 and self.settings['plot_selected_spike']:
+            self.refresh()
+        else:
+            # remove the line
+            for line in self.lines_wfs:
+                if line in self.figure_geom.renderers:
+                    self.figure_geom.renderers.remove(line)
+                if line in self.figure_avg.renderers:
+                    self.figure_avg.renderers.remove(line)
 
 
 WaveformView._gui_help_txt = """

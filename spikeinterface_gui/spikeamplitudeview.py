@@ -122,7 +122,7 @@ class SpikeAmplitudeView(ViewBase):
         
         self.plot.setYRange(self._amp_min,self._amp_max, padding = 0.0)
 
-    def on_spike_selection_changed(self):
+    def _qt_on_spike_selection_changed(self):
         self.refresh()
 
     def _qt_refresh(self):
@@ -365,8 +365,9 @@ class SpikeAmplitudeView(ViewBase):
             for unit_index, unit_id in enumerate(self.controller.unit_ids):
                 if self.controller.unit_visible_dict[unit_id]:
                     visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
-            visible_indices = np.nonzero(visible_mask)[0]
+            visible_indices = sl.start + np.nonzero(visible_mask)[0]
             selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
+            print(selected_indices)
             self.scatter_source.selected.indices = list(selected_indices)
         else:
             self.scatter_source.selected.indices = []
@@ -407,7 +408,7 @@ class SpikeAmplitudeView(ViewBase):
 
     def _panel_change_segment(self, event):
         self.segment_index = int(self.segment_selector.value.split()[-1])
-        self._panel_refresh()
+        self.refresh()
 
     def _on_panel_lasso_selected(self, attr, old, new):
         """
@@ -435,9 +436,18 @@ class SpikeAmplitudeView(ViewBase):
         self.notify_spike_selection_changed()
 
 
-
     def _panel_on_spike_selection_changed(self):
         # set selection in scatter plot
+        selected_indices = self.controller.get_indices_spike_selected()
+        if len(selected_indices) == 0:
+            self.scatter_source.selected.indices = []
+            return
+        elif len(selected_indices) == 1:
+            selected_segment = self.controller.spikes[selected_indices[0]]['segment_index']
+            print("Selected segment", selected_segment)
+            if selected_segment != self.segment_index:
+                self.segment_selector.value = f"Segment {selected_segment}"
+                self._panel_change_segment(None)
         self.refresh()
 
     # TODO: handle mousewheel to zoom in x/y

@@ -183,7 +183,10 @@ class CrossCorrelogramView(ViewBase):
 
         if len(self.plots) > 0:
             grid = gridplot(self.plots, toolbar_location="right", sizing_mode="stretch_both")
-            self.layout[0] = grid
+            self.layout[0] = pn.Column(
+                grid,
+                styles={'background-color': f'{_bg_color}'}
+            )
         else:
             self.layout[0] = self.empty_plot_pane
 

@@ -143,7 +143,6 @@ def listen_setting_changes(view):
 
 
 
-
 class PanelMainWindow:
 
     def __init__(self, controller, layout_preset=None):
@@ -156,9 +155,11 @@ class PanelMainWindow:
         
         # refresh all views wihtout notiying
         self.controller.signal_handler.deactivate()
-        for view in self.views.values():
-            view.refresh()
         self.controller.signal_handler.activate()
+
+        for view in self.views.values():
+            if view.is_visible:
+                view.refresh()
 
     def make_views(self):
         self.views = {}
@@ -221,6 +222,13 @@ class PanelMainWindow:
                     dynamic=True,
                     tabs_location="below",
                 )
+                # Function to update visibility
+                tabs = layout_zone[zone]
+                tabs.param.watch(self.update_visibility, "active")
+                # Simulate an event
+                self.update_visibility(param.parameterized.Event(
+                    cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
+                ))
 
         # Create GridStack layout with resizable regions
         grid_per_zone = 2
@@ -259,7 +267,6 @@ class PanelMainWindow:
             if view is not None and len(view) > 0:
                 # Note: order of slices swapped to [row, col]
                 gs[row_slice, col_slice] = view
-                print(f"Placing {zone} at row={row_slice}, col={col_slice}")
 
         # Bottom
         for zone in ['zone5', 'zone6', 'zone7', 'zone8']:
@@ -289,8 +296,22 @@ class PanelMainWindow:
 
             if view is not None and len(view) > 0:
                 gs[row_slice, col_slice] = view
-                print(f"Placing {zone} at row={row_slice}, col={col_slice}")
+
         self.main_layout = gs
+
+    def update_visibility(self, event):
+        active = event.new
+        tab_names = event.obj._names
+        objects = event.obj.objects
+        for i, (view_name, content) in enumerate(zip(tab_names, objects)):
+            visible = (i == active)
+            view = self.views[view_name]
+            view.is_visible = visible
+            if view.is_visible:
+                # Refresh the view if it is visible
+                view.refresh()
+            content.visible = visible
+
 
 
 def start_server(mainwindow, address="localhost", port=0):
@@ -301,4 +322,3 @@ def start_server(mainwindow, address="localhost", port=0):
 
     server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
                       show=False, start=True, dev=True,  autoreload=True)
-
