@@ -30,9 +30,11 @@ class Controller():
     def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
-                 extra_unit_properties=None):
+                 extra_unit_properties=None, skip_extensions=None):
         
         self.views = []
+        skip_extensions = skip_extensions if skip_extensions is not None else []
+        self.skip_extensions = skip_extensions
         self.backend = backend
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -53,6 +55,8 @@ class Controller():
         self.verbose = verbose
         t0 = time.perf_counter()
 
+        self.num_channels = self.analyzer.get_num_channels()
+
         # sparsity
         if self.analyzer.sparsity is None:
             self.external_sparsity = compute_sparsity(self.analyzer, method="radius",radius_um=90.)
@@ -61,15 +65,7 @@ class Controller():
             self.external_sparsity = None
             self.analyzer_sparsity = self.analyzer.sparsity
 
-        # Mandatory extensions : computation forced
-        if verbose:
-            print('\tLoading noise_levels')
-        ext = analyzer.get_extension('noise_levels')
-        if ext is None:
-            print('Force compute "noise_levels" is needed')
-            ext = analyzer.compute_one_extension('noise_levels')
-        self.noise_levels = ext.get_data()
-
+        # Mandatory extensions: computation forced
         if verbose:
             print('\tLoading templates')
         temp_ext = self.analyzer.get_extension("templates")
@@ -80,8 +76,6 @@ class Controller():
         self.templates_average = temp_ext.get_templates(operator='average')
         self.templates_std = temp_ext.get_templates(operator='std')
 
-        self.num_channels = self.analyzer.get_num_channels()
-
         if verbose:
             print('\tLoading unit_locations')
         ext = analyzer.get_extension('unit_locations')
@@ -91,63 +85,110 @@ class Controller():
         # only 2D
         self.unit_positions = ext.get_data()[:, :2]
 
+        # Optional extensions : can be None or skipped
         if verbose:
-            print('\tLoading quality_metrics')
-        qm_ext = analyzer.get_extension('quality_metrics')
-        if qm_ext is not None:
-            self.metrics = qm_ext.get_data()
-        else:
+            print('\tLoading noise_levels')
+        ext = analyzer.get_extension('noise_levels')
+        if ext is None and self.has_extension('recording'):
+            print('Force compute "noise_levels" is needed')
+            ext = analyzer.compute_one_extension('noise_levels')
+        self.noise_levels = ext.get_data() if ext is not None else None
+
+        if "quality_metrics" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping quality_metrics')
             self.metrics = None
-
-        if verbose:
-            print('\tLoading spike_amplitudes')
-        sa_ext = analyzer.get_extension('spike_amplitudes')
-        if sa_ext is not None:
-            self.spike_amplitudes = sa_ext.get_data()
         else:
+            if verbose:
+                print('\tLoading quality_metrics')
+            qm_ext = analyzer.get_extension('quality_metrics')
+            if qm_ext is not None:
+                self.metrics = qm_ext.get_data()
+            else:
+                self.metrics = None
+
+        if "spike_amplitudes" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping spike_amplitudes')
             self.spike_amplitudes = None
-
-        if verbose:
-            print('\tLoading correlograms')
-        ccg_ext = analyzer.get_extension('correlograms')
-        if ccg_ext is not None:
-            self.correlograms, self.correlograms_bins = ccg_ext.get_data()
         else:
-            self.correlograms, self.correlograms_bins = None, None
+            if verbose:
+                print('\tLoading spike_amplitudes')
+            sa_ext = analyzer.get_extension('spike_amplitudes')
+            if sa_ext is not None:
+                self.spike_amplitudes = sa_ext.get_data()
+            else:
+                self.spike_amplitudes = None
 
-        if verbose:
-            print('\tLoading isi_histograms')
-        isi_ext = analyzer.get_extension('isi_histograms')
-        if isi_ext is not None:
-            self.isi_histograms, self.isi_bins = isi_ext.get_data()
+        if "correlograms" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping correlograms')
+            self.correlograms = None
+            self.correlograms_bins = None
         else:
-            self.isi_histograms, self.isi_bins = None, None
+            if verbose:
+                print('\tLoading correlograms')
+            ccg_ext = analyzer.get_extension('correlograms')
+            if ccg_ext is not None:
+                self.correlograms, self.correlograms_bins = ccg_ext.get_data()
+            else:
+                self.correlograms, self.correlograms_bins = None, None
+
+        if "isi_histograms" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping isi_histograms')
+            self.isi_histograms = None
+            self.isi_bins = None
+        else:
+            if verbose:
+                print('\tLoading isi_histograms')
+            isi_ext = analyzer.get_extension('isi_histograms')
+            if isi_ext is not None:
+                self.isi_histograms, self.isi_bins = isi_ext.get_data()
+            else:
+                self.isi_histograms, self.isi_bins = None, None
 
         self._similarity_by_method = {}
-        if verbose:
-            print('\tLoading template_similarity')
-        ts_ext = analyzer.get_extension('template_similarity')
-        if ts_ext is not None:
-            method = ts_ext.params["method"]
-            self._similarity_by_method[method] = ts_ext.get_data()
+        if "template_similarity" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping template_similarity')
         else:
-            if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
-                # precompute similarity when low channel/units count
-                method = 'l1'
-                ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
+            if verbose:
+                print('\tLoading template_similarity')
+            ts_ext = analyzer.get_extension('template_similarity')
+            if ts_ext is not None:
+                method = ts_ext.params["method"]
+                self._similarity_by_method[method] = ts_ext.get_data()
+            else:
+                if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
+                    # precompute similarity when low channel/units count
+                    method = 'l1'
+                    ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
                 self._similarity_by_method[method] = ts_ext.get_data()
 
-        # Non mandatory extensions :  can be None
-        if verbose:
-            print('\tLoading waveforms')
-        wf_ext = self.analyzer.get_extension('waveforms')
-        if verbose:
-            print('\tLoading principal_components')
-        pc_ext = analyzer.get_extension('principal_components')
-        self.waveforms_ext = wf_ext
-        self.pc_ext = pc_ext
+        if "waveforms" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping waveforms')
+            self.waveforms_ext = None
+        else:
+            if verbose:
+                print('\tLoading waveforms')
+            wf_ext = analyzer.get_extension('waveforms')
+            if wf_ext is not None:
+                self.waveforms_ext = wf_ext
+            else:
+                self.waveforms_ext = None
         self._pc_projections = None
-        
+        if "principal_components" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping principal_components')
+            self.pc_ext = None
+        else:
+            if verbose:
+                print('\tLoading principal_components')
+            pc_ext = analyzer.get_extension('principal_components')
+            self.pc_ext = pc_ext
+
         self._potential_merges = None
 
         t1 = time.perf_counter()
@@ -425,7 +466,10 @@ class Controller():
             return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
         else:
             # extension needs to be loaded
-            return extension_name in self.analyzer.extensions
+            if extension_name in self.skip_extensions:
+                return False
+            else:
+                return extension_name in self.analyzer.extensions
 
     def handle_metrics(self):
         return self.metrics is not None

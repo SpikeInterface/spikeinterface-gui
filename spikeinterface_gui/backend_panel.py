@@ -212,9 +212,6 @@ class PanelMainWindow:
 
             if len(view_names) == 0:
                 layout_zone[zone] = None
-            elif len(view_names) == 1:
-                # unique in the zone
-                layout_zone[zone] = self.view_layouts[view_names[0]]
             else:
                 layout_zone[zone] = pn.Tabs(
                     *((view_name, self.view_layouts[view_name]) for view_name in view_names if view_name in self.view_layouts),

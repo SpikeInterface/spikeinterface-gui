@@ -155,7 +155,7 @@ class SpikeAmplitudeView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         # average noise across channels
-        if self.settings["noise_level"]:
+        if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             n = self.settings["noise_factor"]
             noise = np.mean(self.controller.noise_levels)
             alpha_factor = 50 / n

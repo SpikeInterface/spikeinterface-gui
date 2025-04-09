@@ -4,13 +4,13 @@ from .view_base import ViewBase
 
 class CrossCorrelogramView(ViewBase):
     _supported_backend = ['qt', 'panel']
+    _depend_on = ["correlograms"]
     _settings = [
                       {'name': 'window_ms', 'type': 'float', 'value' : 50. },
                       {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
                       {'name': 'display_axis', 'type': 'bool', 'value' : True },
                       {'name': 'max_visible', 'type': 'int', 'value' : 8 },
         ]
-    
     _need_compute = True
 
     def __init__(self, controller=None, parent=None, backend="qt"):

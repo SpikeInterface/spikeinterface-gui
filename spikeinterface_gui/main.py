@@ -23,6 +23,7 @@ def run_mainwindow(
     label_definitions=None,
     displayed_unit_properties=None,
     extra_unit_properties=None,
+    skip_extensions=None,
     recording=None,
     start_app=True,
     make_servable=False,
@@ -50,6 +51,8 @@ def run_mainwindow(
         The displayed unit properties in the unit table
     extra_unit_properties: list | None, default: None
         The extra unit properties in the unit table
+    skip_extensions: list | None, default: None
+        The list of extensions to skip when loading the sorting analyzer
     recording: RecordingExtractor | None, default: None
         The recording object to display traces. This can be used when the 
         SortingAnalyzer is recordingless.
@@ -72,6 +75,7 @@ def run_mainwindow(
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
+        skip_extensions=skip_extensions,
     )
 
     if backend == "qt":

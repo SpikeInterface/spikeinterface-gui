@@ -227,7 +227,7 @@ class MixinViewTrace:
 class TraceView(ViewBase, MixinViewTrace):
     _supported_backend = ['qt', 'panel']
 
-    _depend_on = ['recording']
+    _depend_on = ['recording', 'noise_levels']
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
         {'name': 'zoom_size', 'type': 'float', 'value':  0.08, 'step' : 0.001 },

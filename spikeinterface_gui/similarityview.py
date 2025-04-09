@@ -9,6 +9,7 @@ from .view_base import ViewBase
 
 class SimilarityView(ViewBase):
     _supported_backend = ['qt', 'panel']
+    _depend_on = ["similarity"]
     _settings = [
             {'name': 'method', 'type': 'list', 'limits' : ['l1', 'l2', 'cosine'] },
             {'name': 'colormap', 'type': 'list', 'limits' : ['viridis', 'jet', 'gray', 'hot', ] },
