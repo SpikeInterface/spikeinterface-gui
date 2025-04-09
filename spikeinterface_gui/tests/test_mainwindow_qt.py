@@ -1,4 +1,5 @@
 from spikeinterface_gui import run_mainwindow
+import warnings
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
@@ -12,7 +13,6 @@ from pathlib import Path
 import numpy as np
 
 # import logging
-
 
 # logger = logging.getLogger('bokeh')
 # logger.setLevel(logging.DEBUG)
@@ -85,17 +85,14 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
                             extra_unit_properties=extra_unit_properties,
                             )
     else:
-        make_servable = not start_app
         win = run_mainwindow(
             analyzer,
-            backend="panel",
+            backend="qt",
             start_app=start_app, verbose=verbose,
-            make_servable=make_servable,
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
             layout_preset='default',
-            # skip_extensions=["waveforms", "principal_components", "template_similarity", "spike_amplitudes"],
         )
     return win
 
@@ -116,7 +113,4 @@ if not test_folder.is_dir():
     # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
 
-win = test_mainwindow(start_app=False, verbose=True, curation=True)
-# print("Saving to HTML")
-# win.main_layout.save(filename=str(test_folder.parent / "panel_app.html"), embed=True)
-
+win = test_mainwindow(start_app=True, verbose=True, curation=True)

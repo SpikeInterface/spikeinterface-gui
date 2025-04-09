@@ -30,9 +30,11 @@ class Controller():
     def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
-                 extra_unit_properties=None):
+                 extra_unit_properties=None, skip_extensions=None):
         
         self.views = []
+        skip_extensions = skip_extensions if skip_extensions is not None else []
+        self.skip_extensions = skip_extensions
         self.backend = backend
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -53,6 +55,8 @@ class Controller():
         self.verbose = verbose
         t0 = time.perf_counter()
 
+        self.num_channels = self.analyzer.get_num_channels()
+
         # sparsity
         if self.analyzer.sparsity is None:
             self.external_sparsity = compute_sparsity(self.analyzer, method="radius",radius_um=90.)
@@ -61,15 +65,7 @@ class Controller():
             self.external_sparsity = None
             self.analyzer_sparsity = self.analyzer.sparsity
 
-        # Mandatory extensions : computation forced
-        if verbose:
-            print('\tLoading noise_levels')
-        ext = analyzer.get_extension('noise_levels')
-        if ext is None:
-            print('Force compute "noise_levels" is needed')
-            ext = analyzer.compute_one_extension('noise_levels')
-        self.noise_levels = ext.get_data()
-
+        # Mandatory extensions: computation forced
         if verbose:
             print('\tLoading templates')
         temp_ext = self.analyzer.get_extension("templates")
@@ -80,8 +76,6 @@ class Controller():
         self.templates_average = temp_ext.get_templates(operator='average')
         self.templates_std = temp_ext.get_templates(operator='std')
 
-        self.num_channels = self.analyzer.get_num_channels()
-
         if verbose:
             print('\tLoading unit_locations')
         ext = analyzer.get_extension('unit_locations')
@@ -91,63 +85,110 @@ class Controller():
         # only 2D
         self.unit_positions = ext.get_data()[:, :2]
 
+        # Optional extensions : can be None or skipped
         if verbose:
-            print('\tLoading quality_metrics')
-        qm_ext = analyzer.get_extension('quality_metrics')
-        if qm_ext is not None:
-            self.metrics = qm_ext.get_data()
-        else:
+            print('\tLoading noise_levels')
+        ext = analyzer.get_extension('noise_levels')
+        if ext is None and self.has_extension('recording'):
+            print('Force compute "noise_levels" is needed')
+            ext = analyzer.compute_one_extension('noise_levels')
+        self.noise_levels = ext.get_data() if ext is not None else None
+
+        if "quality_metrics" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping quality_metrics')
             self.metrics = None
-
-        if verbose:
-            print('\tLoading spike_amplitudes')
-        sa_ext = analyzer.get_extension('spike_amplitudes')
-        if sa_ext is not None:
-            self.spike_amplitudes = sa_ext.get_data()
         else:
+            if verbose:
+                print('\tLoading quality_metrics')
+            qm_ext = analyzer.get_extension('quality_metrics')
+            if qm_ext is not None:
+                self.metrics = qm_ext.get_data()
+            else:
+                self.metrics = None
+
+        if "spike_amplitudes" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping spike_amplitudes')
             self.spike_amplitudes = None
-
-        if verbose:
-            print('\tLoading correlograms')
-        ccg_ext = analyzer.get_extension('correlograms')
-        if ccg_ext is not None:
-            self.correlograms, self.correlograms_bins = ccg_ext.get_data()
         else:
-            self.correlograms, self.correlograms_bins = None, None
+            if verbose:
+                print('\tLoading spike_amplitudes')
+            sa_ext = analyzer.get_extension('spike_amplitudes')
+            if sa_ext is not None:
+                self.spike_amplitudes = sa_ext.get_data()
+            else:
+                self.spike_amplitudes = None
 
-        if verbose:
-            print('\tLoading isi_histograms')
-        isi_ext = analyzer.get_extension('isi_histograms')
-        if isi_ext is not None:
-            self.isi_histograms, self.isi_bins = isi_ext.get_data()
+        if "correlograms" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping correlograms')
+            self.correlograms = None
+            self.correlograms_bins = None
         else:
-            self.isi_histograms, self.isi_bins = None, None
+            if verbose:
+                print('\tLoading correlograms')
+            ccg_ext = analyzer.get_extension('correlograms')
+            if ccg_ext is not None:
+                self.correlograms, self.correlograms_bins = ccg_ext.get_data()
+            else:
+                self.correlograms, self.correlograms_bins = None, None
+
+        if "isi_histograms" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping isi_histograms')
+            self.isi_histograms = None
+            self.isi_bins = None
+        else:
+            if verbose:
+                print('\tLoading isi_histograms')
+            isi_ext = analyzer.get_extension('isi_histograms')
+            if isi_ext is not None:
+                self.isi_histograms, self.isi_bins = isi_ext.get_data()
+            else:
+                self.isi_histograms, self.isi_bins = None, None
 
         self._similarity_by_method = {}
-        if verbose:
-            print('\tLoading template_similarity')
-        ts_ext = analyzer.get_extension('template_similarity')
-        if ts_ext is not None:
-            method = ts_ext.params["method"]
-            self._similarity_by_method[method] = ts_ext.get_data()
+        if "template_similarity" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping template_similarity')
         else:
-            if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
-                # precompute similarity when low channel/units count
-                method = 'l1'
-                ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
+            if verbose:
+                print('\tLoading template_similarity')
+            ts_ext = analyzer.get_extension('template_similarity')
+            if ts_ext is not None:
+                method = ts_ext.params["method"]
+                self._similarity_by_method[method] = ts_ext.get_data()
+            else:
+                if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
+                    # precompute similarity when low channel/units count
+                    method = 'l1'
+                    ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
                 self._similarity_by_method[method] = ts_ext.get_data()
 
-        # Non mandatory extensions :  can be None
-        if verbose:
-            print('\tLoading waveforms')
-        wf_ext = self.analyzer.get_extension('waveforms')
-        if verbose:
-            print('\tLoading principal_components')
-        pc_ext = analyzer.get_extension('principal_components')
-        self.waveforms_ext = wf_ext
-        self.pc_ext = pc_ext
+        if "waveforms" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping waveforms')
+            self.waveforms_ext = None
+        else:
+            if verbose:
+                print('\tLoading waveforms')
+            wf_ext = analyzer.get_extension('waveforms')
+            if wf_ext is not None:
+                self.waveforms_ext = wf_ext
+            else:
+                self.waveforms_ext = None
         self._pc_projections = None
-        
+        if "principal_components" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping principal_components')
+            self.pc_ext = None
+        else:
+            if verbose:
+                print('\tLoading principal_components')
+            pc_ext = analyzer.get_extension('principal_components')
+            self.pc_ext = pc_ext
+
         self._potential_merges = None
 
         t1 = time.perf_counter()
@@ -166,7 +207,7 @@ class Controller():
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
 
-        self.unit_visible_dict = {unit_id:False for unit_id in self.unit_ids}
+        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
         
 
@@ -326,9 +367,6 @@ class Controller():
 
 
     def update_visible_spikes(self):
-        # print('update_visible_spikes')
-        # t0 = time.perf_counter()
-        
         inds = []
         for unit_index, unit_id in enumerate(self.unit_ids):
             if self.unit_visible_dict[unit_id]:
@@ -342,9 +380,6 @@ class Controller():
         self._spike_visible_indices = inds
         
         self._spike_selected_indices = np.array([], dtype='int64')
-
-        # t1 = time.perf_counter()
-        # print('update_visible_spikes', t1-t0, self.spikes.size)
     
     def get_indices_spike_visible(self):
         return self._spike_visible_indices
@@ -431,7 +466,10 @@ class Controller():
             return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
         else:
             # extension needs to be loaded
-            return extension_name in self.analyzer.extensions
+            if extension_name in self.skip_extensions:
+                return False
+            else:
+                return extension_name in self.analyzer.extensions
 
     def handle_metrics(self):
         return self.metrics is not None
@@ -456,7 +494,9 @@ class Controller():
         else:
             return self.analyzer_sparsity.mask
 
-    def get_similarity(self, method='l1'):
+    def get_similarity(self, method=None):
+        if method is None and len(self._similarity_by_method) == 1:
+            method = list(self._similarity_by_method.keys())[0]
         similarity = self._similarity_by_method.get(method, None)
         return similarity
     
@@ -492,9 +532,6 @@ class Controller():
 
     def get_units_table(self):
         return self.units_table
-
-    def get_merge_list(self):
-        return self._potential_merges
 
     def compute_auto_merge(self, **params):
         
@@ -535,14 +572,13 @@ class Controller():
                 sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
-    
 
 
     def make_manual_delete_if_possible(self, removed_unit_ids):
         """
         Check if a unit_ids can be removed.
 
-        If unit are already deleted or in a merge group then the delete operation is skiped.
+        If unit are already deleted or in a merge group then the delete operation is skipped.
         """
         if not self.curation:
             return
@@ -555,6 +591,8 @@ class Controller():
             if unit_id in all_merged_units:
                 continue
             self.curation_data["removed_units"].append(unit_id)
+            if self.verbose:
+                print(f"Unit {unit_id} is removed from the curation data")
     
     def make_manual_restore(self, restire_unit_ids):
         """
@@ -565,37 +603,46 @@ class Controller():
 
         for unit_id in restire_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
+                if self.verbose:
+                    print(f"Unit {unit_id} is restored from the curation data")
                 self.curation_data["removed_units"].remove(unit_id)
 
     def make_manual_merge_if_possible(self, merge_unit_ids):
         """
         Check if the a list of unit_ids can be added as a new merge to the curation_data.
 
-        If some unit_ids are already in the removed list then the merge is skiped.
+        If some unit_ids are already in the removed list then the merge is skipped.
 
         If unit_ids are already is some other merge then the connectivity graph is resolved groups can be
         eventually merged.
 
         """
         if not self.curation:
-            return
+            return False
 
         if len(merge_unit_ids) < 2:
-            return
+            return False
 
         for unit_id in merge_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
-                return
+                return False
 
         merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
         self.curation_data["merge_unit_groups"] = merged_groups
+        if self.verbose:
+            print(f"Merged unit group: {merge_unit_ids}")
+        return True
     
-    def make_manual_restore_merge(self, merge_group_index):
+    def make_manual_restore_merge(self, merge_group_indices):
         if not self.curation:
             return
 
+        merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
 
-        del self.curation_data["merge_unit_groups"][merge_group_index]
+        for merge_group in merge_groups_to_remove:
+            if self.verbose:
+                print(f"Unmerge merge group {merge_group}")
+            self.curation_data["merge_unit_groups"].remove(merge_group)
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive

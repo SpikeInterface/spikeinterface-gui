@@ -3,8 +3,6 @@ import time
 
 from .view_base import ViewBase
 
-from .utils_qt import add_stretch_to_qtoolbar
-
 
 # This MixinViewTrace is used both in TraceView and TraceMapView) handling:
 #   * toolbar
@@ -19,7 +17,7 @@ class MixinViewTrace:
     def _qt_create_toolbar(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import TimeSeeker
+        from .utils_qt import TimeSeeker, add_stretch_to_qtoolbar
 
         tb = self.qt_widget.view_toolbar
 
@@ -170,13 +168,14 @@ class MixinViewTrace:
         length = self.controller.get_num_samples(self.seg_index)
         t_start = 0
         t_stop = length / self.controller.sampling_frequency
-        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1)
+        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
+                                                  value_throttled=0, sizing_mode="stretch_width")
 
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
         self.auto_scale_button.on_click(lambda event: self.auto_scale)
-        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value")
+        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
         self.toolbar = pn.Row(
             self.segment_selector,
@@ -197,7 +196,7 @@ class MixinViewTrace:
         t_stop = length / self.controller.sampling_frequency
         self.time_slider.start = 0
         self.time_slider.end = t_stop
-        self.time_slider.value = 0
+        self.time_slider.value_throttled = 0
 
         # # Update plot ranges
         # self.figure.x_range.start = 0
@@ -228,7 +227,7 @@ class MixinViewTrace:
 class TraceView(ViewBase, MixinViewTrace):
     _supported_backend = ['qt', 'panel']
 
-    _depend_on = ['recording']
+    _depend_on = ['recording', 'noise_levels']
     _settings = [
         {'name': 'auto_zoom_on_select', 'type': 'bool', 'value': True },
         {'name': 'zoom_size', 'type': 'float', 'value':  0.08, 'step' : 0.001 },
@@ -260,7 +259,7 @@ class TraceView(ViewBase, MixinViewTrace):
     def get_visible_channel_inds(self):
         # TODO add option to order by depth
         inds = self.controller.visible_channel_inds
-        n_max =self.settings['max_visible_channel']
+        n_max = self.settings['max_visible_channel']
         if inds.size > n_max:
             inds = inds[:n_max]
         return inds
@@ -404,7 +403,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self._qt_update_scroll_limits()
 
 
-    def _on_settings_changed_qt(self):
+    def _qt_on_settings_changed(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
         self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
         if self.xsize > self.settings['xsize_max']:
@@ -588,9 +587,6 @@ class TraceView(ViewBase, MixinViewTrace):
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self.seek_with_selected_spike()
 
-    # def _panel_on_double_tap(self, event):
-    #     self._panel_on_tap(event)
-
     def _panel_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
@@ -609,12 +605,13 @@ class TraceView(ViewBase, MixinViewTrace):
 
             # Update time slider
             self.time_slider.value = peak_time
+            self.time_by_seg[self.seg_index] = peak_time
 
             # Center view on spike
             margin = self.xsize / 3
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
-            self._panel_refresh()
+            self.refresh()
 
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()

@@ -1,5 +1,7 @@
 from .myqt import QT
 import pyqtgraph as pg
+import markdown
+
 
 import weakref
 
@@ -8,7 +10,6 @@ from .layout_presets import get_layout_description
 
 from .utils_qt import qt_style, add_stretch_to_qtoolbar
 
-import time
 
 # Used by views to emit/trigger signals
 class SignalNotifier(QT.QObject):
@@ -88,11 +89,10 @@ class SignalHandler(QT.QObject):
                 # do not refresh it self
                 continue
             view.on_manual_curation_updated()
-    
 
 
 def create_settings(view, parent):
-    view.settings = pg.parametertree.Parameter.create(name='settings', type='group', children=view._settings)
+    view.settings = pg.parametertree.Parameter.create(name="settings", type='group', children=view._settings)
     
     # not that the parent is not the view (not Qt anymore) itself but the widget
     view.tree_settings = pg.parametertree.ParameterTree(parent=parent)
@@ -147,6 +147,9 @@ class QtMainWindow(QT.QMainWindow):
 
 
     def create_main_layout(self):
+        import warnings
+
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
 
         self.setDockNestingEnabled(True)
 
@@ -220,13 +223,10 @@ class ViewWidget(QT.QWidget):
     def __init__(self, view_class, parent=None):
         QT.QWidget.__init__(self, parent=parent)
 
-        
-
         self.layout = QT.QVBoxLayout()
         self.setLayout(self.layout)
         self.layout.setContentsMargins(4,4,4,4)
         self.layout.setSpacing(4)
-
 
         tb = self.view_toolbar = QT.QToolBar()
         self.layout.addWidget(self.view_toolbar)
@@ -242,8 +242,7 @@ class ViewWidget(QT.QWidget):
         if view_class._need_compute:
             but = QT.QPushButton('compute')
             tb.addWidget(but)
-            # but.clicked.connect(view.compute)
-            # TODO sam make new compute
+            but.clicked.connect(self.compute)
 
         but = QT.QPushButton('↻ refresh')
         tb.addWidget(but)
@@ -252,9 +251,24 @@ class ViewWidget(QT.QWidget):
         but = QT.QPushButton('?')
         tb.addWidget(but)
         but.clicked.connect(self.open_help)
-        but.setToolTip(view_class._gui_help_txt)
+        tooltip_html = markdown.markdown(view_class._gui_help_txt)
+        but.setToolTip(tooltip_html)
 
         add_stretch_to_qtoolbar(tb)
+
+        # TODO: make _qt method for all existing methods that don't start with _qt or _panel
+        # skip = ['__init__', 'set_view', 'open_settings', 'compute', 'refresh', 'open_help',
+        #         'on_spike_selection_changed', 'on_unit_visibility_changed',
+        #         'on_channel_visibility_changed', 'on_manual_curation_updated']
+        # for name in dir(view_class):
+        #     if name.startswith('_qt_') or name.startswith('_panel_') or name in skip:
+        #         continue
+        #     if hasattr(view_class, name):
+        #         method = getattr(view_class, name)
+        #         if callable(method):
+        #             if name == "save_in_analyzer":
+        #                 print(f'creating _qt_save_in_analyzer for {view_class}')
+        #             setattr(view_class, '_qt_' + name, method)
 
 
     def set_view(self, view):
@@ -271,11 +285,17 @@ class ViewWidget(QT.QWidget):
             view.tree_settings.show()
         else:
             view.tree_settings.hide()
+
+    def compute(self):
+        view = self._view()
+        if view._need_compute:
+            view.compute()
     
     def open_help(self):
         view = self._view()
         but = self.sender()
         txt = view._gui_help_txt
+        txt = markdown.markdown(txt)
         QT.QToolTip.showText(but.mapToGlobal(QT.QPoint()), txt, but)
     
     def refresh(self):

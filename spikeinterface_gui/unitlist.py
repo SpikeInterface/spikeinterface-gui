@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 from .view_base import ViewBase
 
@@ -11,10 +12,10 @@ class UnitListView(ViewBase):
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         UnitListView._settings = [
-            {'name': col, 'type': 'bool', 'value': col in controller.displayed_unit_properties}
+            {'name': col, 'type': 'bool', 'value': col in controller.displayed_unit_properties, 'default': True}
             for col in controller.units_table.columns
         ]
-        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
 
     ## common ##
@@ -48,13 +49,13 @@ class UnitListView(ViewBase):
         visible_cols = []
         for col in self.controller.units_table.columns:
             visible_cols.append(
-                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties }
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
             )
-        self.visible_columns = pg.parametertree.Parameter.create( name='Visible columns', type='group', children=visible_cols)
+        self.visible_columns = pg.parametertree.Parameter.create( name='visible columns', type='group', children=visible_cols)
         self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
         self.tree_visible_columns.header().hide()
         self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
-        # self.tree_visible_columns.setWindowTitle(u'Visible columns')
+        # self.tree_visible_columns.setWindowTitle(u'visible columns')
         # self.tree_visible_columns.setWindowFlags(QT.Qt.Window)
         self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_coumns_changed)
         self.layout.addWidget(self.tree_visible_columns)
@@ -100,7 +101,7 @@ class UnitListView(ViewBase):
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
     def _qt_select_columns(self):
-        if not self.tree_visible_columns.isVisible():
+        if not self.tree_visible_columns.isvisible():
             self.tree_visible_columns.show()
         else:
             self.tree_visible_columns.hide()
@@ -253,12 +254,19 @@ class UnitListView(ViewBase):
             rows.append(item.row())
         return sorted(rows)
 
-    def get_selected_unit_ids(self):
+    def _qt_get_selected_unit_ids(self):
         unit_ids = []
         for item in self.table.selectedItems():
             if item.column() != 1: continue
             unit_ids.append(item.unit_id)
         return unit_ids
+
+    def get_selected_unit_ids(self):
+        if self.backend == 'qt':
+            return self._qt_get_selected_unit_ids()
+        elif self.backend == 'panel':
+            return self._panel_get_selected_unit_ids()
+       
 
     def on_visible_shortcut(self):
         rows = self._get_selected_rows()
@@ -288,47 +296,47 @@ class UnitListView(ViewBase):
 
     def merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
-        self.controller.make_manual_merge_if_possible(merge_unit_ids)
-        self.notify_manual_curation_updated()
-        self.refresh()
+        merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
+        if merge_successful:
+            self.notify_manual_curation_updated()
+            self.refresh()
+        else:
+            print("Merge not possible, some units are already deleted or in a merge group")
+            # optional: notify.failed merge?
 
 
     ## panel zone ##
     def _panel_make_layout(self):
         import panel as pn
+        import pandas as pd
         import matplotlib.colors as mcolors
-        from bokeh.models import DataTable, TableColumn, ColumnDataSource, HTMLTemplateFormatter
-        from .utils_panel import _bg_color, table_stylesheet, checkbox_formatter_template
+        from bokeh.models.widgets.tables import BooleanFormatter, SelectEditor
+        from .utils_panel import unit_formatter, KeyboardShortcut, KeyboardShortcuts
 
+        pn.extension("tabulator")
 
-        unit_formatter = HTMLTemplateFormatter(
-            template="""
-            <div style="color: <%= value ? value.color : '#ffffff' %>;">
-                ● <%= value ? value.id : '' %>
-            </div>
-        """
-        )
-
-        checkbox_formatter = HTMLTemplateFormatter(template=checkbox_formatter_template)
-
-        main_cols = [
-            TableColumn(field="unit_id", title="Unit", formatter=unit_formatter),
-            TableColumn(field="selected", title="✓", width=30, formatter=checkbox_formatter),
-            TableColumn(field="channel_id", title="Channel ID"),
-            TableColumn(field="sparsity", title="Sparsity"),
-        ]
+        if self.controller.curation:
+            self.label_definitions = self.controller.get_curation_label_definitions()
+        else:
+            self.label_definitions = None
 
         unit_ids = self.controller.unit_ids
 
         # set unmutable data
         data = {
             "unit_id": [],
-            "channel_id": [],
-            "sparsity": [],
-            "selected": list(self.controller.unit_visible_dict.values()),
+            "visible": list(self.controller.unit_visible_dict.values()),
         }
-        self.main_cols = ["unit_id", "channel_id", "sparsity", "selected"]
+        frozen_columns = ["unit_id", "visible"]
+        if self.label_definitions is not None:
+            for label in self.label_definitions:
+                data[label] = [None] * len(unit_ids)
+                if label == "quality":
+                    frozen_columns.append(label)
+        data["channel_id"] = []
+        data["sparsity"] = []
 
+        self.main_cols = list(data.keys())
         sparsity_mask = self.controller.get_sparsity_mask()
         for unit_index, unit_id in enumerate(unit_ids):
             data["unit_id"].append(
@@ -340,113 +348,271 @@ class UnitListView(ViewBase):
             data["sparsity"].append(
                 np.sum(sparsity_mask[unit_index, :])
             )
-            
+        for col in self.controller.displayed_unit_properties:
+            data[col] = self.controller.units_table[col]
 
-        self.source = ColumnDataSource({})
-        self.source.data = data
-
-        self.table = DataTable(
-            source=self.source,
-            columns=main_cols,
+        self.df = pd.DataFrame(
+            data=data,
+            index=unit_ids
+        )
+        formatters = {
+            "unit_id": unit_formatter,
+            "visible": BooleanFormatter()
+        }
+        editors = {}
+        for col in self.df.columns:
+            if col != "visible":
+                editors[col] = {'type': 'editable', 'value': False}
+        if self.label_definitions is not None:
+            for label in self.label_definitions:
+                editors[label] = SelectEditor(options=self.label_definitions[label]['label_options'])
+        self.table = pn.widgets.Tabulator(
+            self.df,
+            formatters=formatters,
+            frozen_columns=frozen_columns,
             sizing_mode="stretch_both",
+            layout="fit_data",
+            show_index=False,
             selectable=True,
-            styles={
-                "background-color": _bg_color,
-                "color": "#ffffff",
-            },
-            stylesheets=[table_stylesheet]
+            editors=editors,
+            pagination=None,
         )
 
-        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default", width=100)
-        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default", width=100)
+        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
+        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default")
 
+        button_list = [
+            self.select_all_button,
+            self.unselect_all_button,
+        ]
+        self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
+        self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
+
+        if self.controller.curation:
+            button_list += [
+                self.delete_button,
+                self.merge_button,
+            ]
         self.info_text = pn.pane.HTML("")
+
+        buttons = pn.Row(*button_list, sizing_mode="stretch_width")
+
+        # shortcuts
+        shortcuts = [
+            KeyboardShortcut(name="delete", key="d", ctrlKey=False),
+            KeyboardShortcut(name="merge", key="m", ctrlKey=False),
+            KeyboardShortcut(name="visible", key=" ", ctrlKey=False),
+            KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
+            KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
+            KeyboardShortcut(name="next_only", key="ArrowDown", ctrlKey=True),
+            KeyboardShortcut(name="previous_only", key="ArrowUp", ctrlKey=True),
+        ]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         self.layout = pn.Column(
             pn.Row(
                 self.info_text,
-                self.select_all_button,
-                self.unselect_all_button,
             ),
+            buttons,
             self.table,
+            shortcuts_component,
             sizing_mode="stretch_width",
         )
 
-        # TODO: fix this
-        # self.table.on_change("row", self._on_change)
-        self.source.selected.on_change("indices", self._panel_on_selection_changed)
-        self.select_all_button.on_click(self.show_all)
-        self.unselect_all_button.on_click(self.hide_all)
+        # self.source.selected.on_change("indices", self._panel_on_selection_changed)
+        self.table.on_click(self._panel_on_selection_changed)
+        self.select_all_button.on_click(lambda event: self.show_all)
+        self.unselect_all_button.on_click(lambda event: self.hide_all)
+
+        if self.controller.curation:
+            self.delete_button.on_click(lambda event: self.delete_unit)
+            self.merge_button.on_click(lambda event: self.merge_selected)
+
+        self.last_row = None
+        self.last_clicked = None
 
 
     def _panel_refresh(self):
-        from bokeh.models import TableColumn
-        
-        # Prepare data for all units
         unit_ids = self.controller.unit_ids
-        data = {}
-        data["selected"] = list(self.controller.unit_visible_dict.values())
-        # ensure str
-        data["unit_index"] =  list(range(unit_ids.size))
+        df = self.table.value
+        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
 
-        table_columns = self.table.columns
-        table_fields = [col.field for col in table_columns]
+        table_columns = self.df.columns
 
         for table_col in table_columns:
-            if table_col.field not in self.main_cols + self.controller.displayed_unit_properties:
-                table_columns.remove(table_col)
+            if table_col not in self.main_cols + self.controller.displayed_unit_properties:
+                df.drop(columns=[table_col], inplace=True)
 
         for col in self.controller.displayed_unit_properties:
-            if col not in table_fields:
-                table_columns.append(TableColumn(field=col, title=col))
-                data[col] = self.controller.units_table[col]
+            if col not in table_columns:
+                self.table.hidden_columns.append(col)
 
-        self.table.columns = table_columns
+        self.table.value = df
 
-        self.source.data.update(data)
+        # self.source.data.update(data)
         n1 = len(unit_ids)
         n2 = sum(self.controller.unit_visible_dict.values())
         txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
         self.info_text.object = txt
 
-    def _panel_on_selection_changed(self, attr, old, new):
-        # Get selected units and update visibility
-        selected_unit_ids = []
+    def _panel_on_selection_changed(self, event):
+        row = event.row
+        col = event.column
+        unit_ids = self.controller.unit_ids
+        selected_unit_id = unit_ids[row]
+        time_clicked = time.perf_counter()
+        df = self.table.value
+        double_clicked = False
+        visibility_changed = False
+        if self.last_clicked is not None:
+            if (time_clicked - self.last_clicked) < 0.8 and self.last_row == row:
+                double_clicked = True
+                
+                # select only this unit
+                for unit_id in self.controller.unit_visible_dict:
+                    self.controller.unit_visible_dict[unit_id] = False
+                self.controller.unit_visible_dict[selected_unit_id] = True
+                self.notify_unit_visibility_changed()
+                visibility_changed = True
+        if not double_clicked:
+            if col == "visible":
+                self.controller.unit_visible_dict[selected_unit_id] = True
+                self.notify_unit_visibility_changed()
+                visibility_changed = True
+            else:
+                unit_id = self.df.index[row]
 
-        for row_idx in new:
-            unit_index = self.source.data["unit_index"][row_idx]
-            selected_unit_ids.append(self.controller.unit_ids[unit_index])
+        if visibility_changed:
+            df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+            self.table.value = df
 
-        # Clear all selections first if using single select
-        if len(new) == 1 and len(old or []) != 0:
-            for unit_id in self.controller.unit_visible_dict:
+        self.last_clicked = time_clicked
+        self.last_row = row
+
+    def _panel_get_selected_unit_ids(self):
+        if self.table.sorters is None or len(self.table.sorters) == 0:
+            return self.table.selection
+        elif len(self.table.sorters) == 1:
+            # apply sorters to selection
+            sorter = self.table.sorters[0]
+            if sorter["field"] != "unit_id":
+                sorted_df = self.df.sort_values(
+                    by=sorter['field'],
+                    ascending=(sorter['dir'] == 'asc')
+                )
+            else:
+                sorted_df = self.df.sort_index(ascending=(sorter['dir'] == 'asc'))
+            sorted_df.reset_index(inplace=True)
+            new_selection = []
+            for index in self.table.selection:
+                new_index = sorted_df.index[sorted_df['unit_id'] == self.df.iloc[index]['unit_id']]
+                if len(new_index) > 0:
+                    new_selection.append(int(new_index[0]))
+            return new_selection
+
+    def _panel_get_sorted_indices(self):
+        if self.table.sorters is None or len(self.table.sorters) == 0:
+            return list(range(len(self.df)))
+        elif len(self.table.sorters) == 1:
+            # apply sorters to selection
+            sorter = self.table.sorters[0]
+            if sorter["field"] != "unit_id":
+                sorted_df = self.df.sort_values(
+                    by=sorter['field'],
+                    ascending=(sorter['dir'] == 'asc')
+                )
+            else:
+                sorted_df = self.df.sort_index(ascending=(sorter['dir'] == 'asc'))
+            # sorted_df.reset_index(inplace=True)
+            sorted_unit_ids = sorted_df.index.values
+            original_unit_ids = list(self.df.index)
+            new_indices = [original_unit_ids.index(unit_id) for unit_id in sorted_unit_ids]
+            return new_indices
+
+    def _panel_handle_shortcut(self, event):
+        if event.data == "delete":
+            self.delete_unit()
+        elif event.data == "merge":
+            self.merge_selected()
+        elif event.data == "visible":
+            selected_rows = self._panel_get_selected_unit_ids()
+            for unit_id in self.controller.unit_ids:
                 self.controller.unit_visible_dict[unit_id] = False
-                self.controller.unit_visible_dict[unit_id] = False
-        # Set selected units as visible
-        for unit_id in selected_unit_ids:
-            self.controller.unit_visible_dict[unit_id] = True
+            for unit_id in self.controller.unit_ids[selected_rows]:
+                self.controller.unit_visible_dict[unit_id] = True
+            self.notify_unit_visibility_changed()
+            self.refresh()
+        elif event.data == "next":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                next_row = 0
+            else:
+                next_row = max(selected_rows) + 1
+            if next_row < len(self.controller.unit_ids):
+                next_row = self._panel_get_sorted_indices()[next_row]
+                if next_row not in self.table.selection:
+                    self.table.selection.append(next_row)
+                    self.refresh()
+        elif event.data == "previous":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                previous_row = 0
+            else:
+                previous_row = min(selected_rows) - 1
+            if previous_row >= 0:
+                previous_row = self._panel_get_sorted_indices()[previous_row]
+                if previous_row not in self.table.selection:
+                    self.table.selection.append(previous_row)
+                    self.refresh()
+        elif event.data == "next_only":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                next_row = 0
+            else:
+                next_row = max(selected_rows) + 1
+            if next_row < len(self.controller.unit_ids):
+                next_row = self._panel_get_sorted_indices()[next_row]
+                for unit_id in self.controller.unit_visible_dict:
+                    self.controller.unit_visible_dict[unit_id] = False
+                unit_id = self.controller.unit_ids[next_row]
+                self.controller.unit_visible_dict[unit_id] = True
+                self.table.selection = [next_row]
+                self.notify_unit_visibility_changed()
+                self.refresh()
+        elif event.data == "previous_only":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) == 0:
+                previous_row = 0
+            else:
+                previous_row = min(selected_rows) - 1
+            if previous_row >= 0:
+                previous_row = self._panel_get_sorted_indices()[previous_row]
+                for unit_id in self.controller.unit_visible_dict:
+                    self.controller.unit_visible_dict[unit_id] = False
+                unit_id = self.controller.unit_ids[previous_row]
+                self.controller.unit_visible_dict[unit_id] = True
+                self.table.selection = [previous_row]
+                self.notify_unit_visibility_changed()
+                self.refresh()
 
-        # # Handle channel visibility
-        # if len(selected_unit_ids) == 1 and self.params["select_change_channel_visibility"]:
-        #     sparsity_mask = self.controller.get_sparsity_mask()
-        #     unit_index = self.controller.unit_ids.tolist().index(selected_unit_ids[0])
-        #     (visible_channel_inds,) = np.nonzero(sparsity_mask[unit_index, :])
-            
-        #     if not np.all(np.isin(visible_channel_inds, self.controller.visible_channel_inds)):
-        #         self.controller.set_channel_visibility(visible_channel_inds)
-        #         self.param.trigger("channel_visibility_changed")
+UnitListView._gui_help_txt = """
+## Unit List
 
-        self.notify_unit_visibility_changed()
+This view controls the visibility of units.
 
+### Controls
+* Check box : make visible or unvisible
+* Double click on a row : make it visible alone
+* Space : make selected units visible
+* Press d : delete selected units (if curation=True)
+* Press m : merge selected units (if curation=True)
 
-    # def _on_change(self, attr, old, new):
-    #     print(new, attr)
+*QT-specific*
+* Drag column headers : sort columns
+* Right click (QT) : context menu (delete or merge if curation=True)
 
-
-UnitListView._gui_help_txt = """Unit list
-This control the visibility of units : check/uncheck visible
-Check box : make visible or unvisible
-Double click on a row : make it visible  alone
-Right click : context menu (delete or merge if curation=True)
-Drag column headers : reorder columns
+*Panel-specific*
+* Arrow up/down : select next/previous unit
+* Arrow up/down + CTRL : select next/previous unit and make it visible alone
 """

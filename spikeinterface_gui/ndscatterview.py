@@ -47,6 +47,7 @@ class NDScatterView(ViewBase):
             data = data[inds, :]
         projected = self.apply_dot(data)
         self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
+        self.limit = max(self.limit, 1.0)
 
         self.hyper_faces = list(itertools.permutations(range(ndim), 2))
         self.n_face = -1
@@ -107,11 +108,11 @@ class NDScatterView(ViewBase):
         self.refresh()
 
     def on_unit_visibility_changed(self):
-        # this do refreh also
+        # this does a refresh also
         self.random_projection()
     
     def on_channel_visibility_changed(self):
-        # this do refreh also
+        # this does a refresh also
         self.random_projection()
 
     def apply_dot(self, data):
@@ -132,6 +133,9 @@ class NDScatterView(ViewBase):
         projected_select = self.apply_dot(data_sel)
         selected_scatter_x = projected_select[:, 0]
         selected_scatter_y = projected_select[:, 1]
+
+        # set new limit
+        self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
@@ -327,18 +331,20 @@ class NDScatterView(ViewBase):
         self.notify_spike_selection_changed()
 
 
-    # TODO alessio : lasso
     ## panel ##
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from .utils_panel import _bg_color
-        from bokeh.models import ColumnDataSource, Range1d, HoverTool, LinearColorMapper
+        from bokeh.models import ColumnDataSource, LassoSelectTool
         from bokeh.events import MouseWheel
+
+        from .utils_panel import _bg_color, slow_lasso
+
+        self.lasso_tool = LassoSelectTool()
 
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
-            tools="",
+            tools="reset",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
@@ -346,10 +352,12 @@ class NDScatterView(ViewBase):
         )
         self.scatter_fig.toolbar.logo = None
         self.scatter_fig.grid.visible = False
+        self.scatter_fig.add_tools(self.lasso_tool)
+        self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xgrid.grid_line_color = None
         self.scatter_fig.ygrid.grid_line_color = None
         
-        # TODO alessio : remove the bokeh mousewheel zoom and keep only this one
+        # remove the bokeh mousewheel zoom and keep only this one
         self.scatter_fig.on_event(MouseWheel, self._panel_gain_zoom)
 
         self.scatter_source = ColumnDataSource({"x": [], "y": [], "color": []})
@@ -369,8 +377,14 @@ class NDScatterView(ViewBase):
         self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
+        self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
+
+        # TODO: add a lasso selection
+        # slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
+
         self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, sizing_mode="stretch_both",
+            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, sizing_mode="stretch_both",
             styles={"flex": "0.15"}
         )
 
@@ -384,7 +398,7 @@ class NDScatterView(ViewBase):
         self.tour_timer = None
 
     def _panel_refresh(self):
-
+        from bokeh.models import Range1d
         scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
 
         # format rgba
@@ -401,21 +415,22 @@ class NDScatterView(ViewBase):
             "y": selected_scatter_y,
         }
 
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        # TODO: handle selection with lasso
+        # mask = np.isin(self.random_spikes_indices, self.controller.get_indices_spike_selected())
+        # selected_indices = np.flatnonzero(mask)
+        # self.scatter_source.selected.indices = selected_indices.tolist()
+
+        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
+        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
 
 
     def _panel_gain_zoom(self, event):
+        from bokeh.models import Range1d
+
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.limit /= factor
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
-
-        # self.refresh()
+        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
+        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
 
     def _panel_next_face(self, event):
         self.next_face()
@@ -433,18 +448,44 @@ class NDScatterView(ViewBase):
                 self.tour_timer.stop()
                 self.tour_timer = None
 
+    def _panel_on_select_button(self, event):
+        if self.select_toggle_button.value:
+            self.scatter_fig.toolbar.active_drag = self.lasso_tool
+        else:
+            self.scatter_fig.toolbar.active_drag = None
+            self.scatter_source.selected.indices = []
+            # self._on_panel_lasso_selected(None, None, None)
 
 
+    # TODO: Handle lasso selection and updates
+    # def _on_panel_lasso_selected(self, attr, old, new):
+    #     if len(self.scatter_source.selected.indices) == 0:
+    #         self.notify_spike_selection_changed()
+    #         self.refresh()
+    #         return
+
+    #     # inside lasso and visibles
+    #     inside = self.scatter_source.selected.indices
+
+    #     inds = self.random_spikes_indices[inside]
+    #     self.controller.set_indices_spike_selected(inds)
+
+    #     self.refresh()
+    #     self.notify_spike_selection_changed()
 
 
 def inside_poly(data, vertices):
     return mpl_path(vertices).contains_points(data)
 
 
-NDScatterView._gui_help_txt = """N-dimensional scatter for the principal components
-Projects (num_chan x num_pc) into 2 dim.
-Button randomtour runs dynamic "tour" of the pcs
-mouse wheel : zoom
-left click: draw a lasso for spike selection
-settings controls : num_pc_per_channel displayed
+NDScatterView._gui_help_txt = """
+## N-dimensional scatter for the principal components
+
+Projects (num_chan x num_pc) into 2 dimensions.
+
+### Controls
+- Button next face rotates the projection
+- Button random projection randomly choose a projection
+- Button random tour runs dynamic "tour" of the pcs
+- Button select toggles the lasso selection
 """

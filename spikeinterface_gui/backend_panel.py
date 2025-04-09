@@ -108,10 +108,13 @@ class SettingsProxy:
     def keys(self):
         return list(p for p in self._parametrized.param if p != "name")
 
-def create_settings(view):
-    # Create the class attributes dynamically
+
+def create_dynamic_parameterized(settings):
+    """
+    Create a dynamic parameterized class based on the settings provided.
+    """
     attributes = {}
-    for setting_data in view._settings:
+    for setting_data in settings:
         if setting_data["type"] == "list":
             if "value" in setting_data:
                 default = setting_data["value"]
@@ -125,13 +128,18 @@ def create_settings(view):
                 setting_data["value"], doc=f"{setting_data['name']} parameter"
             )
     MyParameterized = type("MyParameterized", (param.Parameterized,), attributes)
+    return MyParameterized()
 
-    view.settings = SettingsProxy(MyParameterized())
+
+def create_settings(view):
+    # Create the class attributes dynamically
+    settings = create_dynamic_parameterized(view._settings)
+
+    view.settings = SettingsProxy(settings)
 
 def listen_setting_changes(view):
     for setting_data in view._settings:
         view.settings._parametrized.param.watch(view.on_settings_changed, setting_data["name"])
-
 
 
 
@@ -147,13 +155,15 @@ class PanelMainWindow:
         
         # refresh all views wihtout notiying
         self.controller.signal_handler.deactivate()
-        for view in self.views.values():
-            view.refresh()
         self.controller.signal_handler.activate()
+
+        for view in self.views.values():
+            if view.is_visible:
+                view.refresh()
 
     def make_views(self):
         self.views = {}
-        # this contains view layout + settings
+        # this contains view layout + settings + compute
         self.view_layouts = {}
         for view_name, view_class in possible_class_views.items():
             if 'panel' not in view_class._supported_backend:
@@ -161,22 +171,34 @@ class PanelMainWindow:
             if not self.controller.check_is_view_possible(view_name):
                 continue
 
+            if view_name == 'curation' and not self.controller.curation:
+                continue
+
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
+            info = pn.Column(
+                pn.pane.Markdown(view_class._gui_help_txt),
+                scroll=True,
+                sizing_mode="stretch_both"
+            )
+
+            tabs = [("📊", view.layout)]
             if view_class._settings is not None:
-                settings = pn.Param(view.settings._parametrized, sizing_mode="stretch_height", name="")
-                view_layout = pn.Tabs(
-                    ("View", view.layout), 
-                    ("⚙️", settings),
+                settings = pn.Param(view.settings._parametrized, sizing_mode="stretch_height", 
+                                    name=f"{view_name.capitalize()} settings")
+                if view_class._need_compute:
+                    compute_button = pn.widgets.Button(name="Compute", button_type="primary")
+                    compute_button.on_click(view.compute)
+                    settings = pn.Row(settings, compute_button)
+                tabs.append(("⚙️", settings))
+
+            tabs.append(("ℹ️", info))
+            view_layout = pn.Tabs(
+                    *tabs,
                     sizing_mode="stretch_both",
                     dynamic=True,
-                    tabs_location="above",
-                )
-            else:
-                view_layout = pn.Column(
-                    view.layout,
-                    styles={"display": "flex", "flex-direction": "column"},
+                    tabs_location="left",
                 )
             self.view_layouts[view_name] = view_layout
 
@@ -194,9 +216,6 @@ class PanelMainWindow:
 
             if len(view_names) == 0:
                 layout_zone[zone] = None
-            elif len(view_names) == 1:
-                # unique in the zone
-                layout_zone[zone] = self.view_layouts[view_names[0]]
             else:
                 layout_zone[zone] = pn.Tabs(
                     *((view_name, self.view_layouts[view_name]) for view_name in view_names if view_name in self.view_layouts),
@@ -204,113 +223,104 @@ class PanelMainWindow:
                     dynamic=True,
                     tabs_location="below",
                 )
+                # Function to update visibility
+                tabs = layout_zone[zone]
+                tabs.param.watch(self.update_visibility, "active")
+                # Simulate an event
+                self.update_visibility(param.parameterized.Event(
+                    cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
+                ))
 
         # Create GridStack layout with resizable regions
-        grid_per_zone = 4
+        grid_per_zone = 2
         gs = pn.GridStack(
             sizing_mode='stretch_both',
             allow_resize=True,
             allow_drag=False,
-            ncols=4 * grid_per_zone,
-            nrows=4 * grid_per_zone,
         )
 
-        # Add the zones to the gridstack layout
-        # Left side
-        for zone in ['zone1', 'zone2', 'zone5', 'zone6']:
+        # Top modifications
+        for zone in ['zone1', 'zone2', 'zone3', 'zone4']:
             view = layout_zone[zone]
-            if zone in ['zone1', 'zone2']:
-                col_slice = slice(0, 2 * grid_per_zone)
-            else:
-                col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
+            row_slice = slice(0, 2 * grid_per_zone)  # First two rows
+
             if zone == 'zone1':
                 if layout_zone.get('zone2') is None or len(layout_zone['zone2']) == 0:
-                    # zone1 and zone2 are merged
-                    row_slice = slice(0, 2*grid_per_zone)
+                    col_slice = slice(0, 2 * grid_per_zone)  # Full width when merged
                 else:
-                    # zone1 and zone2 are not merged
-                    row_slice = slice(0, grid_per_zone)
+                    col_slice = slice(0, grid_per_zone)  # Half width when not merged
             elif zone == 'zone2':
                 if layout_zone.get('zone1') is None or len(layout_zone['zone1']) == 0:
-                    # zone1 and zone2 are merged
-                    row_slice = slice(0, 2*grid_per_zone)
+                    col_slice = slice(0, 2 * grid_per_zone)  # Full width when merged
                 else:
-                    # zone1 and zone2 are not merged
-                    row_slice = slice(grid_per_zone, 2*grid_per_zone)
-            elif zone == 'zone5':
-                if layout_zone.get('zone6') is None or len(layout_zone['zone6']) == 0:
-                    # zone5 and zone6 are merged
-                    row_slice = slice(0, 2*grid_per_zone)
-                else:
-                    # zone5 and zone6 are not merged
-                    row_slice = slice(0, grid_per_zone)
-            elif zone == 'zone6':
-                if layout_zone.get('zone5') is None or len(layout_zone['zone5']) == 0:
-                    # zone5 and zone6 are merged
-                    row_slice = slice(0, 2*grid_per_zone)
-                else:
-                    # zone5 and zone6 are not merged
-                    row_slice = slice(grid_per_zone, 2*grid_per_zone)
-            if view is not None  and len(view) > 0:
-                gs[col_slice, row_slice] = view
-                print(row_slice, col_slice, zone)
-            else:
-                print('no view', zone)
-            gs[col_slice, row_slice] = view
-
-        # Right side
-        for zone in ['zone3', 'zone4', 'zone7', 'zone8']:
-            view = layout_zone[zone]
-            if zone in ['zone3', 'zone4']:
-                col_slice = slice(0, 2 * grid_per_zone)
-            else:
-                col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
-            if zone == 'zone3':
+                    col_slice = slice(grid_per_zone, 2 * grid_per_zone)  # Right half
+            elif zone == 'zone3':
                 if layout_zone.get('zone4') is None or len(layout_zone['zone4']) == 0:
-                    # zone3 and zone4 are merged
-                    row_slice = slice(2*grid_per_zone, 4*grid_per_zone)
+                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)  # Full width when merged
                 else:
-                    # zone3 and zone4 are not merged
-                    row_slice = slice(2*grid_per_zone, 3*grid_per_zone)
+                    col_slice = slice(2 * grid_per_zone, 3 * grid_per_zone)  # Left half
             elif zone == 'zone4':
                 if layout_zone.get('zone3') is None or len(layout_zone['zone3']) == 0:
-                    # zone3 and zone4 are merged
-                    row_slice = slice(2*grid_per_zone, 4*grid_per_zone)
+                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)  # Full width when merged
                 else:
-                    # zone3 and zone4 are not merged
-                    row_slice = slice(3*grid_per_zone, 4*grid_per_zone)
+                    col_slice = slice(3 * grid_per_zone, 4 * grid_per_zone)  # Right half
+
+            if view is not None and len(view) > 0:
+                # Note: order of slices swapped to [row, col]
+                gs[row_slice, col_slice] = view
+
+        # Bottom
+        for zone in ['zone5', 'zone6', 'zone7', 'zone8']:
+            view = layout_zone[zone]
+            row_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
+
+            if zone == 'zone5':
+                if layout_zone.get('zone6') is None or len(layout_zone['zone6']) == 0:
+                    col_slice = slice(0, 2 * grid_per_zone)
+                else:
+                    col_slice = slice(0, grid_per_zone)
+            elif zone == 'zone6':
+                if layout_zone.get('zone5') is None or len(layout_zone['zone5']) == 0:
+                    col_slice = slice(0, 2 * grid_per_zone)
+                else:
+                    col_slice = slice(grid_per_zone, 2 * grid_per_zone)
             elif zone == 'zone7':
                 if layout_zone.get('zone8') is None or len(layout_zone['zone8']) == 0:
-                    # zone7 and zone8 are merged
-                    row_slice = slice(2*grid_per_zone, 4*grid_per_zone)
+                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
                 else:
-                    # zone7 and zone8 are not merged
-                    row_slice = slice(2*grid_per_zone, 3*grid_per_zone)
+                    col_slice = slice(2 * grid_per_zone, 3 * grid_per_zone)
             elif zone == 'zone8':
                 if layout_zone.get('zone7') is None or len(layout_zone['zone7']) == 0:
-                    # zone7 and zone8 are merged
-                    row_slice = slice(2*grid_per_zone, 4*grid_per_zone)
+                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
                 else:
-                    # zone7 and zone8 are not merged
-                    row_slice = slice(3*grid_per_zone, 4*grid_per_zone)
-            if view is not None  and len(view) > 0:
-                gs[col_slice, row_slice] = view
-                print(row_slice, col_slice, zone)
-            else:
-                print('no view', zone)
+                    col_slice = slice(3 * grid_per_zone, 4 * grid_per_zone)
+
+            if view is not None and len(view) > 0:
+                gs[row_slice, col_slice] = view
+
         self.main_layout = gs
+
+    def update_visibility(self, event):
+        active = event.new
+        tab_names = event.obj._names
+        objects = event.obj.objects
+        for i, (view_name, content) in enumerate(zip(tab_names, objects)):
+            visible = (i == active)
+            view = self.views[view_name]
+            view.is_visible = visible
+            if view.is_visible:
+                # Refresh the view if it is visible
+                view.refresh()
+            content.visible = visible
+
 
 
 def start_server(mainwindow, address="localhost", port=0):
 
     pn.config.sizing_mode = "stretch_width"
-    
-    # Enable bokeh and other required extensions
-    pn.extension("bokeh", "design", sizing_mode="stretch_width")
 
     mainwindow.main_layout.servable()
 
     server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
-                      show=False, start=True, dev=True,  autoreload=True)
-
-    return server
+                      show=False, start=True, dev=True, autoreload=True,
+                      title="SpikeInterface GUI")

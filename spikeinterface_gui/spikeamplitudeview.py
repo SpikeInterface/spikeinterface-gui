@@ -122,7 +122,7 @@ class SpikeAmplitudeView(ViewBase):
         
         self.plot.setYRange(self._amp_min,self._amp_max, padding = 0.0)
 
-    def on_spike_selection_changed(self):
+    def _qt_on_spike_selection_changed(self):
         self.refresh()
 
     def _qt_refresh(self):
@@ -155,7 +155,7 @@ class SpikeAmplitudeView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         # average noise across channels
-        if self.settings["noise_level"]:
+        if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             n = self.settings["noise_factor"]
             noise = np.mean(self.controller.noise_levels)
             alpha_factor = 50 / n
@@ -230,23 +230,45 @@ class SpikeAmplitudeView(ViewBase):
     ## Panel zone ##
     def _panel_make_layout(self):
         import panel as pn
-        from .utils_panel import _bg_color
         import bokeh.plotting as bpl
+        from bokeh.models import ColumnDataSource, LassoSelectTool
+        from .utils_panel import _bg_color, slow_lasso
+
+        self.lasso_tool = LassoSelectTool()
+
+        self.segment_index = 0
+        self.segment_selector = pn.widgets.Select(
+            name="",
+            options=[f"Segment {i}" for i in range(self.controller.num_segments)],
+            value=f"Segment {self.segment_index}",
+            sizing_mode="stretch_width",
+        )
+        self.segment_selector.param.watch(self._panel_change_segment, 'value')
+
+        self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')        
 
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
-            tools="pan,box_zoom,reset,wheel_zoom,lasso_select",
+            tools="reset,wheel_zoom",
+            active_scroll="wheel_zoom",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
             styles={"flex": "1"}
         )
+        self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
+        
         self.scatter_fig.toolbar.logo = None
+        self.scatter_fig.add_tools(self.lasso_tool)
+        self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = "Amplitude"
 
+        slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
+
         self.hist_fig = bpl.figure(
-            tools="pan,box_zoom,reset,wheel_zoom",
+            tools="reset,wheel_zoom",
             sizing_mode="stretch_both",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
@@ -257,26 +279,28 @@ class SpikeAmplitudeView(ViewBase):
         self.hist_fig.yaxis.axis_label = "Amplitude"
         self.hist_fig.xaxis.axis_label = "Count"
 
-        self.layout = pn.Row(
-            pn.Column(
-                self.scatter_fig,
-                styles={"flex": "1"},
-                sizing_mode="stretch_both"
-            ),
-            pn.Column(
-                self.hist_fig,
-                styles={"flex": "0.3"},
-                sizing_mode="stretch_both"
-            ),
+        self.layout = pn.Column(
+            pn.Row(self.segment_selector, self.select_toggle_button, sizing_mode="stretch_width"),
+            pn.Row(
+                pn.Column(
+                    self.scatter_fig,
+                    styles={"flex": "1"},
+                    sizing_mode="stretch_both"
+                ),
+                pn.Column(
+                    self.hist_fig,
+                    styles={"flex": "0.3"},
+                    sizing_mode="stretch_both"
+                ),
+            )
         )
 
         self.scatter = None
         self.hist_lines = {}
         self.noise_harea = []
 
-
     def _panel_refresh(self):
-        from bokeh.models import ColumnDataSource, HoverTool
+        from bokeh.models import ColumnDataSource, Range1d
 
         # clear figures
         self.hist_fig.renderers = []
@@ -286,16 +310,26 @@ class SpikeAmplitudeView(ViewBase):
         self.noise_harea = []
 
         max_count = 1
-        scatter_data = {"x": [], "y": [], "color": []}
+        self.hist_fig.renderers = []
+        visible_spike_indices = self.controller.get_indices_spike_visible()
+        visible_spikes = self.controller.spikes[visible_spike_indices]
+        segment_mask = visible_spikes["segment_index"] == self.segment_index
+        visible_spikes = visible_spikes[segment_mask]
+        spike_amplitudes = self.controller.spike_amplitudes[visible_spike_indices][segment_mask]
+        self.scatter_source.data = {
+            "x": visible_spikes["sample_index"] / self.controller.sampling_frequency,
+            "y": spike_amplitudes,
+            "color": [self.get_unit_color(unit_id) for unit_id in self.controller.unit_ids[visible_spikes["unit_index"]]]
+        }
+
         for unit_id in self.controller.unit_ids:
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
-
-            spike_times, spike_amps, hist_count, hist_bins = self.get_unit_data(unit_id)
+            _, _, hist_count, hist_bins = self.get_unit_data(
+                unit_id,
+                seg_index=self.segment_index
+            )
             color = self.get_unit_color(unit_id)
-            scatter_data["x"].extend(spike_times)
-            scatter_data["y"].extend(spike_amps)
-            scatter_data["color"].extend([color] * len(spike_times))
 
             self.hist_lines[unit_id] = self.hist_fig.line(
                 "x",
@@ -311,15 +345,32 @@ class SpikeAmplitudeView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         # Add scatter plot with correct alpha parameter
+        self.scatter_fig.renderers = []
+        # self.scatter_source.data.update(scatter_data)
         self.scatter = self.scatter_fig.scatter(
             "x",
             "y",
-            source=scatter_data,
+            source=self.scatter_source,
             size=self.settings['scatter_size'],
             color="color",
             fill_alpha=self.settings['alpha'],
         )
-
+        # handle selected spikes
+        selected_spike_indices = self.controller.get_indices_spike_selected()
+        if len(selected_spike_indices) > 0:
+            # map absolute indices to visible spikes
+            sl = self.controller.segment_slices[self.segment_index]
+            spikes_in_seg = self.controller.spikes[sl]
+            visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
+            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                if self.controller.unit_visible_dict[unit_id]:
+                    visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+            visible_indices = sl.start + np.nonzero(visible_mask)[0]
+            selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
+            print(selected_indices)
+            self.scatter_source.selected.indices = list(selected_indices)
+        else:
+            self.scatter_source.selected.indices = []
 
         if self.settings['noise_level']:
             noise = np.mean(self.controller.noise_levels)
@@ -342,21 +393,71 @@ class SpikeAmplitudeView(ViewBase):
                 self.noise_harea.append(h)
 
         # Set axis ranges
-        # TODO sam  seg_index
-        seg_index = 0
-        time_max = self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
-        self.scatter_fig.x_range.start = 0.
-        self.scatter_fig.x_range.end = time_max
-        self.scatter_fig.y_range.start = self._amp_min
-        self.scatter_fig.y_range.end = self._amp_max
-        self.hist_fig.x_range.start = 0
-        self.hist_fig.x_range.end = max_count
+        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
+        self.scatter_fig.x_range = Range1d(0., time_max)
+        self.scatter_fig.y_range = Range1d(self._amp_min, self._amp_max)
+        self.hist_fig.x_range = Range1d(0, max_count)
+
+    def _panel_on_select_button(self, event):
+        if self.select_toggle_button.value:
+            self.scatter_fig.toolbar.active_drag = self.lasso_tool
+        else:
+            self.scatter_fig.toolbar.active_drag = None
+            self.scatter_source.selected.indices = []
+            self._on_panel_lasso_selected(None, None, None)
+
+    def _panel_change_segment(self, event):
+        self.segment_index = int(self.segment_selector.value.split()[-1])
+        self.refresh()
+
+    def _on_panel_lasso_selected(self, attr, old, new):
+        """
+        Handle selection changes in the scatter plot.
+        """
+        selected = self.scatter_source.selected.indices
+        if len(selected) == 0:
+            self.controller.set_indices_spike_selected([])
+            self.notify_spike_selection_changed()
+            return
+
+        # Map back to original indices
+        sl = self.controller.segment_slices[self.segment_index]
+        spikes_in_seg = self.controller.spikes[sl]
+        # Create mask for visible units
+        visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
+        for unit_index, unit_id in enumerate(self.controller.unit_ids):
+            if self.controller.unit_visible_dict[unit_id]:
+                visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+        
+        # Map back to original indices
+        visible_indices = np.nonzero(visible_mask)[0]
+        selected_indices = sl.start + visible_indices[selected]
+        self.controller.set_indices_spike_selected(selected_indices)
+        self.notify_spike_selection_changed()
 
 
+    def _panel_on_spike_selection_changed(self):
+        # set selection in scatter plot
+        selected_indices = self.controller.get_indices_spike_selected()
+        if len(selected_indices) == 0:
+            self.scatter_source.selected.indices = []
+            return
+        elif len(selected_indices) == 1:
+            selected_segment = self.controller.spikes[selected_indices[0]]['segment_index']
+            print("Selected segment", selected_segment)
+            if selected_segment != self.segment_index:
+                self.segment_selector.value = f"Segment {selected_segment}"
+                self._panel_change_segment(None)
+        self.refresh()
+
+    # TODO: handle mousewheel to zoom in x/y
 
 
-SpikeAmplitudeView._gui_help_txt = """Spike Amplitude view
+SpikeAmplitudeView._gui_help_txt = """
+## Spike Amplitude View
 Check amplitudes of spikes across the recording time or in a histogram
-comparing the distribution of ampltidues to the noise levels
+comparing the distribution of ampltidues to the noise levels.
+
+### Controls
 Mouse click : change scaling
 Left click drag : draw lasso to select spikes"""

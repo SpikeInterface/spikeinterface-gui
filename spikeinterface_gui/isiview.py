@@ -7,6 +7,7 @@ class ISIView(ViewBase):
                 {'name': 'window_ms', 'type': 'float', 'value' : 50. },
                 {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
         ]
+    _depend_on = ["isi_histograms"]
     _need_compute = True
 
 
@@ -86,7 +87,7 @@ class ISIView(ViewBase):
             )
 
     def _panel_refresh(self):
-        from bokeh.models import ColumnDataSource
+        from bokeh.models import ColumnDataSource, Range1d
 
         # this clear the figure
         self.figure.renderers = []
@@ -110,10 +111,8 @@ class ISIView(ViewBase):
             y_max = max(y_max, isi.max())
 
         # Update plot ranges
-        self.figure.x_range.start = 0
-        self.figure.x_range.end = self.settings['window_ms']
-        self.figure.y_range.start = 0
-        self.figure.y_range.end = y_max * 1.1
+        self.figure.x_range = Range1d(0, self.settings['window_ms'])
+        self.figure.y_range = Range1d(0, y_max * 1.1)
 
 
 ISIView._gui_help_txt = """Inter spike intervals

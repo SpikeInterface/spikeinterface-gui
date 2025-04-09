@@ -1,4 +1,4 @@
-
+import time
 
 class ViewBase():
     _supported_backend = []
@@ -7,10 +7,12 @@ class ViewBase():
     _gui_help_txt = "The help for this view is not done yet"
     _depend_on = None
     
-    def __init__(self, controller=None, parent=None,  backend="qt"):
+    def __init__(self, controller=None, parent=None, backend="qt"):
 
         self.backend = backend
         self.controller = controller
+        # this is used for panel
+        self.is_visible = True
 
         if self.backend == "qt":
             # For QT the parent is the **widget**
@@ -63,12 +65,22 @@ class ViewBase():
         if self.backend == "qt":
             return self.qt_widget.isVisible()
         elif self.backend == "panel":
-            return True
+            return self.is_visible
     
     def refresh(self):
+        # t_start = time.perf_counter()
         if not self.is_view_visible():
             return
         self._refresh()
+        # t_end = time.perf_counter()
+        # print(f"Refresh {self.__class__.__name__} took {t_end - t_start:.3f} seconds", flush=True)
+
+    def compute(self, event=None):
+        self._compute()
+        self.refresh()
+
+    def _compute(self):
+        pass
 
     def _refresh(self):
         if self.backend == "qt":
@@ -98,6 +110,8 @@ class ViewBase():
 
     # Default behavior for all views : this can be changed view by view for perfs reaons
     def on_spike_selection_changed(self):
+        if not self.is_view_visible():
+            return
         if self.backend == "qt":
             self._qt_on_spike_selection_changed()
         elif self.backend == "panel":
@@ -105,6 +119,8 @@ class ViewBase():
         
 
     def on_unit_visibility_changed(self):
+        if not self.is_view_visible():
+            return
         if self.backend == "qt":
             self._qt_on_unit_visibility_changed()
         elif self.backend == "panel":
@@ -112,6 +128,8 @@ class ViewBase():
 
     
     def on_channel_visibility_changed(self):
+        if not self.is_view_visible():
+            return
         if self.backend == "qt":
             self._qt_on_channel_visibility_changed()
         elif self.backend == "panel":
@@ -119,6 +137,8 @@ class ViewBase():
 
 
     def on_manual_curation_updated(self):
+        if not self.is_view_visible():
+            return
         if self.backend == "qt":
             self._qt_on_manual_curation_updated()
         elif self.backend == "panel":

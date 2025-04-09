@@ -2,6 +2,7 @@ import sys
 import argparse
 from pathlib import Path
 import numpy as np
+import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
@@ -22,8 +23,10 @@ def run_mainwindow(
     label_definitions=None,
     displayed_unit_properties=None,
     extra_unit_properties=None,
+    skip_extensions=None,
     recording=None,
     start_app=True,
+    make_servable=False,
     layout_preset=None,
     verbose=False,
 ):
@@ -48,6 +51,8 @@ def run_mainwindow(
         The displayed unit properties in the unit table
     extra_unit_properties: list | None, default: None
         The extra unit properties in the unit table
+    skip_extensions: list | None, default: None
+        The list of extensions to skip when loading the sorting analyzer
     recording: RecordingExtractor | None, default: None
         The recording object to display traces. This can be used when the 
         SortingAnalyzer is recordingless.
@@ -69,12 +74,18 @@ def run_mainwindow(
         label_definitions=label_definitions,
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
-        extra_unit_properties=extra_unit_properties
+        extra_unit_properties=extra_unit_properties,
+        skip_extensions=skip_extensions,
     )
 
     if backend == "qt":
         from spikeinterface_gui.myqt import QT, mkQApp
         from spikeinterface_gui.backend_qt import QtMainWindow
+
+        # Suppress a known pyqtgraph warning
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
+        warnings.filterwarnings('ignore', category=UserWarning, message=".*QObject::connect.*")
+
 
         app = mkQApp()
         
@@ -91,8 +102,8 @@ def run_mainwindow(
         win = PanelMainWindow(controller, layout_preset=layout_preset)
         if start_app:
             start_server(win)
-        else:
-            win.main_layout.servable()
+        elif make_servable:
+            win.main_layout.servable(title='SpikeInterface GUI')
     else:
         raise ValueError(f"spikeinterface-gui wrong backend {backend}")
 

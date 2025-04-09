@@ -4,13 +4,13 @@ from .view_base import ViewBase
 
 class CrossCorrelogramView(ViewBase):
     _supported_backend = ['qt', 'panel']
+    _depend_on = ["correlograms"]
     _settings = [
                       {'name': 'window_ms', 'type': 'float', 'value' : 50. },
                       {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
                       {'name': 'display_axis', 'type': 'bool', 'value' : True },
                       {'name': 'max_visible', 'type': 'int', 'value' : 8 },
         ]
-    
     _need_compute = True
 
     def __init__(self, controller=None, parent=None, backend="qt"):
@@ -23,10 +23,9 @@ class CrossCorrelogramView(ViewBase):
         self.ccg = None
         self.refresh()
 
-    def compute(self):
+    def _compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
                 self.settings['window_ms'],  self.settings['bin_ms'])
-        self.refresh()
     
     ## Qt ##
 
@@ -184,7 +183,10 @@ class CrossCorrelogramView(ViewBase):
 
         if len(self.plots) > 0:
             grid = gridplot(self.plots, toolbar_location="right", sizing_mode="stretch_both")
-            self.layout[0] = grid
+            self.layout[0] = pn.Column(
+                grid,
+                styles={'background-color': f'{_bg_color}'}
+            )
         else:
             self.layout[0] = self.empty_plot_pane
 
