@@ -103,7 +103,7 @@ def run_mainwindow(
         if start_app:
             start_server(win)
         elif make_servable:
-            win.main_layout.servable()
+            win.main_layout.servable(title='SpikeInterface GUI')
     else:
         raise ValueError(f"spikeinterface-gui wrong backend {backend}")
 

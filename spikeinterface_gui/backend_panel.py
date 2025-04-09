@@ -177,7 +177,11 @@ class PanelMainWindow:
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
-            info = pn.pane.Markdown(view_class._gui_help_txt, sizing_mode="stretch_both")
+            info = pn.Column(
+                pn.pane.Markdown(view_class._gui_help_txt),
+                scroll=True,
+                sizing_mode="stretch_both"
+            )
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
@@ -318,4 +322,5 @@ def start_server(mainwindow, address="localhost", port=0):
     mainwindow.main_layout.servable()
 
     server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
-                      show=False, start=True, dev=True,  autoreload=True)
+                      show=False, start=True, dev=True, autoreload=True,
+                      title="SpikeInterface GUI")

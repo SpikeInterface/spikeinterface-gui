@@ -47,6 +47,7 @@ class NDScatterView(ViewBase):
             data = data[inds, :]
         projected = self.apply_dot(data)
         self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
+        self.limit = max(self.limit, 1.0)
 
         self.hyper_faces = list(itertools.permutations(range(ndim), 2))
         self.n_face = -1
@@ -107,11 +108,11 @@ class NDScatterView(ViewBase):
         self.refresh()
 
     def on_unit_visibility_changed(self):
-        # this do refreh also
+        # this does a refresh also
         self.random_projection()
     
     def on_channel_visibility_changed(self):
-        # this do refreh also
+        # this does a refresh also
         self.random_projection()
 
     def apply_dot(self, data):
@@ -132,6 +133,9 @@ class NDScatterView(ViewBase):
         projected_select = self.apply_dot(data_sel)
         selected_scatter_x = projected_select[:, 0]
         selected_scatter_y = projected_select[:, 1]
+
+        # set new limit
+        self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
@@ -340,7 +344,7 @@ class NDScatterView(ViewBase):
 
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
-            tools="",
+            tools="reset",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",

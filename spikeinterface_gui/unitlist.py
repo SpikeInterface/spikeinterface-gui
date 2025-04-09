@@ -331,7 +331,8 @@ class UnitListView(ViewBase):
         if self.label_definitions is not None:
             for label in self.label_definitions:
                 data[label] = [None] * len(unit_ids)
-                frozen_columns.append(label)
+                if label == "quality":
+                    frozen_columns.append(label)
         data["channel_id"] = []
         data["sparsity"] = []
 
@@ -374,6 +375,7 @@ class UnitListView(ViewBase):
             show_index=False,
             selectable=True,
             editors=editors,
+            pagination=None,
         )
 
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
@@ -489,7 +491,44 @@ class UnitListView(ViewBase):
         self.last_row = row
 
     def _panel_get_selected_unit_ids(self):
-        return self.table.selection
+        if self.table.sorters is None or len(self.table.sorters) == 0:
+            return self.table.selection
+        elif len(self.table.sorters) == 1:
+            # apply sorters to selection
+            sorter = self.table.sorters[0]
+            if sorter["field"] != "unit_id":
+                sorted_df = self.df.sort_values(
+                    by=sorter['field'],
+                    ascending=(sorter['dir'] == 'asc')
+                )
+            else:
+                sorted_df = self.df.sort_index(ascending=(sorter['dir'] == 'asc'))
+            sorted_df.reset_index(inplace=True)
+            new_selection = []
+            for index in self.table.selection:
+                new_index = sorted_df.index[sorted_df['unit_id'] == self.df.iloc[index]['unit_id']]
+                if len(new_index) > 0:
+                    new_selection.append(int(new_index[0]))
+            return new_selection
+
+    def _panel_get_sorted_indices(self):
+        if self.table.sorters is None or len(self.table.sorters) == 0:
+            return list(range(len(self.df)))
+        elif len(self.table.sorters) == 1:
+            # apply sorters to selection
+            sorter = self.table.sorters[0]
+            if sorter["field"] != "unit_id":
+                sorted_df = self.df.sort_values(
+                    by=sorter['field'],
+                    ascending=(sorter['dir'] == 'asc')
+                )
+            else:
+                sorted_df = self.df.sort_index(ascending=(sorter['dir'] == 'asc'))
+            # sorted_df.reset_index(inplace=True)
+            sorted_unit_ids = sorted_df.index.values
+            original_unit_ids = list(self.df.index)
+            new_indices = [original_unit_ids.index(unit_id) for unit_id in sorted_unit_ids]
+            return new_indices
 
     def _panel_handle_shortcut(self, event):
         if event.data == "delete":
@@ -511,6 +550,7 @@ class UnitListView(ViewBase):
             else:
                 next_row = max(selected_rows) + 1
             if next_row < len(self.controller.unit_ids):
+                next_row = self._panel_get_sorted_indices()[next_row]
                 if next_row not in self.table.selection:
                     self.table.selection.append(next_row)
                     self.refresh()
@@ -521,6 +561,7 @@ class UnitListView(ViewBase):
             else:
                 previous_row = min(selected_rows) - 1
             if previous_row >= 0:
+                previous_row = self._panel_get_sorted_indices()[previous_row]
                 if previous_row not in self.table.selection:
                     self.table.selection.append(previous_row)
                     self.refresh()
@@ -531,6 +572,7 @@ class UnitListView(ViewBase):
             else:
                 next_row = max(selected_rows) + 1
             if next_row < len(self.controller.unit_ids):
+                next_row = self._panel_get_sorted_indices()[next_row]
                 for unit_id in self.controller.unit_visible_dict:
                     self.controller.unit_visible_dict[unit_id] = False
                 unit_id = self.controller.unit_ids[next_row]
@@ -545,6 +587,7 @@ class UnitListView(ViewBase):
             else:
                 previous_row = min(selected_rows) - 1
             if previous_row >= 0:
+                previous_row = self._panel_get_sorted_indices()[previous_row]
                 for unit_id in self.controller.unit_visible_dict:
                     self.controller.unit_visible_dict[unit_id] = False
                 unit_id = self.controller.unit_ids[previous_row]
@@ -556,15 +599,20 @@ class UnitListView(ViewBase):
 UnitListView._gui_help_txt = """
 ## Unit List
 
-This view controls the visibility of units: 
+This view controls the visibility of units.
 
+### Controls
 * Check box : make visible or unvisible
 * Double click on a row : make it visible alone
-* Drag column headers : reorder columns
-* Click on column headers : sort columns
-
-### Curation
+* Space : make selected units visible
 * Press d : delete selected units (if curation=True)
 * Press m : merge selected units (if curation=True)
+
+*QT-specific*
+* Drag column headers : sort columns
 * Right click (QT) : context menu (delete or merge if curation=True)
+
+*Panel-specific*
+* Arrow up/down : select next/previous unit
+* Arrow up/down + CTRL : select next/previous unit and make it visible alone
 """

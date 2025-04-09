@@ -9,7 +9,7 @@ from .view_base import ViewBase
 
 class SimilarityView(ViewBase):
     _supported_backend = ['qt', 'panel']
-    _depend_on = ["similarity"]
+    _depend_on = ["template_similarity"]
     _settings = [
             {'name': 'method', 'type': 'list', 'limits' : ['l1', 'l2', 'cosine'] },
             {'name': 'colormap', 'type': 'list', 'limits' : ['viridis', 'jet', 'gray', 'hot', ] },
@@ -177,7 +177,7 @@ class SimilarityView(ViewBase):
         # Create Bokeh figure
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
-            tools="pan,box_zoom,reset,wheel_zoom,tap",
+            tools="reset,wheel_zoom,tap",
             title="Similarity Matrix",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,

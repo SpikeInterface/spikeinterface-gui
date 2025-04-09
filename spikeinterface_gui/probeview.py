@@ -301,11 +301,10 @@ class ProbeView(ViewBase):
     ## panel ##
     def _panel_make_layout(self):
         import panel as pn
-        from .utils_panel import _bg_color
         import bokeh.plotting as bpl
         from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool
         from bokeh.events import DoubleTap, Tap, Pan, PanStart, PanEnd
-        from .utils_panel import CustomCircle
+        from .utils_panel import CustomCircle, _bg_color
 
         # Plot probe shape
         self.figure = bpl.figure(
@@ -452,6 +451,9 @@ class ProbeView(ViewBase):
         )
 
     def _panel_refresh(self):
+        from bokeh.models import Range1d
+
+        # Update unit positions
         self._panel_update_unit_glyphs()
 
         # Update selection circles if only one unit is visible
@@ -466,6 +468,15 @@ class ProbeView(ViewBase):
             visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
             self.controller.set_channel_visibility(visible_channel_inds)
             self.notify_channel_visibility_changed()
+
+        if self.settings['auto_zoom_on_unit_selection']:
+            visible_mask = np.array(list(self.controller.unit_visible_dict.values()))
+            visible_pos = self.controller.unit_positions[visible_mask, :]
+            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+            margin = 50
+            self.figure.x_range = Range1d(x_min - margin, x_max + margin)
+            self.figure.y_range = Range1d(y_min - margin, y_max + margin)
 
     def _panel_update_unit_glyphs(self):
         # Prepare unit appearance data
@@ -484,17 +495,16 @@ class ProbeView(ViewBase):
             border_colors.append("black" if is_visible else color)
 
         # Create new glyph with all required data
-        if hasattr(self, "unit_glyphs") and self.unit_glyphs.data_source is not None:
-            data_source = {
-                "x": unit_positions[:, 0].tolist(),
-                "y": unit_positions[:, 1].tolist(),
-                "color": colors,
-                "line_color": border_colors,
-                "alpha": alphas,
-                "size": sizes,
-                "unit_id": [str(u) for u in self.controller.unit_ids],
-            }
-            self.unit_glyphs.data_source.data.update(data_source)
+        data_source = {
+            "x": unit_positions[:, 0].tolist(),
+            "y": unit_positions[:, 1].tolist(),
+            "color": colors,
+            "line_color": border_colors,
+            "alpha": alphas,
+            "size": sizes,
+            "unit_id": [str(u) for u in self.controller.unit_ids],
+        }
+        self.unit_glyphs.data_source.data.update(data_source)
 
         # chennel labels
         for label in self.channel_labels:
@@ -596,18 +606,10 @@ class ProbeView(ViewBase):
             visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
             self.controller.set_channel_visibility(visible_channel_inds)
 
-            # Auto zoom if enabled
-            if self.settings['auto_zoom_on_unit_selection']:
-                margin = 50
-                self.figure.x_range.start = x - margin
-                self.figure.x_range.end = x + margin
-                self.figure.y_range.start = y - margin
-                self.figure.y_range.end = y + margin
-
             # Notify other views
-            self._panel_update_unit_glyphs()
             self.notify_unit_visibility_changed()
             self.notify_channel_visibility_changed()
+            self._panel_update_unit_glyphs()
 
 
 
