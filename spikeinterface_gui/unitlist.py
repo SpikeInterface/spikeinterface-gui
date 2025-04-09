@@ -101,7 +101,7 @@ class UnitListView(ViewBase):
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
     def _qt_select_columns(self):
-        if not self.tree_visible_columns.isvisible():
+        if not self.tree_visible_columns.isVisible():
             self.tree_visible_columns.show()
         else:
             self.tree_visible_columns.hide()
