@@ -23,15 +23,19 @@ class SignalNotifier(QT.QObject):
         self.view = view
 
     def notify_spike_selection_changed(self):
+        print("SignalNotifier notify_spike_selection_changed", self.view.__class__.__name__)
         self.spike_selection_changed.emit()
 
     def notify_unit_visibility_changed(self):
+        print("SignalNotifier notify_unit_visibility_changed", self.view.__class__.__name__)
         self.unit_visibility_changed.emit()
 
     def notify_channel_visibility_changed(self):
+        print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.channel_visibility_changed.emit()
 
-    def notify_manual_curation_updated(self):
+    def notify_channel_visibility_changed(self):
+        print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.manual_curation_updated.emit()
 
 
@@ -58,7 +62,7 @@ class SignalHandler(QT.QObject):
         if not self._active:
             return
         for view in self.controller.views:
-            if view.qt_widget==self.sender().parent():
+            if view.qt_widget == self.sender().parent():
                 # do not refresh it self
                 continue
             view.on_spike_selection_changed()
@@ -67,7 +71,7 @@ class SignalHandler(QT.QObject):
         if not self._active:
             return
         for view in self.controller.views:
-            if view.qt_widget==self.sender().parent():
+            if view.qt_widget == self.sender().parent():
                 # do not refresh it self
                 continue
             view.on_unit_visibility_changed()
@@ -76,7 +80,7 @@ class SignalHandler(QT.QObject):
         if not self._active:
             return
         for view in self.controller.views:
-            if view.qt_widget==self.sender().parent():
+            if view.qt_widget == self.sender().parent():
                 # do not refresh it self
                 continue
             view.on_channel_visibility_changed()
@@ -85,7 +89,7 @@ class SignalHandler(QT.QObject):
         if not self._active:
             return
         for view in self.controller.views:
-            if view.qt_widget==self.sender().parent():
+            if view.qt_widget == self.sender().parent():
                 # do not refresh it self
                 continue
             view.on_manual_curation_updated()

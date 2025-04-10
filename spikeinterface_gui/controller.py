@@ -542,7 +542,6 @@ class Controller():
             extra_outputs=True,
             resolve_graph=False
         )
-        print('compute_auto_merge', merge_unit_groups)
 
         return merge_unit_groups, extra
     

@@ -67,7 +67,9 @@ def run_mainwindow(
     if recording is not None:
         analyzer.set_temporary_recording(recording)
 
-
+    if verbose:
+        import time
+        t0 = time.perf_counter()
     controller = Controller(
         analyzer, backend=backend, verbose=verbose,
         curation=curation, curation_data=curation_dict,
@@ -77,6 +79,9 @@ def run_mainwindow(
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
     )
+    if verbose:
+        t1 = time.perf_counter()
+        print('controller init time', t1 - t0)
 
     if backend == "qt":
         from spikeinterface_gui.myqt import QT, mkQApp

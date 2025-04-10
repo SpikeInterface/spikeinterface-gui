@@ -25,7 +25,7 @@ class ViewBase():
             make_layout = self._panel_make_layout
             settings_kwargs = {}
 
-        self.notifier = SignalNotifier(view=self)
+        self.notifier = SignalNotifier(parent=self.qt_widget, view=self)
         if self._settings is not None:
             create_settings(self, **settings_kwargs)
         make_layout()
@@ -62,18 +62,19 @@ class ViewBase():
             self.refresh()
 
     def is_view_visible(self):
+        print('ViewBase.is_view_visible', self.qt_widget.isVisible(), self.__class__.__name__)
         if self.backend == "qt":
             return self.qt_widget.isVisible()
         elif self.backend == "panel":
             return self.is_visible
     
     def refresh(self):
-        # t_start = time.perf_counter()
+        t_start = time.perf_counter()
         if not self.is_view_visible():
             return
         self._refresh()
-        # t_end = time.perf_counter()
-        # print(f"Refresh {self.__class__.__name__} took {t_end - t_start:.3f} seconds", flush=True)
+        t_end = time.perf_counter()
+        print(f"Refresh {self.__class__.__name__} took {t_end - t_start:.3f} seconds", flush=True)
 
     def compute(self, event=None):
         self._compute()
@@ -119,6 +120,8 @@ class ViewBase():
         
 
     def on_unit_visibility_changed(self):
+
+        print(f"on_unit_visibility_changed {self.__class__.__name__} visible{self.is_view_visible()}", flush=True)
         if not self.is_view_visible():
             return
         if self.backend == "qt":
@@ -128,6 +131,7 @@ class ViewBase():
 
     
     def on_channel_visibility_changed(self):
+        print(f"on_channel_visibility_changed {self.__class__.__name__} visible{self.is_view_visible()}", flush=True)
         if not self.is_view_visible():
             return
         if self.backend == "qt":
