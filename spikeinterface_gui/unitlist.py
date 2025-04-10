@@ -422,12 +422,13 @@ class UnitListView(ViewBase):
 
         # self.source.selected.on_change("indices", self._panel_on_selection_changed)
         self.table.on_click(self._panel_on_selection_changed)
-        self.select_all_button.on_click(lambda event: self.show_all)
-        self.unselect_all_button.on_click(lambda event: self.hide_all)
+        self.select_all_button.on_click(lambda event: self._panel_select_all)
+        # self.unselect_all_button.on_click(lambda event: self.hide_all)
+        self.unselect_all_button.on_click(self._panel_unselect_all)
 
         if self.controller.curation:
-            self.delete_button.on_click(lambda event: self.delete_unit)
-            self.merge_button.on_click(lambda event: self.merge_selected)
+            self.delete_button.on_click(self._panel_delete_unit)
+            self.merge_button.on_click(self._panel_merge_units)
 
         self.last_row = None
         self.last_clicked = None
@@ -436,7 +437,9 @@ class UnitListView(ViewBase):
     def _panel_refresh(self):
         unit_ids = self.controller.unit_ids
         df = self.table.value
-        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+        visible = list(self.controller.unit_visible_dict.values())
+        df.loc[:, "visible"] = visible
+        self.table.selection = np.nonzero(visible)[0].tolist()
 
         table_columns = self.df.columns
 
@@ -455,6 +458,18 @@ class UnitListView(ViewBase):
         n2 = sum(self.controller.unit_visible_dict.values())
         txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
         self.info_text.object = txt
+
+    def _panel_select_all(self, event):
+        self.show_all()
+
+    def _panel_unselect_all(self, event):
+        self.hide_all()
+
+    def _panel_delete_unit(self, event):
+        self.delete_unit()
+
+    def _panel_merge_units(self, event):
+        self.merge_selected()
 
     def _panel_on_selection_changed(self, event):
         row = event.row
@@ -509,6 +524,7 @@ class UnitListView(ViewBase):
                 new_index = sorted_df.index[sorted_df['unit_id'] == self.df.iloc[index]['unit_id']]
                 if len(new_index) > 0:
                     new_selection.append(int(new_index[0]))
+            print("Sorted selection", new_selection)
             return new_selection
 
     def _panel_get_sorted_indices(self):

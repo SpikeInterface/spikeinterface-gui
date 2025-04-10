@@ -1,11 +1,13 @@
 import numpy as np
-
+from threading import Timer
 
 
 from .view_base import ViewBase
 
 from spikeinterface.postprocessing.unit_locations import possible_localization_methods
 
+
+tap_scheduled = None
 
 class ProbeView(ViewBase):
     _supported_backend = ['qt', 'panel']
@@ -303,7 +305,7 @@ class ProbeView(ViewBase):
         import panel as pn
         import bokeh.plotting as bpl
         from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool
-        from bokeh.events import DoubleTap, Tap, Pan, PanStart, PanEnd
+        from bokeh.events import Tap, PanStart, PanEnd
         from .utils_panel import CustomCircle, _bg_color
 
         # Plot probe shape
@@ -414,7 +416,6 @@ class ProbeView(ViewBase):
 
         # Add tap tools
         self.figure.on_event(Tap, self._panel_on_tap)
-        self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         # Selection circles with dragging
         self.channel_circle = CustomCircle(initial_x, initial_y, self.settings['radius_channel'])
@@ -471,12 +472,13 @@ class ProbeView(ViewBase):
 
         if self.settings['auto_zoom_on_unit_selection']:
             visible_mask = np.array(list(self.controller.unit_visible_dict.values()))
-            visible_pos = self.controller.unit_positions[visible_mask, :]
-            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
-            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
-            margin = 50
-            self.figure.x_range = Range1d(x_min - margin, x_max + margin)
-            self.figure.y_range = Range1d(y_min - margin, y_max + margin)
+            if sum(visible_mask) > 0:
+                visible_pos = self.controller.unit_positions[visible_mask, :]
+                x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+                y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+                margin = 50
+                self.figure.x_range = Range1d(x_min - margin, x_max + margin)
+                self.figure.y_range = Range1d(y_min - margin, y_max + margin)
 
     def _panel_update_unit_glyphs(self):
         # Prepare unit appearance data
@@ -510,51 +512,52 @@ class ProbeView(ViewBase):
         for label in self.channel_labels:
             label.visible = self.settings['show_channel_id']
             
-
     def _panel_on_pan_start(self, event):
         self.figure.toolbar.active_drag = None
-        if hasattr(event, "x") and hasattr(event, "y"):
-            x, y = event.x, event.y
-            if self.channel_circle.is_close_to_border(x, y):
-                self.figure.toolbar.active_drag = None
-                # Update channel circle
-                self.should_update_channel_circle = True
-            if self.unit_circle.is_close_to_border(x, y):
-                self.figure.toolbar.active_drag = None
-                # Update unit circle
-                self.should_update_unit_circle = True
+        x, y = event.x, event.y
+        if self.channel_circle.is_close_to_border(x, y):
+            self.figure.toolbar.active_drag = None
+            # Update channel circle
+            self.should_update_channel_circle = True
+        if self.unit_circle.is_close_to_border(x, y):
+            self.figure.toolbar.active_drag = None
+            # Update unit circle
+            self.should_update_unit_circle = True
 
     def _panel_on_pan_end(self, event):
-        if hasattr(event, "x") and hasattr(event, "y"):
-            x, y = event.x, event.y
+        x, y = event.x, event.y
 
-            if self.should_update_channel_circle:
-                self.channel_circle.update_position(x, y)
-                # Update channel visibility
-                visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
-                self.controller.set_channel_visibility(visible_channel_inds)
-                self.on_channel_visibility_changed()
-                self.notify_channel_visibility_changed()
+        if self.should_update_channel_circle:
+            self.channel_circle.update_position(x, y)
+            # Update channel visibility
+            visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
+            self.controller.set_channel_visibility(visible_channel_inds)
+            self.on_channel_visibility_changed()
+            self.notify_channel_visibility_changed()
 
-            if self.should_update_unit_circle:
-                self.unit_circle.update_position(x, y)
+        if self.should_update_unit_circle:
+            self.unit_circle.update_position(x, y)
 
-                # Update unit visibility
-                self.update_unit_visibility(x, y, self.settings['radius_units'])
-                self._panel_update_unit_glyphs()  # Update glyphs to reflect new visibility
+            # Update unit visibility
+            self.update_unit_visibility(x, y, self.settings['radius_units'])
+            self._panel_update_unit_glyphs()  # Update glyphs to reflect new visibility
 
-                # Notify other views
-                self.notify_unit_visibility_changed()
+            # Notify other views
+            self.notify_unit_visibility_changed()
 
-            self.should_update_channel_circle = False
-            self.should_update_unit_circle = False
+        self.should_update_channel_circle = False
+        self.should_update_unit_circle = False
 
-    
+
     def _panel_on_tap(self, event):
         x, y = event.x, event.y
         unit_positions = self.controller.unit_positions
         distances = np.sqrt(np.sum((unit_positions - np.array([x, y])) ** 2, axis=1))
         closest_idx = np.argmin(distances)
+        if event.modifiers["ctrl"]:
+            select_only = True
+        else:
+            select_only = False
 
         # Only select if within reasonable distance (5 um)
         if distances[closest_idx] < 5:
@@ -564,53 +567,29 @@ class ProbeView(ViewBase):
             unit_id = self.controller.unit_ids[closest_idx]
 
             # Toggle visibility of clicked unit
-            self.controller.unit_visible_dict[unit_id] = not self.controller.unit_visible_dict[unit_id]
+            if select_only:
+                # Update visibility - make only this unit visible
+                self.controller.unit_visible_dict = {u: False for u in self.controller.unit_ids}
+                self.controller.unit_visible_dict[unit_id] = True
+            else:
+                self.controller.unit_visible_dict[unit_id] = not self.controller.unit_visible_dict[unit_id]
 
-            # Update circles position if this is the only visible unit
-            if sum(self.controller.unit_visible_dict.values()) == 1:
+                # Update circles position if this is the only visible unit
+                if sum(self.controller.unit_visible_dict.values()) == 1:
+                    select_only = True
+
+            self._panel_update_unit_glyphs()
+            
+            if select_only:
+                # Update selection circles
                 self.unit_circle.update_position(x, y)
                 self.channel_circle.update_position(x, y)
+
                 # Update channel visibility
                 visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
                 self.controller.set_channel_visibility(visible_channel_inds)
-                self.notify_channel_visibility_changed()
-
-            self._panel_update_unit_glyphs()
+                self.notify_channel_visibility_changed
             self.notify_unit_visibility_changed()
-
-    def _panel_on_double_tap(self, event):
-        # Find closest unit to click position
-        x, y = event.x, event.y
-        unit_positions = np.column_stack(
-            (self.unit_glyphs.data_source.data["x"], self.unit_glyphs.data_source.data["y"])
-        )
-        distances = np.sqrt(np.sum((unit_positions - np.array([x, y])) ** 2, axis=1))
-        closest_idx = np.argmin(distances)
-
-        # Only select if within reasonable distance (5 um)
-        if distances[closest_idx] < 5:
-            # Get the actual unit position for better accuracy
-            x = unit_positions[closest_idx, 0]
-            y = unit_positions[closest_idx, 1]
-            unit_id = self.controller.unit_ids[closest_idx]  # Use original unit_id from controller
-
-            # Update visibility - make only this unit visible
-            self.controller.unit_visible_dict = {u: False for u in self.controller.unit_ids}
-            self.controller.unit_visible_dict[unit_id] = True
-
-            # Update selection circles
-            self.unit_circle.update_position(x, y)
-            self.channel_circle.update_position(x, y)
-
-            # Update channel visibility
-            visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
-            self.controller.set_channel_visibility(visible_channel_inds)
-
-            # Notify other views
-            self.notify_unit_visibility_changed()
-            self.notify_channel_visibility_changed()
-            self._panel_update_unit_glyphs()
-
 
 
 def circle_from_roi(roi):
@@ -621,11 +600,19 @@ def circle_from_roi(roi):
 
 
 
-ProbeView._gui_help_txt = """Probe view
+ProbeView._gui_help_txt = """
+## Probe view
 Show contact and probe shape.
 Units are color coded.
-Mouse drag ROI : change channel visibilty and unit visibility on other views
-Right click on the background : zoom
-Left click on the background : move
-Double click one unit: select one unique unit
-Ctrl + double click : select multiple units"""
+
+### Controls
+- Click : select unit
+- Ctrl + Click : select single unit
+- Mouse drag ROI : change channel visibilty and unit visibility on other views
+
+*Qt-specific*
+- Right click on the background : zoom
+- Left click on the background : move
+- Double click one unit: select one unique unit
+- Ctrl + double click : select multiple units
+"""

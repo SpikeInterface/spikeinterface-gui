@@ -170,7 +170,7 @@ class CustomCircle:
     def is_close_to_border(self, x, y):
         # Check if position is close to the border of the circle
         distance = np.sqrt((x - self.center[0]) ** 2 + (y - self.center[1]) ** 2)
-        print(f"Distance to border: {distance} (radius: {self.radius})")
+        # print(f"Distance to border: {distance} (radius: {self.radius})")
         return abs(distance - self.radius) < 5
 
 

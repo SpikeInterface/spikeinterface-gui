@@ -17,6 +17,8 @@
 - [x] curation view
 - [ ] implement default color toggle button
 - [x] add settings / more columns to panel unit list
+- [ ] unitlist: fix merge and delete with sorters
+
 
 
 ### Panel Views

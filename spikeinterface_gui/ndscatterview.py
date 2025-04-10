@@ -135,7 +135,8 @@ class NDScatterView(ViewBase):
         selected_scatter_y = projected_select[:, 1]
 
         # set new limit
-        self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
+        if len(projected) > 0:
+            self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
