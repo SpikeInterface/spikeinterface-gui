@@ -23,19 +23,19 @@ class SignalNotifier(QT.QObject):
         self.view = view
 
     def notify_spike_selection_changed(self):
-        print("SignalNotifier notify_spike_selection_changed", self.view.__class__.__name__)
+        # print("SignalNotifier notify_spike_selection_changed", self.view.__class__.__name__)
         self.spike_selection_changed.emit()
 
     def notify_unit_visibility_changed(self):
-        print("SignalNotifier notify_unit_visibility_changed", self.view.__class__.__name__)
+        # print("SignalNotifier notify_unit_visibility_changed", self.view.__class__.__name__)
         self.unit_visibility_changed.emit()
 
     def notify_channel_visibility_changed(self):
-        print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
+        # print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.channel_visibility_changed.emit()
 
     def notify_channel_visibility_changed(self):
-        print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
+        # print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.manual_curation_updated.emit()
 
 
@@ -127,6 +127,9 @@ class QtMainWindow(QT.QMainWindow):
             view.refresh()
         self.controller.signal_handler.activate()
 
+        for view_name, dock in self.docks.items():
+            dock.visibilityChanged.connect(self.views[view_name].refresh)
+
     def make_views(self):
         self.views = {}
         self.docks = {}
@@ -144,7 +147,7 @@ class QtMainWindow(QT.QMainWindow):
             widget.set_view(view)
             dock = QT.QDockWidget(view_name)
             dock.setWidget(widget)
-            dock.visibilityChanged.connect(view.refresh)
+            # dock.visibilityChanged.connect(view.refresh)
 
             self.views[view_name] = view
             self.docks[view_name] = dock
