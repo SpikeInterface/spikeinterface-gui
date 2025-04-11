@@ -683,7 +683,7 @@ class WaveformView(ViewBase):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         if n_selected == 1 and self.settings['plot_selected_spike']:
-            self.refresh()
+            self._panel_refresh(keep_range=True)
         else:
             # remove the line
             for line in self.lines_wfs:

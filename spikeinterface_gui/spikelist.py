@@ -325,7 +325,6 @@ class SpikeListView(ViewBase):
         self.table.value = pd.DataFrame(data)
 
         selected_inds = self.controller.get_indices_spike_selected()
-        print("Selected inds", selected_inds)
         if len(selected_inds) == 0:
             self.selection = []
         else:
