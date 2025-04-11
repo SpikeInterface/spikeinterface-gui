@@ -295,6 +295,9 @@ class SpikeListView(ViewBase):
         self.last_row = None
 
     def _panel_refresh(self):
+        pass
+
+    def _panel_refresh_table(self):
         import matplotlib.colors as mcolors
         import pandas as pd
 
@@ -320,13 +323,22 @@ class SpikeListView(ViewBase):
 
         # Update table data
         self.table.value = pd.DataFrame(data)
+
+        selected_inds = self.controller.get_indices_spike_selected()
+        print("Selected inds", selected_inds)
+        if len(selected_inds) == 0:
+            self.selection = []
+        else:
+            # Find the rows corresponding to the selected indices
+            row_selected, = np.nonzero(np.isin(visible_inds, selected_inds))
+            self.selection = [int(r) for r in row_selected]
+            self.table.selection = self.selection
             
         self._panel_refresh_label()
 
     def _panel_on_refresh_click(self, event):
-        self.controller.set_indices_spike_selected([])
         self._panel_refresh_label()
-        self.refresh()
+        self._panel_refresh_table()
 
     def _panel_on_clear_click(self, event):
         self.controller.set_indices_spike_selected([])

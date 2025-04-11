@@ -174,7 +174,7 @@ class MixinViewTrace:
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
-        self.auto_scale_button.on_click(lambda event: self.auto_scale)
+        self.auto_scale_button.on_click(self._panel_auto_scale)
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
         self.toolbar = pn.Row(
@@ -182,6 +182,9 @@ class MixinViewTrace:
             xsize,
             self.auto_scale_button
         )
+
+    def _panel_auto_scale(self, event):
+        self.auto_scale()
 
     def _panel_on_segment_changed(self, event):
         seg_index = int(event.new.split()[-1])

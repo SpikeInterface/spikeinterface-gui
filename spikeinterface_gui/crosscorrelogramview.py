@@ -162,7 +162,7 @@ class CrossCorrelogramView(ViewBase):
                     color = self.get_unit_color(unit_id)
                     fill_alpha = 0.7
                 else:
-                    color = "#787878"
+                    color = "lightgray"
                     fill_alpha = 0.4
 
 

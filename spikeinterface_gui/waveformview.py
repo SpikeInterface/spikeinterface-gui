@@ -14,15 +14,13 @@ class WaveformView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = [
-        {'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
+        {'name': 'plot_selected_spike', 'type': 'bool', 'value': False },
+        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
         {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-        {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
         {'name': 'fillbetween', 'type': 'bool', 'value': True },
         {'name': 'show_channel_id', 'type': 'bool', 'value': False},
-        {'name': 'display_threshold', 'type': 'bool', 'value' : True },
         {'name': 'sparse_display', 'type': 'bool', 'value' : True },
-        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
     ]
     
     def __init__(self, controller=None, parent=None, backend="qt"):
@@ -460,7 +458,7 @@ class WaveformView(ViewBase):
         self.zoom_tool = WheelZoomTool()
         self.figure_geom.toolbar.logo = None
         self.figure_geom.add_tools(self.zoom_tool)
-        self.figure_geom.toolbar.active_scroll = self.zoom_tool
+        self.figure_geom.toolbar.active_scroll = None
         self.figure_geom.grid.visible = False
         self.figure_geom.on_event(MouseWheel, self._panel_gain_zoom)
         self.lines_geom = {}
@@ -519,6 +517,7 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _panel_gain_zoom(self, event):
+        self.figure_geom.toolbar.active_scroll = None
         current_time = time.perf_counter()
         if self.last_wheel_event_time is not None:
             time_elapsed = current_time - self.last_wheel_event_time
