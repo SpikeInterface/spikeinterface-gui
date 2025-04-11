@@ -382,8 +382,19 @@ class MergeView(ViewBase):
     
 
 
-MergeView._gui_help_txt = """Merge proposal.
-Click "compute" button to select similarity or to use the `get_potential_auto_merges` function
-Click on a row to make visible a unique pair of unit.
-To accept the merge : double click one onr row  or press "m" key.
+MergeView._gui_help_txt = """
+## Merge View
+
+This view allows you to compute potential merges between units based on their similarity or using the auto merge function.
+Select the method to use for merging units.
+The available methods are:
+- similarity: Computes the similarity between units based on their features.
+- automerge: uses the auto merge function in SpikeInterface to find potential merges.
+
+
+Click "Calculate merges" to compute the potential merges. When finished, the table will be populated 
+with the potential merges.
+
+### Controls
+- **Click on a row** : select a potential merge group.
 """

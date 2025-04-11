@@ -483,13 +483,14 @@ def inside_poly(data, vertices):
 
 
 NDScatterView._gui_help_txt = """
-## N-dimensional scatter for the principal components
+## N-dimensional Scatter View
 
-Projects (num_chan x num_pc) into 2 dimensions.
+This view projects n-dimensional principal components (num channels x num components) of the selected units
+in a 2D sub-space.
 
 ### Controls
-- Button next face rotates the projection
-- Button random projection randomly choose a projection
-- Button random tour runs dynamic "tour" of the pcs
-- Button select toggles the lasso selection
+- **next face** : rotates the projection
+- **random** : randomly choose a projection
+- **random tour** : runs dynamic "tour" of the pcs
+- **select** : activates lasso selection
 """

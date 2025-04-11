@@ -289,13 +289,15 @@ class WaveformHeatMapView(ViewBase):
 
 
 
-WaveformHeatMapView._gui_help_txt = """Unit waveform heat map
-Check density around the average template for each unit.
-Useful to check overlap between units.
+WaveformHeatMapView._gui_help_txt = """
+## Waveform Heatmap View
 
-right click : X/Y zoom
-left click : move
-mouse wheel : color range for density (important!!)
+Check density around the average template for each unit, which is useful to check overlap between units.
+For efficiency, no more than 4 units visible at same time.
+This can be changed in the settings.
 
-For efficiency : no more than  4 units visible at same time.
-This can be changed in the settings."""
+### Controls
+* **mouse wheel** : color range for density (important!!)
+* **right click** : X/Y zoom
+* **left click** : move
+"""

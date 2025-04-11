@@ -624,9 +624,14 @@ class TraceView(ViewBase, MixinViewTrace):
         self.apply_gain_zoom(factor)
 
     
-TraceView._gui_help_txt = """Trace view
-Show trace and spike (on best channel) of visible units.
-Mouse right lick : zoom
-Scroll bar at bottom : navigate on time
-channel visibility is done vwith probe view
-double click : pick on spike"""
+TraceView._gui_help_txt = """
+## Trace View
+
+This view shows the traces of the selected visible channels from the Probe View.
+
+### Controls
+* **x size (s)**: Set the time window size for the traces.
+* **auto scale**: Automatically adjust the scale of the traces.
+* **time (s)**: Set the time point to display traces.
+* **mouse wheel**: change the scale of the traces.
+"""

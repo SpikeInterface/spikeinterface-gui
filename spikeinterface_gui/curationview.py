@@ -312,8 +312,16 @@ class CurationView(ViewBase):
 
 
 
-CurationView._gui_help_txt = """Curation includes potential delete + merge
-Must export or apply to analyzer to make persistent
-Click on items to make then visible
-Right click to remove merges or restore deletions
+CurationView._gui_help_txt = """
+## Curation View
+
+The curation view shows the current status of the curation process and allows the user to manually visualize,
+revert, and export the curation data.
+
+### Controls
+- **save in analyzer**: Save the current curation state in the analyzer.
+- **export JSON**: Export the current curation state to a JSON file.
+- **restore**: Restore the selected unit from the deleted units table.
+- **unmerge**: Unmerge the selected merge group from the merged units table.
+- **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 """

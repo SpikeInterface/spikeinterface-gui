@@ -260,8 +260,11 @@ class SimilarityView(ViewBase):
 
 
 
-SimilarityView._gui_help_txt = """Similarity view
-Check similarity between units with user-selectable metrics
-Mouse click : make one pair of units visible.
-Mouse click + CTRL: append pair to visible units.
+SimilarityView._gui_help_txt = """
+## Similarity View
+
+This view displays the template similarity matrix between units.
+
+### Controls
+- **left click** : select a pair of units to show in the unit view.
 """

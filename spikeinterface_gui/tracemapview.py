@@ -391,4 +391,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.color_mapper.high = self.color_mapper.high * factor
         self.color_mapper.low = -self.color_mapper.high
 
+TraceMapView._gui_help_txt = """
+## Trace Map View
 
+This view shows the trace map of all the channels.
+
+### Controls
+* **x size (s)**: Set the time window size for the traces.
+* **auto scale**: Automatically adjust the scale of the traces.
+* **time (s)**: Set the time point to display traces.
+* **mouse wheel**: change the scale of the traces.
+"""

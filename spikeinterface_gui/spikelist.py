@@ -434,9 +434,13 @@ class SpikeListView(ViewBase):
 
 
 SpikeListView._gui_help_txt = """
-## Spike list view
+## Spike list View
 
-Show all spikes of the visible units.
-When on spike is selected then:
-  * the trace scroll to it
-  * ndscatter shows it (if included_in_pc=True)"""
+Show all spikes of the visible units. When spikes are selected, they are highlighted in the Spike Amplitude View and the ND SCatter View.
+When a single spike is selected, the Trace and TraceMap Views are centered on it.
+
+### Controls
+* **↻ spikes**: refresh the spike list
+* **clear**: clear the selected spikes
+* **shift + arrow up/down** : select next/previous spike and make it visible alone
+"""

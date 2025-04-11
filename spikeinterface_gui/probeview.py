@@ -654,18 +654,13 @@ def circle_from_roi(roi):
 
 
 ProbeView._gui_help_txt = """
-## Probe view
+## Probe View
 Show contact and probe shape.
 Units are color coded.
 
 ### Controls
-- Click : select unit
-- Ctrl + Click : select single unit
-- Mouse drag ROI : change channel visibilty and unit visibility on other views
-
-*Qt-specific*
-- Right click on the background : zoom
-- Left click on the background : move
-- Double click one unit: select one unique unit
-- Ctrl + double click : select multiple units
+- **left click** : select unit
+- **ctrl + left click** : select single unit
+- **mouse drag from circle borders** : change channel visibilty and unit visibility on other views
+- **mouse drag from "diamond"** : change channel / unit radii size
 """

@@ -509,8 +509,6 @@ class UnitListView(ViewBase):
             df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
             self.table.value = df
 
-        # self.refresh()
-
         self.last_clicked = time_clicked
         self.last_row = row
 
@@ -626,17 +624,14 @@ UnitListView._gui_help_txt = """
 This view controls the visibility of units.
 
 ### Controls
-* Check box : make visible or unvisible
-* Double click on a row : make it visible alone
-* Space : make selected units visible
-* Press d : delete selected units (if curation=True)
-* Press m : merge selected units (if curation=True)
-
-*QT-specific*
-* Drag column headers : sort columns
-* Right click (QT) : context menu (delete or merge if curation=True)
-
-*Panel-specific*
-* Arrow up/down : select next/previous unit
-* Arrow up/down + CTRL : select next/previous unit and make it visible alone
+* **check box** : make visible or unvisible
+* **double click** : make it visible alone
+* **space** : make selected units visible
+* **press 'd'** : delete selected units (if curation=True)
+* **press 'm'** : merge selected units (if curation=True)
+* **arrow up/down** : select next/previous unit
+* **ctrl + arrow up/down** : select next/previous unit and make it visible alone
+* **drag column headers** : reorder columns
+* **click on column header** : sort by this column
+* **"↻"** : reset the unit table
 """

@@ -694,18 +694,20 @@ class WaveformView(ViewBase):
 
 
 WaveformView._gui_help_txt = """
-## Waveform view
+## Waveform View
 
 Display average template for visible units.
-If one spike is selected (in spike list) then the spike is super imposed (white trace).
+If one spike is selected (in spike list) then the spike is super-imposed (white trace)
+(when the 'plot_selected_spike' setting is True)
 
-2 modes :
+There are 2 modes of display:
   * 'geometry' : snippets are displayed centered on the contact position
   * 'flatten' : snippets are concatenated in a flatten way (better to check the variance)
 
-left click : moves waveform around
-right click : zoom in x/y
-mouse wheel : scale amplitudes
-
-Please check all settings for fine control of what information is displayed."""
+### Controls
+* **mode** : change displaye mode (geometry or flatten)
+* **mouse wheel** : scale waveform amplitudes
+* **shift + mouse wheel** : zoom
+* **alt + mouse wheel** : widen/narrow x axis
+"""
 
