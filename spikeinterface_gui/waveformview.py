@@ -544,7 +544,7 @@ class WaveformView(ViewBase):
             self.figure_geom.toolbar.active_scroll = None
         self.last_wheel_event_time = current_time
 
-    def _panel_refresh(self):
+    def _panel_refresh(self, keep_range=False):
         self.mode = self.mode_selector.value
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
@@ -560,9 +560,9 @@ class WaveformView(ViewBase):
             # zoom factor is reset
             self.factor_x = 1.0
             self.factor_y = .05
-            self._panel_refresh_mode_geometry(unit_visible_dict)
+            self._panel_refresh_mode_geometry(unit_visible_dict, keep_range=keep_range)
         elif self.mode=='flatten':
-            self._panel_refresh_mode_flatten(unit_visible_dict)
+            self._panel_refresh_mode_flatten(unit_visible_dict, keep_range=keep_range)
 
         self._panel_refresh_one_spike()
 
