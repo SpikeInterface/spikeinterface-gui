@@ -116,7 +116,7 @@ class ISIView(ViewBase):
 
 
 ISIView._gui_help_txt = """
-## Inter spike interval histograms
+## ISI View
 
 This view shows the inter spike interval histograms for each unit.
 """
