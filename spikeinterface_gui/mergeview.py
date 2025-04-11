@@ -396,5 +396,5 @@ Click "Calculate merges" to compute the potential merges. When finished, the tab
 with the potential merges.
 
 ### Controls
-- **Click on a row** : select a potential merge group.
+- **left click** : select a potential merge group.
 """
