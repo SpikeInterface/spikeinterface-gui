@@ -352,7 +352,7 @@ class UnitListView(ViewBase):
         for col in self.controller.displayed_unit_properties:
             data[col] = self.controller.units_table[col]
 
-        self.df = pd.DataFrame(
+        self.df_full = pd.DataFrame(
             data=data,
             index=unit_ids
         )
@@ -361,13 +361,16 @@ class UnitListView(ViewBase):
             "visible": BooleanFormatter()
         }
         editors = {}
-        for col in self.df.columns:
+
+        for col in self.df_full.columns:
             if col != "visible":
                 editors[col] = {'type': 'editable', 'value': False}
         if self.label_definitions is not None:
             for label in self.label_definitions:
                 editors[label] = SelectEditor(options=[""] + list(self.label_definitions[label]['label_options']))
 
+        # Here we make a copy so we can filter the data
+        self.df = self.df_full.copy()
         self.table = pn.widgets.Tabulator(
             self.df,
             formatters=formatters,
@@ -387,16 +390,34 @@ class UnitListView(ViewBase):
         button_list = [
             self.select_all_button,
             self.unselect_all_button,
+            self.refresh_button
         ]
-        self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
-        self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
 
         if self.controller.curation:
-            button_list += [
+            self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
+            self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
+            self.hide_noise = pn.widgets.Toggle(name="Show/Hide Noise", button_type="default")
+
+            if "quality" in self.label_definitions:
+                self.show_only = pn.widgets.Select(
+                    name="Show only",
+                    options=["all"] + list(self.label_definitions["quality"]['label_options']),
+                    sizing_mode="stretch_width",
+                )
+            else:
+                self.show_only = None
+
+            self.hide_noise.param.watch(self._panel_on_hide_noise, 'value')
+            self.show_only.param.watch(self._panel_on_show_only, 'value')
+
+            curation_row = pn.Row(
                 self.delete_button,
                 self.merge_button,
-            ]
-        button_list += [self.refresh_button]
+                self.hide_noise,
+                self.show_only,
+                sizing_mode="stretch_width",
+            )
+
         self.info_text = pn.pane.HTML("")
 
         buttons = pn.Row(*button_list, sizing_mode="stretch_width")
@@ -419,16 +440,18 @@ class UnitListView(ViewBase):
                 self.info_text,
             ),
             buttons,
-            self.table,
-            shortcuts_component,
             sizing_mode="stretch_width",
         )
+        if self.controller.curation:
+            self.layout.append(curation_row)
+        self.layout.append(self.table)
+        self.layout.append(shortcuts_component)
 
         self.table.on_click(self._panel_on_selection_changed)
         self.table.on_edit(self._panel_on_edit)
         self.select_all_button.on_click(self._panel_select_all)
         self.unselect_all_button.on_click(self._panel_unselect_all)
-        self.refresh_button.on_click(self._panel_refrech_click)
+        self.refresh_button.on_click(self._panel_refresh_click)
 
         if self.controller.curation:
             self.delete_button.on_click(self._panel_delete_unit)
@@ -437,7 +460,8 @@ class UnitListView(ViewBase):
         self.last_row = None
         self.last_clicked = None
 
-    def _panel_refrech_click(self, event):
+    def _panel_refresh_click(self, event):
+        self.df = self.df_full.copy()
         self.table.selection = []
         self.table.value = self.df
         self.table.sorters = []
@@ -445,7 +469,9 @@ class UnitListView(ViewBase):
 
     def _panel_refresh(self):
         df = self.table.value
-        visible = list(self.controller.unit_visible_dict.values())
+        visible = []
+        for unit_id in df.index.values:
+            visible.append(self.controller.unit_visible_dict.get(unit_id, False))
         df.loc[:, "visible"] = visible
 
         table_columns = self.df.columns
@@ -464,9 +490,10 @@ class UnitListView(ViewBase):
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids
         n1 = len(unit_ids)
-        n2 = sum(self.controller.unit_visible_dict.values())
-        n3 = len(self.table.selection)
-        txt = f"<b>All units</b>: {n1} - <b>visible</b>: {n2} - <b>selected</b>: {n3}"
+        n2 = len(self.df)
+        n3 = sum(self.controller.unit_visible_dict.values())
+        n4 = len(self.table.selection)
+        txt = f"<b>All units</b>: {n1} - <b>shown</b>: {n2} - <b>visible</b>: {n3} - <b>selected</b>: {n4}"
         self.info_text.object = txt
 
     def _panel_select_all(self, event):
@@ -565,6 +592,37 @@ class UnitListView(ViewBase):
             original_unit_ids = list(self.df.index)
             new_indices = [original_unit_ids.index(unit_id) for unit_id in sorted_unit_ids]
             return new_indices
+
+    def _panel_on_hide_noise(self, event):
+        if self.hide_noise.value:
+            # Filter out noise units
+            self.df = self.df.query("quality != 'noise'")
+        else:
+            # Show all units
+            self.df = self.df_full
+            labels = [self.controller.get_unit_label(unit_id, category="quality") for unit_id in self.controller.unit_ids]
+            self.df["quality"] = labels
+        self.table.value = self.df
+        self.table.selection = []
+        self.refresh()
+        self._panel_refresh_header()
+
+    def _panel_on_show_only(self, event):
+        if self.label_definitions is not None and "quality" in self.label_definitions:
+            value = event.new
+            if value == "all":
+                # Show all units
+                self.df = self.df_full
+                labels = [self.controller.get_unit_label(unit_id, category="quality") for unit_id in self.controller.unit_ids]
+                self.df["quality"] = labels
+            else:
+                # Filter out units that don't match the selected label
+                self.df = self.df.query(f"quality == '{value}'")
+            self.table.value = self.df
+            self.table.selection = []
+            self.refresh()
+            self._panel_refresh_header()
+            self.hide_noise.value = False
 
     def _panel_handle_shortcut(self, event):
         if event.data == "delete":
