@@ -57,7 +57,7 @@ class UnitListView(ViewBase):
         self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
         # self.tree_visible_columns.setWindowTitle(u'visible columns')
         # self.tree_visible_columns.setWindowFlags(QT.Qt.Window)
-        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_coumns_changed)
+        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_columns_changed)
         self.layout.addWidget(self.tree_visible_columns)
         self.tree_visible_columns.hide()
 
@@ -101,12 +101,12 @@ class UnitListView(ViewBase):
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
     def _qt_select_columns(self):
-        if not self.tree_visible_columns.isvisible():
+        if not self.tree_visible_columns.isVisible():
             self.tree_visible_columns.show()
         else:
             self.tree_visible_columns.hide()
 
-    def _qt_on_visible_coumns_changed(self):
+    def _qt_on_visible_columns_changed(self):
         new_displayed = [col for col in self.controller.units_table.columns if self.visible_columns[col]]
         self.controller.displayed_unit_properties = new_displayed
         self.refresh()
@@ -189,8 +189,8 @@ class UnitListView(ViewBase):
                     label = self.controller.get_unit_label(unit_id, category)
                     item = LabelComboBox(i, category, label_def['label_options'], parent=self.qt_widget)
                     item.set_label(label)
-                    item.remove_label_clicked.connect(self.on_remove_label)
-                    item.label_changed.connect(self.on_label_changed)
+                    item.remove_label_clicked.connect(self._qt_on_remove_label)
+                    item.label_changed.connect(self._qt_on_label_changed)
                     self.table.setCellWidget(i, n_first + ix, item)
 
             # if with_metrics:
@@ -217,11 +217,11 @@ class UnitListView(ViewBase):
                 if current_visual != visual_index:
                     header.moveSection(current_visual, visual_index)
 
-    def on_label_changed(self, unit_index, category, new_label):
+    def _qt_on_label_changed(self, unit_index, category, new_label):
         unit_id = self.controller.unit_ids[unit_index]
         self.controller.set_label_to_unit(unit_id, category, new_label)
 
-    def on_remove_label(self, unit_index, category):
+    def _qt_on_remove_label(self, unit_index, category):
         unit_id = self.controller.unit_ids[unit_index]
         self.controller.set_label_to_unit(unit_id, category, None)
 

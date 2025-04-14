@@ -123,15 +123,13 @@ class ProbeView(ViewBase):
         x, y = self.contact_positions.mean(axis=0)
         self.roi_channel = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#7F7F0C') #pen=(4,9),
         self.plot.addItem(self.roi_channel)
-        self.roi_channel.sigRegionChanged.connect(self._qt_on_roi_channel_changed)
-        # self.roi_channel.sigRegionChangeFinished.connect(self._qt_on_roi_channel_changed)
         
 
         radius = self.settings['radius_units']
         x, y = self.contact_positions.mean(axis=0)
         self.roi_units = pg.CircleROI([x - radius, y - radius], [radius * 2, radius * 2],  pen='#d68910') #pen=(4,9),
         self.plot.addItem(self.roi_units)
-        self.roi_units.sigRegionChangeFinished.connect(self._qt_on_roi_units_changed)
+        
 
         # units
         unit_positions = self.controller.unit_positions
@@ -143,7 +141,12 @@ class ProbeView(ViewBase):
         xlim0, xlim1, ylim0, ylim1 = self.get_view_bounds()
         self.plot.setXRange(xlim0, xlim1)
         self.plot.setYRange(ylim0, ylim1)
-    
+
+        self.roi_channel.sigRegionChanged.connect(self._qt_on_roi_channel_changed)
+        # self.roi_channel.sigRegionChangeFinished.connect(self._qt_on_roi_channel_changed)
+
+        self.roi_units.sigRegionChangeFinished.connect(self._qt_on_roi_units_changed)
+
     def _qt_refresh(self):
         current_unit_positions = self.controller.unit_positions
         if not np.array_equal(current_unit_positions, self._unit_positions):
@@ -152,13 +155,18 @@ class ProbeView(ViewBase):
             self.scatter.setData(pos=current_unit_positions, pxMode=False, size=10, brush=brush)
         r, x, y = circle_from_roi(self.roi_channel)
         radius = self.settings['radius_channel']
+
+        self.roi_channel.sigRegionChanged.disconnect(self._qt_on_roi_channel_changed)
         self.roi_channel.setSize(radius * 2)
         self.roi_channel.setPos(x - radius, y-radius)
+        self.roi_channel.sigRegionChanged.connect(self._qt_on_roi_channel_changed)
 
+        self.roi_units.sigRegionChangeFinished.disconnect(self._qt_on_roi_units_changed)
         r, x, y = circle_from_roi(self.roi_units)
         radius = self.settings['radius_units']
         self.roi_units.setSize(radius * 2)
         self.roi_units.setPos(x - radius, y-radius)
+        self.roi_units.sigRegionChangeFinished.connect(self._qt_on_roi_units_changed)
 
         
         if self.settings['show_channel_id']:
