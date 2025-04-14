@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import time
 
@@ -301,7 +302,7 @@ class UnitListView(ViewBase):
             self.notify_manual_curation_updated()
             self.refresh()
         else:
-            print("Merge not possible, some units are already deleted or in a merge group")
+            warnings.warn("Merge not possible, some units are already deleted or in a merge group")
             # optional: notify.failed merge?
 
 
@@ -365,7 +366,8 @@ class UnitListView(ViewBase):
                 editors[col] = {'type': 'editable', 'value': False}
         if self.label_definitions is not None:
             for label in self.label_definitions:
-                editors[label] = SelectEditor(options=self.label_definitions[label]['label_options'])
+                editors[label] = SelectEditor(options=[""] + list(self.label_definitions[label]['label_options']))
+
         self.table = pn.widgets.Tabulator(
             self.df,
             formatters=formatters,
@@ -423,6 +425,7 @@ class UnitListView(ViewBase):
         )
 
         self.table.on_click(self._panel_on_selection_changed)
+        self.table.on_edit(self._panel_on_edit)
         self.select_all_button.on_click(self._panel_select_all)
         self.unselect_all_button.on_click(self._panel_unselect_all)
         self.refresh_button.on_click(self._panel_refrech_click)
@@ -511,6 +514,17 @@ class UnitListView(ViewBase):
 
         self.last_clicked = time_clicked
         self.last_row = row
+
+    def _panel_on_edit(self, event):
+        column = event.column
+        if self.label_definitions is not None  and column in self.label_definitions:
+            row = event.row
+            unit_index = self._panel_get_sorted_indices()[row]
+            unit_id = self.df.index[unit_index]
+            new_label = event.value
+            if new_label == "":
+                new_label = None
+            self.controller.set_label_to_unit(unit_id, column, new_label)
 
     def _panel_get_selected_unit_ids(self, sort_with_sorters=True):
         if self.table.sorters is None or len(self.table.sorters) == 0 or not sort_with_sorters:

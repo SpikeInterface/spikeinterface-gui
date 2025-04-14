@@ -1,4 +1,9 @@
-from typing import TypedDict, NotRequired
+from typing import TypedDict
+# For Python < 3.11 compatibility
+try:
+    from typing import NotRequired
+except ImportError:
+    from typing_extensions import NotRequired
 import numpy as np
 
 import panel as pn

@@ -3,8 +3,6 @@ import itertools
 
 from .view_base import ViewBase
 
-from .curation_tools import adding_group
-
 
 class MergeView(ViewBase):
     _supported_backend = ['qt', 'panel']
@@ -35,7 +33,8 @@ class MergeView(ViewBase):
 
     def get_potential_merges(self):
         method = self.method
-        print(f"Computing potential merges using {method} method")
+        if self.controller.verbose:
+            print(f"Computing potential merges using {method} method")
         if method == 'similarity':
             similarity_params = self.method_params['similarity']
             similarity = self.controller.get_similarity(similarity_params['similarity_method'])
@@ -53,7 +52,8 @@ class MergeView(ViewBase):
             self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
         else:
             raise ValueError(f"Unknown method: {method}")
-        print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
+        if self.controller.verbose:
+            print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
 
     def get_table_data(self):
         """Get data for displaying in table"""

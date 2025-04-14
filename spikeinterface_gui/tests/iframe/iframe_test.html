@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpikeInterface GUI Iframe Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .iframe-container {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .data-display {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow: auto;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        pre {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+            margin: 0;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SpikeInterface GUI Iframe Test</h1>
+        
+        <div class="controls">
+            <button id="clearBtn">Clear Data Display</button>
+            <button id="startServerBtn">Start Test Server</button>
+        </div>
+        
+        <div class="iframe-container">
+            <iframe id="guiFrame" src="about:blank"></iframe>
+        </div>
+        
+        <h2>Received Data:</h2>
+        <div class="data-display">
+            <pre id="dataOutput">No data received yet...</pre>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const iframe = document.getElementById('guiFrame');
+        const dataOutput = document.getElementById('dataOutput');
+        const clearBtn = document.getElementById('clearBtn');
+        const startServerBtn = document.getElementById('startServerBtn');
+        
+        // Store received data
+        let receivedData = [];
+        
+        // Event listener for messages from the iframe
+        function handleMessage(event) {
+            console.log('Message received from iframe:', event.data);
+            
+            // Check if the message is from our Panel application
+            if (event.data && event.data.type === 'panel-data') {
+                const data = event.data.data;
+                receivedData.push(data);
+                
+                // Format and display the data
+                displayData();
+            }
+        }
+        
+        // Add the event listener
+        window.addEventListener('message', handleMessage);
+        
+        // Function to display the received data
+        function displayData() {
+            if (receivedData.length === 0) {
+                dataOutput.textContent = 'No data received yet...';
+                return;
+            }
+            
+            // Format the data as JSON
+            const formattedData = receivedData.map((data, index) => {
+                return `--- Data ${index + 1} ---\n${JSON.stringify(data, null, 2)}`;
+            }).join('\n\n');
+            
+            dataOutput.textContent = formattedData;
+            
+            // Scroll to the bottom of the data display
+            dataOutput.scrollTop = dataOutput.scrollHeight;
+        }
+        
+        // Clear button event listener
+        clearBtn.addEventListener('click', function() {
+            receivedData = [];
+            displayData();
+            
+            // Re-add the event listener to ensure it's working
+            window.removeEventListener('message', handleMessage);
+            window.addEventListener('message', handleMessage);
+            console.log('Event listener reset');
+        });
+        
+        // Start server button event listener
+        startServerBtn.addEventListener('click', function() {
+            // Disable the button while starting the server
+            startServerBtn.disabled = true;
+            startServerBtn.textContent = 'Starting server...';
+            
+            // Execute the test_mainwindow.py script to start the server
+            fetch('/start_test_server')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Load the server URL in the iframe
+                        iframe.src = data.url;
+                        startServerBtn.textContent = 'Server Running';
+                    } else {
+                        alert('Failed to start test server: ' + data.error);
+                        startServerBtn.disabled = false;
+                        startServerBtn.textContent = 'Start Test Server';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting test server:', error);
+                    alert('Error starting test server. See console for details.');
+                    startServerBtn.disabled = false;
+                    startServerBtn.textContent = 'Start Test Server';
+                });
+        });
+        
+        // For testing purposes, you can manually set the iframe URL
+        // This is useful if you're running the server separately
+        function setIframeUrl(url) {
+            iframe.src = url;
+        }
+        
+        // Add instructions for using the curation view
+        dataOutput.textContent = `Instructions:
+1. Click "Start Test Server" to launch the SpikeInterface GUI
+2. Once loaded, navigate to the "curation" tab
+3. Click the "Submit to parent" button to send data to this page
+4. The received data will appear here
+
+Note: The first time you start the server, it may take a minute to generate test data.`;
+    </script>
+</body>
+</html>

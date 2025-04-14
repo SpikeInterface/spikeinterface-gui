@@ -48,6 +48,7 @@ class Controller():
 
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
+        self.unit_dtype = self.analyzer.unit_ids.dtype
         
         self.return_scaled = True
         self.save_on_compute = save_on_compute
@@ -584,6 +585,7 @@ class Controller():
 
         all_merged_units = sum(self.curation_data["merge_unit_groups"], [])
         for unit_id in removed_unit_ids:
+            unit_id = self.unit_dtype.type(unit_id)
             if unit_id in self.curation_data["removed_units"]:
                 continue
             # TODO: check if unit is already in a merge group
@@ -593,14 +595,15 @@ class Controller():
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
     
-    def make_manual_restore(self, restire_unit_ids):
+    def make_manual_restore(self, restore_unit_ids):
         """
         pop unit_ids from the removed_units list which is a restore.
         """
         if not self.curation:
             return
 
-        for unit_id in restire_unit_ids:
+        for unit_id in restore_unit_ids:
+            unit_id = self.unit_dtype.type(unit_id)
             if unit_id in self.curation_data["removed_units"]:
                 if self.verbose:
                     print(f"Unit {unit_id} is restored from the curation data")
@@ -623,9 +626,10 @@ class Controller():
             return False
 
         for unit_id in merge_unit_ids:
+            unit_id = self.unit_dtype.type(unit_id)
             if unit_id in self.curation_data["removed_units"]:
                 return False
-
+        merge_unit_ids = [self.unit_dtype.type(unit_id) for unit_id in merge_unit_ids]
         merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
         self.curation_data["merge_unit_groups"] = merged_groups
         if self.verbose:
@@ -680,6 +684,8 @@ class Controller():
         else:
             lbl = {"unit_id": unit_id, category:[label]}
             self.curation_data["manual_labels"].append(lbl)
+        if self.verbose:
+            print(f"Set label {category} to {label} for unit {unit_id}")
 
     def remove_category_from_unit(self, unit_id, category):
         ix = self.find_unit_in_manual_labels(unit_id)
@@ -691,4 +697,5 @@ class Controller():
             if len(lbl) == 1:
                 # only unit_id in keys then no more labels, then remove then entry
                 self.curation_data["manual_labels"].pop(ix)
-
+                if self.verbose:
+                    print(f"Remove label {category} for unit {unit_id}")

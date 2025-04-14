@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from pathlib import Path
 
 from .view_base import ViewBase
@@ -194,6 +195,9 @@ class CurationView(ViewBase):
     def _panel_make_layout(self):
         import pandas as pd
         import panel as pn
+
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts
+
         pn.extension("tabulator")
 
         # Create dataframe
@@ -236,42 +240,50 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
         )
 
+        # shortcuts
+        shortcuts = [
+            KeyboardShortcut(name="restore", key="r", ctrlKey=False),
+            KeyboardShortcut(name="unmerge", key="u", ctrlKey=False),
+        ]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
+
         # Create main layout with proper sizing
         sections = pn.Row(self.table_merge, self.table_delete, sizing_mode="stretch_width")
-        self.layout = pn.Column(save_sections, buttons_curate, sections, sizing_mode="stretch_both")
+        self.layout = pn.Column(
+            save_sections,
+            buttons_curate,
+            sections,
+            shortcuts_component,
+            sizing_mode="stretch_both"
+        )
 
-        # # JavaScript code to send the data to the parent window when the button is clicked
-        # TODO: fix this
-        # submit_button.js_on_click(code=
-        #     """
-        #         const raw_data = JSON.parse(JSON.stringify(arguments[0]));
-        #         const data = {
-        #             type: 'curation_data',
-        #             curation_data: raw_data
-        #         };
-        #         console.log(data); 
-        #         parent.postMessage({
-        #             type: 'panel-data',
-        #             data: data
-        #         }, '*');
-        #     """, 
-        #     args=dict(curation_data=check_json(self.controller.construct_final_curation()))
-        # )
+        # Add a custom JavaScript callback to the button that doesn't interact with Bokeh models
+        submit_button.on_click(self._panel_submit_to_parent)
+
+        # Add a hidden div to store the data
+        self.data_div = pn.pane.HTML("", width=0, height=0, margin=0, sizing_mode="fixed")
+        self.layout.append(self.data_div)
 
 
     def _panel_refresh(self):
         import pandas as pd
         # Merged
         merged_units = self.controller.curation_data["merge_unit_groups"]
-        print(f"In curation view, merged units: {merged_units}")
-        df = pd.DataFrame({"Merged groups": merged_units})
+
+        # for visualization, we make all row entries strings
+        merged_units_str = []
+        for group in merged_units:
+            # convert to string
+            group = [str(unit_id) for unit_id in group]
+            merged_units_str.append(",".join(group))
+        df = pd.DataFrame({"Merged groups": np.array(merged_units_str).astype(str)})
         self.table_merge.value = df
         self.table_merge.selection = []
 
         ## deleted        
         removed_units = self.controller.curation_data["removed_units"]
-        print(f"In curation view, removed units: {removed_units}")
-        df = pd.DataFrame({"Deleted Unit ID": removed_units})
+        df = pd.DataFrame({"Deleted Unit ID": np.array(removed_units).astype(str)})
         self.table_delete.value = df
         self.table_delete.selection = []
 
@@ -303,7 +315,7 @@ class CurationView(ViewBase):
         if len(selected_items) == 0:
             return None
         else:
-            return self.table_delete.value["Deleted Unit ID"].values.tolist()
+            return self.table_delete.value["Deleted Unit ID"].values[selected_items].tolist()
 
     def _panel_get_merge_table_row(self):
         selected_items = self.table_merge.selection
@@ -312,6 +324,42 @@ class CurationView(ViewBase):
         else:
             return selected_items
 
+    def _panel_handle_shortcut(self, event):
+        if event.data == "restore":
+            self.restore_units()
+        elif event.data == "unmerge":
+            self.unmerge_groups()
+
+    def _panel_submit_to_parent(self, event):
+        """Send the curation data to the parent window"""
+        # Get the curation data and convert it to a JSON string
+        curation_data = json.dumps(check_json(self.controller.construct_final_curation()))
+
+        # Create a JavaScript snippet that will send the data to the parent window
+        js_code = f"""
+        <script>
+        (function() {{
+            try {{
+                const jsonData = {json.dumps(curation_data)};
+                const data = {{
+                    type: 'curation_data',
+                    curation_data: JSON.parse(jsonData)
+                }};
+                console.log('Sending data to parent:', data);
+                parent.postMessage({{
+                    type: 'panel-data',
+                    data: data
+                }}, '*');
+                console.log('Data sent successfully');
+            }} catch (error) {{
+                console.error('Error sending data to parent:', error);
+            }}
+        }})();
+        </script>
+        """
+
+        # Update the hidden div with the JavaScript code
+        self.data_div.object = js_code
 
 
 CurationView._gui_help_txt = """
@@ -326,4 +374,6 @@ revert, and export the curation data.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merge group from the merged units table.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
+- **press 'r'**: Restore the selected units from the deleted units table.
+- **press 'u'**: Unmerge the selected merge groups from the merged units table.
 """

@@ -367,7 +367,6 @@ class SpikeAmplitudeView(ViewBase):
                     visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
             visible_indices = sl.start + np.nonzero(visible_mask)[0]
             selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
-            print(selected_indices)
             self.scatter_source.selected.indices = list(selected_indices)
         else:
             self.scatter_source.selected.indices = []
@@ -444,7 +443,6 @@ class SpikeAmplitudeView(ViewBase):
             return
         elif len(selected_indices) == 1:
             selected_segment = self.controller.spikes[selected_indices[0]]['segment_index']
-            print("Selected segment", selected_segment)
             if selected_segment != self.segment_index:
                 self.segment_selector.value = f"Segment {selected_segment}"
                 self._panel_change_segment(None)

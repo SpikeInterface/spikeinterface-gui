@@ -1,5 +1,5 @@
+import warnings
 import numpy as np
-from threading import Timer
 
 
 from .view_base import ViewBase
@@ -556,7 +556,7 @@ class ProbeView(ViewBase):
             # Update channel visibility
             visible_channel_inds = self.update_channel_visibility(new_x, new_y, self.settings['radius_channel'])
             if len(visible_channel_inds) == 0:
-                print("At least 1 channel must be visible")
+                warnings.warn("At least 1 channel must be visible")
                 self.channel_circle.update_position(*old_center)
             else:
                 self.controller.set_channel_visibility(visible_channel_inds)
@@ -583,7 +583,7 @@ class ProbeView(ViewBase):
             # Update channel visibility
             visible_channel_inds = self.update_channel_visibility(x_center, y_center, new_radius)
             if len(visible_channel_inds) == 0:
-                print("Channel radius too small! At least 1 channel must be visible")
+                warnings.warn("Channel radius too small! At least 1 channel must be visible")
                 self.channel_circle.update_radius(old_radius)
             else:
                 self.settings["radius_channel"] = new_radius

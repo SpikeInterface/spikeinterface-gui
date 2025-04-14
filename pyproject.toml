@@ -16,7 +16,6 @@ classifiers = [
 
 dependencies = [
     "spikeinterface[full]>=0.102.0",
-    "pyqtgraph",
 ]
 
 [project.urls]
@@ -42,8 +41,16 @@ sigui = "spikeinterface_gui.main:run_mainwindow_cli"
 
 [project.optional-dependencies]
 
+qt = [
+    "PySide6",
+    "pyqtgraph",
+]
+
+panel = [
+    "panel",
+]
+
 test = [
     "pytest",
     "PySide6",
 ]
-

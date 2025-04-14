@@ -15,7 +15,7 @@ empty_curation_data = {
     "removed_units": []
 }
 
-def adding_group(previous_groups, new_group):
+def adding_group(previous_groups, new_group, unit_dtype=None):
     # this is to ensure that np.str_ types are rendered as str
     to_merge = [np.array(new_group).tolist()]
     unchanged = []
