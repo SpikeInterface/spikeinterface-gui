@@ -88,7 +88,8 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         win = run_mainwindow(
             analyzer,
             backend="qt",
-            start_app=start_app, verbose=verbose,
+            start_app=start_app,
+            verbose=verbose,
             curation=curation, curation_dict=curation_dict, 
             displayed_unit_properties=None,
             extra_unit_properties=extra_unit_properties,
@@ -100,17 +101,18 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 
 
 
-# if __name__ == '__main__':
-if not test_folder.is_dir():
-    setup_module()
-    
-    # test_mainwindow(start_qt_app=True, verbose=False)
-    # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
-    # test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
-    # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)
+if __name__ == '__main__':
 
-    # import spikeinterface.widgets as sw
-    # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
-    # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+    # setup_module()
+        
+        # test_mainwindow(start_qt_app=True, verbose=False)
+        # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)
+        # test_mainwindow(start_qt_app=True, curation=True, from_si_api=False)
+        # test_mainwindow(start_qt_app=True, curation=True, from_si_api=True)
 
-win = test_mainwindow(start_app=True, verbose=True, curation=True)
+        # import spikeinterface.widgets as sw
+        # analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+        # sw.plot_sorting_summary(sorting_analyzer, backend="spikeinterface_gui")
+
+    win = test_mainwindow(start_app=True, verbose=True, curation=True)
+    # win = test_mainwindow(start_app=True, verbose=True, curation=False)

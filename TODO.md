@@ -10,6 +10,11 @@
 - [ ] unit list with depth
 - [ ] no trace on waveform view when non rec
 
+debug dock/widget is_visible()
+speedup similarity view
+speedup amplitude view
+
+
 
 ### Alessio
 - [x] handle similarity default compute

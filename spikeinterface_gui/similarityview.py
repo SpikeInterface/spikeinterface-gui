@@ -31,7 +31,7 @@ class SimilarityView(ViewBase):
             visible_mask = np.ones(len(unit_ids), dtype="bool")
             s = self.similarity
         else:
-            visible_mask = np.array(list(self.controller.unit_visible_dict.key()), dtype="bool")
+            visible_mask = np.array(list(self.controller.unit_visible_dict.keys()), dtype="bool")
             s = self.similarity[visible_mask, :][:, visible_mask]
 
         if not np.any(visible_mask):
@@ -127,9 +127,7 @@ class SimilarityView(ViewBase):
         if self.similarity is None:
             self.image.hide()
             return 
-        
-        
-        
+                
         similarity, visible_mask = self.get_similarity_data()
         
         if not np.any(visible_mask):
@@ -147,18 +145,21 @@ class SimilarityView(ViewBase):
         for item in self._text_items:
             self.plot.removeItem(item)
         
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not visible_mask[unit_index]:
-                continue
-            for i in range(2):
-                item = pg.TextItem(text=f'{unit_id}', color='#FFFFFF', anchor=(0.5, 0.5), border=None)
-                self.plot.addItem(item)
-                if i==0:
-                    item.setPos(pos + 0.5, 0)
-                else:
-                    item.setPos(0, pos + 0.5)
-                self._text_items.append(item)
-            pos += 1
+        if np.sum(visible_mask) < 10:
+            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                if not visible_mask[unit_index]:
+                    continue
+                for i in range(2):
+                    item = pg.TextItem(text=f'{unit_id}', color='#FFFFFF', anchor=(0.5, 0.5), border=None)
+                    self.plot.addItem(item)
+                    if i==0:
+                        item.setPos(pos + 0.5, 0)
+                    else:
+                        item.setPos(0, pos + 0.5)
+                    self._text_items.append(item)
+                pos += 1
+
+
     
     def _qt_select_pair(self, x, y, reset):
         

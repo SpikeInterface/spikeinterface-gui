@@ -14,7 +14,7 @@ class WaveformView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = [
-        {'name': 'plot_selected_spike', 'type': 'bool', 'value': True },
+        {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
         {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
         {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
