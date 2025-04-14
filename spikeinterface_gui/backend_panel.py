@@ -158,7 +158,7 @@ class PanelMainWindow:
         self.controller.signal_handler.activate()
 
         for view in self.views.values():
-            if view.is_visible:
+            if view.is_view_visible():
                 view.refresh()
 
     def make_views(self):
@@ -307,11 +307,10 @@ class PanelMainWindow:
         for i, (view_name, content) in enumerate(zip(tab_names, objects)):
             visible = (i == active)
             view = self.views[view_name]
-            view.is_visible = visible
-            if view.is_visible:
+            view._panel_view_is_visible = visible
+            if visible:
                 # Refresh the view if it is visible
                 view.refresh()
-            content.visible = visible
 
 
 

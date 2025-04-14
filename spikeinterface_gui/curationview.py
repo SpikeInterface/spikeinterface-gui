@@ -242,8 +242,8 @@ class CurationView(ViewBase):
 
         # shortcuts
         shortcuts = [
-            KeyboardShortcut(name="restore", key="r", ctrlKey=False),
-            KeyboardShortcut(name="unmerge", key="u", ctrlKey=False),
+            KeyboardShortcut(name="restore", key="r", ctrlKey=True),
+            KeyboardShortcut(name="unmerge", key="u", ctrlKey=True),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -255,6 +255,7 @@ class CurationView(ViewBase):
             buttons_curate,
             sections,
             shortcuts_component,
+            scroll=True,
             sizing_mode="stretch_both"
         )
 
@@ -374,6 +375,6 @@ revert, and export the curation data.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merge group from the merged units table.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
-- **press 'r'**: Restore the selected units from the deleted units table.
-- **press 'u'**: Unmerge the selected merge groups from the merged units table.
+- **press 'ctrl+r'**: Restore the selected units from the deleted units table.
+- **press 'ctrl+u'**: Unmerge the selected merge groups from the merged units table.
 """

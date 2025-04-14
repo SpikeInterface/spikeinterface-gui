@@ -331,7 +331,11 @@ class UnitListView(ViewBase):
         frozen_columns = ["unit_id", "visible"]
         if self.label_definitions is not None:
             for label in self.label_definitions:
-                data[label] = [None] * len(unit_ids)
+                data[label] = [""] * len(unit_ids)
+                # pre-populate labels with existing curation
+                for unit_index, unit_id in enumerate(unit_ids):
+                    label_value = self.controller.get_unit_label(unit_id, label)
+                    data[label][unit_index] = label_value
                 if label == "quality":
                     frozen_columns.append(label)
         data["channel_id"] = []
@@ -424,8 +428,11 @@ class UnitListView(ViewBase):
 
         # shortcuts
         shortcuts = [
-            KeyboardShortcut(name="delete", key="d", ctrlKey=False),
-            KeyboardShortcut(name="merge", key="m", ctrlKey=False),
+            KeyboardShortcut(name="delete", key="d", ctrlKey=True),
+            KeyboardShortcut(name="merge", key="m", ctrlKey=True),
+            KeyboardShortcut(name="good", key="g", ctrlKey=False),
+            KeyboardShortcut(name="mua", key="m", ctrlKey=False),
+            KeyboardShortcut(name="noise", key="n", ctrlKey=False),
             KeyboardShortcut(name="visible", key=" ", ctrlKey=False),
             KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
             KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
@@ -511,7 +518,7 @@ class UnitListView(ViewBase):
     def _panel_on_selection_changed(self, event):
         row = event.row
         col = event.column
-        unit_ids = self.controller.unit_ids
+        unit_ids = self.df.index.values
         selected_unit_id = unit_ids[row]
         time_clicked = time.perf_counter()
         df = self.table.value
@@ -602,6 +609,7 @@ class UnitListView(ViewBase):
             self.df = self.df_full
             labels = [self.controller.get_unit_label(unit_id, category="quality") for unit_id in self.controller.unit_ids]
             self.df["quality"] = labels
+        self.controller.filtered_unit_ids = self.df.index.values
         self.table.value = self.df
         self.table.selection = []
         self.refresh()
@@ -618,6 +626,7 @@ class UnitListView(ViewBase):
             else:
                 # Filter out units that don't match the selected label
                 self.df = self.df.query(f"quality == '{value}'")
+            self.controller.filtered_unit_ids = self.df.index.values
             self.table.value = self.df
             self.table.selection = []
             self.refresh()
@@ -625,15 +634,19 @@ class UnitListView(ViewBase):
             self.hide_noise.value = False
 
     def _panel_handle_shortcut(self, event):
+        if event.data in ["delete", "merge", "good", "mua", "noise"]:
+            if not self.controller.curation:
+                return
         if event.data == "delete":
             self.delete_unit()
         elif event.data == "merge":
-            self.merge_selected()
+            if self.controller.curation:
+                self.merge_selected()
         elif event.data == "visible":
             selected_rows = self._panel_get_selected_unit_ids()
             for unit_id in self.controller.unit_ids:
                 self.controller.unit_visible_dict[unit_id] = False
-            for unit_id in self.controller.unit_ids[selected_rows]:
+            for unit_id in self.df.index.values[selected_rows]:
                 self.controller.unit_visible_dict[unit_id] = True
             self.notify_unit_visibility_changed()
             self.refresh()
@@ -643,10 +656,10 @@ class UnitListView(ViewBase):
                 next_row = 0
             else:
                 next_row = max(selected_rows) + 1
-            if next_row < len(self.controller.unit_ids):
+            if next_row < len(self.df):
                 next_row = self._panel_get_sorted_indices()[next_row]
                 if next_row not in self.table.selection:
-                    self.table.selection.append(next_row)
+                    self.table.selection = [next_row]
                     self.refresh()
         elif event.data == "previous":
             selected_rows = self._panel_get_selected_unit_ids()
@@ -657,7 +670,7 @@ class UnitListView(ViewBase):
             if previous_row >= 0:
                 previous_row = self._panel_get_sorted_indices()[previous_row]
                 if previous_row not in self.table.selection:
-                    self.table.selection.append(previous_row)
+                    self.table.selection = [previous_row]
                     self.refresh()
         elif event.data == "next_only":
             selected_rows = self._panel_get_selected_unit_ids()
@@ -665,11 +678,11 @@ class UnitListView(ViewBase):
                 next_row = 0
             else:
                 next_row = max(selected_rows) + 1
-            if next_row < len(self.controller.unit_ids):
+            if next_row < len(self.df):
                 next_row = self._panel_get_sorted_indices()[next_row]
                 for unit_id in self.controller.unit_visible_dict:
                     self.controller.unit_visible_dict[unit_id] = False
-                unit_id = self.controller.unit_ids[next_row]
+                unit_id = self.df.index.values[next_row]
                 self.controller.unit_visible_dict[unit_id] = True
                 self.table.selection = [next_row]
                 self.notify_unit_visibility_changed()
@@ -684,10 +697,34 @@ class UnitListView(ViewBase):
                 previous_row = self._panel_get_sorted_indices()[previous_row]
                 for unit_id in self.controller.unit_visible_dict:
                     self.controller.unit_visible_dict[unit_id] = False
-                unit_id = self.controller.unit_ids[previous_row]
+                unit_id = self.df.index.values[previous_row]
                 self.controller.unit_visible_dict[unit_id] = True
                 self.table.selection = [previous_row]
                 self.notify_unit_visibility_changed()
+                self.refresh()
+        elif event.data == "good":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) > 0:
+                unit_ids = self.df.index.values[selected_rows]
+                for unit_id in unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", "good")
+                self.df.loc[unit_ids, "quality"] = "good"
+                self.refresh()
+        elif event.data == "mua":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) > 0:
+                unit_ids = self.df.index.values[selected_rows]
+                for unit_id in unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", "MUA")
+                self.df.loc[unit_ids, "quality"] = "MUA"
+                self.refresh()
+        elif event.data == "noise":
+            selected_rows = self._panel_get_selected_unit_ids()
+            if len(selected_rows) > 0:
+                unit_ids = self.df.index.values[selected_rows]
+                for unit_id in unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", "noise")
+                self.df.loc[unit_ids, "quality"] = "noise"
                 self.refresh()
 
 UnitListView._gui_help_txt = """
@@ -699,10 +736,13 @@ This view controls the visibility of units.
 * **check box** : make visible or unvisible
 * **double click** : make it visible alone
 * **space** : make selected units visible
-* **press 'd'** : delete selected units (if curation=True)
-* **press 'm'** : merge selected units (if curation=True)
 * **arrow up/down** : select next/previous unit
 * **ctrl + arrow up/down** : select next/previous unit and make it visible alone
+* **press 'ctrl+d'** : delete selected units (if curation=True)
+* **press 'ctrl+m'** : merge selected units (if curation=True)
+* **press 'g'** : label selected units as good (if curation=True)
+* **press 'm'** : label selected units as mua (if curation=True)
+* **press 'n'** : label selected units as noise (if curation=True)
 * **drag column headers** : reorder columns
 * **click on column header** : sort by this column
 * **"↻"** : reset the unit table

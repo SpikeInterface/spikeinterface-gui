@@ -21,7 +21,6 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
     ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
 
 
-
 # TODO handle return_scaled
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
@@ -210,7 +209,7 @@ class Controller():
 
         self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
-        
+        self.filtered_unit_ids = self.unit_ids
 
         t0 = time.perf_counter()
         
@@ -461,6 +460,9 @@ class Controller():
 
     def set_channel_visibility(self, visible_channel_inds):
         self.visible_channel_inds = np.array(visible_channel_inds, copy=True)
+
+    def set_filtered_unit_ids(self, unit_ids):
+        self.filtered_unit_ids = unit_ids
 
     def has_extension(self, extension_name):
         if extension_name == 'recording':
