@@ -115,8 +115,8 @@ class ISIView(ViewBase):
         self.figure.y_range = Range1d(0, y_max * 1.1)
 
 
-ISIView._gui_help_txt = """Inter spike intervals
-Show only selected units.
-Settings control the bin size in ms.
-Right mouse : zoom"""
+ISIView._gui_help_txt = """
+## ISI View
 
+This view shows the inter spike interval histograms for each unit.
+"""

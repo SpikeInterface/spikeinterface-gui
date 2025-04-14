@@ -265,7 +265,7 @@ class UnitListView(ViewBase):
         if self.backend == 'qt':
             return self._qt_get_selected_unit_ids()
         elif self.backend == 'panel':
-            return self._panel_get_selected_unit_ids()
+            return self._panel_get_selected_unit_ids(sort_with_sorters=False)
        
 
     def on_visible_shortcut(self):
@@ -380,6 +380,7 @@ class UnitListView(ViewBase):
 
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
         self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default")
+        self.refresh_button = pn.widgets.Button(name="↻", button_type="default")
 
         button_list = [
             self.select_all_button,
@@ -393,6 +394,7 @@ class UnitListView(ViewBase):
                 self.delete_button,
                 self.merge_button,
             ]
+        button_list += [self.refresh_button]
         self.info_text = pn.pane.HTML("")
 
         buttons = pn.Row(*button_list, sizing_mode="stretch_width")
@@ -420,11 +422,10 @@ class UnitListView(ViewBase):
             sizing_mode="stretch_width",
         )
 
-        # self.source.selected.on_change("indices", self._panel_on_selection_changed)
         self.table.on_click(self._panel_on_selection_changed)
-        self.select_all_button.on_click(lambda event: self._panel_select_all)
-        # self.unselect_all_button.on_click(lambda event: self.hide_all)
+        self.select_all_button.on_click(self._panel_select_all)
         self.unselect_all_button.on_click(self._panel_unselect_all)
+        self.refresh_button.on_click(self._panel_refrech_click)
 
         if self.controller.curation:
             self.delete_button.on_click(self._panel_delete_unit)
@@ -433,13 +434,16 @@ class UnitListView(ViewBase):
         self.last_row = None
         self.last_clicked = None
 
+    def _panel_refrech_click(self, event):
+        self.table.selection = []
+        self.table.value = self.df
+        self.table.sorters = []
+        self.refresh()
 
     def _panel_refresh(self):
-        unit_ids = self.controller.unit_ids
         df = self.table.value
         visible = list(self.controller.unit_visible_dict.values())
         df.loc[:, "visible"] = visible
-        self.table.selection = np.nonzero(visible)[0].tolist()
 
         table_columns = self.df.columns
 
@@ -452,11 +456,14 @@ class UnitListView(ViewBase):
                 self.table.hidden_columns.append(col)
 
         self.table.value = df
+        self._panel_refresh_header()
 
-        # self.source.data.update(data)
+    def _panel_refresh_header(self):
+        unit_ids = self.controller.unit_ids
         n1 = len(unit_ids)
         n2 = sum(self.controller.unit_visible_dict.values())
-        txt = f"<b>All units</b>: {n1} - <b>selected</b>: {n2}"
+        n3 = len(self.table.selection)
+        txt = f"<b>All units</b>: {n1} - <b>visible</b>: {n2} - <b>selected</b>: {n3}"
         self.info_text.object = txt
 
     def _panel_select_all(self, event):
@@ -505,8 +512,8 @@ class UnitListView(ViewBase):
         self.last_clicked = time_clicked
         self.last_row = row
 
-    def _panel_get_selected_unit_ids(self):
-        if self.table.sorters is None or len(self.table.sorters) == 0:
+    def _panel_get_selected_unit_ids(self, sort_with_sorters=True):
+        if self.table.sorters is None or len(self.table.sorters) == 0 or not sort_with_sorters:
             return self.table.selection
         elif len(self.table.sorters) == 1:
             # apply sorters to selection
@@ -524,7 +531,6 @@ class UnitListView(ViewBase):
                 new_index = sorted_df.index[sorted_df['unit_id'] == self.df.iloc[index]['unit_id']]
                 if len(new_index) > 0:
                     new_selection.append(int(new_index[0]))
-            print("Sorted selection", new_selection)
             return new_selection
 
     def _panel_get_sorted_indices(self):
@@ -618,17 +624,14 @@ UnitListView._gui_help_txt = """
 This view controls the visibility of units.
 
 ### Controls
-* Check box : make visible or unvisible
-* Double click on a row : make it visible alone
-* Space : make selected units visible
-* Press d : delete selected units (if curation=True)
-* Press m : merge selected units (if curation=True)
-
-*QT-specific*
-* Drag column headers : sort columns
-* Right click (QT) : context menu (delete or merge if curation=True)
-
-*Panel-specific*
-* Arrow up/down : select next/previous unit
-* Arrow up/down + CTRL : select next/previous unit and make it visible alone
+* **check box** : make visible or unvisible
+* **double click** : make it visible alone
+* **space** : make selected units visible
+* **press 'd'** : delete selected units (if curation=True)
+* **press 'm'** : merge selected units (if curation=True)
+* **arrow up/down** : select next/previous unit
+* **ctrl + arrow up/down** : select next/previous unit and make it visible alone
+* **drag column headers** : reorder columns
+* **click on column header** : sort by this column
+* **"↻"** : reset the unit table
 """

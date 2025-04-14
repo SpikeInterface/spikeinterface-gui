@@ -49,7 +49,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def auto_scale(self):
         if self.last_data_curves is not None:
             self.color_limit = np.max(np.abs(self.last_data_curves))
-        self.refresh()
+            self.color_mapper.high = self.color_limit
+            self.color_mapper.low = -self.color_limit
 
     def make_color_lut(self):
         N = 512
@@ -351,6 +352,11 @@ class TraceMapView(ViewBase, MixinViewTrace):
         t = self.time_by_seg[self.seg_index]
         t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
+        if self.last_data_curves is None:
+            auto_scale = True
+        else:
+            auto_scale = False
+
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
             self.get_data_in_chunk(t1, t2, self.seg_index)
 
@@ -372,9 +378,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
             "unit_id": scatter_unit_ids,
         })
 
-        self.color_mapper.low = -self.color_limit
-        self.color_mapper.high = self.color_limit
-
+        if auto_scale:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+            self.color_mapper.high = self.color_limit
+            self.color_mapper.low = -self.color_limit
 
         self.figure.x_range = Range1d(start=t1, end=t2)
         self.figure.y_range = Range1d(start=0, end=data_curves.shape[1])
@@ -384,4 +391,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.color_mapper.high = self.color_mapper.high * factor
         self.color_mapper.low = -self.color_mapper.high
 
+TraceMapView._gui_help_txt = """
+## Trace Map View
 
+This view shows the trace map of all the channels.
+
+### Controls
+* **x size (s)**: Set the time window size for the traces.
+* **auto scale**: Automatically adjust the scale of the traces.
+* **time (s)**: Set the time point to display traces.
+* **mouse wheel**: change the scale of the traces.
+"""

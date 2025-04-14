@@ -25,7 +25,7 @@ class ViewBase():
             make_layout = self._panel_make_layout
             settings_kwargs = {}
 
-        self.notifier = SignalNotifier(parent=self.qt_widget, view=self)
+        self.notifier = SignalNotifier(parent=parent, view=self)
         if self._settings is not None:
             create_settings(self, **settings_kwargs)
         make_layout()

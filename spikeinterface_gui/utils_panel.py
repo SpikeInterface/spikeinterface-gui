@@ -144,19 +144,74 @@ class CustomCircle:
         self.theta = np.linspace(0, 2 * np.pi, num_points_theta)
         xs = initial_x + radius * np.cos(self.theta)
         ys = initial_y + radius * np.sin(self.theta)
-        self.source = ColumnDataSource(data=dict(xs=[xs.tolist()], ys=[ys.tolist()]))
+
+        # Calculate diamond position at 45 degrees
+        diamond_angle = np.pi / 4  # 45 degrees
+        diamond_x = initial_x + radius * np.cos(diamond_angle)
+        diamond_y = initial_y + radius * np.sin(diamond_angle)
+        diamond_points = self._get_diamond_points(diamond_x, diamond_y)
+
+        self.source = ColumnDataSource(data=dict(
+            xs=[xs.tolist()], 
+            ys=[ys.tolist()],
+            diamond_xs=[diamond_points[0]],
+            diamond_ys=[diamond_points[1]]
+        ))
+
         self.circle = Patches(
             xs="xs", ys="ys", line_color=line_color, fill_color=fill_color, line_width=line_width, fill_alpha=fill_alpha
         )
+        self.diamond = Patches(
+            xs="diamond_xs", ys="diamond_ys", line_color=line_color, fill_color=line_color, line_width=line_width
+        )
+
         self.radius = radius
         self.center = (initial_x, initial_y)
 
-    def update_position(self, x, y):
+    def add_to_figure(self, figure):
+        figure.add_glyph(self.source, self.circle)
+        figure.add_glyph(self.source, self.diamond)
+
+    def _get_diamond_points(self, x, y, size=4):
+        # Generate diamond points around center (x,y)
+        diamond_xs = [x, x + size/2, x, x - size/2]
+        diamond_ys = [y + size/2, y, y - size/2, y]
+        return [diamond_xs], [diamond_ys]
+
+    def update_position(self, x, y, start_x=None, start_y=None):
+        """
+        Update the position of the circle and diamond based on the new center coordinates.
+        If start_x and start_y are provided, they are used as anchor points for the circle.
+        Otherwise, the center of the circle is used as the anchor point.
+        """
+        if start_x is not None and start_y is not None:
+            # Calculate the new center based on the anchor point
+            anchor_x = start_x - self.center[0]
+            anchor_y = start_y - self.center[1]
+        else:
+            # Use the current center as the anchor point
+            anchor_x = 0
+            anchor_y = 0
+
         # Update circle points
-        xs = x + self.radius * np.cos(self.theta)
-        ys = y + self.radius * np.sin(self.theta)
-        self.source.data.update(dict(xs=[xs.tolist()], ys=[ys.tolist()]))
-        self.center = (x, y)
+        new_x = x - anchor_x
+        new_y = y - anchor_y
+        xs = new_x + self.radius * np.cos(self.theta)
+        ys = new_y + self.radius * np.sin(self.theta)
+
+        # Update diamond position
+        diamond_angle = np.pi / 4  # 45 degrees
+        diamond_x = new_x + self.radius * np.cos(diamond_angle)
+        diamond_y = new_y + self.radius * np.sin(diamond_angle)
+        diamond_points = self._get_diamond_points(diamond_x, diamond_y)
+
+        self.source.data.update(dict(
+            xs=[xs.tolist()], 
+            ys=[ys.tolist()],
+            diamond_xs=diamond_points[0],
+            diamond_ys=diamond_points[1]
+        ))
+        self.center = (new_x, new_y)
 
     def update_radius(self, radius):
         self.radius = radius
@@ -170,8 +225,27 @@ class CustomCircle:
     def is_close_to_border(self, x, y):
         # Check if position is close to the border of the circle
         distance = np.sqrt((x - self.center[0]) ** 2 + (y - self.center[1]) ** 2)
-        # print(f"Distance to border: {distance} (radius: {self.radius})")
         return abs(distance - self.radius) < 5
+
+    def is_close_to_diamond(self, x, y, threshold=5):
+        # Calculate diamond center position
+        diamond_angle = np.pi / 4  # 45 degrees
+        diamond_x = self.center[0] + self.radius * np.cos(diamond_angle)
+        diamond_y = self.center[1] + self.radius * np.sin(diamond_angle)
+
+        # Calculate distance to diamond center
+        distance = np.sqrt((x - diamond_x) ** 2 + (y - diamond_y) ** 2)
+        return distance < threshold + self.radius * 0.1  # Add diamond size to threshold
+
+    def select(self):
+        """Make the circle and diamond borders dashed."""
+        self.circle.line_dash = [6]
+        self.diamond.line_dash = [6]
+
+    def unselect(self):
+        """Make the circle and diamond borders solid."""
+        self.circle.line_dash = []
+        self.diamond.line_dash = []
 
 
 # Shortcut handler, taken from https://github.com/holoviz/panel/issues/3193#issuecomment-2357189979

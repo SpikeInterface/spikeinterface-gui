@@ -427,7 +427,7 @@ class ProbeView(ViewBase):
 
         # Selection circles with dragging
         self.channel_circle = CustomCircle(initial_x, initial_y, self.settings['radius_channel'])
-        self.figure.add_glyph(self.channel_circle.source, self.channel_circle.circle)
+        self.channel_circle.add_to_figure(self.figure)
 
         # Unit circle (inner, draggable)
         self.unit_circle = CustomCircle(
@@ -439,7 +439,8 @@ class ProbeView(ViewBase):
             line_width=2,
             fill_alpha=0.2,
         )
-        self.figure.add_glyph(self.unit_circle.source, self.unit_circle.circle)
+        self.unit_circle.add_to_figure(self.figure)
+
 
         # Add pan tool for dragging
         pan_tool = PanTool()
@@ -449,8 +450,11 @@ class ProbeView(ViewBase):
         # Connect pan events for circle dragging
         self.figure.on_event(PanStart, self._panel_on_pan_start)
         self.figure.on_event(PanEnd, self._panel_on_pan_end)
-        self.should_update_channel_circle = False
-        self.should_update_unit_circle = False
+        # these variables will hold the start x, y position of the drag
+        self.should_move_channel_circle = None
+        self.should_move_unit_circle = None
+        self.should_resize_channel_circle = None
+        self.should_resize_unit_circle = None
 
         # Main layout
         self.layout = pn.Column(
@@ -523,38 +527,87 @@ class ProbeView(ViewBase):
     def _panel_on_pan_start(self, event):
         self.figure.toolbar.active_drag = None
         x, y = event.x, event.y
-        if self.channel_circle.is_close_to_border(x, y):
+        if self.channel_circle.is_close_to_diamond(x, y):
+            self.should_resize_channel_circle = [x, y]
+            self.channel_circle.select()
+        elif self.channel_circle.is_close_to_border(x, y):
             self.figure.toolbar.active_drag = None
             # Update channel circle
-            self.should_update_channel_circle = True
-        if self.unit_circle.is_close_to_border(x, y):
+            self.should_move_channel_circle = [x, y]
+            self.channel_circle.select()
+        elif self.unit_circle.is_close_to_diamond(x, y):
+            self.should_resize_unit_circle = [x, y]
+            self.unit_circle.select()
+        elif self.unit_circle.is_close_to_border(x, y):
             self.figure.toolbar.active_drag = None
             # Update unit circle
-            self.should_update_unit_circle = True
+            self.should_move_unit_circle = [x, y]
+            self.unit_circle.select()
 
     def _panel_on_pan_end(self, event):
         x, y = event.x, event.y
 
-        if self.should_update_channel_circle:
-            self.channel_circle.update_position(x, y)
+        if self.should_move_channel_circle is not None:
+            start_x, start_y = self.should_move_channel_circle
+            old_center = self.channel_circle.center
+            self.channel_circle.update_position(x, y, start_x, start_y)
+            new_x, new_y = self.channel_circle.center
+
             # Update channel visibility
-            visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
-            self.controller.set_channel_visibility(visible_channel_inds)
+            visible_channel_inds = self.update_channel_visibility(new_x, new_y, self.settings['radius_channel'])
+            if len(visible_channel_inds) == 0:
+                print("At least 1 channel must be visible")
+                self.channel_circle.update_position(*old_center)
+            else:
+                self.controller.set_channel_visibility(visible_channel_inds)
+            self.channel_circle.unselect()
             self.on_channel_visibility_changed()
             self.notify_channel_visibility_changed()
 
-        if self.should_update_unit_circle:
-            self.unit_circle.update_position(x, y)
-
+        elif self.should_move_unit_circle:
+            start_x, start_y = self.should_move_unit_circle
+            self.unit_circle.update_position(x, y, start_x, start_y)
+            self.unit_circle.unselect()
             # Update unit visibility
-            self.update_unit_visibility(x, y, self.settings['radius_units'])
+            new_x, new_y = self.unit_circle.center
+            self.update_unit_visibility(new_x, new_y, self.settings['radius_units'])
             self._panel_update_unit_glyphs()  # Update glyphs to reflect new visibility
 
             # Notify other views
             self.notify_unit_visibility_changed()
 
-        self.should_update_channel_circle = False
-        self.should_update_unit_circle = False
+        elif self.should_resize_channel_circle is not None:
+            x_center, y_center = self.channel_circle.center
+            old_radius = self.channel_circle.radius
+            new_radius = np.sqrt((x - x_center) ** 2 + (y - y_center) ** 2)
+            # Update channel visibility
+            visible_channel_inds = self.update_channel_visibility(x_center, y_center, new_radius)
+            if len(visible_channel_inds) == 0:
+                print("Channel radius too small! At least 1 channel must be visible")
+                self.channel_circle.update_radius(old_radius)
+            else:
+                self.settings["radius_channel"] = new_radius
+                self.channel_circle.update_radius(new_radius)
+            self.channel_circle.unselect()
+            visible_channel_inds = self.update_channel_visibility(x_center, y_center, self.settings["radius_channel"])
+
+            self.controller.set_channel_visibility(visible_channel_inds)
+            self.on_channel_visibility_changed()
+            self.notify_channel_visibility_changed()
+        elif self.should_resize_unit_circle is not None:
+            x_center, y_center = self.unit_circle.center
+            new_radius = np.sqrt((x - x_center) ** 2 + (y - y_center) ** 2)
+            self.unit_circle.update_radius(new_radius)
+            self.unit_circle.unselect()
+            self.settings["radius_units"] = new_radius
+            # Update unit visibility
+            self.update_unit_visibility(x_center, y_center, self.settings['radius_units'])
+            self._panel_update_unit_glyphs()
+
+        self.should_move_channel_circle = None
+        self.should_move_unit_circle = None
+        self.should_resize_channel_circle = None
+        self.should_resize_unit_circle = None
 
 
     def _panel_on_tap(self, event):
@@ -609,18 +662,13 @@ def circle_from_roi(roi):
 
 
 ProbeView._gui_help_txt = """
-## Probe view
+## Probe View
 Show contact and probe shape.
 Units are color coded.
 
 ### Controls
-- Click : select unit
-- Ctrl + Click : select single unit
-- Mouse drag ROI : change channel visibilty and unit visibility on other views
-
-*Qt-specific*
-- Right click on the background : zoom
-- Left click on the background : move
-- Double click one unit: select one unique unit
-- Ctrl + double click : select multiple units
+- **left click** : select unit
+- **ctrl + left click** : select single unit
+- **mouse drag from circle borders** : change channel visibilty and unit visibility on other views
+- **mouse drag from "diamond"** : change channel / unit radii size
 """

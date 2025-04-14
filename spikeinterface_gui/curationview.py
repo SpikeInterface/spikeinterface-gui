@@ -66,7 +66,7 @@ class CurationView(ViewBase):
 
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')
-        act.triggered.connect(self.restore_unit)
+        act.triggered.connect(self.restore_units)
 
     def _qt_refresh(self):
         from .myqt import QT
@@ -125,7 +125,7 @@ class CurationView(ViewBase):
     def open_context_menu_merge(self):
         self.merge_menu.popup(self.qt_widget.cursor().pos())
 
-    def restore_unit(self):
+    def restore_units(self):
         if self.backend == 'qt':
             unit_ids = self._qt_get_delete_table_selection()
         else:
@@ -206,16 +206,16 @@ class CurationView(ViewBase):
 
         # Create buttons
         save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary")
-        save_button.on_click(lambda event: self.save_in_analyzer)
+        save_button.on_click(self._panel_save_in_analyzer)
 
         self.export_path = pn.widgets.TextInput(name="Export Path", placeholder="Enter path to save JSON")
         export_button = pn.widgets.Button(name="Export JSON", button_type="primary")
-        export_button.on_click(lambda event: self._panel_export_json)
+        export_button.on_click(self._panel_export_json)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary")
-        restore_button.on_click(lambda event: self.restore_unit)
+        restore_button.on_click(self._panel_restore_units)
         remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary")
-        remove_merge_button.on_click(lambda event: self.unmerge_groups)
+        remove_merge_button.on_click(self._panel_unmerge_groups)
 
         submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary")
         # Create layout
@@ -263,18 +263,28 @@ class CurationView(ViewBase):
         import pandas as pd
         # Merged
         merged_units = self.controller.curation_data["merge_unit_groups"]
+        print(f"In curation view, merged units: {merged_units}")
         df = pd.DataFrame({"Merged groups": merged_units})
         self.table_merge.value = df
         self.table_merge.selection = []
 
         ## deleted        
         removed_units = self.controller.curation_data["removed_units"]
+        print(f"In curation view, removed units: {removed_units}")
         df = pd.DataFrame({"Deleted Unit ID": removed_units})
         self.table_delete.value = df
         self.table_delete.selection = []
 
+    def _panel_restore_units(self, event):
+        self.restore_units()
 
-    def _panel_export_json(self):
+    def _panel_unmerge_groups(self, event):
+        self.unmerge_groups()
+
+    def _panel_save_in_analyzer(self, event):
+        self.save_in_analyzer()
+
+    def _panel_export_json(self, event):
         # Get the path from the text input
         export_path = Path(self.export_path.value)
 
@@ -304,8 +314,16 @@ class CurationView(ViewBase):
 
 
 
-CurationView._gui_help_txt = """Curation includes potential delete + merge
-Must export or apply to analyzer to make persistent
-Click on items to make then visible
-Right click to remove merges or restore deletions
+CurationView._gui_help_txt = """
+## Curation View
+
+The curation view shows the current status of the curation process and allows the user to manually visualize,
+revert, and export the curation data.
+
+### Controls
+- **save in analyzer**: Save the current curation state in the analyzer.
+- **export JSON**: Export the current curation state to a JSON file.
+- **restore**: Restore the selected unit from the deleted units table.
+- **unmerge**: Unmerge the selected merge group from the merged units table.
+- **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 """

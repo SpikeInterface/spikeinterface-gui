@@ -162,7 +162,7 @@ class CrossCorrelogramView(ViewBase):
                     color = self.get_unit_color(unit_id)
                     fill_alpha = 0.7
                 else:
-                    color = "#787878"
+                    color = "lightgray"
                     fill_alpha = 0.4
 
 
@@ -192,6 +192,8 @@ class CrossCorrelogramView(ViewBase):
 
 
 
-CrossCorrelogramView._gui_help_txt = """Crosscorrelogram of units/autocorrelogram of one unit
-Shows only the selected unit(s).
-Settings control the bin size in ms."""
+CrossCorrelogramView._gui_help_txt = """
+## Correlograms View
+
+This view shows the auto-correlograms and cross-correlograms of the selected units.
+"""

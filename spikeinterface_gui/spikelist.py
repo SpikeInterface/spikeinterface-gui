@@ -295,6 +295,9 @@ class SpikeListView(ViewBase):
         self.last_row = None
 
     def _panel_refresh(self):
+        pass
+
+    def _panel_refresh_table(self):
         import matplotlib.colors as mcolors
         import pandas as pd
 
@@ -320,13 +323,21 @@ class SpikeListView(ViewBase):
 
         # Update table data
         self.table.value = pd.DataFrame(data)
+
+        selected_inds = self.controller.get_indices_spike_selected()
+        if len(selected_inds) == 0:
+            self.selection = []
+        else:
+            # Find the rows corresponding to the selected indices
+            row_selected, = np.nonzero(np.isin(visible_inds, selected_inds))
+            self.selection = [int(r) for r in row_selected]
+            self.table.selection = self.selection
             
         self._panel_refresh_label()
 
     def _panel_on_refresh_click(self, event):
-        self.controller.set_indices_spike_selected([])
         self._panel_refresh_label()
-        self.refresh()
+        self._panel_refresh_table()
 
     def _panel_on_clear_click(self, event):
         self.controller.set_indices_spike_selected([])
@@ -423,9 +434,13 @@ class SpikeListView(ViewBase):
 
 
 SpikeListView._gui_help_txt = """
-## Spike list view
+## Spike list View
 
-Show all spikes of the visible units.
-When on spike is selected then:
-  * the trace scroll to it
-  * ndscatter shows it (if included_in_pc=True)"""
+Show all spikes of the visible units. When spikes are selected, they are highlighted in the Spike Amplitude View and the ND SCatter View.
+When a single spike is selected, the Trace and TraceMap Views are centered on it.
+
+### Controls
+* **↻ spikes**: refresh the spike list
+* **clear**: clear the selected spikes
+* **shift + arrow up/down** : select next/previous spike and make it visible alone
+"""

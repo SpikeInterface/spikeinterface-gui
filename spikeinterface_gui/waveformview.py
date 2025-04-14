@@ -15,14 +15,12 @@ class WaveformView(ViewBase):
 
     _settings = [
         {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
+        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
         {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-        {'name': 'metrics', 'type': 'list', 'limits': ['median/mad'] },
         {'name': 'fillbetween', 'type': 'bool', 'value': True },
         {'name': 'show_channel_id', 'type': 'bool', 'value': False},
-        {'name': 'display_threshold', 'type': 'bool', 'value' : True },
         {'name': 'sparse_display', 'type': 'bool', 'value' : True },
-        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
     ]
     
     def __init__(self, controller=None, parent=None, backend="qt"):
@@ -460,7 +458,7 @@ class WaveformView(ViewBase):
         self.zoom_tool = WheelZoomTool()
         self.figure_geom.toolbar.logo = None
         self.figure_geom.add_tools(self.zoom_tool)
-        self.figure_geom.toolbar.active_scroll = self.zoom_tool
+        self.figure_geom.toolbar.active_scroll = None
         self.figure_geom.grid.visible = False
         self.figure_geom.on_event(MouseWheel, self._panel_gain_zoom)
         self.lines_geom = {}
@@ -519,6 +517,7 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _panel_gain_zoom(self, event):
+        self.figure_geom.toolbar.active_scroll = None
         current_time = time.perf_counter()
         if self.last_wheel_event_time is not None:
             time_elapsed = current_time - self.last_wheel_event_time
@@ -545,7 +544,7 @@ class WaveformView(ViewBase):
             self.figure_geom.toolbar.active_scroll = None
         self.last_wheel_event_time = current_time
 
-    def _panel_refresh(self):
+    def _panel_refresh(self, keep_range=False):
         self.mode = self.mode_selector.value
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
@@ -561,9 +560,9 @@ class WaveformView(ViewBase):
             # zoom factor is reset
             self.factor_x = 1.0
             self.factor_y = .05
-            self._panel_refresh_mode_geometry(unit_visible_dict)
+            self._panel_refresh_mode_geometry(unit_visible_dict, keep_range=keep_range)
         elif self.mode=='flatten':
-            self._panel_refresh_mode_flatten(unit_visible_dict)
+            self._panel_refresh_mode_flatten(unit_visible_dict, keep_range=keep_range)
 
         self._panel_refresh_one_spike()
 
@@ -684,7 +683,7 @@ class WaveformView(ViewBase):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         if n_selected == 1 and self.settings['plot_selected_spike']:
-            self.refresh()
+            self._panel_refresh(keep_range=True)
         else:
             # remove the line
             for line in self.lines_wfs:
@@ -693,20 +692,26 @@ class WaveformView(ViewBase):
                 if line in self.figure_avg.renderers:
                     self.figure_avg.renderers.remove(line)
 
+    def _panel_on_channel_visibility_changed(self):
+        keep_range = not self.settings['auto_zoom_on_unit_selection']
+        self._panel_refresh(keep_range=keep_range)
+
 
 WaveformView._gui_help_txt = """
-## Waveform view
+## Waveform View
 
 Display average template for visible units.
-If one spike is selected (in spike list) then the spike is super imposed (white trace).
+If one spike is selected (in spike list) then the spike is super-imposed (white trace)
+(when the 'plot_selected_spike' setting is True)
 
-2 modes :
+There are 2 modes of display:
   * 'geometry' : snippets are displayed centered on the contact position
   * 'flatten' : snippets are concatenated in a flatten way (better to check the variance)
 
-left click : moves waveform around
-right click : zoom in x/y
-mouse wheel : scale amplitudes
-
-Please check all settings for fine control of what information is displayed."""
+### Controls
+* **mode** : change displaye mode (geometry or flatten)
+* **mouse wheel** : scale waveform amplitudes
+* **shift + mouse wheel** : zoom
+* **alt + mouse wheel** : widen/narrow x axis
+"""
 

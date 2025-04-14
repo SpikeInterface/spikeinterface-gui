@@ -13,7 +13,7 @@ def clean_all(test_folder):
         if Path(folder).exists():
             shutil.rmtree(folder)
 
-def make_analyzer_folder(test_folder, num_probe=1):
+def make_analyzer_folder(test_folder, num_probe=1, unit_dtype="str"):
     clean_all(test_folder)
     
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
@@ -73,7 +73,7 @@ def make_analyzer_folder(test_folder, num_probe=1):
 
         sorting = si.aggregate_units(sortings)
 
-
+    sorting = sorting.rename_units(sorting.unit_ids.astype(unit_dtype))
     
     sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
                                                   format="binary_folder",

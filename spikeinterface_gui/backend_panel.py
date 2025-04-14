@@ -12,7 +12,7 @@ class SignalNotifier(param.Parameterized):
     channel_visibility_changed = param.Event()
     manual_curation_updated = param.Event()
 
-    def __init__(self, view=None):
+    def __init__(self, view=None, parent=None):
         param.Parameterized.__init__(self)
         self.view = view
 

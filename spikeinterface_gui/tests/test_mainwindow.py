@@ -22,7 +22,7 @@ test_folder = Path(__file__).parent / 'my_dataset'
 
 
 def setup_module():
-    make_analyzer_folder(test_folder, num_probe=1)
+    make_analyzer_folder(test_folder, num_probe=1, unit_dtype="int")
 
 def teardown_module():
     clean_all(test_folder)

@@ -455,9 +455,10 @@ class SpikeAmplitudeView(ViewBase):
 
 SpikeAmplitudeView._gui_help_txt = """
 ## Spike Amplitude View
+
 Check amplitudes of spikes across the recording time or in a histogram
 comparing the distribution of ampltidues to the noise levels.
 
 ### Controls
-Mouse click : change scaling
-Left click drag : draw lasso to select spikes"""
+- **select** : activate lasso selection to select individual spikes
+"""
