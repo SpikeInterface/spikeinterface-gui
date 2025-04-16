@@ -11,6 +11,7 @@ class SignalNotifier(param.Parameterized):
     unit_visibility_changed = param.Event()
     channel_visibility_changed = param.Event()
     manual_curation_updated = param.Event()
+    active_view_updated = param.Event()
 
     def __init__(self, view=None, parent=None):
         param.Parameterized.__init__(self)
@@ -28,6 +29,13 @@ class SignalNotifier(param.Parameterized):
     def notify_manual_curation_updated(self):
         self.param.trigger("manual_curation_updated")
 
+    def notify_active_view_updated(self):
+        # this is used to keep an "active view" in the main window
+        # when a view triggers this event, it self-declares it as active
+        # and the other windows will be set as non-active
+        # this is used in panel to be able to use the same shortcuts in multiple
+        # views
+        self.param.trigger("active_view_updated")
 
 
 class SignalHandler(param.Parameterized):
@@ -48,6 +56,7 @@ class SignalHandler(param.Parameterized):
         view.notifier.param.watch(self.on_unit_visibility_changed, "unit_visibility_changed")
         view.notifier.param.watch(self.on_channel_visibility_changed, "channel_visibility_changed")
         view.notifier.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
+        view.notifier.param.watch(self.on_active_view_updated, "active_view_updated")
 
     def on_spike_selection_changed(self, param):
         if not self._active:
@@ -83,7 +92,14 @@ class SignalHandler(param.Parameterized):
                 continue
             view.on_manual_curation_updated()
 
-
+    def on_active_view_updated(self, param):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if param.obj.view == view:
+                view._panel_view_is_active = True
+            else:
+                view._panel_view_is_active = False
 
 param_type_map = {
     "float": param.Number,
@@ -311,6 +327,8 @@ class PanelMainWindow:
             if visible:
                 # Refresh the view if it is visible
                 view.refresh()
+                # we also set the current view as the panel active
+                view.notifier.notify_active_view_updated()
 
 
 

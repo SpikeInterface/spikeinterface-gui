@@ -53,6 +53,7 @@ class NDScatterView(ViewBase):
         self.n_face = -1
 
         self.tour_step = 0
+        self.auto_update_limit = True
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
         
@@ -397,7 +398,6 @@ class NDScatterView(ViewBase):
         )
 
         self.tour_timer = None
-        self.auto_update_limit = True
 
     def _panel_refresh(self):
         from bokeh.models import Range1d

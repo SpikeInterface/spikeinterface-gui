@@ -438,6 +438,8 @@ class UnitListView(ViewBase):
             KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
             KeyboardShortcut(name="next_only", key="ArrowDown", ctrlKey=True),
             KeyboardShortcut(name="previous_only", key="ArrowUp", ctrlKey=True),
+            KeyboardShortcut(name="append_next", key="ArrowDown", shiftKey=True),
+            KeyboardShortcut(name="append_previous", key="ArrowUp", shiftKey=True),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -464,7 +466,8 @@ class UnitListView(ViewBase):
             self.delete_button.on_click(self._panel_delete_unit)
             self.merge_button.on_click(self._panel_merge_units)
 
-        self.last_row = None
+        self.last_clicked_row = None
+        self.last_selected_row = None
         self.last_clicked = None
 
     def _panel_refresh_click(self, event):
@@ -473,6 +476,7 @@ class UnitListView(ViewBase):
         self.table.value = self.df
         self.table.sorters = []
         self.refresh()
+        self.notifier.notify_active_view_updated()
 
     def _panel_refresh(self):
         df = self.table.value
@@ -505,15 +509,19 @@ class UnitListView(ViewBase):
 
     def _panel_select_all(self, event):
         self.show_all()
+        self.notifier.notify_active_view_updated()
 
     def _panel_unselect_all(self, event):
         self.hide_all()
+        self.notifier.notify_active_view_updated()
 
     def _panel_delete_unit(self, event):
         self.delete_unit()
+        self.notifier.notify_active_view_updated()
 
     def _panel_merge_units(self, event):
         self.merge_selected()
+        self.notifier.notify_active_view_updated()
 
     def _panel_on_selection_changed(self, event):
         row = event.row
@@ -525,7 +533,7 @@ class UnitListView(ViewBase):
         double_clicked = False
         visibility_changed = False
         if self.last_clicked is not None:
-            if (time_clicked - self.last_clicked) < 0.8 and self.last_row == row:
+            if (time_clicked - self.last_clicked) < 0.8 and self.last_clicked_row == row:
                 double_clicked = True
                 
                 # select only this unit
@@ -535,6 +543,7 @@ class UnitListView(ViewBase):
                 self.notify_unit_visibility_changed()
                 visibility_changed = True
         if not double_clicked:
+            # TODO: how to handle this?
             if col == "visible":
                 self.controller.unit_visible_dict[selected_unit_id] = True
                 self.notify_unit_visibility_changed()
@@ -547,11 +556,12 @@ class UnitListView(ViewBase):
             self.table.value = df
 
         self.last_clicked = time_clicked
-        self.last_row = row
+        self.last_clicked_row = row
+        self.notifier.notify_active_view_updated()
 
     def _panel_on_edit(self, event):
         column = event.column
-        if self.label_definitions is not None  and column in self.label_definitions:
+        if self.label_definitions is not None and column in self.label_definitions:
             row = event.row
             unit_index = self._panel_get_sorted_indices()[row]
             unit_id = self.df.index[unit_index]
@@ -559,6 +569,7 @@ class UnitListView(ViewBase):
             if new_label == "":
                 new_label = None
             self.controller.set_label_to_unit(unit_id, column, new_label)
+        self.notifier.notify_active_view_updated()
 
     def _panel_get_selected_unit_ids(self, sort_with_sorters=True):
         if self.table.sorters is None or len(self.table.sorters) == 0 or not sort_with_sorters:
@@ -614,6 +625,7 @@ class UnitListView(ViewBase):
         self.table.selection = []
         self.refresh()
         self._panel_refresh_header()
+        self.notifier.notify_active_view_updated()
 
     def _panel_on_show_only(self, event):
         if self.label_definitions is not None and "quality" in self.label_definitions:
@@ -632,100 +644,128 @@ class UnitListView(ViewBase):
             self.refresh()
             self._panel_refresh_header()
             self.hide_noise.value = False
+        self.notifier.notify_active_view_updated()
 
     def _panel_handle_shortcut(self, event):
-        if event.data in ["delete", "merge", "good", "mua", "noise"]:
-            if not self.controller.curation:
-                return
-        if event.data == "delete":
-            self.delete_unit()
-        elif event.data == "merge":
-            if self.controller.curation:
-                self.merge_selected()
-        elif event.data == "visible":
-            selected_rows = self._panel_get_selected_unit_ids()
-            for unit_id in self.controller.unit_ids:
-                self.controller.unit_visible_dict[unit_id] = False
-            for unit_id in self.df.index.values[selected_rows]:
-                self.controller.unit_visible_dict[unit_id] = True
-            self.notify_unit_visibility_changed()
-            self.refresh()
-        elif event.data == "next":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) == 0:
-                next_row = 0
-            else:
-                next_row = max(selected_rows) + 1
-            if next_row < len(self.df):
-                next_row = self._panel_get_sorted_indices()[next_row]
-                if next_row not in self.table.selection:
+        if self.is_view_active():
+            if event.data in ["delete", "merge", "good", "mua", "noise"]:
+                if not self.controller.curation:
+                    return
+            if event.data == "delete":
+                self.delete_unit()
+            elif event.data == "merge":
+                if self.controller.curation:
+                    self.merge_selected()
+            elif event.data == "visible":
+                selected_rows = self._panel_get_selected_unit_ids()
+                for unit_id in self.controller.unit_ids:
+                    self.controller.unit_visible_dict[unit_id] = False
+                for unit_id in self.df.index.values[selected_rows]:
+                    self.controller.unit_visible_dict[unit_id] = True
+                self.notify_unit_visibility_changed()
+                self.refresh()
+            elif event.data == "next":
+                next_row = self._panel_get_next_row()
+                if next_row < len(self.df):
+                    next_row = self._panel_get_sorted_indices()[next_row]
+                    if next_row not in self.table.selection:
+                        self.table.selection = [next_row]
+                        self.refresh()
+            elif event.data == "previous":
+                previous_row = self._panel_get_previous_row()
+                if previous_row >= 0:
+                    previous_row = self._panel_get_sorted_indices()[previous_row]
+                    if previous_row not in self.table.selection:
+                        self.table.selection = [previous_row]
+                        self.refresh()
+            elif event.data == "next_only":
+                next_row = self._panel_get_next_row()
+                if next_row < len(self.df):
+                    next_row = self._panel_get_sorted_indices()[next_row]
+                    for unit_id in self.controller.unit_visible_dict:
+                        self.controller.unit_visible_dict[unit_id] = False
+                    unit_id = self.df.index.values[next_row]
+                    self.controller.unit_visible_dict[unit_id] = True
                     self.table.selection = [next_row]
+                    self.notify_unit_visibility_changed()
                     self.refresh()
-        elif event.data == "previous":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) == 0:
-                previous_row = 0
-            else:
-                previous_row = min(selected_rows) - 1
-            if previous_row >= 0:
-                previous_row = self._panel_get_sorted_indices()[previous_row]
-                if previous_row not in self.table.selection:
+            elif event.data == "previous_only":
+                previous_row = self._panel_get_previous_row()
+                if previous_row >= 0:
+                    previous_row = self._panel_get_sorted_indices()[previous_row]
+                    for unit_id in self.controller.unit_visible_dict:
+                        self.controller.unit_visible_dict[unit_id] = False
+                    unit_id = self.df.index.values[previous_row]
+                    self.controller.unit_visible_dict[unit_id] = True
                     self.table.selection = [previous_row]
+                    self.notify_unit_visibility_changed()
                     self.refresh()
-        elif event.data == "next_only":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) == 0:
-                next_row = 0
+            elif event.data == "append_next":
+                next_row = self._panel_get_next_row()
+                if next_row < len(self.df):
+                    next_row = self._panel_get_sorted_indices()[next_row]
+                    if next_row not in self.table.selection:
+                        self.table.selection.append(next_row)
+                    else:
+                        self.table.selection.remove(next_row - 1)
+                    self.refresh()
+            elif event.data == "append_previous":
+                previous_row = self._panel_get_previous_row()
+                if previous_row >= 0:
+                    previous_row = self._panel_get_sorted_indices()[previous_row]
+                    if previous_row not in self.table.selection:
+                        self.table.selection.append(previous_row)
+                    else:
+                        self.table.selection.remove(previous_row + 1)
+                    self.refresh()
+            elif event.data == "good":
+                selected_rows = self._panel_get_selected_unit_ids()
+                if len(selected_rows) > 0:
+                    unit_ids = self.df.index.values[selected_rows]
+                    for unit_id in unit_ids:
+                        self.controller.set_label_to_unit(unit_id, "quality", "good")
+                    self.df.loc[unit_ids, "quality"] = "good"
+                    self.refresh()
+            elif event.data == "mua":
+                selected_rows = self._panel_get_selected_unit_ids()
+                if len(selected_rows) > 0:
+                    unit_ids = self.df.index.values[selected_rows]
+                    for unit_id in unit_ids:
+                        self.controller.set_label_to_unit(unit_id, "quality", "MUA")
+                    self.df.loc[unit_ids, "quality"] = "MUA"
+                    self.refresh()
+            elif event.data == "noise":
+                selected_rows = self._panel_get_selected_unit_ids()
+                if len(selected_rows) > 0:
+                    unit_ids = self.df.index.values[selected_rows]
+                    for unit_id in unit_ids:
+                        self.controller.set_label_to_unit(unit_id, "quality", "noise")
+                    self.df.loc[unit_ids, "quality"] = "noise"
+                    self.refresh()
+
+    def _panel_get_next_row(self):
+        selected_rows = self._panel_get_selected_unit_ids()
+        if len(selected_rows) == 0:
+            next_row = 0
+        else:
+            if self.last_selected_row is not None:
+                next_row = self.last_selected_row + 1
             else:
                 next_row = max(selected_rows) + 1
-            if next_row < len(self.df):
-                next_row = self._panel_get_sorted_indices()[next_row]
-                for unit_id in self.controller.unit_visible_dict:
-                    self.controller.unit_visible_dict[unit_id] = False
-                unit_id = self.df.index.values[next_row]
-                self.controller.unit_visible_dict[unit_id] = True
-                self.table.selection = [next_row]
-                self.notify_unit_visibility_changed()
-                self.refresh()
-        elif event.data == "previous_only":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) == 0:
-                previous_row = 0
+        self.last_selected_row = next_row
+        return next_row
+
+    def _panel_get_previous_row(self):
+        selected_rows = self._panel_get_selected_unit_ids()
+        if len(selected_rows) == 0:
+            previous_row = len(self.df) - 1
+        else:
+            if self.last_selected_row is not None:
+                previous_row = self.last_selected_row - 1
             else:
                 previous_row = min(selected_rows) - 1
-            if previous_row >= 0:
-                previous_row = self._panel_get_sorted_indices()[previous_row]
-                for unit_id in self.controller.unit_visible_dict:
-                    self.controller.unit_visible_dict[unit_id] = False
-                unit_id = self.df.index.values[previous_row]
-                self.controller.unit_visible_dict[unit_id] = True
-                self.table.selection = [previous_row]
-                self.notify_unit_visibility_changed()
-                self.refresh()
-        elif event.data == "good":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) > 0:
-                unit_ids = self.df.index.values[selected_rows]
-                for unit_id in unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", "good")
-                self.df.loc[unit_ids, "quality"] = "good"
-                self.refresh()
-        elif event.data == "mua":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) > 0:
-                unit_ids = self.df.index.values[selected_rows]
-                for unit_id in unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", "MUA")
-                self.df.loc[unit_ids, "quality"] = "MUA"
-                self.refresh()
-        elif event.data == "noise":
-            selected_rows = self._panel_get_selected_unit_ids()
-            if len(selected_rows) > 0:
-                unit_ids = self.df.index.values[selected_rows]
-                for unit_id in unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", "noise")
-                self.df.loc[unit_ids, "quality"] = "noise"
-                self.refresh()
+        self.last_selected_row = previous_row
+        return previous_row
 
 UnitListView._gui_help_txt = """
 ## Unit List
