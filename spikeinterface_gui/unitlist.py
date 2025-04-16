@@ -131,9 +131,13 @@ class UnitListView(ViewBase):
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
-        # TODO check if a full refresh is necessary
-        print('unitlist qt _qt_refresh')
-        self._qt_full_table_refresh()
+        # TODO sam change this bad hack after speedup the combox
+        if hasattr(self, 'items_visibility'):
+            self._qt_refresh_visibility_items()
+        else:
+            # the time at startup
+            self._qt_full_table_refresh()
+        
     
     def _qt_full_table_refresh(self):
         # TODO sam make this faster
