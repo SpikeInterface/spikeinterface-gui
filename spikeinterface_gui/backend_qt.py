@@ -126,8 +126,11 @@ class QtMainWindow(QT.QMainWindow):
             view.refresh()
         self.controller.signal_handler.activate()
 
-        for view_name, dock in self.docks.items():
-            dock.visibilityChanged.connect(self.views[view_name].refresh)
+        # TODO sam : all veiws are always refreshed at the moment so this is useless.
+        # uncommen this when ViewBase.is_view_visible() work correctly
+
+        # for view_name, dock in self.docks.items():
+        #     dock.visibilityChanged.connect(self.views[view_name].refresh)
 
     def make_views(self):
         self.views = {}
