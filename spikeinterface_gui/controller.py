@@ -298,6 +298,10 @@ class Controller():
             if "label_definitions" not in self.curation_data:
                 if label_definitions is not None:
                     self.curation_data["label_definitions"] = label_definitions
+                    for label in label_definitions:
+                        # check if provided label is in default_label_definitions
+                        if label == "quality" and label_definitions[label] == default_label_definitions[label]:
+                            self.has_default_labels = True
                 else:
                     self.curation_data["label_definitions"] = default_label_definitions.copy()
                     self.has_default_labels = True

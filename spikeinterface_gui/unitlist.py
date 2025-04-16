@@ -490,8 +490,8 @@ class UnitListView(ViewBase):
         self.refresh_button.on_click(self._panel_refresh_click)
 
         if self.controller.curation:
-            self.delete_button.on_click(self._panel_delete_unit)
-            self.merge_button.on_click(self._panel_merge_units)
+            self.delete_button.on_click(self._panel_delete_unit_callback)
+            self.merge_button.on_click(self._panel_merge_units_callback)
 
     def _panel_refresh_click(self, event):
         self.df = self.df_full.copy()
@@ -538,12 +538,12 @@ class UnitListView(ViewBase):
         self.hide_all()
         self.notifier.notify_active_view_updated()
 
-    def _panel_delete_unit(self, event):
-        self.delete_unit()
+    def _panel_delete_unit_callback(self, event):
+        self._panel_delete_unit()
         self.notifier.notify_active_view_updated()
 
-    def _panel_merge_units(self, event):
-        self.merge_selected()
+    def _panel_merge_units_callback(self, event):
+        self._panel_merge_units()
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_changed(self, row):
@@ -588,7 +588,7 @@ class UnitListView(ViewBase):
         self.notify_manual_curation_updated()
         self.refresh()
 
-    def _panel_merge_selected(self):
+    def _panel_merge_units(self):
         merge_unit_ids = self.get_selected_unit_ids()
         merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
         if merge_successful:
@@ -607,7 +607,7 @@ class UnitListView(ViewBase):
                 self._panel_delete_unit()
             elif event.data == "merge":
                 if self.controller.curation:
-                    self._panel_merge_selected()
+                    self._panel_merge_units()
             elif event.data == "visible":
                 selected_rows = self._panel_get_selected_unit_ids()
                 self.controller.set_all_unit_visibility_off()
