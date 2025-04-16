@@ -257,9 +257,9 @@ class UnitListView(ViewBase):
                 if current_visual != visual_index:
                     header.moveSection(current_visual, visual_index)
 
-    def _qt_on_label_changed(self, unit_index, category, new_label):
-        unit_id = self.controller.unit_ids[unit_index]
-        self.controller.set_label_to_unit(unit_id, category, new_label)
+    # def _qt_on_label_changed(self, unit_index, category, new_label):
+    #     unit_id = self.controller.unit_ids[unit_index]
+    #     self.controller.set_label_to_unit(unit_id, category, new_label)
 
     def _qt_on_remove_label(self, unit_index, category):
         unit_id = self.controller.unit_ids[unit_index]
