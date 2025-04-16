@@ -1,6 +1,10 @@
 import spikeinterface_gui as sigui
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder
 
+from spikeinterface_gui.controller import Controller
+from spikeinterface_gui.myqt import mkQApp
+from spikeinterface_gui.viewlist import possible_class_views
+from spikeinterface_gui.backend_qt import ViewWidget
 
 
 import spikeinterface.full as si
@@ -9,40 +13,27 @@ import spikeinterface.full as si
 
 from pathlib import Path
 
-test_folder = Path('my_dataset')
+
+# test_folder = Path(__file__).parent / 'my_dataset_small'
+test_folder = Path(__file__).parent / 'my_dataset_big'
+# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 
 def debug_one_view():
 
-    app = sigui.mkQApp()
+    app = mkQApp()
     sorting_analyzer = si.load_sorting_analyzer(test_folder / "sorting_analyzer")
     
     
-    controller = sigui.SpikeinterfaceController(sorting_analyzer)
-    
-    #~ controller.unit_visible_dict = {k: False for k in controller.unit_visible_dict}
-    #~ controller.unit_visible_dict[list(controller.unit_visible_dict.keys())[0]] = True
-    #~ controller.unit_visible_dict[list(controller.unit_visible_dict.keys())[1]] = True
-    
-    app = sigui.mkQApp()
-    
-    # view0 = sigui.UnitListView(controller=controller)
-    # view0.show()
-    #~ view = sigui.SpikeListView(controller=controller)
-    view = sigui.MergeView(controller=controller)
-    #~ view = sigui.TraceView(controller=controller)
-    #~ view = sigui.WaveformView(controller=controller)
-    #~ view = sigui.WaveformHeatMapView(controller=controller)
-    #~ view = sigui.ISIView(controller=controller)
-    #~ view = sigui.CrossCorrelogramView(controller=controller)
-    # view = sigui.ProbeView(controller=controller)
-    # view = sigui.NDScatterView(controller=controller)
-    #~ view = sigui.SimilarityView(controller=controller)
-    # view = sigui.SpikeAmplitudeView(controller=controller)
+    controller = Controller(sorting_analyzer, verbose=True)
 
-    # view = sigui.TraceMapView(controller=controller)
-    
-    view.show()
+    # view_class = possible_class_views['unitlist']
+    view_class = possible_class_views['spikeamplitude']
+    widget = ViewWidget(view_class)
+    view = view_class(controller=controller, parent=widget, backend='qt')
+    widget.set_view(view)
+    widget.show()
+
     app.exec()
 
     
