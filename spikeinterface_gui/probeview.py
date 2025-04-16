@@ -217,7 +217,7 @@ class ProbeView(ViewBase):
         radius = self.settings['radius_channel']
         self.roi_channel.setPos(x - radius, y - radius)
         self.roi_channel.blockSignals(False)
-        self._qt_on_roi_channel_changed(emit_signals=True)
+        self._qt_on_roi_channel_changed(emit_signals=False)
             
     def _qt_on_unit_visibility_changed(self, auto_zoom=None):
         import pyqtgraph as pg
@@ -250,7 +250,7 @@ class ProbeView(ViewBase):
             self.roi_units.blockSignals(False)
             self._qt_on_roi_units_changed(emit_signals=False)
 
-            self._qt_update_channel_visibility_from_roi(emit_signals=True)
+            self._qt_update_channel_visibility_from_roi(emit_signals=False)
         
         # change scatter pen for selection
         pen = [pg.mkPen('white', width=4)

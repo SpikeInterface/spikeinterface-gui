@@ -2,18 +2,8 @@
 
 ### Sam
 - [ ] remove compute
-- [ ] QT settings not more dialog
-- [ ] remove custom docker
 - [x] simple layout description
-- [ ] generic toolbar : handle segments + settings + help
-- [ ] handle segment change
 - [ ] unit list with depth
-- [ ] no trace on waveform view when non rec
-
-debug dock/widget is_visible()
-speedup similarity view
-speedup amplitude view
-
 
 
 ### Alessio

@@ -205,8 +205,8 @@ class WaveformView(ViewBase):
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self._qt_refresh_mode_geometry(unit_visible_dict, keep_range)
         
-        self._qt_refresh_one_spike()
-    
+        if self.controller.with_traces:
+            self._qt_refresh_one_spike()
     
     def _qt_refresh_mode_flatten(self, unit_visible_dict, keep_range):
         import pyqtgraph as pg
@@ -409,7 +409,7 @@ class WaveformView(ViewBase):
         if wf.shape[0] == width:
             #this avoid border bugs
             if self.mode=='flatten':
-                wf = wf[:, common_channel_indexes].T.flatten()
+                wf = wf.T.flatten()
                 xvect = np.arange(wf.size)
                 self.curve_one_waveform.setData(xvect, wf)
             elif self.mode=='geometry':
