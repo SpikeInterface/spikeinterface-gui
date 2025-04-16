@@ -137,13 +137,14 @@ class UnitListView(ViewBase):
         else:
             # the time at startup
             self._qt_full_table_refresh()
+        # self._qt_full_table_refresh()
         
     
     def _qt_full_table_refresh(self):
         # TODO sam make this faster
 
         from .myqt import QT
-        from .utils_qt import OrderableCheckItem, CustomItem, LabelComboBox
+        from .utils_qt import OrderableCheckItem, CustomItem, UnitTableDelegate
 
         self.table.itemChanged.disconnect(self._qt_on_item_changed)
         
@@ -213,28 +214,35 @@ class UnitListView(ViewBase):
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 3, item)
 
-
-
             n_first = len(internal_column_names)
+            self.label_columns = list(range(n_first, n_first + num_labels))
+            self.label_definitions_by_cols = {}
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
-                    label = self.controller.get_unit_label(unit_id, category)
-                    item = LabelComboBox(i, category, label_def['label_options'], parent=self.qt_widget)
-                    item.set_label(label)
-                    item.remove_label_clicked.connect(self._qt_on_remove_label)
-                    item.label_changed.connect(self._qt_on_label_changed)
-                    self.table.setCellWidget(i, n_first + ix, item)
+                    # label = self.controller.get_unit_label(unit_id, category)
+                    # item = LabelComboBox(i, category, label_def['label_options'], parent=self.qt_widget)
+                    # item.set_label(label)
+                    # item.remove_label_clicked.connect(self._qt_on_remove_label)
+                    # item.label_changed.connect(self._qt_on_label_changed)
+                    # self.table.setCellWidget(i, n_first + ix, item)
 
-            # if with_metrics:
-            if True:
+                    col = self.label_columns[ix]
+                    self.label_definitions_by_cols[col] = category
+                    label = self.controller.get_unit_label(unit_id, category)
+                    label = label if label is not None else ''
+                    item = QT.QTableWidgetItem( f'{label}')
+                    self.table.setItem(i, n_first + ix, item)
+            delegate = UnitTableDelegate(parent=self.table, label_definitions=label_definitions, label_columns=self.label_columns)
+            self.table.setItemDelegate(delegate)
+
                 
-                for m, col in enumerate(self.controller.displayed_unit_properties):
-                    v = self.controller.units_table.loc[unit_id, col]
-                    if isinstance(v, float):
-                        item = CustomItem(f'{v:0.2f}')
-                    else:
-                        item = CustomItem(f'{v}')
-                    self.table.setItem(i, n_first + num_labels + m, item)
+            for m, col in enumerate(self.controller.displayed_unit_properties):
+                v = self.controller.units_table.loc[unit_id, col]
+                if isinstance(v, float):
+                    item = CustomItem(f'{v:0.2f}')
+                else:
+                    item = CustomItem(f'{v}')
+                self.table.setItem(i, n_first + num_labels + m, item)
 
         for i in range(5):
             self.table.resizeColumnToContents(i)
@@ -259,12 +267,25 @@ class UnitListView(ViewBase):
 
     def _qt_on_item_changed(self, item):
         from .myqt import QT
-        if item.column() != 1: return
-        sel = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[item.checkState()]
-        unit_id = item.unit_id
-        self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
 
-        self.notify_unit_visibility_changed()
+        col = item.column()
+        if col == 1:
+            # visibility checkbox
+            # sel = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[item.checkState()]
+            unit_id = item.unit_id
+            self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
+            self.notify_unit_visibility_changed()
+        elif col in self.label_columns:
+            # label combobox
+            category = self.label_definitions_by_cols[col]
+            row = item.row()
+            new_label = self.table.item(row, col).text()
+            print(category, new_label)
+            if new_label == '':
+                new_label = None
+            unit_id = self.controller.unit_ids[row]
+            self.controller.set_label_to_unit(unit_id, category, new_label)
+
     
     def _qt_on_double_clicked(self, row, col):
         for unit_id in self.controller.unit_visible_dict:
