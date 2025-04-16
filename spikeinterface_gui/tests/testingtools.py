@@ -13,8 +13,29 @@ def clean_all(test_folder):
         if Path(folder).exists():
             shutil.rmtree(folder)
 
-def make_analyzer_folder(test_folder, num_probe=1):
+def make_analyzer_folder(test_folder, case="small"):
     clean_all(test_folder)
+
+
+    if case ==  'small':
+        num_probe = 1
+        durations = [300.0, 100.0]
+        num_channels = 32
+        num_units = 16
+    elif case == 'big':
+        num_probe = 1
+        durations = [3600.0]
+        num_channels = 380
+        num_units = 400
+    elif case == 'multiprobe':
+        num_probe = 2
+        durations = [300.0,]
+        num_channels = 32
+        num_units = 16
+    else:
+        raise ValueError()
+
+
     
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
@@ -23,14 +44,10 @@ def make_analyzer_folder(test_folder, num_probe=1):
     probes = []
     for i in range(num_probe):
         recording, sorting = si.generate_ground_truth_recording(
-            durations=[300.0, 100.0],
-            num_channels=32,
-            num_units=16,
-
-            # durations=[3600.0 / 10.],
-            # num_channels=380,
-            # num_units=250,
-
+            durations=durations,
+            num_channels=num_channels,
+            num_units=num_units,
+            
             sampling_frequency=30000.0,
             
             generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
@@ -66,7 +83,7 @@ def make_analyzer_folder(test_folder, num_probe=1):
             n = probe.get_contact_count()
             probe.device_channel_indices = np.arange(count, count+n)
             probe.set_contact_ids(probe.device_channel_indices.astype('S'))
-            print(probe.contact_ids)
+            # print(probe.contact_ids)
             probegroup.add_probe(probe)
             count += n
         recording = recording.set_probegroup(probegroup)
@@ -95,9 +112,9 @@ def make_analyzer_folder(test_folder, num_probe=1):
 
 
     qm = sorting_analyzer.get_extension("quality_metrics").get_data()
-    print(qm.index)
-    print(qm.index.dtype)
-    print(sorting_analyzer.unit_ids.dtype)
+    # print(qm.index)
+    # print(qm.index.dtype)
+    # print(sorting_analyzer.unit_ids.dtype)
     
 if __name__ == '__main__':
     from pathlib import Path
