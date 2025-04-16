@@ -41,7 +41,6 @@ class SpikeAmplitudeView(ViewBase):
 
         if self.settings['auto_decimate'] and spike_times.size > self.settings['max_spikes_per_unit']:
             step = spike_times.size // self.settings['max_spikes_per_unit']
-            print(step)
             spike_times = spike_times[::step]
             spike_amps = spike_amps[::step]
 
