@@ -379,14 +379,14 @@ class NDScatterView(ViewBase):
         self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
-        self.select_toggle_button = pn.widgets.Toggle(name="Select")
-        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
+        # self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        # self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
 
         # TODO: add a lasso selection
         # slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
 
         self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, sizing_mode="stretch_both",
+            self.next_face_button, self.random_button, self.random_tour_button, sizing_mode="stretch_both",
             styles={"flex": "0.15"}
         )
 
@@ -492,5 +492,5 @@ in a 2D sub-space.
 - **next face** : rotates the projection
 - **random** : randomly choose a projection
 - **random tour** : runs dynamic "tour" of the pcs
-- **select** : activates lasso selection
 """
+# - **select** : activates lasso selection

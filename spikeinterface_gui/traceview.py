@@ -180,7 +180,8 @@ class MixinViewTrace:
         self.toolbar = pn.Row(
             self.segment_selector,
             xsize,
-            self.auto_scale_button
+            self.auto_scale_button,
+            sizing_mode="stretch_width",
         )
 
     def _panel_auto_scale(self, event):
@@ -543,9 +544,9 @@ class TraceView(ViewBase, MixinViewTrace):
         self._panel_create_toolbar()
         
         self.layout = pn.Column(
-                self.toolbar,
-                self.figure,
-                self.time_slider,
+            self.toolbar,
+            self.figure,
+            self.time_slider,
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both"
         )

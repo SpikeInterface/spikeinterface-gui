@@ -241,7 +241,6 @@ class SpikeAmplitudeView(ViewBase):
             name="",
             options=[f"Segment {i}" for i in range(self.controller.num_segments)],
             value=f"Segment {self.segment_index}",
-            sizing_mode="stretch_width",
         )
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
@@ -394,7 +393,9 @@ class SpikeAmplitudeView(ViewBase):
         # Set axis ranges
         time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
         self.scatter_fig.x_range = Range1d(0., time_max)
-        self.scatter_fig.y_range = Range1d(self._amp_min, self._amp_max)
+        # set y range to min and max of visible spike amplitudes plus a margin
+        margin = 50
+        self.scatter_fig.y_range = Range1d(np.min(spike_amplitudes) - margin, np.max(spike_amplitudes) + margin)
         self.hist_fig.x_range = Range1d(0, max_count)
 
     def _panel_on_select_button(self, event):
@@ -447,8 +448,6 @@ class SpikeAmplitudeView(ViewBase):
                 self.segment_selector.value = f"Segment {selected_segment}"
                 self._panel_change_segment(None)
         self.refresh()
-
-    # TODO: handle mousewheel to zoom in x/y
 
 
 SpikeAmplitudeView._gui_help_txt = """

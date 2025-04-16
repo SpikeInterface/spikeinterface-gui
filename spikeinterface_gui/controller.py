@@ -219,6 +219,7 @@ class Controller():
         # print("self.num_spikes", self.num_spikes)
 
         spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
+        # spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True)
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 

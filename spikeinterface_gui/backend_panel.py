@@ -13,7 +13,7 @@ class SignalNotifier(param.Parameterized):
     manual_curation_updated = param.Event()
     active_view_updated = param.Event()
 
-    def __init__(self, view=None, parent=None):
+    def __init__(self, view=None):
         param.Parameterized.__init__(self)
         self.view = view
 
