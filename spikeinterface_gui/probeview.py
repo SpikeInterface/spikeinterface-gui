@@ -278,7 +278,7 @@ class ProbeView(ViewBase):
             if multi_select:
                 self.controller.unit_visible_dict[unit_id] = not (self.controller.unit_visible_dict[unit_id])
             else:
-                self.controller.unit_visible_dict = {unit_id: False for unit_id in self.controller.unit_ids}
+                self.controller.set_all_unit_visibility_off()
                 self.controller.unit_visible_dict[unit_id] = True
                 self.roi_channel.blockSignals(True)
                 self.roi_channel.setPos(x - radius, y - radius)
@@ -628,7 +628,7 @@ class ProbeView(ViewBase):
             # Toggle visibility of clicked unit
             if select_only:
                 # Update visibility - make only this unit visible
-                self.controller.unit_visible_dict = {u: False for u in self.controller.unit_ids}
+                self.controller.set_all_unit_visibility_off()
                 self.controller.unit_visible_dict[unit_id] = True
             else:
                 self.controller.unit_visible_dict[unit_id] = not self.controller.unit_visible_dict[unit_id]

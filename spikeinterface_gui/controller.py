@@ -55,6 +55,8 @@ class Controller():
         t0 = time.perf_counter()
 
         self.num_channels = self.analyzer.get_num_channels()
+        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
+        self.unit_visible_dict[self.unit_ids[0]] = True
 
         # sparsity
         if self.analyzer.sparsity is None:
@@ -206,9 +208,6 @@ class Controller():
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
 
-        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
-        self.unit_visible_dict[self.unit_ids[0]] = True
-
         # at init, we set the visible channels as the sparsity of the first unit
         self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
 
@@ -325,7 +324,7 @@ class Controller():
 
     @property
     def unit_ids(self):
-        return self.analyzer.sorting.unit_ids
+        return self.analyzer.unit_ids
     
     def get_unit_color(self, unit_id):
         # scalar unit_id -> color html or QtColor
@@ -353,6 +352,10 @@ class Controller():
     def get_visible_unit_indices(self):
         visible_unit_indices = np.flatnonzero(list(self.unit_visible_dict.values()))
         return visible_unit_indices
+
+    def set_all_unit_visibility_off(self):
+        for unit_id in self.unit_ids:
+            self.unit_visible_dict[unit_id] = False
 
     def iter_visible_units(self):
         visible_unit_indices = self.get_visible_unit_indices()

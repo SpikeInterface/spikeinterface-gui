@@ -58,8 +58,7 @@ class SimilarityView(ViewBase):
         unit_id1 = unit_ids[int(np.floor(y))]
         
         if reset:
-            for unit_id in unit_ids:
-                self.controller.unit_visible_dict[unit_id] = False
+            self.controller.set_all_unit_visibility_off()
         self.controller.unit_visible_dict[unit_id0] = True
         self.controller.unit_visible_dict[unit_id1] = True
 

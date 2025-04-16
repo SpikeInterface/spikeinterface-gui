@@ -27,8 +27,7 @@ class UnitListView(ViewBase):
         self.notify_unit_visibility_changed()
     
     def hide_all(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = False
+        self.controller.set_all_unit_visibility_off()
         self.refresh()
         self.notify_unit_visibility_changed()
 
@@ -264,9 +263,8 @@ class UnitListView(ViewBase):
         self.notify_unit_visibility_changed()
     
     def _qt_on_double_clicked(self, row, col):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = False
-            
+        self.controller.set_all_unit_visibility_off()
+
         unit_id = self.table.item(row, 1).unit_id
         self.controller.unit_visible_dict[unit_id] = True
         # self.refresh()
@@ -293,8 +291,7 @@ class UnitListView(ViewBase):
 
     def on_visible_shortcut(self):
         rows = self._qt_get_selected_rows()
-        for unit_id in self.controller.unit_ids:
-            self.controller.unit_visible_dict[unit_id] = False
+        self.controller.set_all_unit_visibility_off()
         for unit_id in self.get_selected_unit_ids():
             self.controller.unit_visible_dict[unit_id] = True
         # self.refresh()
@@ -572,8 +569,7 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_on_only_selection(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = False
+        self.controller.set_all_unit_visibility_off()
         selected_unit = self.table.selection[0]
         unit_id = self.df.index.values[selected_unit]
         self.controller.unit_visible_dict[unit_id] = True
@@ -614,8 +610,7 @@ class UnitListView(ViewBase):
                     self._panel_merge_selected()
             elif event.data == "visible":
                 selected_rows = self._panel_get_selected_unit_ids()
-                for unit_id in self.controller.unit_ids:
-                    self.controller.unit_visible_dict[unit_id] = False
+                self.controller.set_all_unit_visibility_off()
                 for unit_id in self.df.index.values[selected_rows]:
                     self.controller.unit_visible_dict[unit_id] = True
                 self.notify_unit_visibility_changed()
