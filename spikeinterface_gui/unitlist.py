@@ -31,8 +31,15 @@ class UnitListView(ViewBase):
         self.refresh()
         self.notify_unit_visibility_changed()
 
+    def get_selected_unit_ids(self):
+        if self.backend == 'qt':
+            return self._qt_get_selected_unit_ids()
+        elif self.backend == 'panel':
+            return self._panel_get_selected_unit_ids()
+
     ## Qt ##
     def _qt_make_layout(self):
+        
         from .myqt import QT
         import pyqtgraph as pg
         
@@ -76,7 +83,7 @@ class UnitListView(ViewBase):
         # Enable column dragging
         header = self.table.horizontalHeader()
         header.setSectionsMovable(True)
-        header.sectionMoved.connect(self.on_column_moved)
+        header.sectionMoved.connect(self._qt_on_column_moved)
         
         # Store original column order
         self.column_order = None
@@ -89,14 +96,14 @@ class UnitListView(ViewBase):
         
         if self.controller.curation:
             act = self.menu.addAction('Delete')
-            act.triggered.connect(self.delete_unit)
+            act.triggered.connect(self._qt_delete_unit)
             act = self.menu.addAction('Merge selected')
-            act.triggered.connect(self.merge_selected)
+            act.triggered.connect(self._qt_merge_selected)
             shortcut_delete = QT.QShortcut(self.qt_widget)
             shortcut_delete.setKey(QT.QKeySequence('d'))
-            shortcut_delete.activated.connect(self.on_delete_shortcut)
+            shortcut_delete.activated.connect(self._qt_on_delete_shortcut)
 
-    def on_column_moved(self, logical_index, old_visual_index, new_visual_index):
+    def _qt_on_column_moved(self, logical_index, old_visual_index, new_visual_index):
         # Update stored column order
         self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
 
@@ -109,9 +116,28 @@ class UnitListView(ViewBase):
     def _qt_on_visible_columns_changed(self):
         new_displayed = [col for col in self.controller.units_table.columns if self.visible_columns[col]]
         self.controller.displayed_unit_properties = new_displayed
-        self.refresh()
+        self._qt_full_table_refresh()
+    
+    def _qt_on_unit_visibility_changed(self):
+        self._qt_refresh_visibility_items()
+
+    def _qt_refresh_visibility_items(self):
+        from .myqt import QT
+
+        self.table.itemChanged.disconnect(self._qt_on_item_changed)
+        for i, unit_id in enumerate(self.controller.unit_ids):
+            item = self.items_visibility[unit_id]
+            item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict[unit_id]])
+        self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
+        # TODO check if a full refresh is necessary
+        print('unitlist qt _qt_refresh')
+        self._qt_full_table_refresh()
+    
+    def _qt_full_table_refresh(self):
+        # TODO sam make this faster
+
         from .myqt import QT
         from .utils_qt import OrderableCheckItem, CustomItem, LabelComboBox
 
@@ -153,6 +179,7 @@ class UnitListView(ViewBase):
         self.table.setSortingEnabled(False)
 
         # internal_column_names
+        self.items_visibility = {}
         for i, unit_id in enumerate(unit_ids):
             color = self.get_unit_color(unit_id)
             pix = QT.QPixmap(16,16)
@@ -169,6 +196,7 @@ class UnitListView(ViewBase):
             item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict.get(unit_id, False)])
             self.table.setItem(i,1, item)
             item.unit_id = unit_id
+            self.items_visibility[unit_id] = item
             
             channel_index = self.controller.get_extremum_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
@@ -240,14 +268,15 @@ class UnitListView(ViewBase):
             
         unit_id = self.table.item(row, 1).unit_id
         self.controller.unit_visible_dict[unit_id] = True
-        self.refresh()
+        # self.refresh()
+        self._qt_refresh_visibility_items()
 
         self.notify_unit_visibility_changed()
     
     def _qt_on_open_context_menu(self):
         self.menu.popup(self.qt_widget.cursor().pos())
     
-    def _get_selected_rows(self):
+    def _qt_get_selected_rows(self):
         rows = []
         for item in self.table.selectedItems():
             if item.column() != 1: continue
@@ -261,48 +290,42 @@ class UnitListView(ViewBase):
             unit_ids.append(item.unit_id)
         return unit_ids
 
-    def get_selected_unit_ids(self):
-        if self.backend == 'qt':
-            return self._qt_get_selected_unit_ids()
-        elif self.backend == 'panel':
-            return self._panel_get_selected_unit_ids()
-       
 
     def on_visible_shortcut(self):
-        rows = self._get_selected_rows()
+        rows = self._qt_get_selected_rows()
         for unit_id in self.controller.unit_ids:
             self.controller.unit_visible_dict[unit_id] = False
         for unit_id in self.get_selected_unit_ids():
             self.controller.unit_visible_dict[unit_id] = True
-        self.refresh()
+        # self.refresh()
+        self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
-        # self.table.set
-        # self.table.setCurrentCell(rows[0], None, QT.QItemSelectionModel.Select)
-        # self.table.scrollTo(index)
         for row in rows:
             self.table.selectRow(row)
 
-    def delete_unit(self):
-        removed_unit_ids = self.get_selected_unit_ids()
-        self.controller.make_manual_delete_if_possible(removed_unit_ids)
-        self.notify_manual_curation_updated()
-        self.refresh()
 
-    def on_delete_shortcut(self):
-        sel_rows = self._get_selected_rows()
-        self.delete_unit()
+    def _qt_on_delete_shortcut(self):
+        sel_rows = self._qt_get_selected_rows()
+        self._qt_delete_unit()
         if len(sel_rows) > 0:
             self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
-    def merge_selected(self):
+
+    def _qt_delete_unit(self):
+        removed_unit_ids = self.get_selected_unit_ids()
+        self.controller.make_manual_delete_if_possible(removed_unit_ids)
+        self.notify_manual_curation_updated()
+
+    def _qt_merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
         merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
         if merge_successful:
             self.notify_manual_curation_updated()
-            self.refresh()
         else:
             print("Merge not possible, some units are already deleted or in a merge group")
             # optional: notify.failed merge?
+
+
 
 
     ## panel zone ##
@@ -426,8 +449,8 @@ class UnitListView(ViewBase):
         self.unselect_all_button.on_click(lambda event: self.hide_all)
 
         if self.controller.curation:
-            self.delete_button.on_click(lambda event: self.delete_unit)
-            self.merge_button.on_click(lambda event: self.merge_selected)
+            self.delete_button.on_click(lambda event: self._panel_delete_unit)
+            self.merge_button.on_click(lambda event: self._panel_merge_selected)
 
         self.last_row = None
         self.last_clicked = None
@@ -532,9 +555,9 @@ class UnitListView(ViewBase):
 
     def _panel_handle_shortcut(self, event):
         if event.data == "delete":
-            self.delete_unit()
+            self._panel_delete_unit()
         elif event.data == "merge":
-            self.merge_selected()
+            self._panel_merge_selected()
         elif event.data == "visible":
             selected_rows = self._panel_get_selected_unit_ids()
             for unit_id in self.controller.unit_ids:
@@ -595,6 +618,25 @@ class UnitListView(ViewBase):
                 self.table.selection = [previous_row]
                 self.notify_unit_visibility_changed()
                 self.refresh()
+
+    def _panel_delete_unit(self):
+        removed_unit_ids = self.get_selected_unit_ids()
+        self.controller.make_manual_delete_if_possible(removed_unit_ids)
+        self.notify_manual_curation_updated()
+        self.refresh()
+
+    def _panel_merge_selected(self):
+        merge_unit_ids = self.get_selected_unit_ids()
+        merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
+        if merge_successful:
+            self.notify_manual_curation_updated()
+            self.refresh()
+        else:
+            print("Merge not possible, some units are already deleted or in a merge group")
+            # optional: notify.failed merge?
+
+
+
 
 UnitListView._gui_help_txt = """
 ## Unit List

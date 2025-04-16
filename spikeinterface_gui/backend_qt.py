@@ -34,10 +34,9 @@ class SignalNotifier(QT.QObject):
         # print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.channel_visibility_changed.emit()
 
-    def notify_channel_visibility_changed(self):
+    def notify_manual_curation_updated(self):
         # print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.manual_curation_updated.emit()
-
 
 # Used by controler to handle/callback signals
 class SignalHandler(QT.QObject):

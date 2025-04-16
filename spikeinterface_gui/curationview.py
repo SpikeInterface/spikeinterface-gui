@@ -15,6 +15,18 @@ class CurationView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
+
+    def restore_unit(self):
+        if self.backend == 'qt':
+            unit_ids = self._qt_get_delete_table_selection()
+        else:
+            unit_ids = self._panel_get_delete_table_selection()
+        if unit_ids is not None:
+            self.controller.make_manual_restore(unit_ids)
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+    ## Qt
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -45,12 +57,12 @@ class CurationView(ViewBase):
         v.addWidget(self.table_merge)
 
         self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
-        self.table_merge.customContextMenuRequested.connect(self.open_context_menu_merge)
-        self.table_merge.itemSelectionChanged.connect(self.on_item_selection_changed_merge)
+        self.table_merge.customContextMenuRequested.connect(self._qt_open_context_menu_merge)
+        self.table_merge.itemSelectionChanged.connect(self._qt_on_item_selection_changed_merge)
 
         self.merge_menu = QT.QMenu()
         act = self.merge_menu.addAction('Remove merge group')
-        act.triggered.connect(self.unmerge_groups)
+        act.triggered.connect(self._qt_unmerge_groups)
 
 
         v = QT.QVBoxLayout()
@@ -60,8 +72,8 @@ class CurationView(ViewBase):
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         v.addWidget(self.table_delete)
         self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
-        self.table_delete.customContextMenuRequested.connect(self.open_context_menu_delete)
-        self.table_delete.itemSelectionChanged.connect(self.on_item_selection_changed_delete)
+        self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
+        self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
 
 
         self.delete_menu = QT.QMenu()
@@ -119,24 +131,13 @@ class CurationView(ViewBase):
         else:
             return [s.row for s in selected_items]
 
-    def open_context_menu_delete(self):
+    def _qt_open_context_menu_delete(self):
         self.delete_menu.popup(self.qt_widget.cursor().pos())
 
-    def open_context_menu_merge(self):
+    def _qt_open_context_menu_merge(self):
         self.merge_menu.popup(self.qt_widget.cursor().pos())
 
-    def restore_unit(self):
-        if self.backend == 'qt':
-            unit_ids = self._qt_get_delete_table_selection()
-        else:
-            unit_ids = self._panel_get_delete_table_selection()
-        if unit_ids is not None:
-            self.controller.make_manual_restore(unit_ids)
-            self.notify_manual_curation_updated()
-            self.refresh()
-    
-
-    def unmerge_groups(self):
+    def _qt_unmerge_groups(self):
         if self.backend == 'qt':
             merge_indices = self._qt_get_merge_table_row()
         else:
@@ -146,7 +147,7 @@ class CurationView(ViewBase):
             self.notify_manual_curation_updated()
             self.refresh()
     
-    def on_item_selection_changed_merge(self):
+    def _qt_on_item_selection_changed_merge(self):
         if len(self.table_merge.selectedIndexes()) == 0:
             return
 
@@ -158,7 +159,7 @@ class CurationView(ViewBase):
             self.controller.unit_visible_dict[unit_id] = True
         self.notify_unit_visibility_changed()
 
-    def on_item_selection_changed_delete(self):
+    def _qt_on_item_selection_changed_delete(self):
         if len(self.table_delete.selectedIndexes()) == 0:
             return
         ind = self.table_delete.selectedIndexes()[0].row()
@@ -215,7 +216,7 @@ class CurationView(ViewBase):
         restore_button = pn.widgets.Button(name="Restore", button_type="primary")
         restore_button.on_click(lambda event: self.restore_unit)
         remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary")
-        remove_merge_button.on_click(lambda event: self.unmerge_groups)
+        remove_merge_button.on_click(lambda event: self._qt_unmerge_groups)
 
         submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary")
         # Create layout
