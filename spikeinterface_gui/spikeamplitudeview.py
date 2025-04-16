@@ -43,8 +43,9 @@ class SpikeAmplitudeView(ViewBase):
             step = spike_times.size // self.settings['max_spikes_per_unit']
             spike_times = spike_times[::step]
             spike_amps = spike_amps[::step]
+            inds = inds[::step]
 
-        return spike_times, spike_amps, hist_count, hist_bins
+        return spike_times, spike_amps, hist_count, hist_bins, inds
 
     def get_selected_spikes_data(self, seg_index=0):
         sl = self.controller.segment_slices[seg_index]
@@ -146,7 +147,7 @@ class SpikeAmplitudeView(ViewBase):
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
 
-            spike_times, spike_amps, hist_count, hist_bins = self.get_unit_data(unit_id)
+            spike_times, spike_amps, hist_count, hist_bins, _ = self.get_unit_data(unit_id)
 
             # make a copy of the color
             color = QT.QColor(self.get_unit_color(unit_id))
@@ -227,7 +228,7 @@ class SpikeAmplitudeView(ViewBase):
             self.refresh()
             self.notify_spike_selection_changed()
             return
-            
+
         # Map back to original indices
         visible_indices = np.nonzero(visible_mask)[0]
         selected_indices = sl.start + visible_indices[inside]
@@ -307,6 +308,7 @@ class SpikeAmplitudeView(ViewBase):
         self.scatter = None
         self.hist_lines = {}
         self.noise_harea = []
+        self.plotted_inds = []
 
     def _panel_refresh(self):
         from bokeh.models import ColumnDataSource, Range1d
@@ -317,13 +319,14 @@ class SpikeAmplitudeView(ViewBase):
         self.scatter = None
         self.hist_lines = {}
         self.noise_harea = []
+        self.plotted_inds = []
 
         max_count = 1
         scatter_data = {"x": [], "y": [], "color": []}
         for unit_id in self.controller.unit_ids:
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
-            spike_times, spike_amps, hist_count, hist_bins = self.get_unit_data(
+            spike_times, spike_amps, hist_count, hist_bins, inds = self.get_unit_data(
                 unit_id,
                 seg_index=self.segment_index
             )
@@ -344,6 +347,7 @@ class SpikeAmplitudeView(ViewBase):
                 line_width=2,
             )
             max_count = max(max_count, np.max(hist_count))
+            self.plotted_inds.extend(inds)
 
         # Add scatter plot with correct alpha parameter
         self.scatter_source.data.update(scatter_data)
@@ -404,26 +408,27 @@ class SpikeAmplitudeView(ViewBase):
         """
         Handle selection changes in the scatter plot.
         """
-        selected = self.scatter_source.selected.indices
-        if len(selected) == 0:
-            self.controller.set_indices_spike_selected([])
-            self.notify_spike_selection_changed()
-            return
+        if self.select_toggle_button.value:
+            selected = self.scatter_source.selected.indices
+            if len(selected) == 0:
+                self.controller.set_indices_spike_selected([])
+                self.notify_spike_selection_changed()
+                return
 
-        # Map back to original indices
-        sl = self.controller.segment_slices[self.segment_index]
-        spikes_in_seg = self.controller.spikes[sl]
-        # Create mask for visible units
-        visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if self.controller.unit_visible_dict[unit_id]:
-                visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
-        
-        # Map back to original indices
-        visible_indices = np.nonzero(visible_mask)[0]
-        selected_indices = sl.start + visible_indices[selected]
-        self.controller.set_indices_spike_selected(selected_indices)
-        self.notify_spike_selection_changed()
+            # Map back to original indices
+            sl = self.controller.segment_slices[self.segment_index]
+            spikes_in_seg = self.controller.spikes[sl]
+            # Create mask for visible units
+            visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
+            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                if self.controller.unit_visible_dict[unit_id]:
+                    visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+            
+            # Map back to original indices
+            visible_indices = np.nonzero(visible_mask)[0]
+            selected_indices = sl.start + visible_indices[selected]
+            self.controller.set_indices_spike_selected(selected_indices)
+            self.notify_spike_selection_changed()
 
 
     def _panel_update_selected_spikes(self):
@@ -439,6 +444,9 @@ class SpikeAmplitudeView(ViewBase):
                     visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
             visible_indices = sl.start + np.nonzero(visible_mask)[0]
             selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
+            # set selected spikes in scatter plot
+            if self.settings["auto_decimate"]:
+                selected_indices, = np.nonzero(np.isin(self.plotted_inds, selected_spike_indices))
             self.scatter_source.selected.indices = list(selected_indices)
         else:
             self.scatter_source.selected.indices = []
