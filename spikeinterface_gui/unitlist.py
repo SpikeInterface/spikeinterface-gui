@@ -455,14 +455,22 @@ class UnitListView(ViewBase):
         buttons = pn.Row(*button_list, sizing_mode="stretch_width")
 
         # shortcuts
-        shortcuts = [
-            KeyboardShortcut(name="delete", key="d", ctrlKey=True),
-            KeyboardShortcut(name="merge", key="m", ctrlKey=True),
-            KeyboardShortcut(name="good", key="g", ctrlKey=False),
-            KeyboardShortcut(name="mua", key="m", ctrlKey=False),
-            KeyboardShortcut(name="noise", key="n", ctrlKey=False),
-            KeyboardShortcut(name="visible", key=" ", ctrlKey=False),
-        ]
+        shortcuts = [KeyboardShortcut(name="visible", key=" ", ctrlKey=False),]
+        if self.controller.curation:
+            shortcuts.extend(
+                [
+                    KeyboardShortcut(name="delete", key="d", ctrlKey=True),
+                    KeyboardShortcut(name="merge", key="m", ctrlKey=True),
+                ]
+            )
+        if self.controller.has_default_labels:
+            self.shortcuts.extend(
+                [
+                    KeyboardShortcut(name="good", key="g", ctrlKey=False),
+                    KeyboardShortcut(name="mua", key="m", ctrlKey=False),
+                    KeyboardShortcut(name="noise", key="n", ctrlKey=False),
+                ]
+            )
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 

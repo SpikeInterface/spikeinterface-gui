@@ -75,8 +75,6 @@ class SpikeAmplitudeView(ViewBase):
 
         tb.addWidget(self.lasso_but)
         self.lasso_but.clicked.connect(self.enable_disable_lasso)
-
-
         
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
@@ -182,7 +180,12 @@ class SpikeAmplitudeView(ViewBase):
         self.scatter_select.setData(spike_times, amps)
 
     def enable_disable_lasso(self, checked):
-        self.viewBox.lasso_active = checked
+        if checked and len(self.controller.get_visible_unit_ids()) == 1:
+            self.viewBox.lasso_active = checked
+        else:
+            self.viewBox.lasso_active = False
+            self.lasso_but.setChecked(False)
+            self.scatter_select.clear()
 
     def on_lasso_drawing(self, points):
         points = np.array(points)
@@ -316,26 +319,18 @@ class SpikeAmplitudeView(ViewBase):
         self.noise_harea = []
 
         max_count = 1
-        self.hist_fig.renderers = []
-        visible_spike_indices = self.controller.get_indices_spike_visible()
-        visible_spikes = self.controller.spikes[visible_spike_indices]
-        segment_mask = visible_spikes["segment_index"] == self.segment_index
-        visible_spikes = visible_spikes[segment_mask]
-        spike_amplitudes = self.controller.spike_amplitudes[visible_spike_indices][segment_mask]
-        self.scatter_source.data = {
-            "x": visible_spikes["sample_index"] / self.controller.sampling_frequency,
-            "y": spike_amplitudes,
-            "color": [self.get_unit_color(unit_id) for unit_id in self.controller.unit_ids[visible_spikes["unit_index"]]]
-        }
-
+        scatter_data = {"x": [], "y": [], "color": []}
         for unit_id in self.controller.unit_ids:
             if not self.controller.unit_visible_dict[unit_id]:
                 continue
-            _, _, hist_count, hist_bins = self.get_unit_data(
+            spike_times, spike_amps, hist_count, hist_bins = self.get_unit_data(
                 unit_id,
                 seg_index=self.segment_index
             )
             color = self.get_unit_color(unit_id)
+            scatter_data["x"].extend(spike_times)
+            scatter_data["y"].extend(spike_amps)
+            scatter_data["color"].extend([color] * len(spike_times))
 
             self.hist_lines[unit_id] = self.hist_fig.line(
                 "x",
@@ -351,8 +346,7 @@ class SpikeAmplitudeView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         # Add scatter plot with correct alpha parameter
-        self.scatter_fig.renderers = []
-        # self.scatter_source.data.update(scatter_data)
+        self.scatter_source.data.update(scatter_data)
         self.scatter = self.scatter_fig.scatter(
             "x",
             "y",
@@ -362,20 +356,7 @@ class SpikeAmplitudeView(ViewBase):
             fill_alpha=self.settings['alpha'],
         )
         # handle selected spikes
-        selected_spike_indices = self.controller.get_indices_spike_selected()
-        if len(selected_spike_indices) > 0:
-            # map absolute indices to visible spikes
-            sl = self.controller.segment_slices[self.segment_index]
-            spikes_in_seg = self.controller.spikes[sl]
-            visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-            for unit_index, unit_id in enumerate(self.controller.unit_ids):
-                if self.controller.unit_visible_dict[unit_id]:
-                    visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
-            visible_indices = sl.start + np.nonzero(visible_mask)[0]
-            selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
-            self.scatter_source.selected.indices = list(selected_indices)
-        else:
-            self.scatter_source.selected.indices = []
+        self._panel_update_selected_spikes()
 
         if self.settings['noise_level']:
             noise = np.mean(self.controller.noise_levels)
@@ -402,11 +383,13 @@ class SpikeAmplitudeView(ViewBase):
         self.scatter_fig.x_range = Range1d(0., time_max)
         # set y range to min and max of visible spike amplitudes plus a margin
         margin = 50
-        self.scatter_fig.y_range = Range1d(np.min(spike_amplitudes) - margin, np.max(spike_amplitudes) + margin)
+        all_amps = scatter_data["y"]
+        self.scatter_fig.y_range = Range1d(np.min(all_amps) - margin, np.max(all_amps) + margin)
         self.hist_fig.x_range = Range1d(0, max_count)
+        self.hist_fig.y_range = Range1d(np.min(all_amps) - margin, np.max(all_amps) + margin)
 
     def _panel_on_select_button(self, event):
-        if self.select_toggle_button.value:
+        if self.select_toggle_button.value and len(self.controller.get_visible_unit_ids()) == 1:
             self.scatter_fig.toolbar.active_drag = self.lasso_tool
         else:
             self.scatter_fig.toolbar.active_drag = None
@@ -443,6 +426,24 @@ class SpikeAmplitudeView(ViewBase):
         self.notify_spike_selection_changed()
 
 
+    def _panel_update_selected_spikes(self):
+        # handle selected spikes
+        selected_spike_indices = self.controller.get_indices_spike_selected()
+        if len(selected_spike_indices) > 0:
+            # map absolute indices to visible spikes
+            sl = self.controller.segment_slices[self.segment_index]
+            spikes_in_seg = self.controller.spikes[sl]
+            visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
+            for unit_index, unit_id in enumerate(self.controller.unit_ids):
+                if self.controller.unit_visible_dict[unit_id]:
+                    visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+            visible_indices = sl.start + np.nonzero(visible_mask)[0]
+            selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
+            self.scatter_source.selected.indices = list(selected_indices)
+        else:
+            self.scatter_source.selected.indices = []
+
+
     def _panel_on_spike_selection_changed(self):
         # set selection in scatter plot
         selected_indices = self.controller.get_indices_spike_selected()
@@ -454,7 +455,8 @@ class SpikeAmplitudeView(ViewBase):
             if selected_segment != self.segment_index:
                 self.segment_selector.value = f"Segment {selected_segment}"
                 self._panel_change_segment(None)
-        self.refresh()
+        # update selected spikes
+        self._panel_update_selected_spikes()
 
 
 SpikeAmplitudeView._gui_help_txt = """

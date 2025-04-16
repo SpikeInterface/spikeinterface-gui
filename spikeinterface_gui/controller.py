@@ -210,6 +210,9 @@ class Controller():
         self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
         self.unit_visible_dict[self.unit_ids[0]] = True
 
+        # at init, we set the visible channels as the sparsity of the first unit
+        self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
+
         t0 = time.perf_counter()
         
         # make internal spike vector
@@ -253,8 +256,6 @@ class Controller():
         t1 = time.perf_counter()
         if verbose:
             print('Gathering all spikes took', t1 - t0)
-            
-        self.visible_channel_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
 
         self._spike_visible_indices = np.array([], dtype='int64')
         self._spike_selected_indices = np.array([], dtype='int64')
@@ -294,12 +295,14 @@ class Controller():
                 self.curation_data = empty_curation_data.copy()
             else:
                 self.curation_data = curation_data
-            
+
+            self.has_default_labels = False
             if "label_definitions" not in self.curation_data:
                 if label_definitions is not None:
                     self.curation_data["label_definitions"] = label_definitions
                 else:
                     self.curation_data["label_definitions"] = default_label_definitions.copy()
+                    self.has_default_labels = True
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -312,12 +315,10 @@ class Controller():
                 return False
         return True
 
-
     def declare_a_view(self, new_view):
         assert new_view not in self.views, 'view already declared {}'.format(self)
         self.views.append(new_view)
         self.signal_handler.connect_view(new_view)
-
         
     @property
     def channel_ids(self):
@@ -346,12 +347,6 @@ class Controller():
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-
-    def on_unit_visibility_changed(self):
-        # hook to update also the indices on spikes
-        self.update_visible_spikes()
-        super().on_unit_visibility_changed()
-
     def get_visible_unit_ids(self):
         visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
         return visible_unit_ids
@@ -364,7 +359,6 @@ class Controller():
         visible_unit_indices = self.get_visible_unit_indices()
         visible_unit_ids = self.unit_ids[visible_unit_indices]
         return zip(visible_unit_indices, visible_unit_ids)
-
 
     def update_visible_spikes(self):
         inds = []
@@ -485,8 +479,6 @@ class Controller():
             return self._pc_indices, self._pc_projections
         else:
             return None, None
-    
-    
 
     def get_sparsity_mask(self):
         if self.external_sparsity is not None:
@@ -507,7 +499,6 @@ class Controller():
         ext = self.analyzer.compute("template_similarity", method=method, save=self.save_on_compute)
         self._similarity_by_method[method] = ext.get_data()
         return self._similarity_by_method[method]
-
 
     def compute_unit_positions(self, method, method_kwargs):
         ext = self.analyzer.compute_one_extension('unit_locations', save=self.save_on_compute, method=method, **method_kwargs)
@@ -571,7 +562,6 @@ class Controller():
                 sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
-
 
     def make_manual_delete_if_possible(self, removed_unit_ids):
         """

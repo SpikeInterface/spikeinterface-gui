@@ -331,14 +331,14 @@ class SpikeListView(ViewBase):
     def _panel_on_refresh_click(self, event):
         self._panel_refresh_label()
         self._panel_refresh_table()
-        self.notifier.notify_active_view_updated()
+        self.notify_active_view_updated()
 
     def _panel_on_clear_click(self, event):
         self.controller.set_indices_spike_selected([])
         self.table.selection = []
         self.notify_spike_selection_changed()
         self._panel_refresh_label()
-        self.notifier.notify_active_view_updated()
+        self.notify_active_view_updated()
 
     def _panel_on_selection_changed(self, event=None):
         selection = event.new
