@@ -269,6 +269,17 @@ class SelectableTabulator(pn.viewable.Viewer):
     ----------
     *args, **kwargs
         Arguments passed to the Tabulator constructor.
+    parent_view: ViewBase | None
+        The parent view that will be notified of selection changes.
+    refresh_table_function: Callable | None
+        A function to call when the table a new selection is made via keyboard shortcuts.
+    on_only_function: Callable | None
+        A function to call when the table a ctrl+selection is made via keyboard shortcuts.
+    conditional_shortcut: Callable | None
+        A function that returns True if the shortcuts should be enabled, False otherwise.
+    column_callbacks: dict[Callable] | None
+        A dictionary of column names and their corresponding callback functions.
+        This function should take the row argument.
     """
     def __init__(
         self, 
@@ -277,18 +288,23 @@ class SelectableTabulator(pn.viewable.Viewer):
         refresh_table_function: Callable | None = None,
         on_only_function: Callable | None = None,
         conditional_shortcut: Callable | None = None,
+        column_callbacks: dict[str, Callable] | None = None,
         **kwargs
     ):
         self._formatters = kwargs.get("formatters", {})
+        self._editors = kwargs.get("editors", {})
+        self._frozen_columns = kwargs.get("frozen_columns", [])
         self.tabulator = Tabulator(*args, **kwargs)
         self.tabulator.formatters = self._formatters        
         self.tabulator.on_click(self._on_click)
         super().__init__()
+        self.original_indices = self.value.index.values
    
         self._parent_view = parent_view
         self._refresh_table_function = refresh_table_function
         self._on_only_function = on_only_function
         self._conditional_shortcut = conditional_shortcut if conditional_shortcut is not None else lambda: True
+        self._column_callbacks = column_callbacks if column_callbacks is not None else {}
 
         self._last_selected_row = None
         self._last_clicked = None
@@ -328,14 +344,20 @@ class SelectableTabulator(pn.viewable.Viewer):
     def sorters(self):
         return self.tabulator.sorters
 
+    @sorters.setter
+    def sorters(self, val):
+        self.tabulator.sorters = val
+
     @property
     def value(self):
         return self.tabulator.value
 
     @value.setter
     def value(self, val):
-        self.tabulator.value = val
         self.tabulator.formatters = self._formatters
+        self.tabulator.editors = self._editors
+        self.tabulator.frozen_columns = self._frozen_columns
+        self.tabulator.value = val
 
     def __panel__(self):
         return self._layout
@@ -345,6 +367,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         Handle the selection change event. This is called when a row or cell is clicked.
         """
         row = event.row
+        col = event.column
         time_clicked = time.perf_counter()
         double_clicked = False
         if self._last_clicked is not None:
@@ -358,11 +381,15 @@ class SelectableTabulator(pn.viewable.Viewer):
             else:
                 current_selection.append(row)
             self.selection = current_selection
+        if col in self._column_callbacks:
+            callback = self._column_callbacks[col]
+            if callable(callback):
+                callback(row)
         self._last_selected_row = row
         self._last_clicked = time_clicked
 
         if self._parent_view is not None:
-            self._parent_view.notify_active_view_updates()
+            self._parent_view.notify_active_view_updated()
 
     def _get_next_row(self):
         selected_rows = self._get_selected_rows()
@@ -411,7 +438,7 @@ class SelectableTabulator(pn.viewable.Viewer):
             else:
                 sorted_df = df.sort_index(ascending=(sorter['dir'] == 'asc'))
             new_indices = list(sorted_df.index.values)
-            new_selection = [new_indices.index(index) for index in self.selection]
+            new_selection = [new_indices.index(self.original_indices[row]) for row in self.selection]
             return new_selection
 
     def _get_sorted_indices(self):
@@ -429,7 +456,7 @@ class SelectableTabulator(pn.viewable.Viewer):
             else:
                 sorted_df = df.sort_index(ascending=(sorter['dir'] == 'asc'))
             sorted_indices = sorted_df.index.values
-            original_indices = list(df.index)
+            original_indices = list(df.index.values)
             new_indices = [original_indices.index(index) for index in sorted_indices]
             return new_indices
 

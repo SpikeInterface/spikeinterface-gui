@@ -266,7 +266,8 @@ class UnitListView(ViewBase):
         if self.backend == 'qt':
             return self._qt_get_selected_unit_ids()
         elif self.backend == 'panel':
-            return self._panel_get_selected_unit_ids(sort_with_sorters=False)
+            print("selected rows", self.table._get_selected_rows())
+            return self.table._get_selected_rows(sort_with_sorters=False)
        
 
     def on_visible_shortcut(self):
@@ -312,7 +313,7 @@ class UnitListView(ViewBase):
         import pandas as pd
         import matplotlib.colors as mcolors
         from bokeh.models.widgets.tables import BooleanFormatter, SelectEditor
-        from .utils_panel import unit_formatter, KeyboardShortcut, KeyboardShortcuts
+        from .utils_panel import unit_formatter, KeyboardShortcut, KeyboardShortcuts, SelectableTabulator
 
         pn.extension("tabulator")
 
@@ -375,7 +376,7 @@ class UnitListView(ViewBase):
 
         # Here we make a copy so we can filter the data
         self.df = self.df_full.copy()
-        self.table = pn.widgets.Tabulator(
+        self.table = SelectableTabulator(
             self.df,
             formatters=formatters,
             frozen_columns=frozen_columns,
@@ -385,6 +386,12 @@ class UnitListView(ViewBase):
             selectable=True,
             editors=editors,
             pagination=None,
+            # SelectableTabulator functions
+            parent_view=self,
+            refresh_table_function=self.refresh,
+            conditional_shortcut=self.is_view_active,
+            on_only_function=self._panel_on_only_selection,
+            column_callbacks={"visible": self._panel_on_visible_changed},
         )
 
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
@@ -400,25 +407,25 @@ class UnitListView(ViewBase):
         if self.controller.curation:
             self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
             self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
-            self.hide_noise = pn.widgets.Toggle(name="Show/Hide Noise", button_type="default")
+            # self.hide_noise = pn.widgets.Toggle(name="Show/Hide Noise", button_type="default")
 
-            if "quality" in self.label_definitions:
-                self.show_only = pn.widgets.Select(
-                    name="Show only",
-                    options=["all"] + list(self.label_definitions["quality"]['label_options']),
-                    sizing_mode="stretch_width",
-                )
-            else:
-                self.show_only = None
+            # if "quality" in self.label_definitions:
+            #     self.show_only = pn.widgets.Select(
+            #         name="Show only",
+            #         options=["all"] + list(self.label_definitions["quality"]['label_options']),
+            #         sizing_mode="stretch_width",
+            #     )
+            # else:
+            #     self.show_only = None
 
-            self.hide_noise.param.watch(self._panel_on_hide_noise, 'value')
-            self.show_only.param.watch(self._panel_on_show_only, 'value')
+            # self.hide_noise.param.watch(self._panel_on_hide_noise, 'value')
+            # self.show_only.param.watch(self._panel_on_show_only, 'value')
 
             curation_row = pn.Row(
                 self.delete_button,
                 self.merge_button,
-                self.hide_noise,
-                self.show_only,
+                # self.hide_noise,
+                # self.show_only,
                 sizing_mode="stretch_width",
             )
 
@@ -434,12 +441,6 @@ class UnitListView(ViewBase):
             KeyboardShortcut(name="mua", key="m", ctrlKey=False),
             KeyboardShortcut(name="noise", key="n", ctrlKey=False),
             KeyboardShortcut(name="visible", key=" ", ctrlKey=False),
-            KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
-            KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
-            KeyboardShortcut(name="next_only", key="ArrowDown", ctrlKey=True),
-            KeyboardShortcut(name="previous_only", key="ArrowUp", ctrlKey=True),
-            KeyboardShortcut(name="append_next", key="ArrowDown", shiftKey=True),
-            KeyboardShortcut(name="append_previous", key="ArrowUp", shiftKey=True),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -456,8 +457,8 @@ class UnitListView(ViewBase):
         self.layout.append(self.table)
         self.layout.append(shortcuts_component)
 
-        self.table.on_click(self._panel_on_selection_changed)
-        self.table.on_edit(self._panel_on_edit)
+        self.table.tabulator.on_edit(self._panel_on_edit)
+
         self.select_all_button.on_click(self._panel_select_all)
         self.unselect_all_button.on_click(self._panel_unselect_all)
         self.refresh_button.on_click(self._panel_refresh_click)
@@ -465,10 +466,6 @@ class UnitListView(ViewBase):
         if self.controller.curation:
             self.delete_button.on_click(self._panel_delete_unit)
             self.merge_button.on_click(self._panel_merge_units)
-
-        self.last_clicked_row = None
-        self.last_selected_row = None
-        self.last_clicked = None
 
     def _panel_refresh_click(self, event):
         self.df = self.df_full.copy()
@@ -523,47 +520,21 @@ class UnitListView(ViewBase):
         self.merge_selected()
         self.notifier.notify_active_view_updated()
 
-    def _panel_on_selection_changed(self, event):
-        row = event.row
-        col = event.column
+    def _panel_on_visible_changed(self, row):
         unit_ids = self.df.index.values
         selected_unit_id = unit_ids[row]
-        time_clicked = time.perf_counter()
+        self.controller.unit_visible_dict[selected_unit_id] = True
+        # update the visible column
         df = self.table.value
-        double_clicked = False
-        visibility_changed = False
-        if self.last_clicked is not None:
-            if (time_clicked - self.last_clicked) < 0.8 and self.last_clicked_row == row:
-                double_clicked = True
-                
-                # select only this unit
-                for unit_id in self.controller.unit_visible_dict:
-                    self.controller.unit_visible_dict[unit_id] = False
-                self.controller.unit_visible_dict[selected_unit_id] = True
-                self.notify_unit_visibility_changed()
-                visibility_changed = True
-        if not double_clicked:
-            # TODO: how to handle this?
-            if col == "visible":
-                self.controller.unit_visible_dict[selected_unit_id] = True
-                self.notify_unit_visibility_changed()
-                visibility_changed = True
-            else:
-                unit_id = self.df.index[row]
-
-        if visibility_changed:
-            df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
-            self.table.value = df
-
-        self.last_clicked = time_clicked
-        self.last_clicked_row = row
-        self.notifier.notify_active_view_updated()
+        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+        self.table.value = df
+        self.notify_unit_visibility_changed()
 
     def _panel_on_edit(self, event):
         column = event.column
         if self.label_definitions is not None and column in self.label_definitions:
             row = event.row
-            unit_index = self._panel_get_sorted_indices()[row]
+            unit_index = self.table._get_sorted_indices()[row]
             unit_id = self.df.index[unit_index]
             new_label = event.value
             if new_label == "":
@@ -571,80 +542,17 @@ class UnitListView(ViewBase):
             self.controller.set_label_to_unit(unit_id, column, new_label)
         self.notifier.notify_active_view_updated()
 
-    def _panel_get_selected_unit_ids(self, sort_with_sorters=True):
-        if self.table.sorters is None or len(self.table.sorters) == 0 or not sort_with_sorters:
-            return self.table.selection
-        elif len(self.table.sorters) == 1:
-            # apply sorters to selection
-            sorter = self.table.sorters[0]
-            if sorter["field"] != "unit_id":
-                sorted_df = self.df.sort_values(
-                    by=sorter['field'],
-                    ascending=(sorter['dir'] == 'asc')
-                )
-            else:
-                sorted_df = self.df.sort_index(ascending=(sorter['dir'] == 'asc'))
-            sorted_df.reset_index(inplace=True)
-            new_selection = []
-            for index in self.table.selection:
-                new_index = sorted_df.index[sorted_df['unit_id'] == self.df.iloc[index]['unit_id']]
-                if len(new_index) > 0:
-                    new_selection.append(int(new_index[0]))
-            return new_selection
-
-    def _panel_get_sorted_indices(self):
-        if self.table.sorters is None or len(self.table.sorters) == 0:
-            return list(range(len(self.df)))
-        elif len(self.table.sorters) == 1:
-            # apply sorters to selection
-            sorter = self.table.sorters[0]
-            if sorter["field"] != "unit_id":
-                sorted_df = self.df.sort_values(
-                    by=sorter['field'],
-                    ascending=(sorter['dir'] == 'asc')
-                )
-            else:
-                sorted_df = self.df.sort_index(ascending=(sorter['dir'] == 'asc'))
-            # sorted_df.reset_index(inplace=True)
-            sorted_unit_ids = sorted_df.index.values
-            original_unit_ids = list(self.df.index)
-            new_indices = [original_unit_ids.index(unit_id) for unit_id in sorted_unit_ids]
-            return new_indices
-
-    def _panel_on_hide_noise(self, event):
-        if self.hide_noise.value:
-            # Filter out noise units
-            self.df = self.df.query("quality != 'noise'")
-        else:
-            # Show all units
-            self.df = self.df_full
-            labels = [self.controller.get_unit_label(unit_id, category="quality") for unit_id in self.controller.unit_ids]
-            self.df["quality"] = labels
-        self.controller.filtered_unit_ids = self.df.index.values
-        self.table.value = self.df
-        self.table.selection = []
-        self.refresh()
-        self._panel_refresh_header()
-        self.notifier.notify_active_view_updated()
-
-    def _panel_on_show_only(self, event):
-        if self.label_definitions is not None and "quality" in self.label_definitions:
-            value = event.new
-            if value == "all":
-                # Show all units
-                self.df = self.df_full
-                labels = [self.controller.get_unit_label(unit_id, category="quality") for unit_id in self.controller.unit_ids]
-                self.df["quality"] = labels
-            else:
-                # Filter out units that don't match the selected label
-                self.df = self.df.query(f"quality == '{value}'")
-            self.controller.filtered_unit_ids = self.df.index.values
-            self.table.value = self.df
-            self.table.selection = []
-            self.refresh()
-            self._panel_refresh_header()
-            self.hide_noise.value = False
-        self.notifier.notify_active_view_updated()
+    def _panel_on_only_selection(self):
+        for unit_id in self.controller.unit_visible_dict:
+            self.controller.unit_visible_dict[unit_id] = False
+        selected_unit = self.table.selection[0]
+        unit_id = self.df.index.values[selected_unit]
+        self.controller.unit_visible_dict[unit_id] = True
+        # update the visible column
+        df = self.table.value
+        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+        self.table.value = df
+        self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):
         if self.is_view_active():
@@ -664,60 +572,6 @@ class UnitListView(ViewBase):
                     self.controller.unit_visible_dict[unit_id] = True
                 self.notify_unit_visibility_changed()
                 self.refresh()
-            elif event.data == "next":
-                next_row = self._panel_get_next_row()
-                if next_row < len(self.df):
-                    next_row = self._panel_get_sorted_indices()[next_row]
-                    if next_row not in self.table.selection:
-                        self.table.selection = [next_row]
-                        self.refresh()
-            elif event.data == "previous":
-                previous_row = self._panel_get_previous_row()
-                if previous_row >= 0:
-                    previous_row = self._panel_get_sorted_indices()[previous_row]
-                    if previous_row not in self.table.selection:
-                        self.table.selection = [previous_row]
-                        self.refresh()
-            elif event.data == "next_only":
-                next_row = self._panel_get_next_row()
-                if next_row < len(self.df):
-                    next_row = self._panel_get_sorted_indices()[next_row]
-                    for unit_id in self.controller.unit_visible_dict:
-                        self.controller.unit_visible_dict[unit_id] = False
-                    unit_id = self.df.index.values[next_row]
-                    self.controller.unit_visible_dict[unit_id] = True
-                    self.table.selection = [next_row]
-                    self.notify_unit_visibility_changed()
-                    self.refresh()
-            elif event.data == "previous_only":
-                previous_row = self._panel_get_previous_row()
-                if previous_row >= 0:
-                    previous_row = self._panel_get_sorted_indices()[previous_row]
-                    for unit_id in self.controller.unit_visible_dict:
-                        self.controller.unit_visible_dict[unit_id] = False
-                    unit_id = self.df.index.values[previous_row]
-                    self.controller.unit_visible_dict[unit_id] = True
-                    self.table.selection = [previous_row]
-                    self.notify_unit_visibility_changed()
-                    self.refresh()
-            elif event.data == "append_next":
-                next_row = self._panel_get_next_row()
-                if next_row < len(self.df):
-                    next_row = self._panel_get_sorted_indices()[next_row]
-                    if next_row not in self.table.selection:
-                        self.table.selection.append(next_row)
-                    else:
-                        self.table.selection.remove(next_row - 1)
-                    self.refresh()
-            elif event.data == "append_previous":
-                previous_row = self._panel_get_previous_row()
-                if previous_row >= 0:
-                    previous_row = self._panel_get_sorted_indices()[previous_row]
-                    if previous_row not in self.table.selection:
-                        self.table.selection.append(previous_row)
-                    else:
-                        self.table.selection.remove(previous_row + 1)
-                    self.refresh()
             elif event.data == "good":
                 selected_rows = self._panel_get_selected_unit_ids()
                 if len(selected_rows) > 0:
@@ -743,29 +597,6 @@ class UnitListView(ViewBase):
                     self.df.loc[unit_ids, "quality"] = "noise"
                     self.refresh()
 
-    def _panel_get_next_row(self):
-        selected_rows = self._panel_get_selected_unit_ids()
-        if len(selected_rows) == 0:
-            next_row = 0
-        else:
-            if self.last_selected_row is not None:
-                next_row = self.last_selected_row + 1
-            else:
-                next_row = max(selected_rows) + 1
-        self.last_selected_row = next_row
-        return next_row
-
-    def _panel_get_previous_row(self):
-        selected_rows = self._panel_get_selected_unit_ids()
-        if len(selected_rows) == 0:
-            previous_row = len(self.df) - 1
-        else:
-            if self.last_selected_row is not None:
-                previous_row = self.last_selected_row - 1
-            else:
-                previous_row = min(selected_rows) - 1
-        self.last_selected_row = previous_row
-        return previous_row
 
 UnitListView._gui_help_txt = """
 ## Unit List

@@ -328,7 +328,7 @@ class PanelMainWindow:
                 # Refresh the view if it is visible
                 view.refresh()
                 # we also set the current view as the panel active
-                view.notifier.notify_active_view_updated()
+                view.notify_active_view_updated()
 
 
 

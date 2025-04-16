@@ -7,8 +7,6 @@ from .view_base import ViewBase
 from spikeinterface.postprocessing.unit_locations import possible_localization_methods
 
 
-tap_scheduled = None
-
 class ProbeView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _settings = [
@@ -499,14 +497,12 @@ class ProbeView(ViewBase):
     def _panel_update_unit_glyphs(self):
         # Prepare unit appearance data
         unit_positions = self.controller.unit_positions
-        shown_indices = np.isin(self.controller.unit_ids, self.controller.filtered_unit_ids)
-        unit_positions = unit_positions[shown_indices, :]
         colors = []
         border_colors = []
         alphas = []
         sizes = []
 
-        for unit_id in self.controller.filtered_unit_ids:
+        for unit_id in self.controller.unit_ids:
             color = self.get_unit_color(unit_id)
             is_visible = self.controller.unit_visible_dict[unit_id]
             colors.append(color)
@@ -522,7 +518,7 @@ class ProbeView(ViewBase):
             "line_color": border_colors,
             "alpha": alphas,
             "size": sizes,
-            "unit_id": [str(u) for u in self.controller.filtered_unit_ids],
+            "unit_id": [str(u) for u in self.controller.unit_ids],
         }
         self.unit_glyphs.data_source.data.update(data_source)
 
@@ -619,8 +615,6 @@ class ProbeView(ViewBase):
     def _panel_on_tap(self, event):
         x, y = event.x, event.y
         unit_positions = self.controller.unit_positions
-        shown_unit_indices = np.isin(self.controller.unit_ids, self.controller.filtered_unit_ids)
-        unit_positions = unit_positions[shown_unit_indices, :]
         distances = np.sqrt(np.sum((unit_positions - np.array([x, y])) ** 2, axis=1))
         closest_idx = np.argmin(distances)
         if event.modifiers["ctrl"]:
@@ -633,7 +627,7 @@ class ProbeView(ViewBase):
             # Get the actual unit position for better accuracy
             x = unit_positions[closest_idx, 0]
             y = unit_positions[closest_idx, 1]
-            unit_id = self.controller.filtered_unit_ids[closest_idx]
+            unit_id = self.controller.unit_ids[closest_idx]
 
             # Toggle visibility of clicked unit
             if select_only:

@@ -14,6 +14,7 @@ class CurationView(ViewBase):
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
+        self.active_table = "merge"
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
     def _qt_make_layout(self):
@@ -196,17 +197,41 @@ class CurationView(ViewBase):
         import pandas as pd
         import panel as pn
 
-        from .utils_panel import KeyboardShortcut, KeyboardShortcuts
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator
 
         pn.extension("tabulator")
 
         # Create dataframe
-        merge_df = pd.DataFrame({"Merge groups": []})
-        delete_df = pd.DataFrame({"Deleted unit ID": []})
+        merge_df = pd.DataFrame({"merge_groups": []})
+        delete_df = pd.DataFrame({"deleted_unit_id": []})
 
         # Create tables
-        self.table_merge = pn.widgets.Tabulator(merge_df, show_index=False, disabled=True, sizing_mode="stretch_width")
-        self.table_delete = pn.widgets.Tabulator(delete_df, show_index=False, disabled=True, sizing_mode="stretch_width")
+        self.table_merge = SelectableTabulator(
+            merge_df,
+            show_index=False,
+            disabled=True,
+            selectable=1,
+            sizing_mode="stretch_width",
+            # SelectableTabulator functions
+            parent_view=self,
+            # refresh_table_function=self.refresh,
+            conditional_shortcut=self._conditional_refresh_merge,
+            column_callbacks={"merge_groups": self._panel_on_merged_col},
+        )
+        self.table_delete = SelectableTabulator(
+            delete_df,
+            show_index=False,
+            disabled=True,
+            sizing_mode="stretch_width",
+            # SelectableTabulator functions
+            parent_view=self,
+            # refresh_table_function=self.refresh,
+            conditional_shortcut=self._conditional_refresh_delete,
+            column_callbacks={"deleted_unit_id": self._panel_on_deleted_col},
+        )
+
+        self.table_delete.param.watch(self._panel_update_unit_visibility, "selection")
+        self.table_merge.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
         save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary")
@@ -278,15 +303,33 @@ class CurationView(ViewBase):
             # convert to string
             group = [str(unit_id) for unit_id in group]
             merged_units_str.append(",".join(group))
-        df = pd.DataFrame({"Merged groups": np.array(merged_units_str).astype(str)})
+        df = pd.DataFrame({"merge_groups": np.array(merged_units_str).astype(str)})
         self.table_merge.value = df
         self.table_merge.selection = []
 
         ## deleted        
         removed_units = self.controller.curation_data["removed_units"]
-        df = pd.DataFrame({"Deleted Unit ID": np.array(removed_units).astype(str)})
+        df = pd.DataFrame({"deleted_unit_id": np.array(removed_units).astype(str)})
         self.table_delete.value = df
         self.table_delete.selection = []
+
+    def _panel_update_unit_visibility(self, event):
+        if self.active_table == "delete":
+            unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
+            for unit_id in self.controller.unit_visible_dict:
+                self.controller.unit_visible_dict[unit_id] = False
+            for unit_id in unit_ids:
+                self.controller.unit_visible_dict[unit_id] = True
+        elif self.active_table == "merge":
+            # the merge table has a limit of 1 selection
+            merge_group = self.table_merge.value["merge_groups"].values[self.table_merge.selection[0]]
+            unit_dtype = self.controller.unit_ids.dtype
+            merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(",")]
+            for unit_id in self.controller.unit_visible_dict:
+                self.controller.unit_visible_dict[unit_id] = False
+            for unit_id in merge_unit_ids:
+                self.controller.unit_visible_dict[unit_id] = True
+        self.notify_unit_visibility_changed()
 
     def _panel_restore_units(self, event):
         self.restore_units()
@@ -361,6 +404,28 @@ class CurationView(ViewBase):
 
         # Update the hidden div with the JavaScript code
         self.data_div.object = js_code
+
+    def _panel_on_deleted_col(self, row):
+        self.active_table = "delete"
+        self.table_merge.selection = []
+
+    def _panel_on_merged_col(self, row):
+        self.active_table = "merge"
+        self.table_delete.selection = []
+
+    def _conditional_refresh_merge(self):
+        # Check if the view is active before refreshing
+        if self.is_view_active() and self.active_table == "merge":
+            return True
+        else:
+            return False
+
+    def _conditional_refresh_delete(self):
+        # Check if the view is active before refreshing
+        if self.is_view_active() and self.active_table == "delete":
+            return True
+        else:
+            return False
 
 
 CurationView._gui_help_txt = """

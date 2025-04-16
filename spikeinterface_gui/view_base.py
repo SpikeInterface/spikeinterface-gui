@@ -48,7 +48,7 @@ class ViewBase():
     def notify_manual_curation_updated(self):
         self.notifier.notify_manual_curation_updated()
 
-    def notify_active_view_updates(self):
+    def notify_active_view_updated(self):
         # this is used for panel
         if self.backend == "panel":
             self.notifier.notify_active_view_updated()

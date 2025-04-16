@@ -257,6 +257,7 @@ class SpikeListView(ViewBase):
             disabled=True,
             pagination=None,
             # SelectableTabulator functions
+            parent_view=self,
             refresh_table_function=self._panel_refresh_table,
             conditional_shortcut=self.is_view_active,
         )
