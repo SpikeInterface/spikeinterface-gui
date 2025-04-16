@@ -12,17 +12,14 @@ from pathlib import Path
 
 import numpy as np
 
-# import logging
 
-# logger = logging.getLogger('bokeh')
-# logger.setLevel(logging.DEBUG)
-# logging.basicConfig(level=logging.DEBUG)
-
-test_folder = Path(__file__).parent / 'my_dataset'
-
+# test_folder = Path(__file__).parent / 'my_dataset_small'
+test_folder = Path(__file__).parent / 'my_dataset_big'
+# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 def setup_module():
-    make_analyzer_folder(test_folder, num_probe=1)
+    case = test_folder.stem.split('_')[-1]
+    make_analyzer_folder(test_folder, case=case)
 
 def teardown_module():
     clean_all(test_folder)
@@ -103,7 +100,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 
 if __name__ == '__main__':
 
-    # setup_module()
+    setup_module()
         
         # test_mainwindow(start_qt_app=True, verbose=False)
         # test_mainwindow(start_qt_app=True, verbose=True, only_some_extensions=True)

@@ -11,8 +11,10 @@ class SpikeAmplitudeView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _depend_on = ['spike_amplitudes']
     _settings = [
+            {'name': 'auto_decimate', 'type': 'bool', 'value' : True },
+            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 50_000 },
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
-            {'name': 'scatter_size', 'type': 'float', 'value' : 4., 'step':0.5 },
+            {'name': 'scatter_size', 'type': 'float', 'value' : 3., 'step':0.5 },
             {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
             {'name': 'noise_level', 'type': 'bool', 'value' : True },
             {'name': 'noise_factor', 'type': 'int', 'value' : 5 },
@@ -36,6 +38,11 @@ class SpikeAmplitudeView(ViewBase):
         spike_amps = self.controller.spike_amplitudes[inds]
 
         hist_count, hist_bins = np.histogram(spike_amps, bins=np.linspace(self._amp_min, self._amp_max, self.settings['num_bins']))
+
+        if self.settings['auto_decimate'] and spike_times.size > self.settings['max_spikes_per_unit']:
+            step = spike_times.size // self.settings['max_spikes_per_unit']
+            spike_times = spike_times[::step]
+            spike_amps = spike_amps[::step]
 
         return spike_times, spike_amps, hist_count, hist_bins
 

@@ -265,6 +265,13 @@ class SelectableTabulator(pn.viewable.Viewer):
     """
     A Tabulator that allows for selection of rows and cells.
 
+    This class extends the Tabulator class and adds functionality for keyboard shortcuts and click events:
+    - Keyboard shortcuts for selecting the first, last, next, and previous rows.
+    - Click events for selecting rows and cells.
+    - Double-click and ctrl-click events for selecting single rows (with callback)
+
+    Supports custom column callbacks for specific columns and conditional shortcuts.
+
     Parameters
     ----------
     *args, **kwargs
@@ -274,7 +281,7 @@ class SelectableTabulator(pn.viewable.Viewer):
     refresh_table_function: Callable | None
         A function to call when the table a new selection is made via keyboard shortcuts.
     on_only_function: Callable | None
-        A function to call when the table a ctrl+selection is made via keyboard shortcuts.
+        A function to call when the table a ctrl+selection is made via keyboard shortcuts or a double-click.
     conditional_shortcut: Callable | None
         A function that returns True if the shortcuts should be enabled, False otherwise.
     column_callbacks: dict[Callable] | None
@@ -374,6 +381,8 @@ class SelectableTabulator(pn.viewable.Viewer):
             if (time_clicked - self._last_clicked) < 0.8 and self._last_selected_row == row:
                 double_clicked = True
                 self.selection = [row]
+                if self._on_only_function is not None:
+                    self._on_only_function()
         if not double_clicked:
             current_selection = self.selection
             if row in current_selection:
