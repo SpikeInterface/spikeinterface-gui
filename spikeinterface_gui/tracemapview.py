@@ -5,7 +5,7 @@ import matplotlib.colors
 
 from .view_base import ViewBase
 
-from .traceview import MixinViewTrace
+from .traceview import MixinViewTrace, find_nearest_spike
 
 
 class TraceMapView(ViewBase, MixinViewTrace):
@@ -49,8 +49,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def auto_scale(self):
         if self.last_data_curves is not None:
             self.color_limit = np.max(np.abs(self.last_data_curves))
-            self.color_mapper.high = self.color_limit
-            self.color_mapper.low = -self.color_limit
+        self.refresh()
 
     def make_color_lut(self):
         N = 512
@@ -224,8 +223,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
-        from bokeh.models import ColumnDataSource, Range1d, HoverTool, LinearColorMapper
-        from bokeh.events import MouseWheel
+        from bokeh.models import ColumnDataSource, LinearColorMapper
+        from bokeh.events import MouseWheel, Tap
 
 
         # Initialize state
@@ -243,7 +242,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.toolbar.logo = None
 
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
-
+        self.figure.on_event(Tap, self._panel_on_tap)
 
         # Add selection line
         self.selection_line = self.figure.line(
@@ -302,8 +301,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
             sizing_mode="stretch_both"
         )
 
-        # Initial setup
-        # self.change_segment(0)
+    # TODO: if from a different unit, change unit visibility
+    def _panel_on_tap(self, event):
+        ind_spike_nearest = self.find_nearest_spike(self.controller, event.x, self.seg_index)
+        if ind_spike_nearest is not None:
+            self.controller.set_indices_spike_selected([ind_spike_nearest])
+            self._panel_seek_with_selected_spike()
+            self.notify_spike_selection_changed()
 
     def _panel_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
@@ -315,7 +319,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             seg_index = self.controller.spikes[ind]["segment_index"]
             peak_time = peak_ind / self.controller.sampling_frequency
 
-            if seg_index != self.seg_index:
+            if seg_index != self.seg_index: 
                 self._panel_change_segment(seg_index)
 
             self.xsize = self.settings['zoom_size']
@@ -330,10 +334,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
             self.refresh()
-
-    def _panel_on_xsize_changed(self, event):
-        self.xsize = event.new
-        self.refresh()
 
     def _panel_on_time_changed(self, event):
         self.time_by_seg[self.seg_index] = event.new
@@ -390,6 +390,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.color_mapper.high = self.color_mapper.high * factor
         self.color_mapper.low = -self.color_mapper.high
+
+    def _panel_auto_scale(self, event):
+        if self.last_data_curves is not None:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+            self.color_mapper.high = self.color_limit
+            self.color_mapper.low = -self.color_limit
+
 
 TraceMapView._gui_help_txt = """
 ## Trace Map View

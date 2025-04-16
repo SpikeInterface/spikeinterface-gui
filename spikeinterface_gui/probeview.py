@@ -475,14 +475,10 @@ class ProbeView(ViewBase):
             # Update circles position
             self.unit_circle.update_position(x, y)
 
-            # NOTE: we don't update the channel circle position and visible channels here because
-            # the refresh should not trigger an event
-
-            # self.channel_circle.update_position(x, y)
-            # # Update channel visibility
-            # visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
-            # self.controller.set_channel_visibility(visible_channel_inds)
-            # self.notify_channel_visibility_changed()
+            self.channel_circle.update_position(x, y)
+            # Update channel visibility
+            visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
+            self.controller.set_channel_visibility(visible_channel_inds)
 
         if self.settings['auto_zoom_on_unit_selection']:
             visible_mask = np.array(list(self.controller.unit_visible_dict.values()))

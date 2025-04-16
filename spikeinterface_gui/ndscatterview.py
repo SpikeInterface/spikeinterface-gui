@@ -303,8 +303,10 @@ class NDScatterView(ViewBase):
             self.tour_step = 0
             self.timer_tour.setInterval(int(self.settings['refresh_interval']))
             self.timer_tour.start()
+            self.auto_update_limit = False
         else:
             self.timer_tour.stop()
+            self.auto_update_limit = True
     
     def _qt_gain_zoom(self, factor):
         self.limit /= factor

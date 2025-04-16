@@ -17,14 +17,25 @@ class CurationView(ViewBase):
         self.active_table = "merge"
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-
-    def restore_unit(self):
+    # TODO: Cast unit ids to the correct type here
+    def restore_units(self):
         if self.backend == 'qt':
             unit_ids = self._qt_get_delete_table_selection()
         else:
             unit_ids = self._panel_get_delete_table_selection()
         if unit_ids is not None:
+            unit_ids = [self.controller.unit_ids.dtype.type(unit_id) for unit_id in unit_ids]
             self.controller.make_manual_restore(unit_ids)
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+    def unmerge_groups(self):
+        if self.backend == 'qt':
+            merge_indices = self._qt_get_merge_table_row()
+        else:
+            merge_indices = self._panel_get_merge_table_row()
+        if merge_indices is not None:
+            self.controller.make_manual_restore_merge(merge_indices)
             self.notify_manual_curation_updated()
             self.refresh()
 
@@ -138,26 +149,6 @@ class CurationView(ViewBase):
 
     def _qt_open_context_menu_merge(self):
         self.merge_menu.popup(self.qt_widget.cursor().pos())
-
-    def restore_units(self):
-        if self.backend == 'qt':
-            unit_ids = self._qt_get_delete_table_selection()
-        else:
-            unit_ids = self._panel_get_delete_table_selection()
-        if unit_ids is not None:
-            self.controller.make_manual_restore(unit_ids)
-            self.notify_manual_curation_updated()
-            self.refresh()
-
-    def unmerge_groups(self):
-        if self.backend == 'qt':
-            merge_indices = self._qt_get_merge_table_row()
-        else:
-            merge_indices = self._panel_get_merge_table_row()
-        if merge_indices is not None:
-            self.controller.make_manual_restore_merge(merge_indices)
-            self.notify_manual_curation_updated()
-            self.refresh()
     
     def _qt_on_item_selection_changed_merge(self):
         if len(self.table_merge.selectedIndexes()) == 0:

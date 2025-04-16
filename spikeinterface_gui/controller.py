@@ -47,7 +47,6 @@ class Controller():
 
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
-        self.unit_dtype = self.analyzer.unit_ids.dtype
         
         self.return_scaled = True
         self.save_on_compute = save_on_compute
@@ -574,7 +573,6 @@ class Controller():
 
         all_merged_units = sum(self.curation_data["merge_unit_groups"], [])
         for unit_id in removed_unit_ids:
-            unit_id = self.unit_dtype.type(unit_id)
             if unit_id in self.curation_data["removed_units"]:
                 continue
             # TODO: check if unit is already in a merge group
@@ -592,7 +590,6 @@ class Controller():
             return
 
         for unit_id in restore_unit_ids:
-            unit_id = self.unit_dtype.type(unit_id)
             if unit_id in self.curation_data["removed_units"]:
                 if self.verbose:
                     print(f"Unit {unit_id} is restored from the curation data")
@@ -615,10 +612,8 @@ class Controller():
             return False
 
         for unit_id in merge_unit_ids:
-            unit_id = self.unit_dtype.type(unit_id)
             if unit_id in self.curation_data["removed_units"]:
                 return False
-        merge_unit_ids = [self.unit_dtype.type(unit_id) for unit_id in merge_unit_ids]
         merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
         self.curation_data["merge_unit_groups"] = merged_groups
         if self.verbose:
@@ -628,9 +623,7 @@ class Controller():
     def make_manual_restore_merge(self, merge_group_indices):
         if not self.curation:
             return
-
         merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
-
         for merge_group in merge_groups_to_remove:
             if self.verbose:
                 print(f"Unmerge merge group {merge_group}")

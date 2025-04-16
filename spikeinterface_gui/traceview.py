@@ -201,24 +201,11 @@ class MixinViewTrace:
         self.time_slider.start = 0
         self.time_slider.end = t_stop
         self.time_slider.value_throttled = 0
-
-        # # Update plot ranges
-        # self.figure.x_range.start = 0
-        # self.figure.x_range.end = t_stop
-
-        # # Reset data sources
-        # self.signal_source.data.update({"xs": [], "ys": [], "channel_id": []})
-
-        # self.spike_source.data.update({"x": [], "y": [], "color": [], "unit_id": []})
-
-        # # Reset selection line
-        # self.selection_line.visible = False
-        # self.selection_line.data_source.data.update({"x": [], "y": []})
-
         self.refresh()
 
     def _panel_on_xsize_changed(self, event):
         self.xsize = event.new
+        self.settings["zoom_size"] = self.xsize
         self.refresh()
 
     def _panel_on_time_slider_changed(self, event):
@@ -352,30 +339,6 @@ class TraceView(ViewBase, MixinViewTrace):
             scatter_unit_ids.extend([str(unit_id)] * len(x))
 
         return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids
-
-
-
-    # TODO sam refactor Qt and this
-    def find_nearest_spike(self, x, segment_index, max_distance_samples=None):
-        if max_distance_samples is None:
-            max_distance_samples = self.controller.sampling_frequency // 30
-
-        ind_click = int(x * self.controller.sampling_frequency)
-        (in_seg,) = np.nonzero(self.controller.spikes["segment_index"] == segment_index)
-
-        if len(in_seg) == 0:
-            return None
-
-        nearest = np.argmin(np.abs(self.controller.spikes[in_seg]["sample_index"] - ind_click))
-        ind_spike_nearest = in_seg[nearest]
-        sample_index = self.controller.spikes[ind_spike_nearest]["sample_index"]
-
-        if np.abs(ind_click - sample_index) > max_distance_samples:
-            return None
-
-        return ind_spike_nearest
-
-
 
     ## qt ##
     def _qt_make_layout(self):
@@ -582,14 +545,13 @@ class TraceView(ViewBase, MixinViewTrace):
         self.figure.x_range = Range1d(start=t1, end=t2)
         self.figure.y_range = Range1d(start=-0.5, end=n - 0.5)
 
+    # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
-        if not hasattr(event, "x") or not hasattr(event, "y"):
-            return
-
-        ind_spike_nearest = self.find_nearest_spike(event.x, self.seg_index)
+        ind_spike_nearest = find_nearest_spike(self.controller, event.x, self.seg_index)
         if ind_spike_nearest is not None:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
-            self.seek_with_selected_spike()
+            self._panel_seek_with_selected_spike()
+            self.notify_spike_selection_changed()
 
     def _panel_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
@@ -623,6 +585,28 @@ class TraceView(ViewBase, MixinViewTrace):
     def _panel_gain_zoom(self, event):
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.apply_gain_zoom(factor)
+
+
+
+# TODO sam refactor Qt and this
+def find_nearest_spike(controller, x, segment_index, max_distance_samples=None):
+    if max_distance_samples is None:
+        max_distance_samples = controller.sampling_frequency // 30
+
+    ind_click = int(x * controller.sampling_frequency)
+    (in_seg,) = np.nonzero(controller.spikes["segment_index"] == segment_index)
+
+    if len(in_seg) == 0:
+        return None
+
+    nearest = np.argmin(np.abs(controller.spikes[in_seg]["sample_index"] - ind_click))
+    ind_spike_nearest = in_seg[nearest]
+    sample_index = controller.spikes[ind_spike_nearest]["sample_index"]
+
+    if np.abs(ind_click - sample_index) > max_distance_samples:
+        return None
+
+    return ind_spike_nearest
 
     
 TraceView._gui_help_txt = """
