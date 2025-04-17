@@ -242,7 +242,7 @@ class SpikeAmplitudeView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import ColumnDataSource, LassoSelectTool
+        from bokeh.models import ColumnDataSource, LassoSelectTool, Range1d
         from .utils_panel import _bg_color, slow_lasso
 
         self.lasso_tool = LassoSelectTool()
@@ -258,6 +258,7 @@ class SpikeAmplitudeView(ViewBase):
         self.select_toggle_button = pn.widgets.Toggle(name="Select")
         self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')        
 
+        self.y_range = Range1d(self._amp_min, self._amp_max)
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
             tools="reset,wheel_zoom",
@@ -265,6 +266,7 @@ class SpikeAmplitudeView(ViewBase):
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
+            y_range=self.y_range,
             styles={"flex": "1"}
         )
         self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
@@ -283,6 +285,7 @@ class SpikeAmplitudeView(ViewBase):
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
+            y_range=self.y_range,
             styles={"flex": "1"}  # Make histogram narrower than scatter plot
         )
         self.hist_fig.toolbar.logo = None
@@ -388,9 +391,9 @@ class SpikeAmplitudeView(ViewBase):
         # set y range to min and max of visible spike amplitudes plus a margin
         margin = 50
         all_amps = scatter_data["y"]
-        self.scatter_fig.y_range = Range1d(np.min(all_amps) - margin, np.max(all_amps) + margin)
+        self.y_range.start = np.min(all_amps) - margin
+        self.y_range.end = np.max(all_amps) + margin
         self.hist_fig.x_range = Range1d(0, max_count)
-        self.hist_fig.y_range = Range1d(np.min(all_amps) - margin, np.max(all_amps) + margin)
 
     def _panel_on_select_button(self, event):
         if self.select_toggle_button.value and len(self.controller.get_visible_unit_ids()) == 1:
