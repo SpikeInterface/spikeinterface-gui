@@ -114,7 +114,33 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     # print(qm.index)
     # print(qm.index.dtype)
     # print(sorting_analyzer.unit_ids.dtype)
-    
+
+
+def make_curation_dict(analyzer):
+    unit_ids = analyzer.unit_ids.tolist()
+    curation_dict = {
+        "unit_ids": unit_ids,
+        "label_definitions": {
+            "quality":{
+                "label_options": ["good", "noise", "MUA", "artifact"],
+                "exclusive": True,
+            }, 
+            "putative_type":{
+                "label_options": ["excitatory", "inhibitory", "pyramidal", "mitral"],
+                "exclusive": True,
+            }
+        },
+        "manual_labels": [
+            {'unit_id': unit_ids[1], "quality": ["MUA"]},
+            {'unit_id': unit_ids[2], "putative_type": ["exitatory"]},
+            {'unit_id': unit_ids[3], "quality": ["noise"], "putative_type": ["inhibitory"]},
+        ],
+        "merge_unit_groups": [unit_ids[:3], unit_ids[3:5]],
+        "removed_units": unit_ids[5:8],
+    }
+    return curation_dict
+
+
 if __name__ == '__main__':
     from pathlib import Path
 
