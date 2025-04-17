@@ -1,9 +1,6 @@
 from .basescatterview import BaseScatterView
 
 
-# TODO alessio : handle lasso
-
-
 class SpikeDepthView(BaseScatterView):
     _depend_on = ["spike_locations"]
 

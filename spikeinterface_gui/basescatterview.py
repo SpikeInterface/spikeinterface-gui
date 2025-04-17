@@ -4,9 +4,6 @@ from matplotlib.path import Path as mpl_path
 from .view_base import ViewBase
 
 
-# TODO alessio : handle lasso
-
-
 class BaseScatterView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _depend_on = None

@@ -4,9 +4,6 @@ import numpy as np
 from .basescatterview import BaseScatterView
 
 
-# TODO alessio : handle lasso
-
-
 class SpikeAmplitudeView(BaseScatterView):
     _depend_on = ["spike_amplitudes"]
     _settings = BaseScatterView._settings + [
