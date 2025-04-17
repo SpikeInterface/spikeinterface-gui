@@ -3,8 +3,6 @@ import itertools
 
 from .view_base import ViewBase
 
-from .curation_tools import adding_group
-
 
 class MergeView(ViewBase):
     _supported_backend = ['qt', 'panel']
@@ -35,7 +33,8 @@ class MergeView(ViewBase):
 
     def get_potential_merges(self):
         method = self.method
-        print(f"Computing potential merges using {method} method")
+        if self.controller.verbose:
+            print(f"Computing potential merges using {method} method")
         if method == 'similarity':
             similarity_params = self.method_params['similarity']
             similarity = self.controller.get_similarity(similarity_params['similarity_method'])
@@ -53,7 +52,8 @@ class MergeView(ViewBase):
             self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
         else:
             raise ValueError(f"Unknown method: {method}")
-        print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
+        if self.controller.verbose:
+            print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
 
     def get_table_data(self):
         """Get data for displaying in table"""
@@ -382,8 +382,19 @@ class MergeView(ViewBase):
     
 
 
-MergeView._gui_help_txt = """Merge proposal.
-Click "compute" button to select similarity or to use the `get_potential_auto_merges` function
-Click on a row to make visible a unique pair of unit.
-To accept the merge : double click one onr row  or press "m" key.
+MergeView._gui_help_txt = """
+## Merge View
+
+This view allows you to compute potential merges between units based on their similarity or using the auto merge function.
+Select the method to use for merging units.
+The available methods are:
+- similarity: Computes the similarity between units based on their features.
+- automerge: uses the auto merge function in SpikeInterface to find potential merges.
+
+
+Click "Calculate merges" to compute the potential merges. When finished, the table will be populated 
+with the potential merges.
+
+### Controls
+- **left click** : select a potential merge group.
 """

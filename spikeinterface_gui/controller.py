@@ -21,7 +21,6 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
     ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
 
 
-
 # TODO handle return_scaled
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
@@ -56,6 +55,8 @@ class Controller():
         t0 = time.perf_counter()
 
         self.num_channels = self.analyzer.get_num_channels()
+        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
+        self.unit_visible_dict[self.unit_ids[0]] = True
 
         # sparsity
         if self.analyzer.sparsity is None:
@@ -207,9 +208,8 @@ class Controller():
         self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                       shuffle=True, seed=42)
 
-        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
-        self.unit_visible_dict[self.unit_ids[0]] = True
-        
+        # at init, we set the visible channels as the sparsity of the first unit
+        self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
 
         t0 = time.perf_counter()
         
@@ -254,8 +254,6 @@ class Controller():
         t1 = time.perf_counter()
         if verbose:
             print('Gathering all spikes took', t1 - t0)
-            
-        self.visible_channel_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
 
         self._spike_visible_indices = np.array([], dtype='int64')
         self._spike_selected_indices = np.array([], dtype='int64')
@@ -295,12 +293,18 @@ class Controller():
                 self.curation_data = empty_curation_data.copy()
             else:
                 self.curation_data = curation_data
-            
+
+            self.has_default_labels = False
             if "label_definitions" not in self.curation_data:
                 if label_definitions is not None:
                     self.curation_data["label_definitions"] = label_definitions
+                    for label in label_definitions:
+                        # check if provided label is in default_label_definitions
+                        if label == "quality" and label_definitions[label] == default_label_definitions[label]:
+                            self.has_default_labels = True
                 else:
                     self.curation_data["label_definitions"] = default_label_definitions.copy()
+                    self.has_default_labels = True
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -313,12 +317,10 @@ class Controller():
                 return False
         return True
 
-
     def declare_a_view(self, new_view):
         assert new_view not in self.views, 'view already declared {}'.format(self)
         self.views.append(new_view)
         self.signal_handler.connect_view(new_view)
-
         
     @property
     def channel_ids(self):
@@ -326,7 +328,7 @@ class Controller():
 
     @property
     def unit_ids(self):
-        return self.analyzer.sorting.unit_ids
+        return self.analyzer.unit_ids
     
     def get_unit_color(self, unit_id):
         # scalar unit_id -> color html or QtColor
@@ -347,12 +349,6 @@ class Controller():
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
 
-
-    def on_unit_visibility_changed(self):
-        # hook to update also the indices on spikes
-        self.update_visible_spikes()
-        super().on_unit_visibility_changed()
-
     def get_visible_unit_ids(self):
         visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
         return visible_unit_ids
@@ -361,11 +357,14 @@ class Controller():
         visible_unit_indices = np.flatnonzero(list(self.unit_visible_dict.values()))
         return visible_unit_indices
 
+    def set_all_unit_visibility_off(self):
+        for unit_id in self.unit_ids:
+            self.unit_visible_dict[unit_id] = False
+
     def iter_visible_units(self):
         visible_unit_indices = self.get_visible_unit_indices()
         visible_unit_ids = self.unit_ids[visible_unit_indices]
         return zip(visible_unit_indices, visible_unit_ids)
-
 
     def update_visible_spikes(self):
         inds = []
@@ -486,8 +485,6 @@ class Controller():
             return self._pc_indices, self._pc_projections
         else:
             return None, None
-    
-    
 
     def get_sparsity_mask(self):
         if self.external_sparsity is not None:
@@ -508,7 +505,6 @@ class Controller():
         ext = self.analyzer.compute("template_similarity", method=method, save=self.save_on_compute)
         self._similarity_by_method[method] = ext.get_data()
         return self._similarity_by_method[method]
-
 
     def compute_unit_positions(self, method, method_kwargs):
         ext = self.analyzer.compute_one_extension('unit_locations', save=self.save_on_compute, method=method, **method_kwargs)
@@ -573,7 +569,6 @@ class Controller():
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
 
-
     def make_manual_delete_if_possible(self, removed_unit_ids):
         """
         Check if a unit_ids can be removed.
@@ -594,14 +589,14 @@ class Controller():
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
     
-    def make_manual_restore(self, restire_unit_ids):
+    def make_manual_restore(self, restore_unit_ids):
         """
         pop unit_ids from the removed_units list which is a restore.
         """
         if not self.curation:
             return
 
-        for unit_id in restire_unit_ids:
+        for unit_id in restore_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
                 if self.verbose:
                     print(f"Unit {unit_id} is restored from the curation data")
@@ -626,7 +621,6 @@ class Controller():
         for unit_id in merge_unit_ids:
             if unit_id in self.curation_data["removed_units"]:
                 return False
-
         merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
         self.curation_data["merge_unit_groups"] = merged_groups
         if self.verbose:
@@ -636,9 +630,7 @@ class Controller():
     def make_manual_restore_merge(self, merge_group_indices):
         if not self.curation:
             return
-
         merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
-
         for merge_group in merge_groups_to_remove:
             if self.verbose:
                 print(f"Unmerge merge group {merge_group}")
@@ -681,6 +673,8 @@ class Controller():
         else:
             lbl = {"unit_id": unit_id, category:[label]}
             self.curation_data["manual_labels"].append(lbl)
+        if self.verbose:
+            print(f"Set label {category} to {label} for unit {unit_id}")
 
     def remove_category_from_unit(self, unit_id, category):
         ix = self.find_unit_in_manual_labels(unit_id)
@@ -692,4 +686,5 @@ class Controller():
             if len(lbl) == 1:
                 # only unit_id in keys then no more labels, then remove then entry
                 self.curation_data["manual_labels"].pop(ix)
-
+                if self.verbose:
+                    print(f"Remove label {category} for unit {unit_id}")

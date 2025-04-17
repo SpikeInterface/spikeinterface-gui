@@ -3,7 +3,7 @@ import numpy as np
 
 default_label_definitions = {
     "quality": {
-        "label_options": ["good", "noise", "MUA", "artifact"],
+        "label_options": ["good", "noise", "MUA"],
         "exclusive": True
     },
 }

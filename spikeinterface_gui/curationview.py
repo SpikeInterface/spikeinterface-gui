@@ -1,4 +1,5 @@
 import json
+import numpy as np
 from pathlib import Path
 
 from .view_base import ViewBase
@@ -13,16 +14,28 @@ class CurationView(ViewBase):
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
+        self.active_table = "merge"
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
-
-    def restore_unit(self):
+    # TODO: Cast unit ids to the correct type here
+    def restore_units(self):
         if self.backend == 'qt':
             unit_ids = self._qt_get_delete_table_selection()
         else:
             unit_ids = self._panel_get_delete_table_selection()
         if unit_ids is not None:
+            unit_ids = [self.controller.unit_ids.dtype.type(unit_id) for unit_id in unit_ids]
             self.controller.make_manual_restore(unit_ids)
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+    def unmerge_groups(self):
+        if self.backend == 'qt':
+            merge_indices = self._qt_get_merge_table_row()
+        else:
+            merge_indices = self._panel_get_merge_table_row()
+        if merge_indices is not None:
+            self.controller.make_manual_restore_merge(merge_indices)
             self.notify_manual_curation_updated()
             self.refresh()
 
@@ -62,7 +75,7 @@ class CurationView(ViewBase):
 
         self.merge_menu = QT.QMenu()
         act = self.merge_menu.addAction('Remove merge group')
-        act.triggered.connect(self._qt_unmerge_groups)
+        act.triggered.connect(self.unmerge_groups)
 
 
         v = QT.QVBoxLayout()
@@ -78,7 +91,7 @@ class CurationView(ViewBase):
 
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')
-        act.triggered.connect(self.restore_unit)
+        act.triggered.connect(self.restore_units)
 
     def _qt_refresh(self):
         from .myqt import QT
@@ -136,16 +149,6 @@ class CurationView(ViewBase):
 
     def _qt_open_context_menu_merge(self):
         self.merge_menu.popup(self.qt_widget.cursor().pos())
-
-    def _qt_unmerge_groups(self):
-        if self.backend == 'qt':
-            merge_indices = self._qt_get_merge_table_row()
-        else:
-            merge_indices = self._panel_get_merge_table_row()
-        if merge_indices is not None:
-            self.controller.make_manual_restore_merge(merge_indices)
-            self.notify_manual_curation_updated()
-            self.refresh()
     
     def _qt_on_item_selection_changed_merge(self):
         if len(self.table_merge.selectedIndexes()) == 0:
@@ -153,9 +156,10 @@ class CurationView(ViewBase):
 
         ind = self.table_merge.selectedIndexes()[0].row()
         unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
-        for k in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[k] = False
+        self.controller.set_all_unit_visibility_off()
         for unit_id in unit_ids:
+            # convert to the correct type
+            unit_id = self.controller.unit_ids.dtype.type(unit_id)
             self.controller.unit_visible_dict[unit_id] = True
         self.notify_unit_visibility_changed()
 
@@ -164,8 +168,9 @@ class CurationView(ViewBase):
             return
         ind = self.table_delete.selectedIndexes()[0].row()
         unit_id = self.controller.curation_data["removed_units"][ind]
-        for k in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[k] = False
+        self.controller.set_all_unit_visibility_off()
+        # convert to the correct type
+        unit_id = self.controller.unit_ids.dtype.type(unit_id)
         self.controller.unit_visible_dict[unit_id] = True
         self.notify_unit_visibility_changed()
 
@@ -195,28 +200,54 @@ class CurationView(ViewBase):
     def _panel_make_layout(self):
         import pandas as pd
         import panel as pn
+
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator
+
         pn.extension("tabulator")
 
         # Create dataframe
-        merge_df = pd.DataFrame({"Merge groups": []})
-        delete_df = pd.DataFrame({"Deleted unit ID": []})
+        merge_df = pd.DataFrame({"merge_groups": []})
+        delete_df = pd.DataFrame({"deleted_unit_id": []})
 
         # Create tables
-        self.table_merge = pn.widgets.Tabulator(merge_df, show_index=False, disabled=True, sizing_mode="stretch_width")
-        self.table_delete = pn.widgets.Tabulator(delete_df, show_index=False, disabled=True, sizing_mode="stretch_width")
+        self.table_merge = SelectableTabulator(
+            merge_df,
+            show_index=False,
+            disabled=True,
+            sizing_mode="stretch_width",
+            # SelectableTabulator functions
+            parent_view=self,
+            # refresh_table_function=self.refresh,
+            conditional_shortcut=self._conditional_refresh_merge,
+            column_callbacks={"merge_groups": self._panel_on_merged_col},
+        )
+        self.table_delete = SelectableTabulator(
+            delete_df,
+            show_index=False,
+            disabled=True,
+            sizing_mode="stretch_width",
+            # SelectableTabulator functions
+            parent_view=self,
+            # refresh_table_function=self.refresh,
+            conditional_shortcut=self._conditional_refresh_delete,
+            column_callbacks={"deleted_unit_id": self._panel_on_deleted_col},
+        )
+
+        self.table_delete.param.watch(self._panel_update_unit_visibility, "selection")
+        self.table_merge.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
         save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary")
-        save_button.on_click(lambda event: self.save_in_analyzer)
+        save_button.on_click(self._panel_save_in_analyzer)
 
         self.export_path = pn.widgets.TextInput(name="Export Path", placeholder="Enter path to save JSON")
         export_button = pn.widgets.Button(name="Export JSON", button_type="primary")
-        export_button.on_click(lambda event: self._panel_export_json)
+        export_button.on_click(self._panel_export_json)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary")
-        restore_button.on_click(lambda event: self.restore_unit)
+        restore_button.on_click(self._panel_restore_units)
         remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary")
-        remove_merge_button.on_click(lambda event: self._qt_unmerge_groups)
+        remove_merge_button.on_click(self._panel_unmerge_groups)
 
         submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary")
         # Create layout
@@ -237,45 +268,84 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
         )
 
+        # shortcuts
+        shortcuts = [
+            KeyboardShortcut(name="restore", key="r", ctrlKey=True),
+            KeyboardShortcut(name="unmerge", key="u", ctrlKey=True),
+        ]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
+
         # Create main layout with proper sizing
         sections = pn.Row(self.table_merge, self.table_delete, sizing_mode="stretch_width")
-        self.layout = pn.Column(save_sections, buttons_curate, sections, sizing_mode="stretch_both")
+        self.layout = pn.Column(
+            save_sections,
+            buttons_curate,
+            sections,
+            shortcuts_component,
+            scroll=True,
+            sizing_mode="stretch_both"
+        )
 
-        # # JavaScript code to send the data to the parent window when the button is clicked
-        # TODO: fix this
-        # submit_button.js_on_click(code=
-        #     """
-        #         const raw_data = JSON.parse(JSON.stringify(arguments[0]));
-        #         const data = {
-        #             type: 'curation_data',
-        #             curation_data: raw_data
-        #         };
-        #         console.log(data); 
-        #         parent.postMessage({
-        #             type: 'panel-data',
-        #             data: data
-        #         }, '*');
-        #     """, 
-        #     args=dict(curation_data=check_json(self.controller.construct_final_curation()))
-        # )
+        # Add a custom JavaScript callback to the button that doesn't interact with Bokeh models
+        submit_button.on_click(self._panel_submit_to_parent)
+
+        # Add a hidden div to store the data
+        self.data_div = pn.pane.HTML("", width=0, height=0, margin=0, sizing_mode="fixed")
+        self.layout.append(self.data_div)
 
 
     def _panel_refresh(self):
         import pandas as pd
         # Merged
         merged_units = self.controller.curation_data["merge_unit_groups"]
-        df = pd.DataFrame({"Merged groups": merged_units})
+
+        # for visualization, we make all row entries strings
+        merged_units_str = []
+        for group in merged_units:
+            # convert to string
+            group = [str(unit_id) for unit_id in group]
+            merged_units_str.append(",".join(group))
+        df = pd.DataFrame({"merge_groups": np.array(merged_units_str).astype(str)})
         self.table_merge.value = df
         self.table_merge.selection = []
 
         ## deleted        
         removed_units = self.controller.curation_data["removed_units"]
-        df = pd.DataFrame({"Deleted Unit ID": removed_units})
+        df = pd.DataFrame({"deleted_unit_id": np.array(removed_units).astype(str)})
         self.table_delete.value = df
         self.table_delete.selection = []
 
+    def _panel_update_unit_visibility(self, event):
+        if self.active_table == "delete":
+            unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
+            self.controller.set_all_unit_visibility_off()
+            for unit_id in unit_ids:
+                # convert to the correct type
+                unit_id = self.controller.unit_ids.dtype.type(unit_id)
+                self.controller.unit_visible_dict[unit_id] = True
+        elif self.active_table == "merge":
+            merge_groups = self.table_merge.value["merge_groups"].values[self.table_merge.selection].tolist()
+            self.controller.set_all_unit_visibility_off()
+            unit_dtype = self.controller.unit_ids.dtype
+            for merge_group in merge_groups:
+                merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(",")]
+                for unit_id in merge_unit_ids:
+                    # convert to the correct type
+                    unit_id = self.controller.unit_ids.dtype.type(unit_id)
+                    self.controller.unit_visible_dict[unit_id] = True
+        self.notify_unit_visibility_changed()
 
-    def _panel_export_json(self):
+    def _panel_restore_units(self, event):
+        self.restore_units()
+
+    def _panel_unmerge_groups(self, event):
+        self.unmerge_groups()
+
+    def _panel_save_in_analyzer(self, event):
+        self.save_in_analyzer()
+
+    def _panel_export_json(self, event):
         # Get the path from the text input
         export_path = Path(self.export_path.value)
 
@@ -294,7 +364,7 @@ class CurationView(ViewBase):
         if len(selected_items) == 0:
             return None
         else:
-            return self.table_delete.value["Deleted Unit ID"].values.tolist()
+            return self.table_delete.value["deleted_unit_id"].values[selected_items].tolist()
 
     def _panel_get_merge_table_row(self):
         selected_items = self.table_merge.selection
@@ -303,10 +373,78 @@ class CurationView(ViewBase):
         else:
             return selected_items
 
+    def _panel_handle_shortcut(self, event):
+        if event.data == "restore":
+            self.restore_units()
+        elif event.data == "unmerge":
+            self.unmerge_groups()
+
+    def _panel_submit_to_parent(self, event):
+        """Send the curation data to the parent window"""
+        # Get the curation data and convert it to a JSON string
+        curation_data = json.dumps(check_json(self.controller.construct_final_curation()))
+
+        # Create a JavaScript snippet that will send the data to the parent window
+        js_code = f"""
+        <script>
+        (function() {{
+            try {{
+                const jsonData = {json.dumps(curation_data)};
+                const data = {{
+                    type: 'curation_data',
+                    curation_data: JSON.parse(jsonData)
+                }};
+                console.log('Sending data to parent:', data);
+                parent.postMessage({{
+                    type: 'panel-data',
+                    data: data
+                }}, '*');
+                console.log('Data sent successfully');
+            }} catch (error) {{
+                console.error('Error sending data to parent:', error);
+            }}
+        }})();
+        </script>
+        """
+
+        # Update the hidden div with the JavaScript code
+        self.data_div.object = js_code
+
+    def _panel_on_deleted_col(self, row):
+        self.active_table = "delete"
+        self.table_merge.selection = []
+
+    def _panel_on_merged_col(self, row):
+        self.active_table = "merge"
+        self.table_delete.selection = []
+
+    def _conditional_refresh_merge(self):
+        # Check if the view is active before refreshing
+        if self.is_view_active() and self.active_table == "merge":
+            return True
+        else:
+            return False
+
+    def _conditional_refresh_delete(self):
+        # Check if the view is active before refreshing
+        if self.is_view_active() and self.active_table == "delete":
+            return True
+        else:
+            return False
 
 
-CurationView._gui_help_txt = """Curation includes potential delete + merge
-Must export or apply to analyzer to make persistent
-Click on items to make then visible
-Right click to remove merges or restore deletions
+CurationView._gui_help_txt = """
+## Curation View
+
+The curation view shows the current status of the curation process and allows the user to manually visualize,
+revert, and export the curation data.
+
+### Controls
+- **save in analyzer**: Save the current curation state in the analyzer.
+- **export JSON**: Export the current curation state to a JSON file.
+- **restore**: Restore the selected unit from the deleted units table.
+- **unmerge**: Unmerge the selected merge group from the merged units table.
+- **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
+- **press 'ctrl+r'**: Restore the selected units from the deleted units table.
+- **press 'ctrl+u'**: Unmerge the selected merge groups from the merged units table.
 """

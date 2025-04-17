@@ -58,8 +58,7 @@ class SimilarityView(ViewBase):
         unit_id1 = unit_ids[int(np.floor(y))]
         
         if reset:
-            for unit_id in unit_ids:
-                self.controller.unit_visible_dict[unit_id] = False
+            self.controller.set_all_unit_visibility_off()
         self.controller.unit_visible_dict[unit_id0] = True
         self.controller.unit_visible_dict[unit_id1] = True
 
@@ -261,8 +260,11 @@ class SimilarityView(ViewBase):
 
 
 
-SimilarityView._gui_help_txt = """Similarity view
-Check similarity between units with user-selectable metrics
-Mouse click : make one pair of units visible.
-Mouse click + CTRL: append pair to visible units.
+SimilarityView._gui_help_txt = """
+## Similarity View
+
+This view displays the template similarity matrix between units.
+
+### Controls
+- **left click** : select a pair of units to show in the unit view.
 """

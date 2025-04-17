@@ -13,9 +13,8 @@ def clean_all(test_folder):
         if Path(folder).exists():
             shutil.rmtree(folder)
 
-def make_analyzer_folder(test_folder, case="small"):
+def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     clean_all(test_folder)
-
 
     if case ==  'small':
         num_probe = 1
@@ -90,7 +89,7 @@ def make_analyzer_folder(test_folder, case="small"):
 
         sorting = si.aggregate_units(sortings)
 
-
+    sorting = sorting.rename_units(sorting.unit_ids.astype(unit_dtype))
     
     sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
                                                   format="binary_folder",
@@ -101,7 +100,7 @@ def make_analyzer_folder(test_folder, case="small"):
     sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
     sorting_analyzer.compute("waveforms", **job_kwargs)
     sorting_analyzer.compute("templates", **job_kwargs)
-    sorting_analyzer.compute("noise_levels")
+    sorting_analyzer.compute("noise_levels", **job_kwargs)
     sorting_analyzer.compute("unit_locations")
     ext = sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1., method="numba")
     sorting_analyzer.compute("correlograms", window_ms=50., bin_ms=1.)

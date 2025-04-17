@@ -13,6 +13,7 @@ class ViewBase():
         self.controller = controller
         # this is used for panel
         self._panel_view_is_visible = True
+        self._panel_view_is_active = False
 
         if self.backend == "qt":
             # For QT the parent is the **widget**
@@ -49,6 +50,10 @@ class ViewBase():
     def notify_manual_curation_updated(self):
         self.notifier.notify_manual_curation_updated()
 
+    def notify_active_view_updated(self):
+        # this is used for panel
+        if self.backend == "panel":
+            self.notifier.notify_active_view_updated()
     
     def on_settings_changed(self, *params):
         # what to do when one settings is changed
@@ -69,6 +74,12 @@ class ViewBase():
             return self.qt_widget.isVisible()
         elif self.backend == "panel":
             return self._panel_view_is_visible
+
+    def is_view_active(self):
+        if self.backend == "qt":
+            return True
+        elif self.backend == "panel":
+            return self._panel_view_is_active
     
     def refresh(self):
         if self.controller.verbose:

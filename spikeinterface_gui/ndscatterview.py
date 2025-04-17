@@ -53,6 +53,7 @@ class NDScatterView(ViewBase):
         self.n_face = -1
 
         self.tour_step = 0
+        self.auto_update_limit = True
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
         
@@ -135,7 +136,8 @@ class NDScatterView(ViewBase):
         selected_scatter_y = projected_select[:, 1]
 
         # set new limit
-        self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
+        if len(projected) > 0 and self.auto_update_limit:
+            self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
@@ -301,8 +303,10 @@ class NDScatterView(ViewBase):
             self.tour_step = 0
             self.timer_tour.setInterval(int(self.settings['refresh_interval']))
             self.timer_tour.start()
+            self.auto_update_limit = False
         else:
             self.timer_tour.stop()
+            self.auto_update_limit = True
     
     def _qt_gain_zoom(self, factor):
         self.limit /= factor
@@ -377,14 +381,14 @@ class NDScatterView(ViewBase):
         self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
-        self.select_toggle_button = pn.widgets.Toggle(name="Select")
-        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
+        # self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        # self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
 
         # TODO: add a lasso selection
         # slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
 
         self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, sizing_mode="stretch_both",
+            self.next_face_button, self.random_button, self.random_tour_button, sizing_mode="stretch_both",
             styles={"flex": "0.15"}
         )
 
@@ -443,10 +447,12 @@ class NDScatterView(ViewBase):
         if event.new:
             self.tour_step = 0
             self.tour_timer = pn.state.add_periodic_callback(self.new_tour_step, period=self.settings['refresh_interval'])
+            self.auto_update_limit = False
         else:
             if self.tour_timer is not None:
                 self.tour_timer.stop()
                 self.tour_timer = None
+                self.auto_update_limit = True
 
     def _panel_on_select_button(self, event):
         if self.select_toggle_button.value:
@@ -479,13 +485,14 @@ def inside_poly(data, vertices):
 
 
 NDScatterView._gui_help_txt = """
-## N-dimensional scatter for the principal components
+## N-dimensional Scatter View
 
-Projects (num_chan x num_pc) into 2 dimensions.
+This view projects n-dimensional principal components (num channels x num components) of the selected units
+in a 2D sub-space.
 
 ### Controls
-- Button next face rotates the projection
-- Button random projection randomly choose a projection
-- Button random tour runs dynamic "tour" of the pcs
-- Button select toggles the lasso selection
+- **next face** : rotates the projection
+- **random** : randomly choose a projection
+- **random tour** : runs dynamic "tour" of the pcs
 """
+# - **select** : activates lasso selection
