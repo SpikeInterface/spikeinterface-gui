@@ -14,8 +14,8 @@ import spikeinterface.full as si
 from pathlib import Path
 
 
-test_folder = Path(__file__).parent / 'my_dataset_small'
-# test_folder = Path(__file__).parent / 'my_dataset_big'
+# test_folder = Path(__file__).parent / 'my_dataset_small'
+test_folder = Path(__file__).parent / 'my_dataset_big'
 # test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 
@@ -37,6 +37,7 @@ def debug_one_view():
     view = view_class(controller=controller, parent=widget, backend='qt')
     widget.set_view(view)
     widget.show()
+    view.refresh()
 
     app.exec()
 
