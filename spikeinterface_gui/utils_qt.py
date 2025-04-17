@@ -450,72 +450,106 @@ class CustomItem(QT.QTableWidgetItem):
             return self.text().lower() < other.text().lower()
 
 
-# class LabelOptionsDelegate(QT.QItemDelegate):
-#     remove_clicked = QT.pyqtSignal()
+class LabelOptionsDelegate(QT.QItemDelegate):
+    remove_clicked = QT.pyqtSignal()
 
-#     def __init__(self, label_options, parent=None):
-#         super().__init__(parent)
-#         self.label_options = label_options
-
-#     def editorEvent(self, event, model, option, index):
-#         if index.row() == index.model().rowCount() - 1 and event.type() == QT.QEvent.Type.MouseButtonPress:
-#             # Emit a signal when the button is clicked
-#             self.remove_clicked.emit()
-#             return True
-#         return super().editorEvent(event, model, option, index)
-
-#     def paint(self, painter, option, index):
-#         if index.row() == len(self.label_options) - 1:
-#             # This is the last row, draw a button
-#             button_option = QT.QStyleOptionButton()
-#             button_option.rect = option.rect
-#             button_option.text = index.data()
-#             button_option.state = QT.QStyle.State_Enabled | QT.QStyle.State_Raised
-#             QT.QApplication.style().drawControl(QT.QStyle.ControlElement.CE_PushButton,
-#                                                 button_option,
-#                                                 painter)
-#         else:
-#             super().paint(painter, option, index)
-
-
-class LabelComboBox(QT.QComboBox):
-    remove_label_clicked = QT.pyqtSignal(int, str)
-    label_changed = QT.pyqtSignal(int, str, str)
-
-    def __init__(self, unit_index, category, label_options, parent=None):
+    def __init__(self, label_options, parent=None):
         super().__init__(parent)
-        self.unit_index = unit_index
-        self.category = category
-        self._origin_labels = label_options
-        self.label_options = [''] + label_options
-        # self.label_options = label_options + ['Remove']
-        # delegate = LabelOptionsDelegate(self.label_options, self)
-        # delegate.remove_clicked.connect(self.on_remove)
-        self.currentTextChanged.connect(self.on_label_changed)
-        # self.setItemDelegate(delegate)
-        self.addItems(self.label_options)
+        self.label_options = label_options
 
-    def set_label(self, label):
-        if label is None:
-            ind = 0
-        elif label in self._origin_labels:
-            ind = self._origin_labels.index(label) + 1
+    def editorEvent(self, event, model, option, index):
+        if index.row() == index.model().rowCount() - 1 and event.type() == QT.QEvent.Type.MouseButtonPress:
+            # Emit a signal when the button is clicked
+            self.remove_clicked.emit()
+            return True
+        return super().editorEvent(event, model, option, index)
+
+    def paint(self, painter, option, index):
+        if index.row() == len(self.label_options) - 1:
+            # This is the last row, draw a button
+            button_option = QT.QStyleOptionButton()
+            button_option.rect = option.rect
+            button_option.text = index.data()
+            button_option.state = QT.QStyle.State_Enabled | QT.QStyle.State_Raised
+            QT.QApplication.style().drawControl(QT.QStyle.ControlElement.CE_PushButton,
+                                                button_option,
+                                                painter)
         else:
-            ind = 0
-        self.setCurrentIndex(ind)
+            super().paint(painter, option, index)
 
-    # def on_remove(self):
-    #     self.remove_label_clicked.emit(self.my_row, self.my_col)
+class UnitTableDelegate(QT.QItemDelegate):
+    def __init__(self, parent=None, label_definitions=None, label_columns=None):
+        super().__init__(parent)
+        self.label_definitions = label_definitions
+        self.label_columns = label_columns
 
-    def on_label_changed(self, current_label):
-        # if self.currentIndex() >= len(self._origin_labels):
-        #     return
-        # self.label_changed.emit(self.my_row, self.my_col, current_label)
+        self.label_definitions_by_cols = {}
+        for ix, (category, label_def) in enumerate(label_definitions.items()):
+            col = self.label_columns[ix]
+            self.label_definitions_by_cols[col] = category
 
-        if self.currentIndex() == 0:
-            self.remove_label_clicked.emit(self.unit_index, self.category)
+    def createEditor(self, parent, option, index):
+        col = index.column()
+        if col in self.label_definitions_by_cols:
+            category = self.label_definitions_by_cols[col]
+            label_options = [''] + self.label_definitions[category]['label_options']
+            combobox = QT.QComboBox(parent=parent)
+            combobox.addItems(label_options)
+            editor = combobox
+            return editor
         else:
-            self.label_changed.emit(self.unit_index, self.category, current_label)
+            return None
+        
+    # def paint(self, painter, option, index):
+    #     super().paint(painter, option, index)
+    
+    # def editorEvent(self, event, model, option, index):
+    #     print('editorEvent')
+    #     # return super(TableDelegate, self).editorEvent(event, model, option, index)
+    #     return super().editorEvent(event, model, option, index)
+
+
+
+
+
+# class LabelComboBox(QT.QComboBox):
+#     remove_label_clicked = QT.pyqtSignal(int, str)
+#     label_changed = QT.pyqtSignal(int, str, str)
+
+#     def __init__(self, unit_index, category, label_options, parent=None):
+#         super().__init__(parent)
+#         self.unit_index = unit_index
+#         self.category = category
+#         self._origin_labels = label_options
+#         self.label_options = [''] + label_options
+#         # self.label_options = label_options + ['Remove']
+#         # delegate = LabelOptionsDelegate(self.label_options, self)
+#         # delegate.remove_clicked.connect(self.on_remove)
+#         self.currentTextChanged.connect(self.on_label_changed)
+#         # self.setItemDelegate(delegate)
+#         self.addItems(self.label_options)
+
+#     def set_label(self, label):
+#         if label is None:
+#             ind = 0
+#         elif label in self._origin_labels:
+#             ind = self._origin_labels.index(label) + 1
+#         else:
+#             ind = 0
+#         self.setCurrentIndex(ind)
+
+#     # def on_remove(self):
+#     #     self.remove_label_clicked.emit(self.my_row, self.my_col)
+
+#     def on_label_changed(self, current_label):
+#         # if self.currentIndex() >= len(self._origin_labels):
+#         #     return
+#         # self.label_changed.emit(self.my_row, self.my_col, current_label)
+
+#         if self.currentIndex() == 0:
+#             self.remove_label_clicked.emit(self.unit_index, self.category)
+#         else:
+#             self.label_changed.emit(self.unit_index, self.category, current_label)
 
 
 
