@@ -549,10 +549,9 @@ class UnitListView(ViewBase):
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids
         n1 = len(unit_ids)
-        n2 = len(self.df)
-        n3 = sum(self.controller.unit_visible_dict.values())
-        n4 = len(self.table.selection)
-        txt = f"<b>All units</b>: {n1} - <b>shown</b>: {n2} - <b>visible</b>: {n3} - <b>selected</b>: {n4}"
+        n2 = sum(self.controller.unit_visible_dict.values())
+        n3 = len(self.table.selection)
+        txt = f"<b>All units</b>: {n1} - <b>visible</b>: {n2} - <b>selected</b>: {n3}"
         self.info_text.object = txt
 
     def _panel_select_all(self, event):
