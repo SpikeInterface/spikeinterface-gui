@@ -34,6 +34,7 @@ class CurationView(ViewBase):
             merge_indices = self._qt_get_merge_table_row()
         else:
             merge_indices = self._panel_get_merge_table_row()
+        print('merge_indices', merge_indices)
         if merge_indices is not None:
             self.controller.make_manual_restore_merge(merge_indices)
             self.notify_manual_curation_updated()
@@ -142,7 +143,7 @@ class CurationView(ViewBase):
         if len(selected_items) == 0:
             return None
         else:
-            return [s.row for s in selected_items]
+            return [s.row() for s in selected_items]
 
     def _qt_open_context_menu_delete(self):
         self.delete_menu.popup(self.qt_widget.cursor().pos())
