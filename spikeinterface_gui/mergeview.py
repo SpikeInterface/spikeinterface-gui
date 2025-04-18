@@ -185,7 +185,7 @@ class MergeView(ViewBase):
 
         but = QT.QPushButton('Calculate merges')
         self.layout.addWidget(but)
-        but.clicked.connect(self.get_potential_merges)
+        but.clicked.connect(self._qt_calculate_potential_automerge)
 
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
@@ -247,6 +247,10 @@ class MergeView(ViewBase):
         for i in range(self.table.columnCount()):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
+
+    def _qt_calculate_potential_automerge(self):
+        self.get_potential_merges()
+        self.refresh()
 
     def _qt_on_spike_selection_changed(self):
         pass
