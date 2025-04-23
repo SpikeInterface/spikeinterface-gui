@@ -570,8 +570,6 @@ class ProbeView(ViewBase):
             new_x, new_y = self.unit_circle.center
             self.update_unit_visibility(new_x, new_y, self.settings['radius_units'])
             self._panel_update_unit_glyphs()  # Update glyphs to reflect new visibility
-
-            # Notify other views
             self.notify_unit_visibility_changed()
 
         elif self.should_resize_channel_circle is not None:
@@ -601,6 +599,7 @@ class ProbeView(ViewBase):
             # Update unit visibility
             self.update_unit_visibility(x_center, y_center, self.settings['radius_units'])
             self._panel_update_unit_glyphs()
+            self.notify_unit_visibility_changed()
 
         self.should_move_channel_circle = None
         self.should_move_unit_circle = None

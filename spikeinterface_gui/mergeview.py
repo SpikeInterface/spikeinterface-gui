@@ -29,6 +29,10 @@ class MergeView(ViewBase):
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
+        if controller.has_extension("template_similarity"):
+            similarity_ext = controller.analyzer.get_extension("template_similarity")
+            similarity_method = similarity_ext.params["method"]
+            self._method_params["similarity"][1]["value"] = similarity_method
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
     def get_potential_merges(self):
@@ -285,7 +289,9 @@ class MergeView(ViewBase):
 
         # shortcuts
         shortcuts = [
-            KeyboardShortcut(name="merge", key="m", ctrlKey=False),
+            KeyboardShortcut(name="merge", key="m", ctrlKey=True),
+            KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
+            KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -338,7 +344,9 @@ class MergeView(ViewBase):
             layout="fit_data",
             show_index=False,
             hidden_columns=["group_ids"],
-            disabled=True
+            disabled=True,
+            selectable=1,
+            sortable=False
         )
 
         # Add click handler with double click detection
@@ -358,10 +366,13 @@ class MergeView(ViewBase):
     def _panel_on_click(self, event):
         # set unit visibility
         row = event.row
+        self.table.selection = [row]
+        self._panel_update_visible_pair(row)
+
+    def _panel_update_visible_pair(self, row):
         table_row = self.table.value.iloc[row]
         # set all unit visibility to False
-        for k in self.controller.unit_ids:
-            self.controller.unit_visible_dict[k] = False
+        self.controller.set_all_unit_visibility_off()
         for name, value in zip(table_row.index, table_row):
             if name.startswith("unit_id"):
                 unit_id = value["id"]
@@ -375,7 +386,14 @@ class MergeView(ViewBase):
                 group_ids = self.table.value.iloc[row].group_ids
                 self.accept_group_merge(group_ids)
             self.notify_manual_curation_updated()
-            self.refresh()
+        elif event.data == "next":
+            next_row = min(self.table.selection[0] + 1, len(self.table.value) - 1)
+            self.table.selection = [next_row]
+            self._panel_update_visible_pair(next_row)
+        elif event.data == "previous":
+            previous_row = max(self.table.selection[0] - 1, 0)
+            self.table.selection = [previous_row]
+            self._panel_update_visible_pair(previous_row)
 
     def _panel_on_spike_selection_changed(self):
         pass
