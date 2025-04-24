@@ -580,6 +580,14 @@ class UnitListView(ViewBase):
         self.table.value = df
         self.notify_unit_visibility_changed()
 
+    def _panel_on_unit_visibility_changed(self):
+        # update selection to match visible units
+        visible_units = self.controller.get_visible_unit_ids()
+        unit_ids = list(self.df.index.values)
+        rows_to_select = [unit_ids.index(unit_id) for unit_id in visible_units if unit_id in unit_ids]
+        self.table.selection = rows_to_select
+        self.refresh()
+
     def _panel_on_edit(self, event):
         column = event.column
         if self.label_definitions is not None and column in self.label_definitions:

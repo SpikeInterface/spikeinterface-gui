@@ -43,13 +43,12 @@ class SignalHandler(param.Parameterized):
         param.Parameterized.__init__(self)
         self.controller = controller
         self._active = True
-    
+
     def activate(self):
         self._active = True
 
     def deactivate(self):
         self._active = False
-        
 
     def connect_view(self, view):
         view.notifier.param.watch(self.on_spike_selection_changed, "spike_selection_changed")
@@ -82,7 +81,6 @@ class SignalHandler(param.Parameterized):
             if param.obj.view == view:
                 continue
             view.on_channel_visibility_changed()
-
 
     def on_manual_curation_updated(self, param):
         if not self._active:

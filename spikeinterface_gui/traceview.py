@@ -521,29 +521,42 @@ class TraceView(ViewBase, MixinViewTrace):
         t = self.time_by_seg[self.seg_index]
         t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
-        # TODO handle segment
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
-            self.get_data_in_chunk(t1, t2, self.seg_index)
-
         visible_channel_inds = self.get_visible_channel_inds()
-
         n = visible_channel_inds.size
-        self.signal_source.data.update({   
-            "xs": [times_chunk]*n,
-            "ys": [data_curves[i, :] for i in range(n)],
-            "channel_id": self.get_visible_channel_inds(),
-        })
 
-        self.spike_source.data.update({
-            "x": scatter_x,
-            "y": scatter_y,
-            "color": scatter_colors,
-            "unit_id": scatter_unit_ids,
-        })
+        if n == 0:
+            self.signal_source.data.update({
+                "xs": [[]],
+                "ys": [[]],
+                "channel_id": [],
+            })
+            self.spike_source.data.update({
+                "x": [],
+                "y": [],
+                "color": [],
+                "unit_id": [],
+            })
+            self.figure.x_range = Range1d(start=t1, end=t2)
+        else:
+            times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+                self.get_data_in_chunk(t1, t2, self.seg_index)
 
-        # Update plot ranges for x-axis too
-        self.figure.x_range = Range1d(start=t1, end=t2)
-        self.figure.y_range = Range1d(start=-0.5, end=n - 0.5)
+            self.signal_source.data.update({
+                "xs": [times_chunk]*n,
+                "ys": [data_curves[i, :] for i in range(n)],
+                "channel_id": self.get_visible_channel_inds(),
+            })
+
+            self.spike_source.data.update({
+                "x": scatter_x,
+                "y": scatter_y,
+                "color": scatter_colors,
+                "unit_id": scatter_unit_ids,
+            })
+
+            # Update plot ranges for x-axis too
+            self.figure.x_range = Range1d(start=t1, end=t2)
+            self.figure.y_range = Range1d(start=-0.5, end=n - 0.5)
 
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):

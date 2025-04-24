@@ -19,8 +19,8 @@ import numpy as np
 # logging.basicConfig(level=logging.DEBUG)
 
 
-# test_folder = Path(__file__).parent / 'my_dataset_small'
-test_folder = Path(__file__).parent / 'my_dataset_big'
+test_folder = Path(__file__).parent / 'my_dataset_small'
+# test_folder = Path(__file__).parent / 'my_dataset_big'
 # test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 
@@ -76,15 +76,10 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
     return win
 
+if not test_folder.is_dir():
+    setup_module()
 
+win = test_mainwindow(start_app=False, verbose=True, curation=True)
 
-
-
-if __name__ == '__main__':
-    if not test_folder.is_dir():
-        setup_module()
-    
-    win = test_mainwindow(start_app=False, verbose=True, curation=True)
-    # print("Saving to HTML")
-    # win.main_layout.save(filename=str(test_folder.parent / "panel_app.html"), embed=True)
-
+# TO RUN:
+# >>> panel serve test_mainwindow_panel.py --autoreload
