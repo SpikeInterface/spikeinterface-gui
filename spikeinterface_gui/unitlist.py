@@ -232,8 +232,8 @@ class UnitListView(ViewBase):
                     label = label if label is not None else ''
                     item = QT.QTableWidgetItem( f'{label}')
                     self.table.setItem(i, n_first + ix, item)
-            delegate = UnitTableDelegate(parent=self.table, label_definitions=label_definitions, label_columns=self.label_columns)
-            self.table.setItemDelegate(delegate)
+                delegate = UnitTableDelegate(parent=self.table, label_definitions=label_definitions, label_columns=self.label_columns)
+                self.table.setItemDelegate(delegate)
 
                 
             for m, col in enumerate(self.controller.displayed_unit_properties):
