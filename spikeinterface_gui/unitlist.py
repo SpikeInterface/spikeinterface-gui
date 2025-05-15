@@ -430,6 +430,7 @@ class UnitListView(ViewBase):
             editors=editors,
             pagination=None,
             # SelectableTabulator functions
+            skip_sort_columns=["unit_id"],
             parent_view=self,
             refresh_table_function=self.refresh,
             conditional_shortcut=self.is_view_active,
@@ -522,7 +523,7 @@ class UnitListView(ViewBase):
         self.df = self.df_full.copy()
         self.table.selection = []
         self.table.value = self.df
-        self.table.sorters = []
+        # self.table.sorters = []
         self.refresh()
         self.notifier.notify_active_view_updated()
 
@@ -530,10 +531,11 @@ class UnitListView(ViewBase):
         df = self.table.value
         visible = []
         for unit_id in df.index.values:
+            unit_is_visible = self.controller.unit_visible_dict[unit_id]
             visible.append(self.controller.unit_visible_dict.get(unit_id, False))
         df.loc[:, "visible"] = visible
 
-        table_columns = self.df.columns
+        table_columns = self.table.value.columns
 
         for table_col in table_columns:
             if table_col not in self.main_cols + self.controller.displayed_unit_properties:
@@ -576,14 +578,15 @@ class UnitListView(ViewBase):
         self.controller.unit_visible_dict[selected_unit_id] = True
         # update the visible column
         df = self.table.value
-        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+        indices = list(self.controller.unit_visible_dict.keys())
+        df.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
         self.table.value = df
         self.notify_unit_visibility_changed()
 
     def _panel_on_unit_visibility_changed(self):
         # update selection to match visible units
         visible_units = self.controller.get_visible_unit_ids()
-        unit_ids = list(self.df.index.values)
+        unit_ids = list(self.table.value.index.values)
         rows_to_select = [unit_ids.index(unit_id) for unit_id in visible_units if unit_id in unit_ids]
         self.table.selection = rows_to_select
         self.refresh()
@@ -592,8 +595,7 @@ class UnitListView(ViewBase):
         column = event.column
         if self.label_definitions is not None and column in self.label_definitions:
             row = event.row
-            unit_index = self.table._get_sorted_indices()[row]
-            unit_id = self.df.index[unit_index]
+            unit_id = self.table.value.index[row]
             new_label = event.value
             if new_label == "":
                 new_label = None
@@ -603,16 +605,18 @@ class UnitListView(ViewBase):
     def _panel_on_only_selection(self):
         self.controller.set_all_unit_visibility_off()
         selected_unit = self.table.selection[0]
-        unit_id = self.df.index.values[selected_unit]
+        unit_id = self.table.value.index.values[selected_unit]
         self.controller.unit_visible_dict[unit_id] = True
         # update the visible column
         df = self.table.value
-        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+        indices = list(self.controller.unit_visible_dict.keys())
+        visible = list(self.controller.unit_visible_dict.values())
+        df.loc[indices, "visible"] = visible
         self.table.value = df
         self.notify_unit_visibility_changed()
 
     def _panel_get_selected_unit_ids(self):
-        return self.table._get_selected_rows(sort_with_sorters=False)
+        return self.table.selection
 
     def _panel_delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
@@ -643,7 +647,7 @@ class UnitListView(ViewBase):
             elif event.data == "visible":
                 selected_rows = self._panel_get_selected_unit_ids()
                 self.controller.set_all_unit_visibility_off()
-                for unit_id in self.df.index.values[selected_rows]:
+                for unit_id in self.table.value.index.values[selected_rows]:
                     self.controller.unit_visible_dict[unit_id] = True
                 self.notify_unit_visibility_changed()
                 self.refresh()

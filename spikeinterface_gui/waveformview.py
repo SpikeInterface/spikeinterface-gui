@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import time
 
 from .view_base import ViewBase
 
@@ -297,7 +298,7 @@ class WaveformView(ViewBase):
                 itemtxt.setPos(width * i +nbefore, 0)
 
         
-        if self._x_range is None or not keep_range :
+        if self._x_range is None or not keep_range:
             if xvect.size>0:
                 self._x_range = xvect[0], xvect[-1]
                 self._y1_range = self.wf_min*1.1, self.wf_max*1.1
@@ -442,6 +443,9 @@ class WaveformView(ViewBase):
 
         from .utils_panel import _bg_color
 
+        contact_locations = self.controller.get_contact_location()
+        x = contact_locations[:, 0]
+        y = contact_locations[:, 1]
 
         self.mode_selector = pn.widgets.Select(name='mode', options=['geometry', 'flatten'])
         self.mode_selector.param.watch(self._panel_on_mode_selector_changed, "value")
@@ -461,6 +465,9 @@ class WaveformView(ViewBase):
         self.figure_geom.toolbar.active_scroll = None
         self.figure_geom.grid.visible = False
         self.figure_geom.on_event(MouseWheel, self._panel_gain_zoom)
+        self.figure_geom.x_range = Range1d(np.min(x) - 50, np.max(x) + 50)
+        self.figure_geom.y_range = Range1d(np.min(y) - 50, np.max(y) + 50)
+
         self.lines_geom = {}
 
         # figures for flatten
@@ -558,8 +565,9 @@ class WaveformView(ViewBase):
             unit_visible_dict = self.controller.unit_visible_dict
         if self.mode=='geometry':
             # zoom factor is reset
-            self.factor_x = 1.0
-            self.factor_y = .05
+            if self.settings["auto_zoom_on_unit_selection"]:
+                self.factor_x = 1.0
+                self.factor_y = .05
             self._panel_refresh_mode_geometry(unit_visible_dict, keep_range=keep_range)
         elif self.mode=='flatten':
             self._panel_refresh_mode_flatten(unit_visible_dict, keep_range=keep_range)
@@ -567,40 +575,49 @@ class WaveformView(ViewBase):
         self._panel_refresh_one_spike()
 
     def _panel_refresh_mode_geometry(self, unit_visible_dict=None, keep_range=False):
-        from bokeh.models import Range1d
         # this clear the figure
         self.figure_geom.renderers = []
         self.lines_geom = {}
         unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
+        t_stop = time.perf_counter()
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
-
-        for unit_index, (unit_id, visible) in enumerate(unit_visible_dict.items()):
-            if not visible:
-                continue
+        
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+        visible_unit_indices = self.controller.get_visible_unit_indices()
+        for unit_index, unit_id in zip(visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             
             ypos = self.contact_location[common_channel_indexes,1]
             
             wf = template_avg
             wf = wf * self.factor_y * self.delta_y + ypos[None, :]
-            
+            # downsample
             # this disconnect
             wf[0, :] = np.nan
+            # wf = wf.T
             xvect = self.xvect[common_channel_indexes, :] * self.factor_x
+            t_stop = time.perf_counter()
             
             color = self.get_unit_color(unit_id)
-            
-            source = {"x": xvect.flatten(), "y" : wf.T.flatten() }
+
+            source = {"x": xvect.flatten(), "y" : wf.T.flatten()}
             self.lines_geom[unit_id] = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=2)
+            t_stop = time.perf_counter()
+
+
+        if self.settings["plot_selected_spike"]:
+            self._panel_refresh_one_spike()
 
         if not keep_range:
-            self.figure_geom.x_range = Range1d(np.min(self.xvect) - 50, np.max(self.xvect) + 50)
-            self.figure_geom.y_range = Range1d(np.min(ypos) - 50, np.max(ypos) + 50)
+            self.figure_geom.x_range.start = np.min(self.xvect) - 50
+            self.figure_geom.x_range.end = np.max(self.xvect) + 50
+            self.figure_geom.y_range.start = np.min(ypos) - 50
+            self.figure_geom.y_range.end = np.max(ypos) + 50
 
-    def _panel_refresh_mode_flatten(self, unit_visible_dict=None):
+    def _panel_refresh_mode_flatten(self, unit_visible_dict=None, keep_range=False):
         from bokeh.models import Range1d, Span
         # this clear the figure
         self.figure_avg.renderers = []
@@ -634,6 +651,9 @@ class WaveformView(ViewBase):
                 vline = Span(location=(ch + 1) * nsamples, dimension='height', line_color='grey', line_width=1, line_dash='dashed')
                 self.figure_avg.add_layout(vline)
                 self.figure_std.add_layout(vline)
+
+        if self.settings["plot_selected_spike"]:
+            self._panel_refresh_one_spike()
 
         self.shared_x_range = Range1d(start=0, end=x[-1])
         self.figure_avg.x_range = self.shared_x_range

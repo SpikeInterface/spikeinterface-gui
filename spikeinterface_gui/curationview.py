@@ -214,6 +214,7 @@ class CurationView(ViewBase):
             merge_df,
             show_index=False,
             disabled=True,
+            sortable=False,
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
@@ -225,6 +226,7 @@ class CurationView(ViewBase):
             delete_df,
             show_index=False,
             disabled=True,
+            sortable=False,
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,

@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib.path import Path as mpl_path
+import time
 
 from .view_base import ViewBase
 
@@ -16,7 +17,7 @@ class SpikeAmplitudeView(ViewBase):
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
             {'name': 'scatter_size', 'type': 'float', 'value' : 3., 'step':0.5 },
             {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
-            {'name': 'noise_level', 'type': 'bool', 'value' : True },
+            {'name': 'noise_level', 'type': 'bool', 'value' : False },
             {'name': 'noise_factor', 'type': 'int', 'value' : 5 },
         ]
     _need_compute = False
@@ -313,6 +314,25 @@ class SpikeAmplitudeView(ViewBase):
         self.noise_harea = []
         self.plotted_inds = []
 
+        if self.settings['noise_level']:
+            noise = np.mean(self.controller.noise_levels)
+            n = self.settings['noise_factor']
+            alpha_factor = 50 / n
+            for i in range(1, n + 1):
+                h = self.hist_fig.harea(
+                    y="y",
+                    x1="x1",
+                    x2="x2",
+                    source={
+                        "y": [-i * noise, i * noise],
+                        "x1": [0, 0],
+                        "x2": [10_000, 10_000],
+                    },
+                    alpha=int(i * alpha_factor) / 255,  # Match Qt alpha scaling
+                    color="lightgray",
+                )
+                self.noise_harea.append(h)
+
     def _panel_refresh(self):
         from bokeh.models import ColumnDataSource, Range1d
 
@@ -321,7 +341,6 @@ class SpikeAmplitudeView(ViewBase):
         self.scatter_fig.renderers = []
         self.scatter = None
         self.hist_lines = {}
-        self.noise_harea = []
         self.plotted_inds = []
 
         max_count = 1
@@ -365,25 +384,11 @@ class SpikeAmplitudeView(ViewBase):
         # handle selected spikes
         self._panel_update_selected_spikes()
 
-        if self.settings['noise_level']:
-            noise = np.mean(self.controller.noise_levels)
-            n = self.settings['noise_factor']
-            alpha_factor = 50 / n
-            for i in range(1, n + 1):
-                
-                h = self.hist_fig.harea(
-                    y="y",
-                    x1="x1",
-                    x2="x2",
-                    source={
-                        "y": [-i * noise, i * noise],
-                        "x1": [0, 0],
-                        "x2": [max_count, max_count],
-                    },
-                    alpha=int(i * alpha_factor) / 255,  # Match Qt alpha scaling
-                    color="lightgray",
-                )
-                self.noise_harea.append(h)
+        # update noise area
+        if self.settings['noise_level'] and len(self.noise_harea) == 0:
+            self._panel_add_noise_area()
+        else:
+            self.noise_harea = []
 
         # Set axis ranges
         time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
@@ -394,6 +399,26 @@ class SpikeAmplitudeView(ViewBase):
         self.y_range.start = np.min(all_amps) - margin
         self.y_range.end = np.max(all_amps) + margin
         self.hist_fig.x_range = Range1d(0, max_count)
+
+    def _panel_add_noise_area(self):
+        self.noise_harea = []
+        noise = np.mean(self.controller.noise_levels)
+        n = self.settings['noise_factor']
+        alpha_factor = 50 / n
+        for i in range(1, n + 1):
+            h = self.hist_fig.harea(
+                y="y",
+                x1="x1",
+                x2="x2",
+                source={
+                    "y": [-i * noise, i * noise],
+                    "x1": [0, 0],
+                    "x2": [10_000, 10_000],
+                },
+                alpha=int(i * alpha_factor) / 255,  # Match Qt alpha scaling
+                color="lightgray",
+            )
+            self.noise_harea.append(h)
 
     def _panel_on_select_button(self, event):
         if self.select_toggle_button.value and len(self.controller.get_visible_unit_ids()) == 1:
