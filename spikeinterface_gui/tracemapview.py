@@ -223,7 +223,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
-        from bokeh.models import ColumnDataSource, LinearColorMapper
+        from bokeh.models import ColumnDataSource, LinearColorMapper, Range1d
         from bokeh.events import MouseWheel, Tap
 
 
@@ -262,6 +262,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.xaxis.major_label_text_color = "white"
         self.figure.xaxis.major_tick_line_color = "white"
         self.figure.yaxis.visible = False
+        self.figure.x_range = Range1d(start=0, end=0.5)
+        self.figure.y_range = Range1d(start=0, end=1)
 
 
         # Add data sources
@@ -300,6 +302,46 @@ class TraceMapView(ViewBase, MixinViewTrace):
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both"
         )
+
+    def _panel_refresh(self):
+
+        t = self.time_by_seg[self.seg_index]
+        t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
+
+        if self.last_data_curves is None:
+            auto_scale = True
+        else:
+            auto_scale = False
+
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+            self.get_data_in_chunk(t1, t2, self.seg_index)
+
+        if self.color_limit is None:
+            self.color_limit = np.max(np.abs(data_curves))
+
+        self.image_source.data.update({
+            "image": [data_curves.T],
+            "x": [times_chunk[0]],
+            "y": [0],
+            "dw": [times_chunk[-1] - times_chunk[0]],
+            "dh": [data_curves.shape[1]]
+        })
+
+        self.spike_source.data.update({
+            "x": scatter_x,
+            "y": scatter_y,
+            "color": scatter_colors,
+            "unit_id": scatter_unit_ids,
+        })
+
+        if auto_scale:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+            self.color_mapper.high = self.color_limit
+            self.color_mapper.low = -self.color_limit
+
+        self.figure.x_range.start = t1
+        self.figure.x_range.end = t2
+        self.figure.y_range.end = data_curves.shape[1]
 
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
@@ -345,46 +387,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()
-
-    def _panel_refresh(self):
-        from bokeh.models import Range1d
-
-        t = self.time_by_seg[self.seg_index]
-        t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
-
-        if self.last_data_curves is None:
-            auto_scale = True
-        else:
-            auto_scale = False
-
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
-            self.get_data_in_chunk(t1, t2, self.seg_index)
-
-        if self.color_limit is None:
-            self.color_limit = np.max(np.abs(data_curves))
-
-        self.image_source.data.update({
-            "image": [data_curves.T],
-            "x": [times_chunk[0]],
-            "y": [0],
-            "dw": [times_chunk[-1] - times_chunk[0]],
-            "dh": [data_curves.shape[1]]
-        })
-
-        self.spike_source.data.update({
-            "x": scatter_x,
-            "y": scatter_y,
-            "color": scatter_colors,
-            "unit_id": scatter_unit_ids,
-        })
-
-        if auto_scale:
-            self.color_limit = np.max(np.abs(self.last_data_curves))
-            self.color_mapper.high = self.color_limit
-            self.color_mapper.low = -self.color_limit
-
-        self.figure.x_range = Range1d(start=t1, end=t2)
-        self.figure.y_range = Range1d(start=0, end=data_curves.shape[1])
 
     def _panel_gain_zoom(self, event):
         factor = 1.3 if event.delta > 0 else 1 / 1.3

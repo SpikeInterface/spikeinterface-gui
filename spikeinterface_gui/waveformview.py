@@ -618,7 +618,7 @@ class WaveformView(ViewBase):
             self.figure_geom.y_range.end = np.max(ypos) + 50
 
     def _panel_refresh_mode_flatten(self, unit_visible_dict=None, keep_range=False):
-        from bokeh.models import Range1d, Span
+        from bokeh.models import Span
         # this clear the figure
         self.figure_avg.renderers = []
         self.figure_std.renderers = []
@@ -655,7 +655,7 @@ class WaveformView(ViewBase):
         if self.settings["plot_selected_spike"]:
             self._panel_refresh_one_spike()
 
-        self.shared_x_range = Range1d(start=0, end=x[-1])
+        self.shared_x_range.end = x[-1]
         self.figure_avg.x_range = self.shared_x_range
         self.figure_std.x_range = self.shared_x_range
 

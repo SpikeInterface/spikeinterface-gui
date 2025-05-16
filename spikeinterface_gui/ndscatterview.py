@@ -36,9 +36,7 @@ class NDScatterView(ViewBase):
 
         ndim = self.data.shape[1]
         self.selected_comp = np.ones((ndim), dtype='bool')
-        self.projection = np.zeros( (ndim, 2))
-        self.projection[0,0] = 1.
-        self.projection[1,1] = 1.
+        self.projection = self.get_one_random_projection()
 
         #estimate limts
         data = self.data
@@ -46,8 +44,8 @@ class NDScatterView(ViewBase):
             inds = np.random.choice(data.shape[0], 1000, replace=False)
             data = data[inds, :]
         projected = self.apply_dot(data)
-        self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
-        self.limit = max(self.limit, 1.0)
+        projected_2d = projected[:, :2]
+        self.limit = float(np.percentile(np.abs(projected_2d), 95) * 2.)
 
         self.hyper_faces = list(itertools.permutations(range(ndim), 2))
         self.n_face = -1
@@ -137,7 +135,8 @@ class NDScatterView(ViewBase):
 
         # set new limit
         if len(projected) > 0 and self.auto_update_limit:
-            self.limit = float(np.percentile(np.abs(projected), 95) * 2.)
+            projected_2d = projected[:, :2]
+            self.limit = float(np.percentile(np.abs(projected_2d), 95) * 2.)
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
@@ -339,7 +338,7 @@ class NDScatterView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import ColumnDataSource, LassoSelectTool
+        from bokeh.models import ColumnDataSource, LassoSelectTool, Range1d
         from bokeh.events import MouseWheel
 
         from .utils_panel import _bg_color, slow_lasso
@@ -360,6 +359,8 @@ class NDScatterView(ViewBase):
         self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xgrid.grid_line_color = None
         self.scatter_fig.ygrid.grid_line_color = None
+        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
+        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
         
         # remove the bokeh mousewheel zoom and keep only this one
         self.scatter_fig.on_event(MouseWheel, self._panel_gain_zoom)
@@ -402,7 +403,6 @@ class NDScatterView(ViewBase):
         self.tour_timer = None
 
     def _panel_refresh(self):
-        from bokeh.models import Range1d
         scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
 
         # format rgba
@@ -424,17 +424,20 @@ class NDScatterView(ViewBase):
         # selected_indices = np.flatnonzero(mask)
         # self.scatter_source.selected.indices = selected_indices.tolist()
 
-        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
-        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
-
+        self.scatter_fig.x_range.start = -self.limit
+        self.scatter_fig.x_range.end = self.limit
+        self.scatter_fig.y_range.start = -self.limit
+        self.scatter_fig.y_range.end = self.limit
 
     def _panel_gain_zoom(self, event):
         from bokeh.models import Range1d
 
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.limit /= factor
-        self.scatter_fig.x_range = Range1d(-self.limit, self.limit)
-        self.scatter_fig.y_range = Range1d(-self.limit, self.limit)
+        self.scatter_fig.x_range.start = -self.limit
+        self.scatter_fig.x_range.end = self.limit
+        self.scatter_fig.y_range.start = -self.limit
+        self.scatter_fig.y_range.end = self.limit
 
     def _panel_next_face(self, event):
         self.next_face()

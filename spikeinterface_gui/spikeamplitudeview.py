@@ -1,6 +1,5 @@
 import numpy as np
 from matplotlib.path import Path as mpl_path
-import time
 
 from .view_base import ViewBase
 
@@ -13,11 +12,11 @@ class SpikeAmplitudeView(ViewBase):
     _depend_on = ['spike_amplitudes']
     _settings = [
             {'name': 'auto_decimate', 'type': 'bool', 'value' : True },
-            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 50_000 },
+            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 5_000 },
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
-            {'name': 'scatter_size', 'type': 'float', 'value' : 3., 'step':0.5 },
+            {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5 },
             {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
-            {'name': 'noise_level', 'type': 'bool', 'value' : False },
+            {'name': 'noise_level', 'type': 'bool', 'value' : True },
             {'name': 'noise_factor', 'type': 'int', 'value' : 5 },
         ]
     _need_compute = False
@@ -29,6 +28,9 @@ class SpikeAmplitudeView(ViewBase):
         self._amp_max = np.max(controller.spike_amplitudes)
         eps = (self._amp_max - self._amp_min) / 100.0
         self._amp_max += eps
+        # set noise level to False by default in panel
+        if backend == 'panel':
+            SpikeAmplitudeView._settings[5]['value'] = False
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
@@ -246,6 +248,7 @@ class SpikeAmplitudeView(ViewBase):
         from bokeh.models import ColumnDataSource, LassoSelectTool, Range1d
         from .utils_panel import _bg_color, slow_lasso
 
+
         self.lasso_tool = LassoSelectTool()
 
         self.segment_index = 0
@@ -260,6 +263,7 @@ class SpikeAmplitudeView(ViewBase):
         self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')        
 
         self.y_range = Range1d(self._amp_min, self._amp_max)
+        self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
             tools="reset,wheel_zoom",
@@ -270,13 +274,22 @@ class SpikeAmplitudeView(ViewBase):
             y_range=self.y_range,
             styles={"flex": "1"}
         )
-        self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
+        self.scatter = self.scatter_fig.scatter(
+            "x",
+            "y",
+            source=self.scatter_source,
+            size=self.settings['scatter_size'],
+            color="color",
+            fill_alpha=self.settings['alpha'],
+        )
         
         self.scatter_fig.toolbar.logo = None
         self.scatter_fig.add_tools(self.lasso_tool)
         self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = "Amplitude"
+        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
+        self.scatter_fig.x_range = Range1d(0., time_max)
 
         slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
 
@@ -292,6 +305,7 @@ class SpikeAmplitudeView(ViewBase):
         self.hist_fig.toolbar.logo = None
         self.hist_fig.yaxis.axis_label = "Amplitude"
         self.hist_fig.xaxis.axis_label = "Count"
+        self.hist_fig.x_range = Range1d(0, 1000)
 
         self.layout = pn.Column(
             pn.Row(self.segment_selector, self.select_toggle_button, sizing_mode="stretch_width"),
@@ -309,8 +323,7 @@ class SpikeAmplitudeView(ViewBase):
             )
         )
 
-        self.scatter = None
-        self.hist_lines = {}
+        self.hist_lines = []
         self.noise_harea = []
         self.plotted_inds = []
 
@@ -334,30 +347,35 @@ class SpikeAmplitudeView(ViewBase):
                 self.noise_harea.append(h)
 
     def _panel_refresh(self):
-        from bokeh.models import ColumnDataSource, Range1d
+        from bokeh.models import ColumnDataSource
 
         # clear figures
-        self.hist_fig.renderers = []
-        self.scatter_fig.renderers = []
-        self.scatter = None
-        self.hist_lines = {}
+        for renderer in self.hist_fig.renderers:
+            if renderer not in self.noise_harea:
+                self.hist_fig.renderers.remove(renderer)
+        self.hist_lines = []
         self.plotted_inds = []
 
         max_count = 1
-        scatter_data = {"x": [], "y": [], "color": []}
-        for unit_id in self.controller.unit_ids:
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+        xs = []
+        ys = []
+        colors = []
+
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+        for unit_id in visible_unit_ids:
             spike_times, spike_amps, hist_count, hist_bins, inds = self.get_unit_data(
                 unit_id,
                 seg_index=self.segment_index
             )
             color = self.get_unit_color(unit_id)
-            scatter_data["x"].extend(spike_times)
-            scatter_data["y"].extend(spike_amps)
-            scatter_data["color"].extend([color] * len(spike_times))
 
-            self.hist_lines[unit_id] = self.hist_fig.line(
+            xs.extend(spike_times)
+            ys.extend(spike_amps)
+            colors.extend([color] * len(spike_times))
+            max_count = max(max_count, np.max(hist_count))
+            self.plotted_inds.extend(inds)
+
+            hist_lines = self.hist_fig.line(
                 "x",
                 "y",
                 source=ColumnDataSource(
@@ -368,19 +386,17 @@ class SpikeAmplitudeView(ViewBase):
                 line_color=color,
                 line_width=2,
             )
-            max_count = max(max_count, np.max(hist_count))
-            self.plotted_inds.extend(inds)
+            self.hist_lines.append(hist_lines)
 
         # Add scatter plot with correct alpha parameter
-        self.scatter_source.data.update(scatter_data)
-        self.scatter = self.scatter_fig.scatter(
-            "x",
-            "y",
-            source=self.scatter_source,
-            size=self.settings['scatter_size'],
-            color="color",
-            fill_alpha=self.settings['alpha'],
-        )
+        self.scatter_source.data = {
+            "x": xs,
+            "y": ys,
+            "color": colors
+        }
+        self.scatter.glyph.size = self.settings['scatter_size']
+        self.scatter.glyph.fill_alpha = self.settings['alpha']
+
         # handle selected spikes
         self._panel_update_selected_spikes()
 
@@ -390,15 +406,13 @@ class SpikeAmplitudeView(ViewBase):
         else:
             self.noise_harea = []
 
-        # Set axis ranges
-        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
-        self.scatter_fig.x_range = Range1d(0., time_max)
         # set y range to min and max of visible spike amplitudes plus a margin
         margin = 50
-        all_amps = scatter_data["y"]
-        self.y_range.start = np.min(all_amps) - margin
-        self.y_range.end = np.max(all_amps) + margin
-        self.hist_fig.x_range = Range1d(0, max_count)
+        all_amps = ys
+        if len(all_amps) > 0:
+            self.y_range.start = np.min(all_amps) - margin
+            self.y_range.end = np.max(all_amps) + margin
+            self.hist_fig.x_range.end = max_count
 
     def _panel_add_noise_area(self):
         self.noise_harea = []
@@ -430,6 +444,8 @@ class SpikeAmplitudeView(ViewBase):
 
     def _panel_change_segment(self, event):
         self.segment_index = int(self.segment_selector.value.split()[-1])
+        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
+        self.scatter_fig.x_range.end = time_max
         self.refresh()
 
     def _on_panel_lasso_selected(self, attr, old, new):

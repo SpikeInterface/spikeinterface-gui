@@ -638,7 +638,7 @@ class Controller():
         merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
         for merge_group in merge_groups_to_remove:
             if self.verbose:
-                print(f"Unmerge merge group {merge_group}")
+                print(f"Unmerged merge group {merge_group}")
             self.curation_data["merge_unit_groups"].remove(merge_group)
 
     def get_curation_label_definitions(self):

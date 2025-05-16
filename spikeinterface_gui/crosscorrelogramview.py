@@ -109,11 +109,6 @@ class CrossCorrelogramView(ViewBase):
         from .utils_panel import _bg_color, insert_warning, clear_warning
 
         # clear previous plot
-        # TODO alessio : figth to remove the "WARNING:root:Dropping a patch because it contains a previously"
-        for full_row in self.plots:
-            for plot in full_row:
-                if plot is not None:
-                    plot.renderers = []
         self.plots = []
 
         if self.ccg is None:
@@ -164,7 +159,6 @@ class CrossCorrelogramView(ViewBase):
                 else:
                     color = "lightgray"
                     fill_alpha = 0.4
-
 
                 p.quad(
                     top=count,

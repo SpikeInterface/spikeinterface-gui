@@ -404,6 +404,17 @@ class SelectableTabulator(pn.viewable.Viewer):
     def __panel__(self):
         return self._layout
 
+    def reset(self):
+        """
+        Reset the table to its original state.
+        """
+        self.tabulator.value = self._original_value
+        self.tabulator.selection = []
+        self._last_selected_row = None
+        self._last_clicked = None
+        self.tabulator.sorters = []
+        self.selection = []
+
     def _on_sort_change(self, event):
         """
         Handle the sort change event. This is called when the sort dropdown is changed.
@@ -437,7 +448,6 @@ class SelectableTabulator(pn.viewable.Viewer):
             if (time_clicked - self._last_clicked) < 0.8 and self._last_selected_row == row:
                 double_clicked = True
                 self.selection = [row]
-                print(f"Double clicked on row {row} - {self.selection}")
                 if self._on_only_function is not None:
                     self._on_only_function()
         if not double_clicked:

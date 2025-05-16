@@ -1,5 +1,5 @@
+from fileinput import filename
 import json
-import numpy as np
 from pathlib import Path
 
 from .view_base import ViewBase
@@ -191,7 +191,6 @@ class CurationView(ViewBase):
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
-            # print(json_file)
             with json_file.open("w") as f:
                 curation_dict = check_json(self.controller.construct_final_curation())
                 json.dump(curation_dict, f, indent=4)
@@ -215,6 +214,7 @@ class CurationView(ViewBase):
             show_index=False,
             disabled=True,
             sortable=False,
+            formatters={"merge_groups": "plaintext"},
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
@@ -227,6 +227,7 @@ class CurationView(ViewBase):
             show_index=False,
             disabled=True,
             sortable=False,
+            formatters={"deleted_unit_id": "plaintext"},
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
@@ -239,29 +240,49 @@ class CurationView(ViewBase):
         self.table_merge.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
-        save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary")
+        save_button = pn.widgets.Button(
+            name="Save in analyzer",
+            button_type="primary",
+            height=30
+        )
         save_button.on_click(self._panel_save_in_analyzer)
 
-        self.export_path = pn.widgets.TextInput(name="Export Path", placeholder="Enter path to save JSON")
-        export_button = pn.widgets.Button(name="Export JSON", button_type="primary")
-        export_button.on_click(self._panel_export_json)
+        download_button = pn.widgets.FileDownload(
+            button_type="primary",
+            filename="curation.json",
+            callback=self._panel_generate_json,
+            height=30
+        )
 
-        restore_button = pn.widgets.Button(name="Restore", button_type="primary")
+        restore_button = pn.widgets.Button(
+            name="Restore",
+            button_type="primary",
+            height=30
+        )
         restore_button.on_click(self._panel_restore_units)
-        remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary")
+
+        remove_merge_button = pn.widgets.Button(
+            name="Unmerge",
+            button_type="primary",
+            height=30
+        )
         remove_merge_button.on_click(self._panel_unmerge_groups)
 
-        submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary")
+        submit_button = pn.widgets.Button(
+            name="Submit to parent", 
+            button_type="primary",
+            height=30
+        )
+
         # Create layout
         buttons_save = pn.Row(
             save_button,
-            export_button,
+            download_button,
             submit_button,
             sizing_mode="stretch_width",
         )
         save_sections = pn.Column(
             buttons_save,
-            self.export_path,
             sizing_mode="stretch_width",
         )
         buttons_curate = pn.Row(
@@ -307,14 +328,15 @@ class CurationView(ViewBase):
         for group in merged_units:
             # convert to string
             group = [str(unit_id) for unit_id in group]
-            merged_units_str.append(",".join(group))
-        df = pd.DataFrame({"merge_groups": np.array(merged_units_str).astype(str)})
+            merged_units_str.append(" - ".join(group))
+        df = pd.DataFrame({"merge_groups": merged_units_str})
         self.table_merge.value = df
         self.table_merge.selection = []
 
         ## deleted        
         removed_units = self.controller.curation_data["removed_units"]
-        df = pd.DataFrame({"deleted_unit_id": np.array(removed_units).astype(str)})
+        removed_units = [str(unit_id) for unit_id in removed_units]
+        df = pd.DataFrame({"deleted_unit_id": removed_units})
         self.table_delete.value = df
         self.table_delete.selection = []
 
@@ -331,7 +353,7 @@ class CurationView(ViewBase):
             self.controller.set_all_unit_visibility_off()
             unit_dtype = self.controller.unit_ids.dtype
             for merge_group in merge_groups:
-                merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(",")]
+                merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(" - ")]
                 for unit_id in merge_unit_ids:
                     # convert to the correct type
                     unit_id = self.controller.unit_ids.dtype.type(unit_id)
@@ -347,19 +369,16 @@ class CurationView(ViewBase):
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()
 
-    def _panel_export_json(self, event):
+    def _panel_generate_json(self):
         # Get the path from the text input
-        export_path = Path(self.export_path.value)
-
-        # Check if the path is valid
-        if not export_path.suffix == ".json":
-            export_path += export_path.parent / f"{export_path.name}.json"
-
+        export_path = "curation.json"
         # Save the JSON file
         curation_dict = check_json(self.controller.construct_final_curation())
 
         with open(export_path, "w") as f:
             json.dump(curation_dict, f, indent=4)
+
+        return export_path
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection
