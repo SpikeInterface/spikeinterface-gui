@@ -1,4 +1,3 @@
-from fileinput import filename
 import json
 from pathlib import Path
 
