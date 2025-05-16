@@ -1,6 +1,5 @@
 import time
 import numpy as np
-import time
 
 from .view_base import ViewBase
 
@@ -594,10 +593,8 @@ class WaveformView(ViewBase):
             
             wf = template_avg
             wf = wf * self.factor_y * self.delta_y + ypos[None, :]
-            # downsample
             # this disconnect
             wf[0, :] = np.nan
-            # wf = wf.T
             xvect = self.xvect[common_channel_indexes, :] * self.factor_x
             t_stop = time.perf_counter()
             
