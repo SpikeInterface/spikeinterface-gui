@@ -23,9 +23,9 @@ class TraceMapView(ViewBase, MixinViewTrace):
     ]
 
 
-    def __init__(self, controller=None, parent=None, backend="qt"):
+    def __init__(self, controller=None, parent=None, backend="qt", sync_view=None):
 
-        self.time_by_seg = np.array([0.]*controller.num_segments, dtype='float64')
+        self.time_by_seg = np.array([0.0] * controller.num_segments, dtype="float64")
         self.seg_index = 0
         self.xsize = 0.5
         pos = controller.get_contact_location()
@@ -34,8 +34,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.color_limit = None
         self.last_data_curves = None
 
-        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        make_layout_kwargs = {'sync_view': sync_view} if sync_view is not None else {}
+
+        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend, **make_layout_kwargs)
         MixinViewTrace.__init__(self)
+
+        if sync_view is not None:
+            print("Syncing existing trace/tracemap view")
+            self.toolbar = sync_view.toolbar
+            self.time_slider = sync_view.time_slider
+            self.time_by_seg = sync_view.time_by_seg
+            self.seg_index = sync_view.seg_index
 
         self.make_color_lut()
 
@@ -122,7 +131,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
 
     ## Qt ##
-    def _qt_make_layout(self):
+    def _qt_make_layout(self, **kargs):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -148,8 +157,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         g.addWidget(self.scroll_time, 1,1)
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
-        #handle time by segments
-        self.time_by_seg = np.array([0.]*self.controller.num_segments, dtype='float64')
 
         # self.on_params_changed(do_refresh=False)
         #this do refresh
@@ -219,16 +226,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
 
     ## Panel ##
-    def _panel_make_layout(self):
+    def _panel_make_layout(self, sync_view=None):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, LinearColorMapper, Range1d
         from bokeh.events import MouseWheel, Tap
 
-
-        # Initialize state
-        self.time_by_seg = np.array([0.0] * self.controller.num_segments, dtype="float64")
 
         # Create figure
         self.figure = bpl.figure(
@@ -288,8 +292,11 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
 
+        if sync_view is None:
+            self._panel_create_toolbar()
+        else:
+            self._panel_sync_controls(sync_view)
 
-        MixinViewTrace._panel_create_toolbar(self)
 
         self.layout = pn.Column(
             pn.Column(  # Main content area

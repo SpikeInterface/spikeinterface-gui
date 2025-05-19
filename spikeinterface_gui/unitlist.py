@@ -434,7 +434,7 @@ class UnitListView(ViewBase):
             refresh_table_function=self.refresh,
             conditional_shortcut=self.is_view_active,
             on_only_function=self._panel_on_only_selection,
-            column_callbacks={"visible": self._panel_on_visible_changed},
+            column_callbacks={"visible": self._panel_on_visible_checkbox_toggled},
         )
 
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
@@ -566,15 +566,16 @@ class UnitListView(ViewBase):
         self._panel_merge_units()
         self.notifier.notify_active_view_updated()
 
-    def _panel_on_visible_changed(self, row):
-        unit_ids = self.table.index.values
+    def _panel_on_visible_checkbox_toggled(self, row):
+        print("checkbox toggled on row", row)
+        unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
-        self.controller.unit_visible_dict[selected_unit_id] = True
+        self.controller.unit_visible_dict[selected_unit_id] = not self.controller.unit_visible_dict[selected_unit_id]
+        print(f"Setting visibility of unit {selected_unit_id} to {self.controller.unit_visible_dict[selected_unit_id]}")
         # update the visible column
-        df = self.table.value
         indices = list(self.controller.unit_visible_dict.keys())
-        df.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
-        self.table.value = df
+        self.table.value.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
+        self.refresh()
         self.notify_unit_visibility_changed()
 
     def _panel_on_unit_visibility_changed(self):

@@ -306,7 +306,12 @@ class SelectableTabulator(pn.viewable.Viewer):
             self._sortable = kwargs.pop("sortable")
         else:
             self._sortable = True
-        self.tabulator = Tabulator(*args, sortable=False, **kwargs)
+        # disable frontend sorting
+        value = args[0] if len(args) > 0 else kwargs.get("value")
+        columns = [
+            {"title": k, "field": k, "headerSort": False} for k in value.columns
+        ]
+        self.tabulator = Tabulator(*args, **kwargs, configuration={"columns": columns})
         self._original_value = self.tabulator.value.copy()
         self.tabulator.formatters = self._formatters        
         self.tabulator.on_click(self._on_click)
@@ -609,6 +614,11 @@ class KeyboardShortcuts(ReactComponent):
 
       const keyedShortcuts = {};
       for (const shortcut of shortcuts) {
+        // For shortcuts that use ctrlKey, also register them with metaKey
+        if (shortcut.ctrlKey) {
+          const metaShortcut = {...shortcut, ctrlKey: false, metaKey: true};
+          keyedShortcuts[hashShortcut(metaShortcut)] = shortcut.name;
+        }
         keyedShortcuts[hashShortcut(shortcut)] = shortcut.name;
       }
 

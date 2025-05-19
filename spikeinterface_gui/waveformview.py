@@ -1,6 +1,5 @@
 import time
 import numpy as np
-import time
 
 from .view_base import ViewBase
 
@@ -15,6 +14,7 @@ class WaveformView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = [
+        {'name': 'overlap', 'type': 'bool', 'value': True},
         {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
         {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
@@ -341,6 +341,9 @@ class WaveformView(ViewBase):
         
         self.plot1.addItem(self.curve_one_waveform)
 
+        offsets = None
+        if not self.settings["overlap"] and len(visible_unit_ids) > 1:
+            offsets = np.linspace(0, 1, len(visible_unit_ids))
 
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
             if not unit_visible_dict[unit_id]:
@@ -358,7 +361,10 @@ class WaveformView(ViewBase):
             connect[-1, :] = 0
             
             xvect = self.xvect[common_channel_indexes, :]
-            
+            if offsets is not None:
+                x_range = np.ptp(xvect[0])
+                xvect += offsets[unit_index] * x_range
+
             # color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
             color = self.get_unit_color(unit_id)
             
@@ -468,7 +474,7 @@ class WaveformView(ViewBase):
         self.figure_geom.x_range = Range1d(np.min(x) - 50, np.max(x) + 50)
         self.figure_geom.y_range = Range1d(np.min(y) - 50, np.max(y) + 50)
 
-        self.lines_geom = {}
+        self.lines_geom = None
 
         # figures for flatten
         self.shared_x_range = Range1d(start=0, end=1500)
@@ -577,9 +583,8 @@ class WaveformView(ViewBase):
     def _panel_refresh_mode_geometry(self, unit_visible_dict=None, keep_range=False):
         # this clear the figure
         self.figure_geom.renderers = []
-        self.lines_geom = {}
+        self.lines_geom = None
         unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
-        t_stop = time.perf_counter()
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
@@ -587,26 +592,39 @@ class WaveformView(ViewBase):
         
         visible_unit_ids = self.controller.get_visible_unit_ids()
         visible_unit_indices = self.controller.get_visible_unit_indices()
-        for unit_index, unit_id in zip(visible_unit_indices, visible_unit_ids):
+
+        if len(visible_unit_ids) == 0:
+            return
+
+        offsets = None
+        if not self.settings["overlap"] and len(visible_unit_ids) > 1:
+            offsets = np.linspace(0, 0.5, len(visible_unit_ids))
+
+        xs = []
+        ys = []
+        colors = []
+        for i, (unit_index, unit_id) in enumerate(zip(visible_unit_indices, visible_unit_ids)):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             
             ypos = self.contact_location[common_channel_indexes,1]
             
             wf = template_avg
             wf = wf * self.factor_y * self.delta_y + ypos[None, :]
-            # downsample
-            # this disconnect
+            # this disconnects each channel
             wf[0, :] = np.nan
-            # wf = wf.T
             xvect = self.xvect[common_channel_indexes, :] * self.factor_x
-            t_stop = time.perf_counter()
-            
+            if offsets is not None:
+                offset = offsets[i]
+                x_range = np.ptp(xvect[0])
+                xvect += offset * x_range
+
             color = self.get_unit_color(unit_id)
 
-            source = {"x": xvect.flatten(), "y" : wf.T.flatten()}
-            self.lines_geom[unit_id] = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=2)
-            t_stop = time.perf_counter()
+            xs.append(xvect.flatten())
+            ys.append(wf.T.flatten())
+            colors.append(color)
 
+        self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
 
         if self.settings["plot_selected_spike"]:
             self._panel_refresh_one_spike()

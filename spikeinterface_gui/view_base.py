@@ -7,7 +7,7 @@ class ViewBase():
     _gui_help_txt = "The help for this view is not done yet"
     _depend_on = None
     
-    def __init__(self, controller=None, parent=None, backend="qt"):
+    def __init__(self, controller=None, parent=None, backend="qt", **make_layout_kwargs):
 
         self.backend = backend
         self.controller = controller
@@ -31,7 +31,7 @@ class ViewBase():
                 create_settings(self)
             self.notifier = SignalNotifier(view=self)
 
-        make_layout()
+        make_layout(**make_layout_kwargs)
         if self._settings is not None:
             listen_setting_changes(self)
 

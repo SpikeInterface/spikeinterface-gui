@@ -143,6 +143,16 @@ class MixinViewTrace:
             
         else:
             self.refresh()
+
+    def _panel_sync_controls(self, sync_view):
+        # Sync controls with another view
+        self.toolbar = sync_view.toolbar
+        self.segment_selector = sync_view.segment_selector
+        self.xsize_spinner = sync_view.xsize_spinner
+        self.time_slider = sync_view.time_slider
+        self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
+        self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
+        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
     
     ## panel ##
     def _panel_create_toolbar(self):
@@ -164,18 +174,10 @@ class MixinViewTrace:
         # Auto scale button
         self.auto_scale_button = pn.widgets.Button(name="Auto Scale", button_type="default")
 
-        # Time slider
-        length = self.controller.get_num_samples(self.seg_index)
-        t_start = 0
-        t_stop = length / self.controller.sampling_frequency
-        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
-                                                  value_throttled=0, sizing_mode="stretch_width")
-
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
         self.auto_scale_button.on_click(self._panel_auto_scale)
-        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
         self.toolbar = pn.Row(
             self.segment_selector,
@@ -183,6 +185,14 @@ class MixinViewTrace:
             self.auto_scale_button,
             sizing_mode="stretch_width",
         )
+
+        # Time slider
+        length = self.controller.get_num_samples(self.seg_index)
+        t_start = 0
+        t_stop = length / self.controller.sampling_frequency
+        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
+                                                  value_throttled=0, sizing_mode="stretch_width")
+        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
     def _panel_auto_scale(self, event):
         self.auto_scale()
@@ -229,7 +239,7 @@ class TraceView(ViewBase, MixinViewTrace):
     ]
 
 
-    def __init__(self, controller=None, parent=None, backend="qt"):
+    def __init__(self, controller=None, parent=None, backend="qt", sync_view=None):
 
         self.time_by_seg = np.array([0.]*controller.num_segments, dtype='float64')
         self.seg_index = 0
@@ -239,9 +249,14 @@ class TraceView(ViewBase, MixinViewTrace):
         self.factor = 15.0
         self.xsize = 0.5
 
+        make_layout_kwargs = {'sync_view': sync_view} if sync_view is not None else {}
 
-        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend, **make_layout_kwargs)
         MixinViewTrace.__init__(self)
+        if sync_view is not None:
+            print("Syncing existing trace/tracemap view")
+            self.time_by_seg = sync_view.time_by_seg
+            self.seg_index = sync_view.seg_index
 
     
     def on_channel_visibility_changed(self):
@@ -454,7 +469,7 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     ## panel ##
-    def _panel_make_layout(self):
+    def _panel_make_layout(self, sync_view=None):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
@@ -501,7 +516,10 @@ class TraceView(ViewBase, MixinViewTrace):
 
         self.figure.on_event(Tap, self._panel_on_tap)
 
-        self._panel_create_toolbar()
+        if sync_view is None:
+            self._panel_create_toolbar()
+        else:
+            self._panel_sync_controls(sync_view)
         
         self.layout = pn.Column(
             self.toolbar,
