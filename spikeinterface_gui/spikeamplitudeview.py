@@ -22,43 +22,68 @@ class SpikeAmplitudeView(BaseScatterView):
             y_label=y_label,
             spike_data=spike_data,
         )
+        # set noise level to False by default in panel
+        if backend == 'panel':
+            noise_level_settings_index = [s["name"] for s in SpikeAmplitudeView._settings].index("noise_level")
+            SpikeAmplitudeView._settings[noise_level_settings_index]['value'] = False
+        self.noise_harea = []
+
+    def _qt_make_layout(self):
+        super()._qt_make_layout()
+        if self.settings["noise_level"]:
+            self._qt_add_noise_area()
 
     def _qt_refresh(self):
-        import pyqtgraph as pg
-        
         super()._qt_refresh()
         # average noise across channels
-        if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
-            n = self.settings["noise_factor"]
-            noise = np.mean(self.controller.noise_levels)
-            alpha_factor = 50 / n
-            for i in range(1, n + 1):
-                self.plot2.addItem(
-                    pg.LinearRegionItem(values=(-i * noise, i * noise), orientation="horizontal",
-                                        brush=(255, 255, 255, int(i * alpha_factor)), pen=(0, 0, 0, 0))
-                )
+        if self.settings["noise_level"] and len(self.noise_harea) == 0:
+            self._qt_add_noise_area()
+        # remove noise area if not selected
+        elif not self.settings["noise_level"] and len(self.noise_harea) > 0:
+            for n in self.noise_harea:
+                self.plot2.removeItem(n)
+            self.noise_harea = []
+
+    def _qt_add_noise_area(self):
+        import pyqtgraph as pg
+
+        n = self.settings["noise_factor"]
+        noise = np.mean(self.controller.noise_levels)
+        alpha_factor = 50 / n
+        for i in range(1, n + 1):
+            n = self.plot2.addItem(
+                pg.LinearRegionItem(values=(-i * noise, i * noise), orientation="horizontal",
+                                    brush=(255, 255, 255, int(i * alpha_factor)), pen=(0, 0, 0, 0))
+            )
+            self.noise_harea.append(n)
 
     def _panel_refresh(self):
         super()._panel_refresh()
-        if self.settings['noise_level']:
-            noise = np.mean(self.controller.noise_levels)
-            n = self.settings['noise_factor']
-            alpha_factor = 50 / n
-            for i in range(1, n + 1):
-                
-                h = self.hist_fig.harea(
-                    y="y",
-                    x1="x1",
-                    x2="x2",
-                    source={
-                        "y": [-i * noise, i * noise],
-                        "x1": [0, 0],
-                        "x2": [self._max_count, self._max_count],
-                    },
-                    alpha=int(i * alpha_factor) / 255,  # Match Qt alpha scaling
-                    color="lightgray",
-                )
-                self.noise_harea.append(h)
+        # update noise area
+        if self.settings['noise_level'] and len(self.noise_harea) == 0:
+            self._panel_add_noise_area()
+        else:
+            self.noise_harea = []
+
+    def _panel_add_noise_area(self):
+        self.noise_harea = []
+        noise = np.mean(self.controller.noise_levels)
+        n = self.settings['noise_factor']
+        alpha_factor = 50 / n
+        for i in range(1, n + 1):
+            h = self.hist_fig.harea(
+                y="y",
+                x1="x1",
+                x2="x2",
+                source={
+                    "y": [-i * noise, i * noise],
+                    "x1": [0, 0],
+                    "x2": [10_000, 10_000],
+                },
+                alpha=int(i * alpha_factor) / 255,  # Match Qt alpha scaling
+                color="lightgray",
+            )
+            self.noise_harea.append(h)
 
 
 SpikeAmplitudeView._gui_help_txt = """

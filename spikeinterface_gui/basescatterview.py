@@ -9,9 +9,9 @@ class BaseScatterView(ViewBase):
     _depend_on = None
     _settings = [
             {'name': 'auto_decimate', 'type': 'bool', 'value' : True },
-            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 50_000 },
+            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 10_000 },
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
-            {'name': 'scatter_size', 'type': 'float', 'value' : 3., 'step':0.5 },
+            {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5 },
             {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
         ]
     _need_compute = False
@@ -252,6 +252,7 @@ class BaseScatterView(ViewBase):
         self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')        
 
         self.y_range = Range1d(self._data_min, self._data_max)
+        self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
         self.scatter_fig = bpl.figure(
             sizing_mode="stretch_both",
             tools="reset,wheel_zoom",
@@ -262,13 +263,21 @@ class BaseScatterView(ViewBase):
             y_range=self.y_range,
             styles={"flex": "1"}
         )
-        self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
-        
+        self.scatter = self.scatter_fig.scatter(
+            "x",
+            "y",
+            source=self.scatter_source,
+            size=self.settings['scatter_size'],
+            color="color",
+            fill_alpha=self.settings['alpha'],
+        )
         self.scatter_fig.toolbar.logo = None
         self.scatter_fig.add_tools(self.lasso_tool)
         self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = self.y_label
+        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
+        self.scatter_fig.x_range = Range1d(0., time_max)
 
         slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
 
@@ -301,8 +310,7 @@ class BaseScatterView(ViewBase):
             )
         )
 
-        self.scatter = None
-        self.hist_lines = {}
+        self.hist_lines = []
         self.noise_harea = []
         self.plotted_inds = []
 
@@ -310,28 +318,31 @@ class BaseScatterView(ViewBase):
         from bokeh.models import ColumnDataSource, Range1d
 
         # clear figures
-        self.hist_fig.renderers = []
-        self.scatter_fig.renderers = []
-        self.scatter = None
-        self.hist_lines = {}
-        self.noise_harea = []
+        for renderer in self.hist_fig.renderers:
+            if renderer not in self.noise_harea:
+                self.hist_fig.renderers.remove(renderer)
+        self.hist_lines = []
         self.plotted_inds = []
 
         max_count = 1
-        scatter_data = {"x": [], "y": [], "color": []}
-        for unit_id in self.controller.unit_ids:
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+        xs = []
+        ys = []
+        colors = []
+
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+        for unit_id in visible_unit_ids:
             spike_times, spike_data, hist_count, hist_bins, inds = self.get_unit_data(
                 unit_id,
                 seg_index=self.segment_index
             )
             color = self.get_unit_color(unit_id)
-            scatter_data["x"].extend(spike_times)
-            scatter_data["y"].extend(spike_data)
-            scatter_data["color"].extend([color] * len(spike_times))
+            xs.extend(spike_times)
+            ys.extend(spike_amps)
+            colors.extend([color] * len(spike_times))
+            max_count = max(max_count, np.max(hist_count))
+            self.plotted_inds.extend(inds)
 
-            self.hist_lines[unit_id] = self.hist_fig.line(
+            hist_lines = self.hist_fig.line(
                 "x",
                 "y",
                 source=ColumnDataSource(
@@ -342,33 +353,29 @@ class BaseScatterView(ViewBase):
                 line_color=color,
                 line_width=2,
             )
-            max_count = max(max_count, np.max(hist_count))
-            self.plotted_inds.extend(inds)
+            self.hist_lines.append(hist_lines)
 
         self._max_count = max_count
 
         # Add scatter plot with correct alpha parameter
-        self.scatter_source.data.update(scatter_data)
-        self.scatter = self.scatter_fig.scatter(
-            "x",
-            "y",
-            source=self.scatter_source,
-            size=self.settings['scatter_size'],
-            color="color",
-            fill_alpha=self.settings['alpha'],
-        )
+        self.scatter_source.data = {
+            "x": xs,
+            "y": ys,
+            "color": colors
+        }
+        self.scatter.glyph.size = self.settings['scatter_size']
+        self.scatter.glyph.fill_alpha = self.settings['alpha']
+
         # handle selected spikes
         self._panel_update_selected_spikes()
 
-        # Set axis ranges
-        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
-        self.scatter_fig.x_range = Range1d(0., time_max)
         # set y range to min and max of visible spike amplitudes plus a margin
         margin = 50
-        all_data = scatter_data["y"]
-        self.y_range.start = np.min(all_data) - margin
-        self.y_range.end = np.max(all_data) + margin
-        self.hist_fig.x_range = Range1d(0, self._max_count)
+        all_amps = ys
+        if len(all_amps) > 0:
+            self.y_range.start = np.min(all_amps) - margin
+            self.y_range.end = np.max(all_amps) + margin
+            self.hist_fig.x_range.end = max_count
 
     def _panel_on_select_button(self, event):
         if self.select_toggle_button.value and len(self.controller.get_visible_unit_ids()) == 1:
@@ -380,6 +387,8 @@ class BaseScatterView(ViewBase):
 
     def _panel_change_segment(self, event):
         self.segment_index = int(self.segment_selector.value.split()[-1])
+        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
+        self.scatter_fig.x_range.end = time_max
         self.refresh()
 
     def _on_panel_lasso_selected(self, attr, old, new):
