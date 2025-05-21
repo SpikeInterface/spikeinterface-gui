@@ -249,7 +249,7 @@ class PanelMainWindow:
         grid_per_zone = 2
         gs = pn.GridStack(
             sizing_mode='stretch_both',
-            allow_resize=True,
+            allow_resize=False,
             allow_drag=False,
         )
 

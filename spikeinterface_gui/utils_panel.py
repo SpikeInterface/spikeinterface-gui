@@ -291,6 +291,7 @@ class SelectableTabulator(pn.viewable.Viewer):
     def __init__(
         self, 
         *args,
+        skip_sort_columns: list[str] = [],
         parent_view: ViewBase | None = None,
         refresh_table_function: Callable | None = None,
         on_only_function: Callable | None = None,
@@ -301,7 +302,17 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._formatters = kwargs.get("formatters", {})
         self._editors = kwargs.get("editors", {})
         self._frozen_columns = kwargs.get("frozen_columns", [])
-        self.tabulator = Tabulator(*args, **kwargs)
+        if "sortable" in kwargs:
+            self._sortable = kwargs.pop("sortable")
+        else:
+            self._sortable = True
+        # disable frontend sorting
+        value = args[0] if len(args) > 0 else kwargs.get("value")
+        columns = [
+            {"title": k, "field": k, "headerSort": False} for k in value.columns
+        ]
+        self.tabulator = Tabulator(*args, **kwargs, configuration={"columns": columns})
+        self._original_value = self.tabulator.value.copy()
         self.tabulator.formatters = self._formatters        
         self.tabulator.on_click(self._on_click)
         super().__init__()
@@ -329,9 +340,35 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         self.shortcuts_component.on_msg(self._handle_shortcut)
 
+        if self._sortable:
+            # make a dropdown with the columns
+            columns = list(self.tabulator.value.columns)
+            columns = [col for col in columns if col not in skip_sort_columns]
+            self.sort_dropdown = pn.widgets.Select(
+                name="Sort by",
+                options=["-"] + columns,
+                value="-",
+                sizing_mode="stretch_width",
+            )
+            self.direction_dropdown = pn.widgets.Select(
+                name="Direction",
+                options=["↑", "↓"],
+                value="↓",
+                sizing_mode="stretch_width",
+            )
+            sort_row = pn.Row(
+                self.sort_dropdown,
+                self.direction_dropdown,
+                sizing_mode="stretch_width",
+            )
+            components = [self.shortcuts_component, sort_row, self.tabulator]
+            self.sort_dropdown.param.watch(self._on_sort_change, "value")
+            self.direction_dropdown.param.watch(self._on_sort_change, "value")
+        else:
+            components = [self.shortcuts_component, self.tabulator]
+
         self._layout = pn.Column(
-            self.shortcuts_component,
-            self.tabulator,
+            *components,
             sizing_mode="stretch_width"
         )
 
@@ -353,26 +390,61 @@ class SelectableTabulator(pn.viewable.Viewer):
 
     @sorters.setter
     def sorters(self, val):
-        self.tabulator.sorters = val
+        self.tabulator.sorters = []
 
     @property
     def value(self):
+        self.tabulator.sorters = []
         return self.tabulator.value
+
 
     @value.setter
     def value(self, val):
         self.tabulator.formatters = self._formatters
         self.tabulator.editors = self._editors
         self.tabulator.frozen_columns = self._frozen_columns
+        self.tabulator.sorters = []
         self.tabulator.value = val
 
     def __panel__(self):
         return self._layout
 
+    def reset(self):
+        """
+        Reset the table to its original state.
+        """
+        self.tabulator.value = self._original_value
+        self.tabulator.selection = []
+        self._last_selected_row = None
+        self._last_clicked = None
+        self.tabulator.sorters = []
+        self.selection = []
+
+    def _on_sort_change(self, event):
+        """
+        Handle the sort change event. This is called when the sort dropdown is changed.
+        """
+        self.tabulator.sorters = []
+        if self.sort_dropdown.value == "-":
+            # sort by index
+            df = self._original_value
+        else:
+            if self.sort_dropdown.value == self.tabulator.value.index.name:
+                df = self.tabulator.value.sort_index(
+                    ascending=(self.direction_dropdown.value == "↑")
+                )
+            else:
+                df = self.tabulator.value.sort_values(
+                    by=self.sort_dropdown.value,
+                    ascending=(self.direction_dropdown.value == "↑")
+                )
+        self.tabulator.value = df
+
     def _on_click(self, event):
         """
         Handle the selection change event. This is called when a row or cell is clicked.
         """
+        self.tabulator.sorters = []
         row = event.row
         col = event.column
         time_clicked = time.perf_counter()
@@ -401,84 +473,39 @@ class SelectableTabulator(pn.viewable.Viewer):
             self._parent_view.notify_active_view_updated()
 
     def _get_next_row(self):
-        selected_rows = self._get_selected_rows()
-        sorted_indices = self._get_sorted_indices()
+        selected_rows = self.selection
         if len(selected_rows) == 0:
             next_row = 0
         else:
             if self._last_selected_row is not None:
-                last_row = list(sorted_indices).index(self._last_selected_row)
-                next_row = last_row + 1
+                next_row = self._last_selected_row + 1
             else:
                 next_row = max(selected_rows) + 1
-        if next_row > len(sorted_indices) - 1:
-            next_row = len(sorted_indices) - 1
-        next_row = sorted_indices[next_row]
+        next_row = min(next_row, len(self.value) - 1)
         return next_row
 
     def _get_previous_row(self):
-        selected_rows = self._get_selected_rows()
-        sorted_indices = self._get_sorted_indices()
+        selected_rows = self.selection
         if len(selected_rows) == 0:
             previous_row = len(self.value) - 1
         else:
             if self._last_selected_row is not None:
-                last_row = list(sorted_indices).index(self._last_selected_row)
-                previous_row = last_row - 1
+                previous_row = self._last_selected_row  - 1
             else:
                 previous_row = min(selected_rows) - 1
-        if previous_row < 0:
-            previous_row = 0
-        previous_row = self._get_sorted_indices()[previous_row]
+        previous_row = max(0, previous_row)
         return previous_row
-
-    def _get_selected_rows(self, sort_with_sorters=True):
-        if self.sorters is None or len(self.sorters) == 0 or not sort_with_sorters:
-            return self.selection
-        elif len(self.sorters) == 1:
-            # apply sorters to selection
-            sorter = self.sorters[0]
-            df = self.value
-            if sorter["field"] != df.index.name:
-                sorted_df = df.sort_values(
-                    by=sorter['field'],
-                    ascending=(sorter['dir'] == 'asc')
-                )
-            else:
-                sorted_df = df.sort_index(ascending=(sorter['dir'] == 'asc'))
-            new_indices = list(sorted_df.index.values)
-            new_selection = [new_indices.index(self.original_indices[row]) for row in self.selection]
-            return new_selection
-
-    def _get_sorted_indices(self):
-        if self.sorters is None or len(self.sorters) == 0:
-            return list(range(len(self.value)))
-        elif len(self.sorters) == 1:
-            # apply sorters to selection
-            sorter = self.sorters[0]
-            df = self.value
-            if sorter["field"] != df.index.name:
-                sorted_df = df.sort_values(
-                    by=sorter['field'],
-                    ascending=(sorter['dir'] == 'asc')
-                )
-            else:
-                sorted_df = df.sort_index(ascending=(sorter['dir'] == 'asc'))
-            sorted_indices = sorted_df.index.values
-            original_indices = list(df.index.values)
-            new_indices = [original_indices.index(index) for index in sorted_indices]
-            return new_indices
 
     def _handle_shortcut(self, event):
         if self._conditional_shortcut():
             if event.data == "first":
-                first_row = self._get_sorted_indices()[0]
+                first_row = 0
                 self.selection = [first_row]
                 if self._refresh_table_function is not None:
                     self._refresh_table_function()
                 self._last_selected_row = first_row
             elif event.data == "last":
-                last_row = self._get_sorted_indices()[-1]
+                last_row = len(self.value) - 1
                 self.selection = [last_row]
                 if self._refresh_table_function is not None:
                     self._refresh_table_function()
@@ -587,6 +614,11 @@ class KeyboardShortcuts(ReactComponent):
 
       const keyedShortcuts = {};
       for (const shortcut of shortcuts) {
+        // For shortcuts that use ctrlKey, also register them with metaKey
+        if (shortcut.ctrlKey) {
+          const metaShortcut = {...shortcut, ctrlKey: false, metaKey: true};
+          keyedShortcuts[hashShortcut(metaShortcut)] = shortcut.name;
+        }
         keyedShortcuts[hashShortcut(shortcut)] = shortcut.name;
       }
 

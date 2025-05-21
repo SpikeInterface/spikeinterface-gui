@@ -162,7 +162,6 @@ class ViewBase():
         elif self.backend == "panel":
             self._panel_on_manual_curation_updated()
 
-
     ## Zone to be done per layout ##
 
     ## QT ##

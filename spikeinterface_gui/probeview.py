@@ -398,7 +398,7 @@ class ProbeView(ViewBase):
             "x", "y", source=data_source, size="size", fill_color="color", 
             line_color="line_color", alpha="alpha"
         )
-        self.unit_glyphs.data_source = data_source  # Explicitly set data source
+        # self.unit_glyphs.data_source = data_source  # Explicitly set data source
 
         # Add hover tool to new glyph
         hover = HoverTool(renderers=[self.unit_glyphs], tooltips=[("Unit", "@unit_id")])
@@ -415,6 +415,8 @@ class ProbeView(ViewBase):
                 text_color="#FFFFFF",
                 text_font_size="14pt",
             )
+            if not self.settings["show_channel_id"]:
+                label.visible = False
             self.figure.add_layout(label)
             self.channel_labels.append(label)
 
@@ -467,6 +469,10 @@ class ProbeView(ViewBase):
         # Update unit positions
         self._panel_update_unit_glyphs()
 
+        # chennel labels
+        for label in self.channel_labels:
+            label.visible = self.settings['show_channel_id']
+
         # Update selection circles if only one unit is visible
         if sum(list(self.controller.unit_visible_dict.values())) == 1:
             selected_unit = np.flatnonzero(list(self.controller.unit_visible_dict.values()))[0]
@@ -517,10 +523,6 @@ class ProbeView(ViewBase):
             "unit_id": [str(u) for u in self.controller.unit_ids],
         }
         self.unit_glyphs.data_source.data.update(data_source)
-
-        # chennel labels
-        for label in self.channel_labels:
-            label.visible = self.settings['show_channel_id']
             
     def _panel_on_pan_start(self, event):
         self.figure.toolbar.active_drag = None

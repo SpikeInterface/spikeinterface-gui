@@ -164,18 +164,10 @@ class MixinViewTrace:
         # Auto scale button
         self.auto_scale_button = pn.widgets.Button(name="Auto Scale", button_type="default")
 
-        # Time slider
-        length = self.controller.get_num_samples(self.seg_index)
-        t_start = 0
-        t_stop = length / self.controller.sampling_frequency
-        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
-                                                  value_throttled=0, sizing_mode="stretch_width")
-
         # Connect events
         self.segment_selector.param.watch(self._panel_on_segment_changed, "value")
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
         self.auto_scale_button.on_click(self._panel_auto_scale)
-        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
         self.toolbar = pn.Row(
             self.segment_selector,
@@ -183,6 +175,14 @@ class MixinViewTrace:
             self.auto_scale_button,
             sizing_mode="stretch_width",
         )
+
+        # Time slider
+        length = self.controller.get_num_samples(self.seg_index)
+        t_start = 0
+        t_stop = length / self.controller.sampling_frequency
+        self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
+                                                  value_throttled=0, sizing_mode="stretch_width")
+        self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
     def _panel_auto_scale(self, event):
         self.auto_scale()
@@ -238,7 +238,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.med = np.zeros(self.mad.shape, dtype="float32")
         self.factor = 15.0
         self.xsize = 0.5
-
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
@@ -470,11 +469,8 @@ class TraceView(ViewBase, MixinViewTrace):
             styles={"flex": "1"}
         )
         self.figure.toolbar.logo = None
-        
-        length = self.controller.get_num_samples(self.seg_index)
-        t_stop = length / self.controller.sampling_frequency
-        # self.figure.x_range = Range1d(start=0, end=t_stop)
-        # self.figure.y_range = Range1d(start=-0.5, end=len(self.controller.channel_ids) - 0.5)
+        self.figure.x_range = Range1d(start=0, end=1)
+        self.figure.y_range = Range1d(start=-0.5, end=len(self.controller.channel_ids) - 0.5)
 
         self.figure.grid.visible = False
         self.figure.toolbar.logo = None
@@ -516,8 +512,6 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
-        from bokeh.models import Range1d
-
         t = self.time_by_seg[self.seg_index]
         t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
 
@@ -536,7 +530,8 @@ class TraceView(ViewBase, MixinViewTrace):
                 "color": [],
                 "unit_id": [],
             })
-            self.figure.x_range = Range1d(start=t1, end=t2)
+            self.figure.x_range.start = t1
+            self.figure.x_range.end = t2
         else:
             times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
                 self.get_data_in_chunk(t1, t2, self.seg_index)
@@ -555,8 +550,9 @@ class TraceView(ViewBase, MixinViewTrace):
             })
 
             # Update plot ranges for x-axis too
-            self.figure.x_range = Range1d(start=t1, end=t2)
-            self.figure.y_range = Range1d(start=-0.5, end=n - 0.5)
+            self.figure.x_range.start = t1
+            self.figure.x_range.end = t2
+            self.figure.y_range.end = n - 0.5
 
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
