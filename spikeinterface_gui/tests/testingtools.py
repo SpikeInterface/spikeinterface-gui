@@ -107,7 +107,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     sorting_analyzer.compute("template_similarity", method="l1")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
     sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
-    sorting_analyzer.compute("spike_amplitudes", **job_kwargs)
+    sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
 
 
     qm = sorting_analyzer.get_extension("quality_metrics").get_data()
