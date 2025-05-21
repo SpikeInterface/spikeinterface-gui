@@ -144,7 +144,7 @@ class UnitListView(ViewBase):
         # TODO sam make this faster
 
         from .myqt import QT
-        from .utils_qt import OrderableCheckItem, CustomItem, UnitTableDelegate
+        from .utils_qt import OrderableCheckItem, CustomItem, CustomItemUnitID, UnitTableDelegate
 
         self.table.itemChanged.disconnect(self._qt_on_item_changed)
         
@@ -191,7 +191,8 @@ class UnitListView(ViewBase):
             pix.fill(color)
             icon = QT.QIcon(pix)
             
-            item = QT.QTableWidgetItem( f'{unit_id}')
+            # item = QT.QTableWidgetItem( f'{unit_id}')
+            item = CustomItemUnitID(unit_ids, f'{unit_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i,0, item)
             item.setIcon(icon)
@@ -219,13 +220,6 @@ class UnitListView(ViewBase):
             self.label_definitions_by_cols = {}
             if label_definitions is not None:
                 for ix, (category, label_def) in enumerate(label_definitions.items()):
-                    # label = self.controller.get_unit_label(unit_id, category)
-                    # item = LabelComboBox(i, category, label_def['label_options'], parent=self.qt_widget)
-                    # item.set_label(label)
-                    # item.remove_label_clicked.connect(self._qt_on_remove_label)
-                    # item.label_changed.connect(self._qt_on_label_changed)
-                    # self.table.setCellWidget(i, n_first + ix, item)
-
                     col = self.label_columns[ix]
                     self.label_definitions_by_cols[col] = category
                     label = self.controller.get_unit_label(unit_id, category)
@@ -257,21 +251,12 @@ class UnitListView(ViewBase):
                 if current_visual != visual_index:
                     header.moveSection(current_visual, visual_index)
 
-    # def _qt_on_label_changed(self, unit_index, category, new_label):
-    #     unit_id = self.controller.unit_ids[unit_index]
-    #     self.controller.set_label_to_unit(unit_id, category, new_label)
-
-    def _qt_on_remove_label(self, unit_index, category):
-        unit_id = self.controller.unit_ids[unit_index]
-        self.controller.set_label_to_unit(unit_id, category, None)
-
     def _qt_on_item_changed(self, item):
         from .myqt import QT
 
         col = item.column()
         if col == 1:
             # visibility checkbox
-            # sel = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[item.checkState()]
             unit_id = item.unit_id
             self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
             self.notify_unit_visibility_changed()
@@ -280,13 +265,11 @@ class UnitListView(ViewBase):
             category = self.label_definitions_by_cols[col]
             row = item.row()
             new_label = self.table.item(row, col).text()
-            print(category, new_label)
             if new_label == '':
                 new_label = None
-            unit_id = self.controller.unit_ids[row]
+            unit_id = self.table.item(row, 1).unit_id
             self.controller.set_label_to_unit(unit_id, category, new_label)
 
-    
     def _qt_on_double_clicked(self, row, col):
         self.controller.set_all_unit_visibility_off()
 

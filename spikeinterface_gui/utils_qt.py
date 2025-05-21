@@ -449,6 +449,27 @@ class CustomItem(QT.QTableWidgetItem):
         except ValueError:
             return self.text().lower() < other.text().lower()
 
+class CustomItemUnitID(QT.QTableWidgetItem):
+    # special case for ordering unit_ids in the original order
+    def __init__(self, unit_ids, *args, **kwargs):
+        QT.QTableWidgetItem.__init__(self, *args, **kwargs)
+        self.unit_ids = [f"{u}" for u in unit_ids]
+
+    def __lt__(self, other):
+        ind = self.unit_ids.index(self.text())
+        other_ind = self.unit_ids.index(other.text())
+        return ind < other_ind
+
+class OrderableCheckItem(QT.QTableWidgetItem):
+    # special case for checkbox
+    def is_checked(self):
+        checked = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[self.checkState()]
+        return checked
+
+    def __lt__(self, other):
+        comp = float(self.is_checked()) < float(other.is_checked())
+        return comp
+
 
 class LabelOptionsDelegate(QT.QItemDelegate):
     remove_clicked = QT.pyqtSignal()
@@ -574,15 +595,7 @@ def find_category(categories, category):
 
 
 
-class OrderableCheckItem(QT.QTableWidgetItem):
 
-    def is_checked(self):
-        checked = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[self.checkState()]
-        return checked
-
-    def __lt__(self, other):
-        comp = float(self.is_checked()) < float(other.is_checked())
-        return comp
 
 if __name__=='__main__':
     app = pg.mkQApp()
