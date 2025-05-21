@@ -310,6 +310,9 @@ class Controller():
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
+        self.main_settings = dict(
+            max_visible_units=10,
+        )
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -335,6 +338,15 @@ class Controller():
     def unit_ids(self):
         return self.analyzer.unit_ids
     
+    def get_information_txt(self):
+        nseg = self.analyzer.get_num_segments()
+        nchan = self.analyzer.get_num_channels()
+        nunits = self.analyzer.get_num_units()
+        txt = f"{nchan} channels - {nunits} units - {nseg} segments - {self.analyzer.format}\n"
+        txt += f"Loaded {len(self.analyzer.extensions)} extensions"
+
+        return txt
+
     def get_unit_color(self, unit_id):
         # scalar unit_id -> color html or QtColor
         return self.colors[unit_id]
@@ -353,6 +365,15 @@ class Controller():
     def get_extremum_channel(self, unit_id):
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
+    
+    def set_visible_unit_ids(self, visible_unit_ids):
+        lim = self.controller.main_settings['max_visible_units']
+        if len(visible_unit_ids) > lim:
+            visible_unit_ids = visible_unit_ids[:lim]
+        self.set_all_unit_visibility_off()
+        for u in visible_unit_ids:
+            self.unit_visible_dict[u] = True
+
 
     def get_visible_unit_ids(self):
         visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]

@@ -50,7 +50,7 @@ class CrossCorrelogramView(ViewBase):
         if self.ccg is None:
             return
         
-        visible_unit_ids = [unit_id for unit_id in self.controller.unit_ids if self.controller.unit_visible_dict[unit_id]]
+        visible_unit_ids = self.controller.get_visible_unit_ids()
         visible_unit_ids = visible_unit_ids[:self.settings['max_visible']]
         
         n = len(visible_unit_ids)
@@ -114,7 +114,7 @@ class CrossCorrelogramView(ViewBase):
         if self.ccg is None:
             return
 
-        visible_unit_ids = [unit_id for unit_id in self.controller.unit_ids if self.controller.unit_visible_dict[unit_id]]
+        visible_unit_ids = self.controller.get_visible_unit_ids()
 
         # Show warning above the plot if too many visible units
         if len(visible_unit_ids) > self.settings['max_visible']:

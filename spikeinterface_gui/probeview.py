@@ -57,8 +57,9 @@ class ProbeView(ViewBase):
 
     def update_unit_visibility(self, x, y, roi_radius):
         dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]])) ** 2, axis=1))
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            self.controller.unit_visible_dict[unit_id] = dist[unit_index] < roi_radius
+        mask = dist < roi_radius
+        visible_unit_ids = self.controller.unit_ids[mask]
+        self.controller.set_visible_unit_ids(visible_unit_ids)
 
     def get_view_bounds(self, margin=20):
         xlim0 = np.min(self.contact_positions[:, 0]) - margin
@@ -264,11 +265,12 @@ class ProbeView(ViewBase):
         
         if auto_zoom:
             visible_pos = self.controller.unit_positions[visible_mask, :]
-            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
-            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
-            margin =50
-            self.plot.setXRange(x_min - margin, x_max+ margin)
-            self.plot.setYRange(y_min - margin, y_max+ margin)
+            if visible_pos.shape[0] > 0:
+                x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+                y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+                margin =50
+                self.plot.setXRange(x_min - margin, x_max+ margin)
+                self.plot.setYRange(y_min - margin, y_max+ margin)
 
     
     def _qt_on_pick_unit(self, x, y, multi_select=False):

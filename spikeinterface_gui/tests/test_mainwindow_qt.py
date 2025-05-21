@@ -69,5 +69,5 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
-    # win = test_mainwindow(start_app=True, verbose=True, curation=True)
-    win = test_mainwindow(start_app=True, verbose=True, curation=False)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True)
+    # win = test_mainwindow(start_app=True, verbose=True, curation=False)
