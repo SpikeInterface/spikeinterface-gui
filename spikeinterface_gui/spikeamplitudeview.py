@@ -26,10 +26,10 @@ class SpikeAmplitudeView(BaseScatterView):
         if backend == 'panel':
             noise_level_settings_index = [s["name"] for s in SpikeAmplitudeView._settings].index("noise_level")
             SpikeAmplitudeView._settings[noise_level_settings_index]['value'] = False
-        self.noise_harea = []
 
     def _qt_make_layout(self):
         super()._qt_make_layout()
+        self.noise_harea = []
         if self.settings["noise_level"]:
             self._qt_add_noise_area()
 
@@ -60,6 +60,7 @@ class SpikeAmplitudeView(BaseScatterView):
     def _panel_refresh(self):
         super()._panel_refresh()
         # update noise area
+        self.noise_harea = []
         if self.settings['noise_level'] and len(self.noise_harea) == 0:
             self._panel_add_noise_area()
         else:

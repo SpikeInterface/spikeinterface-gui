@@ -232,8 +232,8 @@ class UnitListView(ViewBase):
                     label = label if label is not None else ''
                     item = QT.QTableWidgetItem( f'{label}')
                     self.table.setItem(i, n_first + ix, item)
-            delegate = UnitTableDelegate(parent=self.table, label_definitions=label_definitions, label_columns=self.label_columns)
-            self.table.setItemDelegate(delegate)
+                delegate = UnitTableDelegate(parent=self.table, label_definitions=label_definitions, label_columns=self.label_columns)
+                self.table.setItemDelegate(delegate)
 
                 
             for m, col in enumerate(self.controller.displayed_unit_properties):
@@ -400,7 +400,7 @@ class UnitListView(ViewBase):
         for col in self.controller.displayed_unit_properties:
             data[col] = self.controller.units_table[col]
 
-        self.df_full = pd.DataFrame(
+        df = pd.DataFrame(
             data=data,
             index=unit_ids
         )
@@ -410,7 +410,7 @@ class UnitListView(ViewBase):
         }
         editors = {}
 
-        for col in self.df_full.columns:
+        for col in df.columns:
             if col != "visible":
                 editors[col] = {'type': 'editable', 'value': False}
         if self.label_definitions is not None:
@@ -418,9 +418,8 @@ class UnitListView(ViewBase):
                 editors[label] = SelectEditor(options=[""] + list(self.label_definitions[label]['label_options']))
 
         # Here we make a copy so we can filter the data
-        self.df = self.df_full.copy()
         self.table = SelectableTabulator(
-            self.df,
+            df,
             formatters=formatters,
             frozen_columns=frozen_columns,
             sizing_mode="stretch_both",
@@ -430,11 +429,12 @@ class UnitListView(ViewBase):
             editors=editors,
             pagination=None,
             # SelectableTabulator functions
+            skip_sort_columns=["unit_id"],
             parent_view=self,
             refresh_table_function=self.refresh,
             conditional_shortcut=self.is_view_active,
             on_only_function=self._panel_on_only_selection,
-            column_callbacks={"visible": self._panel_on_visible_changed},
+            column_callbacks={"visible": self._panel_on_visible_checkbox_toggled},
         )
 
         self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
@@ -444,7 +444,6 @@ class UnitListView(ViewBase):
         button_list = [
             self.select_all_button,
             self.unselect_all_button,
-            self.refresh_button
         ]
 
         if self.controller.curation:
@@ -463,14 +462,14 @@ class UnitListView(ViewBase):
 
             # self.hide_noise.param.watch(self._panel_on_hide_noise, 'value')
             # self.show_only.param.watch(self._panel_on_show_only, 'value')
-
-            curation_row = pn.Row(
-                self.delete_button,
-                self.merge_button,
-                # self.hide_noise,
-                # self.show_only,
-                sizing_mode="stretch_width",
+            button_list.extend(
+                [
+                    self.delete_button,
+                    self.merge_button,
+                ]
             )
+
+        button_list.append(self.refresh_button)
 
         self.info_text = pn.pane.HTML("")
 
@@ -503,8 +502,7 @@ class UnitListView(ViewBase):
             buttons,
             sizing_mode="stretch_width",
         )
-        if self.controller.curation:
-            self.layout.append(curation_row)
+
         self.layout.append(self.table)
         self.layout.append(shortcuts_component)
 
@@ -519,10 +517,7 @@ class UnitListView(ViewBase):
             self.merge_button.on_click(self._panel_merge_units_callback)
 
     def _panel_refresh_click(self, event):
-        self.df = self.df_full.copy()
-        self.table.selection = []
-        self.table.value = self.df
-        self.table.sorters = []
+        self.table.reset()
         self.refresh()
         self.notifier.notify_active_view_updated()
 
@@ -530,10 +525,11 @@ class UnitListView(ViewBase):
         df = self.table.value
         visible = []
         for unit_id in df.index.values:
+            unit_is_visible = self.controller.unit_visible_dict[unit_id]
             visible.append(self.controller.unit_visible_dict.get(unit_id, False))
         df.loc[:, "visible"] = visible
 
-        table_columns = self.df.columns
+        table_columns = self.table.value.columns
 
         for table_col in table_columns:
             if table_col not in self.main_cols + self.controller.displayed_unit_properties:
@@ -570,20 +566,22 @@ class UnitListView(ViewBase):
         self._panel_merge_units()
         self.notifier.notify_active_view_updated()
 
-    def _panel_on_visible_changed(self, row):
-        unit_ids = self.df.index.values
+    def _panel_on_visible_checkbox_toggled(self, row):
+        print("checkbox toggled on row", row)
+        unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
-        self.controller.unit_visible_dict[selected_unit_id] = True
+        self.controller.unit_visible_dict[selected_unit_id] = not self.controller.unit_visible_dict[selected_unit_id]
+        print(f"Setting visibility of unit {selected_unit_id} to {self.controller.unit_visible_dict[selected_unit_id]}")
         # update the visible column
-        df = self.table.value
-        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
-        self.table.value = df
+        indices = list(self.controller.unit_visible_dict.keys())
+        self.table.value.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
+        self.refresh()
         self.notify_unit_visibility_changed()
 
     def _panel_on_unit_visibility_changed(self):
         # update selection to match visible units
         visible_units = self.controller.get_visible_unit_ids()
-        unit_ids = list(self.df.index.values)
+        unit_ids = list(self.table.value.index.values)
         rows_to_select = [unit_ids.index(unit_id) for unit_id in visible_units if unit_id in unit_ids]
         self.table.selection = rows_to_select
         self.refresh()
@@ -592,8 +590,7 @@ class UnitListView(ViewBase):
         column = event.column
         if self.label_definitions is not None and column in self.label_definitions:
             row = event.row
-            unit_index = self.table._get_sorted_indices()[row]
-            unit_id = self.df.index[unit_index]
+            unit_id = self.table.value.index[row]
             new_label = event.value
             if new_label == "":
                 new_label = None
@@ -603,16 +600,19 @@ class UnitListView(ViewBase):
     def _panel_on_only_selection(self):
         self.controller.set_all_unit_visibility_off()
         selected_unit = self.table.selection[0]
-        unit_id = self.df.index.values[selected_unit]
+        unit_id = self.table.value.index.values[selected_unit]
         self.controller.unit_visible_dict[unit_id] = True
         # update the visible column
         df = self.table.value
-        df.loc[:, "visible"] = list(self.controller.unit_visible_dict.values())
+        indices = list(self.controller.unit_visible_dict.keys())
+        visible = list(self.controller.unit_visible_dict.values())
+        df.loc[indices, "visible"] = visible
         self.table.value = df
         self.notify_unit_visibility_changed()
 
     def _panel_get_selected_unit_ids(self):
-        return self.table._get_selected_rows(sort_with_sorters=False)
+        unit_ids = self.table.value.index.values
+        return unit_ids[self.table.selection]
 
     def _panel_delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
@@ -632,6 +632,7 @@ class UnitListView(ViewBase):
 
     def _panel_handle_shortcut(self, event):
         if self.is_view_active():
+            selected_unit_ids = self._panel_get_selected_unit_ids()
             if event.data in ["delete", "merge", "good", "mua", "noise"]:
                 if not self.controller.curation:
                     return
@@ -641,36 +642,26 @@ class UnitListView(ViewBase):
                 if self.controller.curation:
                     self._panel_merge_units()
             elif event.data == "visible":
-                selected_rows = self._panel_get_selected_unit_ids()
                 self.controller.set_all_unit_visibility_off()
-                for unit_id in self.df.index.values[selected_rows]:
+                for unit_id in selected_unit_ids:
                     self.controller.unit_visible_dict[unit_id] = True
                 self.notify_unit_visibility_changed()
                 self.refresh()
             elif event.data == "good":
-                selected_rows = self._panel_get_selected_unit_ids()
-                if len(selected_rows) > 0:
-                    unit_ids = self.df.index.values[selected_rows]
-                    for unit_id in unit_ids:
-                        self.controller.set_label_to_unit(unit_id, "quality", "good")
-                    self.df.loc[unit_ids, "quality"] = "good"
-                    self.refresh()
+                for unit_id in selected_unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", "good")
+                self.table.value.loc[selected_unit_ids, "quality"] = "good"
+                self.refresh()
             elif event.data == "mua":
-                selected_rows = self._panel_get_selected_unit_ids()
-                if len(selected_rows) > 0:
-                    unit_ids = self.df.index.values[selected_rows]
-                    for unit_id in unit_ids:
-                        self.controller.set_label_to_unit(unit_id, "quality", "MUA")
-                    self.df.loc[unit_ids, "quality"] = "MUA"
-                    self.refresh()
+                for unit_id in selected_unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", "MUA")
+                self.table.value.loc[selected_unit_ids, "quality"] = "MUA"
+                self.refresh()
             elif event.data == "noise":
-                selected_rows = self._panel_get_selected_unit_ids()
-                if len(selected_rows) > 0:
-                    unit_ids = self.df.index.values[selected_rows]
-                    for unit_id in unit_ids:
-                        self.controller.set_label_to_unit(unit_id, "quality", "noise")
-                    self.df.loc[unit_ids, "quality"] = "noise"
-                    self.refresh()
+                for unit_id in selected_unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", "noise")
+                self.table.value.loc[selected_unit_ids, "quality"] = "noise"
+                self.refresh()
 
 
 

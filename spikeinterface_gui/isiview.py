@@ -65,6 +65,7 @@ class ISIView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
+        from bokeh.models import Range1d
         from .utils_panel import _bg_color
 
         # Create Bokeh figure
@@ -79,6 +80,9 @@ class ISIView(ViewBase):
             styles={"flex": "1"}
         )
         self.figure.toolbar.logo = None
+        # Update plot ranges
+        self.figure.x_range = Range1d(0, self.settings['window_ms'])
+        self.figure.y_range = Range1d(0, 100)
 
         self.layout = pn.Column(
                 self.figure,
@@ -87,7 +91,7 @@ class ISIView(ViewBase):
             )
 
     def _panel_refresh(self):
-        from bokeh.models import ColumnDataSource, Range1d
+        from bokeh.models import ColumnDataSource
 
         # this clear the figure
         self.figure.renderers = []
@@ -109,11 +113,7 @@ class ISIView(ViewBase):
                 visible=self.controller.unit_visible_dict[unit_id],
             )
             y_max = max(y_max, isi.max())
-
-        # Update plot ranges
-        self.figure.x_range = Range1d(0, self.settings['window_ms'])
-        self.figure.y_range = Range1d(0, y_max * 1.1)
-
+        self.figure.y_range.end = y_max * 1.1
 
 ISIView._gui_help_txt = """
 ## ISI View
