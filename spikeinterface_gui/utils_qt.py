@@ -188,15 +188,20 @@ class ViewBoxHandlingClickToPositionWithCtrl(pg.ViewBox):
 class ViewBoxHandlingDoubleclickAndGain(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     gain_zoom = QT.pyqtSignal(float)
+    widen_narrow = QT.pyqtSignal(float)
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
         ev.accept()
     def wheelEvent(self, ev, axis=None):
-        if ev.modifiers() == QT.Qt.ControlModifier:
+        if ev.modifiers() == QT.Qt.AltModifier:
+            z = 1.3 if ev.delta()>0 else 1/1.3
+            self.widen_narrow.emit(z)
+        elif ev.modifiers() == QT.Qt.ControlModifier:
             z = 10 if ev.delta()>0 else 1/10.
+            self.gain_zoom.emit(z)
         else:
             z = 1.3 if ev.delta()>0 else 1/1.3
-        self.gain_zoom.emit(z)
+            self.gain_zoom.emit(z)
         ev.accept()
     def raiseContextMenu(self, ev):
         #for some reasons enableMenu=False is not taken (bug ????)

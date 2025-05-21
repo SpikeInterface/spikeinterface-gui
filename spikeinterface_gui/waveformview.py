@@ -164,7 +164,12 @@ class WaveformView(ViewBase):
         self._y2_range = None
         
         self.viewBox1.gain_zoom.connect(self._qt_gain_zoom)
+        self.viewBox1.widen_narrow.connect(self._qt_widen_narrow)
         
+    def _qt_widen_narrow(self, factor_ratio):
+        if self.mode=='geometry':
+            self.factor_x *= factor_ratio
+            self._qt_refresh(keep_range=True)
 
     def _qt_gain_zoom(self, factor_ratio):
         if self.mode=='geometry':
@@ -734,7 +739,8 @@ There are 2 modes of display:
 ### Controls
 * **mode** : change displaye mode (geometry or flatten)
 * **mouse wheel** : scale waveform amplitudes
-* **shift + mouse wheel** : zoom
 * **alt + mouse wheel** : widen/narrow x axis
+* **shift + mouse wheel** : zoom (panel)
+* **right click + drag** : zoom (qt)
 """
 
