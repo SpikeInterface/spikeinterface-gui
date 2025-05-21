@@ -14,7 +14,6 @@ class WaveformView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = [
-        {'name': 'overlap', 'type': 'bool', 'value': True},
         {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
         {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
@@ -341,9 +340,7 @@ class WaveformView(ViewBase):
         
         self.plot1.addItem(self.curve_one_waveform)
 
-        offsets = None
-        if not self.settings["overlap"] and len(visible_unit_ids) > 1:
-            offsets = np.linspace(0, 1, len(visible_unit_ids))
+        xvect = self.xvect[common_channel_indexes, :] * self.factor_x
 
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
             if not unit_visible_dict[unit_id]:
@@ -359,11 +356,6 @@ class WaveformView(ViewBase):
             connect = np.ones(wf.shape, dtype='bool')
             connect[0, :] = 0
             connect[-1, :] = 0
-            
-            xvect = self.xvect[common_channel_indexes, :]
-            if offsets is not None:
-                x_range = np.ptp(xvect[0])
-                xvect += offsets[unit_index] * x_range
 
             # color = self.controller.qcolors.get(unit_id, QT.QColor( 'white'))
             color = self.get_unit_color(unit_id)
@@ -596,9 +588,7 @@ class WaveformView(ViewBase):
         if len(visible_unit_ids) == 0:
             return
 
-        offsets = None
-        if not self.settings["overlap"] and len(visible_unit_ids) > 1:
-            offsets = np.linspace(0, 0.5, len(visible_unit_ids))
+        xvect = self.xvect[common_channel_indexes, :] * self.factor_x
 
         xs = []
         ys = []
@@ -612,11 +602,6 @@ class WaveformView(ViewBase):
             wf = wf * self.factor_y * self.delta_y + ypos[None, :]
             # this disconnects each channel
             wf[0, :] = np.nan
-            xvect = self.xvect[common_channel_indexes, :] * self.factor_x
-            if offsets is not None:
-                offset = offsets[i]
-                x_range = np.ptp(xvect[0])
-                xvect += offset * x_range
 
             color = self.get_unit_color(unit_id)
 

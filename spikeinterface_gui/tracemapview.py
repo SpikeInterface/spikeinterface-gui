@@ -23,7 +23,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
     ]
 
 
-    def __init__(self, controller=None, parent=None, backend="qt", sync_view=None):
+    def __init__(self, controller=None, parent=None, backend="qt"):
 
         self.time_by_seg = np.array([0.0] * controller.num_segments, dtype="float64")
         self.seg_index = 0
@@ -34,17 +34,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.color_limit = None
         self.last_data_curves = None
 
-        make_layout_kwargs = {'sync_view': sync_view} if sync_view is not None else {}
-
-        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend, **make_layout_kwargs)
+        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
         MixinViewTrace.__init__(self)
-
-        if sync_view is not None:
-            print("Syncing existing trace/tracemap view")
-            self.toolbar = sync_view.toolbar
-            self.time_slider = sync_view.time_slider
-            self.time_by_seg = sync_view.time_by_seg
-            self.seg_index = sync_view.seg_index
 
         self.make_color_lut()
 
@@ -226,7 +217,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
 
     ## Panel ##
-    def _panel_make_layout(self, sync_view=None):
+    def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
@@ -291,12 +282,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # # Add hover tool for spikes
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-
-        if sync_view is None:
-            self._panel_create_toolbar()
-        else:
-            self._panel_sync_controls(sync_view)
-
+        self._panel_create_toolbar()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area

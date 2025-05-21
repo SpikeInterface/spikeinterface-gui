@@ -188,15 +188,7 @@ class PanelMainWindow:
             if view_name == 'curation' and not self.controller.curation:
                 continue
 
-            # for trace/tracemaps, inject same toolbar
-            if view_name == "trace" and "tracemap" in self.views:
-                extra_kwargs = {"sync_view": self.views["tracemap"]}
-            elif view_name == "tracemap" and "trace" in self.views:
-                extra_kwargs = {"sync_view": self.views["trace"]}
-            else:
-                extra_kwargs = {}
-
-            view = view_class(controller=self.controller, parent=None, backend='panel', **extra_kwargs)
+            view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
             info = pn.Column(

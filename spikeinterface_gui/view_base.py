@@ -7,7 +7,7 @@ class ViewBase():
     _gui_help_txt = "The help for this view is not done yet"
     _depend_on = None
     
-    def __init__(self, controller=None, parent=None, backend="qt", **make_layout_kwargs):
+    def __init__(self, controller=None, parent=None, backend="qt"):
 
         self.backend = backend
         self.controller = controller
@@ -31,7 +31,7 @@ class ViewBase():
                 create_settings(self)
             self.notifier = SignalNotifier(view=self)
 
-        make_layout(**make_layout_kwargs)
+        make_layout()
         if self._settings is not None:
             listen_setting_changes(self)
 
@@ -161,7 +161,6 @@ class ViewBase():
             self._qt_on_manual_curation_updated()
         elif self.backend == "panel":
             self._panel_on_manual_curation_updated()
-
 
     ## Zone to be done per layout ##
 

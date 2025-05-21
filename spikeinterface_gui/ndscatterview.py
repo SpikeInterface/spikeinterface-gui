@@ -140,6 +140,12 @@ class NDScatterView(ViewBase):
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
+    def update_selected_components(self):
+        n_pc_per_chan = self.pc_data.shape[1]
+        n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
+        self.selected_comp[:] = False
+        for i in range(n):
+            self.selected_comp[self.controller.visible_channel_inds*n_pc_per_chan+i] = True
 
     ## Qt ##
     def _qt_make_layout(self):
@@ -240,11 +246,7 @@ class NDScatterView(ViewBase):
         import pyqtgraph as pg
 
         # update visible channel
-        n_pc_per_chan = self.pc_data.shape[1]
-        n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
-        self.selected_comp[:] = False
-        for i in range(n):
-            self.selected_comp[self.controller.visible_channel_inds*n_pc_per_chan+i] = True
+        self.update_selected_components()
 
         #ndscatter
         # TODO sam: I have the feeling taht it is a bit slow
@@ -403,6 +405,7 @@ class NDScatterView(ViewBase):
         self.tour_timer = None
 
     def _panel_refresh(self):
+        self.update_selected_components()
         scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
 
         # format rgba
