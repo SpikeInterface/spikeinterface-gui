@@ -23,7 +23,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
 
     def __init__(self, controller=None, parent=None, backend="qt"):
-        self.xsize = controller.get_time_info()["xsize_s"]
         pos = controller.get_contact_location()
         self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], ))
         self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
@@ -153,11 +152,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def _qt_on_settings_changed(self, do_refresh=True):
 
         self.spinbox_xsize.opts['bounds'] = [0.001, self.settings['xsize_max']]
-        if self.xsize > self.settings['xsize_max']:
+        xsize = self.controller.get_time_info()['xsize_s']
+        if xsize > self.settings['xsize_max']:
             self.spinbox_xsize.sigValueChanged.disconnect(self.on_xsize_changed)
             self.spinbox_xsize.setValue(self.settings['xsize_max'])
-            self.xsize = self.settings['xsize_max']
+            self.controller.set_time_info(dict(xsize_s=self.settings['xsize_max']))
             self.spinbox_xsize.sigValueChanged.connect(self.on_xsize_changed)
+            self.notify_time_info_updated()
 
         self.make_color_lut()
 
@@ -184,13 +185,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
             self.timeseeker.seek(t, emit=False)
 
         self.controller.set_time(t)
-        t1,t2 = t-self.xsize/3. , t+self.xsize*2/3.
+        xsize = self.controller.get_time_info()['xsize_s']
+        t1, t2 = t - xsize / 3. , t + xsize * 2/3.
 
         sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
         self.scroll_time.setValue(int(sr*t))
-        self.scroll_time.setPageStep(int(sr*self.xsize))
+        self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
         
@@ -218,12 +220,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
         seg_index = time_info['segment_index']
         self._qt_change_segment(seg_index, notify=False)
         t = self.controller.get_time()
-        self.timeseeker.seek(t)
+        self.timeseeker.seek(t, emit=False)
 
         # Update xsize spinbox value
         xsize_s = time_info['xsize_s']
         self.spinbox_xsize.setValue(xsize_s)
-        self.refresh()
+        # _refresh avoids printing refresh time
+        self._refresh()
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -307,7 +310,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def _panel_refresh(self):
         t = self.controller.get_time()
-        t1, t2 = t - self.xsize / 3.0, t + self.xsize * 2 / 3.0
+        xsize = self.controller.get_time_info()['xsize_s']
+        t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
 
         if self.last_data_curves is None:
             auto_scale = True
@@ -363,17 +367,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
             peak_time = peak_ind / self.controller.sampling_frequency
 
             if seg_index != self.controller.get_time_info()["segment_index"]: 
-                self._panel_change_segment(seg_index)
+                self._panel_change_segment(seg_index, notify=False)
 
-            self.xsize = self.controller.get_time_info()["xsize_s"]
-            self.xsize_spinner.value = self.xsize
+            xsize = self.controller.get_time_info()["xsize_s"]
+            self.xsize_spinner.value = xsize
 
             # Update time slider
             self.time_slider.value = peak_time
             self.controller.set_time(peak_time)
 
             # Center view on spike
-            margin = self.xsize / 3
+            margin = xsize / 3
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
             self.refresh()
@@ -411,7 +415,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # Update xsize spinner value
         xsize_s = time_info['xsize_s']
         self.xsize_spinner.value = xsize_s
-        self.refresh()
+        # _refresh avoids printing refresh time
+        self._refresh()
 
 
 TraceMapView._gui_help_txt = """
