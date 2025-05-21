@@ -189,6 +189,7 @@ class ViewBoxHandlingDoubleclickAndGain(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     gain_zoom = QT.pyqtSignal(float)
     widen_narrow = QT.pyqtSignal(float)
+    limit_zoom = QT.pyqtSignal(float)
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
         ev.accept()
@@ -196,6 +197,9 @@ class ViewBoxHandlingDoubleclickAndGain(pg.ViewBox):
         if ev.modifiers() == QT.Qt.AltModifier:
             z = 1.3 if ev.delta()>0 else 1/1.3
             self.widen_narrow.emit(z)
+        elif ev.modifiers() == QT.Qt.ShiftModifier:
+            z = 1.3 if ev.delta()<0 else 1/1.3
+            self.limit_zoom.emit(z)
         elif ev.modifiers() == QT.Qt.ControlModifier:
             z = 10 if ev.delta()>0 else 1/10.
             self.gain_zoom.emit(z)
