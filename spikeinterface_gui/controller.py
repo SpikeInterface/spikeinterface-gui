@@ -268,7 +268,13 @@ class Controller():
             displayed_unit_properties += list(extra_unit_properties.keys())
         displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
         self.displayed_unit_properties = displayed_unit_properties
-        
+
+        # set default time info
+        self.time_info = dict(
+            time_by_seg=np.array([0] * self.num_segments, dtype="float64"),
+            segment_index=0,
+            xsize_s=0.08
+        )
 
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
@@ -334,7 +340,25 @@ class Controller():
     @property
     def unit_ids(self):
         return self.analyzer.unit_ids
-    
+
+    def get_time(self):
+        seg_index = self.time_info['segment_index']
+        time_by_seg = self.time_info['time_by_seg']
+        time = time_by_seg[seg_index]
+        return time
+
+    def set_time(self, time):
+        seg_index = self.time_info['segment_index']
+        time_by_seg = self.time_info['time_by_seg']
+        time_by_seg[seg_index] = time
+        self.time_info['time_by_seg'] = time_by_seg
+
+    def get_time_info(self):
+        return self.time_info.copy()
+
+    def set_time_info(self, time_info):
+        self.time_info.update(time_info)
+
     def get_unit_color(self, unit_id):
         # scalar unit_id -> color html or QtColor
         return self.colors[unit_id]

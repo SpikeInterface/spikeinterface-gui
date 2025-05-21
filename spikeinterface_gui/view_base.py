@@ -50,6 +50,9 @@ class ViewBase():
     def notify_manual_curation_updated(self):
         self.notifier.notify_manual_curation_updated()
 
+    def notify_time_info_updated(self):
+        self.notifier.notify_time_info_updated()
+
     def notify_active_view_updated(self):
         # this is used for panel
         if self.backend == "panel":
@@ -162,6 +165,12 @@ class ViewBase():
         elif self.backend == "panel":
             self._panel_on_manual_curation_updated()
 
+    def on_time_info_updated(self):
+        if self.backend == "qt":
+            self._qt_on_time_info_updated()
+        elif self.backend == "panel":
+            self._panel_on_time_info_updated()
+
     ## Zone to be done per layout ##
 
     ## QT ##
@@ -184,6 +193,9 @@ class ViewBase():
     def _qt_on_manual_curation_updated(self):
         pass
 
+    def _qt_on_time_info_updated(self):
+        pass
+
     ## PANEL ##
     def _panel_make_layout(self):
         raise NotImplementedError
@@ -202,4 +214,7 @@ class ViewBase():
         pass
 
     def _panel_on_manual_curation_updated(self):
+        pass
+
+    def _panel_on_time_info_updated(self):
         pass
