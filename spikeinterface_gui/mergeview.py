@@ -59,7 +59,7 @@ class MergeView(ViewBase):
         if self.controller.verbose:
             print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
 
-    def get_table_data(self):
+    def get_table_data(self, include_deleted=False):
         """Get data for displaying in table"""
         if not self.proposed_merge_unit_groups:
             return [], []
@@ -79,6 +79,11 @@ class MergeView(ViewBase):
         rows = []
         unit_ids = list(self.controller.unit_ids)
         for group_ids in self.proposed_merge_unit_groups:
+            if not include_deleted and self.controller.curation:
+                deleted_unit_ids = self.controller.curation_data["removed_units"]
+                if any(unit_id in deleted_unit_ids for unit_id in group_ids):
+                    continue
+
             row = {}
             # Add unit information
             for i, unit_id in enumerate(group_ids):
@@ -184,9 +189,18 @@ class MergeView(ViewBase):
         self.method = self.method_selector['method']
         self._qt_on_method_change()
 
+        row_layout = QT.QHBoxLayout()
+
         but = QT.QPushButton('Calculate merges')
-        self.layout.addWidget(but)
         but.clicked.connect(self._qt_calculate_potential_automerge)
+        row_layout.addWidget(but)
+
+        if self.controller.curation:
+            self.include_deleted = QT.QCheckBox("Include deleted units")
+            self.include_deleted.setChecked(False)
+            row_layout.addWidget(self.include_deleted)
+
+        self.layout.addLayout(row_layout)
 
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
@@ -211,7 +225,8 @@ class MergeView(ViewBase):
         self.table.clear()
         self.table.setSortingEnabled(False)
 
-        labels, rows = self.get_table_data()
+        include_deleted = self.include_deleted.isChecked() if self.controller.curation else False
+        labels, rows = self.get_table_data(include_deleted=include_deleted)
         if "group_ids" in labels:
             labels.remove("group_ids")
 
@@ -300,11 +315,18 @@ class MergeView(ViewBase):
         self.caluculate_merges_button = pn.widgets.Button(name="Calculate merges", button_type="primary", sizing_mode="stretch_width")
         self.caluculate_merges_button.on_click(self._panel_calculate_merges)
 
+        calculate_list = [self.caluculate_merges_button]
+
+        if self.controller.curation:
+            self.include_deleted = pn.widgets.Checkbox(name="Include deleted units", value=False)
+            calculate_list.append(self.include_deleted)
+        calculate_row = pn.Row(*calculate_list, sizing_mode="stretch_width")
+
         self.layout = pn.Column(
             # add params
             self.method_selector, 
             self.method_params_selectors[self.method],
-            self.caluculate_merges_button,
+            calculate_row,
             self.table_area,
             shortcuts_component,
             scroll=True,
@@ -321,7 +343,8 @@ class MergeView(ViewBase):
 
         pn.extension("tabulator")
         # Create table
-        labels, rows = self.get_table_data()
+        include_deleted = self.include_deleted.value if self.controller.curation else False
+        labels, rows = self.get_table_data(include_deleted=include_deleted)
         # set unmutable data
         data = {label: [] for label in labels}
         for row in rows:
