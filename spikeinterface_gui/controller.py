@@ -367,9 +367,9 @@ class Controller():
         return chan_ind
     
     def set_visible_unit_ids(self, visible_unit_ids):
-        lim = self.controller.main_settings['max_visible_units']
-        if len(visible_unit_ids) > lim:
-            visible_unit_ids = visible_unit_ids[:lim]
+        # lim = self.controller.main_settings['max_visible_units']
+        # if len(visible_unit_ids) > lim:
+            # visible_unit_ids = visible_unit_ids[:lim]
         self.set_all_unit_visibility_off()
         for u in visible_unit_ids:
             self.unit_visible_dict[u] = True
