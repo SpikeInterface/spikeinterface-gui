@@ -272,8 +272,7 @@ class Controller():
         # set default time info
         self.time_info = dict(
             time_by_seg=np.array([0] * self.num_segments, dtype="float64"),
-            segment_index=0,
-            xsize_s=0.08
+            segment_index=0
         )
 
         self.curation = curation
@@ -342,22 +341,26 @@ class Controller():
         return self.analyzer.unit_ids
 
     def get_time(self):
+        """
+        Returns selected time and segment index
+        """
         seg_index = self.time_info['segment_index']
         time_by_seg = self.time_info['time_by_seg']
         time = time_by_seg[seg_index]
-        return time
+        return time, seg_index
 
-    def set_time(self, time):
-        seg_index = self.time_info['segment_index']
-        time_by_seg = self.time_info['time_by_seg']
-        time_by_seg[seg_index] = time
-        self.time_info['time_by_seg'] = time_by_seg
-
-    def get_time_info(self):
-        return self.time_info.copy()
-
-    def set_time_info(self, time_info):
-        self.time_info.update(time_info)
+    def set_time(self, time=None, segment_index=None):
+        """
+        Set selected time and segment index.
+        If time is None, then the current time is used.
+        If segment_index is None, then the current segment index is used.
+        """
+        if segment_index is not None:
+            self.time_info['segment_index'] = segment_index
+        else:
+            segment_index = self.time_info['segment_index']
+        if time is not None:
+            self.time_info['time_by_seg'][segment_index] = time
 
     def get_unit_color(self, unit_id):
         # scalar unit_id -> color html or QtColor
