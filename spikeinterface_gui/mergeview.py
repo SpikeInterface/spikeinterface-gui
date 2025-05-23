@@ -215,10 +215,6 @@ class MergeView(ViewBase):
         self.table.itemSelectionChanged.connect(self._qt_on_item_selection_changed)
         self.table.itemDoubleClicked.connect(self._qt_on_double_click)
 
-        shortcut_merge = QT.QShortcut(self.qt_widget)
-        shortcut_merge.setKey(QT.QKeySequence('m'))
-        shortcut_merge.activated.connect(self._qt_on_merge_shorcut)
-
         self.refresh()
 
     def _qt_refresh(self):
@@ -424,7 +420,6 @@ class MergeView(ViewBase):
     def _panel_on_unit_visibility_changed(self):
         pass
 
-    
 
 
 MergeView._gui_help_txt = """

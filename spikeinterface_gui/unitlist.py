@@ -76,9 +76,9 @@ class UnitListView(ViewBase):
         self.layout.addWidget(self.table)
         self.table.itemChanged.connect(self._qt_on_item_changed)
         self.table.cellDoubleClicked.connect(self._qt_on_double_clicked)
-        shortcut_visible = QT.QShortcut(self.qt_widget)
-        shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
-        shortcut_visible.activated.connect(self.on_visible_shortcut)
+        self.shortcut_visible = QT.QShortcut(self.qt_widget)
+        self.shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
+        self.shortcut_visible.activated.connect(self.on_visible_shortcut)
         
         # Enable column dragging
         header = self.table.horizontalHeader()
@@ -99,9 +99,29 @@ class UnitListView(ViewBase):
             act.triggered.connect(self._qt_delete_unit)
             act = self.menu.addAction('Merge selected')
             act.triggered.connect(self._qt_merge_selected)
-            shortcut_delete = QT.QShortcut(self.qt_widget)
-            shortcut_delete.setKey(QT.QKeySequence('d'))
-            shortcut_delete.activated.connect(self._qt_on_delete_shortcut)
+            self.shortcut_delete = QT.QShortcut(self.qt_widget)
+            self.shortcut_delete.setKey(QT.QKeySequence("ctrl+d"))
+            self.shortcut_delete.activated.connect(self._qt_on_delete_shortcut)
+            self.shortcut_merge = QT.QShortcut(self.qt_widget)
+            self.shortcut_merge.setKey(QT.QKeySequence("ctrl+m"))
+            self.shortcut_merge.activated.connect(self._qt_on_merge_shortcut)
+
+            self.shortcut_good = None
+            self.shortcut_mua = None
+            self.shortcut_noise = None
+            if self.controller.has_default_quality_labels:
+                self.shortcut_good = QT.QShortcut(self.qt_widget)
+                self.shortcut_good.setKey(QT.QKeySequence('g'))
+                self.shortcut_good.activated.connect(lambda: self._qt_set_default_label('good'))
+
+                self.shortcut_mua = QT.QShortcut(self.qt_widget)
+                self.shortcut_mua.setKey(QT.QKeySequence('m'))
+                self.shortcut_mua.activated.connect(lambda: self._qt_set_default_label('MUA'))
+
+                self.shortcut_noise = QT.QShortcut(self.qt_widget)
+                self.shortcut_noise.setKey(QT.QKeySequence('n'))
+                self.shortcut_noise.activated.connect(lambda: self._qt_set_default_label('noise'))
+
 
     def _qt_on_column_moved(self, logical_index, old_visual_index, new_visual_index):
         # Update stored column order
@@ -127,7 +147,24 @@ class UnitListView(ViewBase):
         self.table.itemChanged.disconnect(self._qt_on_item_changed)
         for i, unit_id in enumerate(self.controller.unit_ids):
             item = self.items_visibility[unit_id]
-            item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict[unit_id]])
+            item.setCheckState({False: QT.Qt.Unchecked, True: QT.Qt.Checked}[self.controller.unit_visible_dict[unit_id]])
+
+        # Update table selected items: this makes sure that if the visible units are updated
+        # (e.g. form the mergeview), the selection is updated too
+        self.table.clearSelection()
+        selection_model = self.table.selectionModel()
+        selection_model.clearSelection()  # optional; included to make it feel "set"-like
+
+        row_list = []
+        for i, unit_id in enumerate(self.controller.unit_ids):
+            if self.controller.unit_visible_dict[unit_id]:
+                row_list.append(i)
+        for row in row_list:
+            index = self.table.model().index(row, 0)
+            selection_model.select(
+                index,
+                QT.QItemSelectionModel.Select | QT.QItemSelectionModel.Rows
+            )
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
@@ -139,7 +176,13 @@ class UnitListView(ViewBase):
             self._qt_full_table_refresh()
         # self._qt_full_table_refresh()
         
-    
+
+    def _qt_set_default_label(self, label):
+        selected_unit_ids = self.get_selected_unit_ids()
+        for unit_id in selected_unit_ids:
+            self.controller.set_label_to_unit(unit_id, "quality", label)
+        self._qt_full_table_refresh()
+
     def _qt_full_table_refresh(self):
         # TODO sam make this faster
 
@@ -229,7 +272,6 @@ class UnitListView(ViewBase):
                 delegate = UnitTableDelegate(parent=self.table, label_definitions=label_definitions, label_columns=self.label_columns)
                 self.table.setItemDelegate(delegate)
 
-                
             for m, col in enumerate(self.controller.displayed_unit_properties):
                 v = self.controller.units_table.loc[unit_id, col]
                 if isinstance(v, float):
@@ -313,6 +355,7 @@ class UnitListView(ViewBase):
         sel_rows = self._qt_get_selected_rows()
         self._qt_delete_unit()
         if len(sel_rows) > 0:
+            self.table.clearSelection()
             self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
 
@@ -320,6 +363,13 @@ class UnitListView(ViewBase):
         removed_unit_ids = self.get_selected_unit_ids()
         self.controller.make_manual_delete_if_possible(removed_unit_ids)
         self.notify_manual_curation_updated()
+
+    def _qt_on_merge_shortcut(self):
+        sel_rows = self._qt_get_selected_rows()
+        self._qt_merge_selected()
+        if len(sel_rows) > 0:
+            self.table.clearSelection()
+            self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
     def _qt_merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
@@ -550,11 +600,9 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_checkbox_toggled(self, row):
-        print("checkbox toggled on row", row)
         unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
         self.controller.unit_visible_dict[selected_unit_id] = not self.controller.unit_visible_dict[selected_unit_id]
-        print(f"Setting visibility of unit {selected_unit_id} to {self.controller.unit_visible_dict[selected_unit_id]}")
         # update the visible column
         indices = list(self.controller.unit_visible_dict.keys())
         self.table.value.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
@@ -647,7 +695,6 @@ class UnitListView(ViewBase):
                 self.refresh()
 
 
-
 UnitListView._gui_help_txt = """
 ## Unit List
 
@@ -664,7 +711,7 @@ This view controls the visibility of units.
 * **press 'g'** : label selected units as good (if curation=True)
 * **press 'm'** : label selected units as mua (if curation=True)
 * **press 'n'** : label selected units as noise (if curation=True)
-* **drag column headers** : reorder columns
-* **click on column header** : sort by this column
+* **drag column headers** : reorder columns (Qt-only)
+* **click on column header** : sort by this column (Qt-only)
 * **"↻"** : reset the unit table
 """

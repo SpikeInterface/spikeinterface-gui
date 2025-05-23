@@ -230,10 +230,21 @@ class CustomCircle:
         self.radius = radius
         self.update_position(*self.center)
 
-    def is_position_inside(self, x, y):
+    def is_position_inside(self, x, y, skip_other_positions=None, skip_distance=5):
+        """
+        Check if the given position (x, y) is inside the circle.
+        If skip_other_positions is provided, check if the position is close to any of them
+        usinf the skip_distance.
+        """
         # Check if position is inside the circle
         distance = np.sqrt((x - self.center[0]) ** 2 + (y - self.center[1]) ** 2)
-        return distance <= self.radius
+        isin = distance <= self.radius
+        if skip_other_positions is not None:
+            for pos in skip_other_positions:
+                dist = np.sqrt((x - pos[0]) ** 2 + (y - pos[1]) ** 2)
+                if dist < skip_distance:
+                    return False
+        return isin
 
     def is_close_to_border(self, x, y):
         # Check if position is close to the border of the circle
