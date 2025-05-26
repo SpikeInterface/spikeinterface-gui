@@ -20,7 +20,7 @@ def get_layout_description(preset_name):
 default_layout = dict(
     zone1=['curation', 'spikelist'],
     zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap',  'spikeamplitude'],
+    zone3=['trace', 'tracemap',  'spikeamplitude', 'spikedepth'],
     zone4=[],
     zone5=['probe'],
     zone6=['ndscatter', 'similarity'],
@@ -47,7 +47,7 @@ _presets['legacy'] = legacy_layout
 yep_layout = dict(
     zone1=['curation', 'spikelist'],
     zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap',  'spikeamplitude'],
+    zone3=['trace', 'tracemap', 'spikeamplitude'],
     zone4=['similarity'],
     zone5=['probe'],
     zone6=['ndscatter', ],

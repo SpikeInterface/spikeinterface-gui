@@ -121,6 +121,19 @@ class Controller():
             else:
                 self.spike_amplitudes = None
 
+        if "spike_locations" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping spike_locations')
+            self.spike_depths = None
+        else:
+            if verbose:
+                print('\tLoading spike_locations')
+            sl_ext = analyzer.get_extension('spike_locations')
+            if sl_ext is not None:
+                self.spike_depths = sl_ext.get_data()["y"]
+            else:
+                self.spike_depths = None
+
         if "correlograms" in skip_extensions:
             if self.verbose:
                 print('\tSkipping correlograms')
