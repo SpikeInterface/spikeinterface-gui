@@ -92,31 +92,39 @@ class MixinViewTrace:
         self.scroll_time.setMinimum(0)
         self.scroll_time.setMaximum(length)
 
-    def _qt_change_segment(self, seg_index, notify=True):
+    def _qt_change_segment(self, seg_index):
         #TODO: dirty because now seg_pos IS seg_index
         self.controller.set_time(segment_index=seg_index)
-        self.combo_seg.setCurrentIndex(seg_index)
+
+        if seg_index != self.combo_seg.currentIndex():
+            self.combo_seg.setCurrentIndex(seg_index)
+
         self._qt_update_scroll_limits()
-        if self.is_view_visible():
-            self._refresh()
-        if notify:
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from qt change segment")
+            self.refresh()
             self.notify_time_info_updated()
 
     def _qt_on_time_changed(self, t):
         self.controller.set_time(time=t)
-        self._qt_seek(t)
-        self.notify_time_info_updated()
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from qt time seeker")
+            self._qt_seek(t)
+            self.notify_time_info_updated()
 
     def _qt_on_combo_seg_changed(self):
-        s =  self.combo_seg.currentIndex()
-        self._qt_change_segment(s)
+        s = self.combo_seg.currentIndex()
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from qt time combo seg")
+            self._qt_change_segment(s)
     
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
         self.xsize = xsize
-        if self.is_view_visible():
-            self._refresh()
-        self.notify_time_info_updated()
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from qt xsizie")
+            self.refresh()
+            self.notify_time_info_updated()
 
     def _qt_xsize_zoom(self, xmove):
         factor = xmove/100.
@@ -142,10 +150,9 @@ class MixinViewTrace:
             if seg_index != self.controller.get_time()[1]:
                 self._qt_change_segment(seg_index, notify=False)
 
+            self.spinbox_xsize.sigValueChanged.disconnect(self._qt_on_xsize_changed)
             self.xsize = self.settings['spike_selection_xsize']
             self.spinbox_xsize.setValue(self.xsize)
-            
-            self.spinbox_xsize.sigValueChanged.disconnect(self._qt_on_xsize_changed)
             self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
 
             self.controller.set_time(time=peak_time)
@@ -210,19 +217,24 @@ class MixinViewTrace:
         self.time_slider.start = 0
         self.time_slider.end = t_stop
         self.controller.set_time(segment_index=seg_index)
-        self._refresh()
-        if notify:
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from panel change segment")
+            self.refresh()
             self.notify_time_info_updated()
 
     def _panel_on_xsize_changed(self, event):
         self.xsize = event.new
-        self._refresh()
-        self.notify_time_info_updated()
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from panel xsize change")
+            self.refresh()
+            self.notify_time_info_updated()
 
     def _panel_on_time_slider_changed(self, event):
         self.controller.set_time(time=event.new)
-        self._refresh()
-        self.notify_time_info_updated()
+        if not self._block_auto_refresh_and_notify:
+            print(f"{self.__class__.__name__} refresh from panel time slider change")
+            self.refresh()
+            self.notify_time_info_updated()
 
     def _panel_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
@@ -237,6 +249,9 @@ class MixinViewTrace:
             if seg_index != self.controller.get_time()[1]:
                 self._panel_change_segment(seg_index, notify=False)
 
+            # block callbacks
+            self._block_auto_refresh_and_notify = True
+
             self.xsize = self.settings['spike_selection_xsize']
             self.xsize_spinner.value = self.xsize
 
@@ -248,6 +263,8 @@ class MixinViewTrace:
             margin = self.xsize / 3
             self.figure.x_range.start = peak_time - margin
             self.figure.x_range.end = peak_time + 2 * margin
+
+            self._block_auto_refresh_and_notify = False
             self.refresh()
             self.notify_time_info_updated()
 
@@ -273,6 +290,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self.med = np.zeros(self.mad.shape, dtype="float32")
         self.factor = 15.0
         self.xsize = 0.5
+        self._block_auto_refresh_and_notify = False
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
@@ -489,10 +507,16 @@ class TraceView(ViewBase, MixinViewTrace):
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
         time, seg_index = self.controller.get_time()
-        self._qt_change_segment(seg_index, notify=False)
-        self.timeseeker.seek(time, emit=False)
+        # Block auto refresh to avoid recursive calls
+        self._block_auto_refresh_and_notify = True
+
+        self._qt_change_segment(seg_index)
+        self.timeseeker.seek(time)
+        
+        self._block_auto_refresh_and_notify = False
         # _refresh avoids printing refresh time
-        self._refresh()
+        print(f"{self.__class__.__name__} refresh from on time info updated")
+        # self.refresh()
 
 
     ## panel ##
@@ -616,11 +640,13 @@ class TraceView(ViewBase, MixinViewTrace):
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
         time, seg_index = self.controller.get_time()
+        self._block_auto_refresh = True
         self._panel_change_segment(seg_index, notify=False)
         # Update time slider value
         self.time_slider.value = time
-        # _refresh avoids printing refresh time
-        self._refresh()
+        self._block_auto_refresh = False
+        print(f"{self.__class__.__name__} refresh from panel time info updated")
+        # self.refresh()
 
 
 

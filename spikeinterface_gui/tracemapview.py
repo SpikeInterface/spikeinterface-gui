@@ -31,6 +31,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.last_data_curves = None
 
         self.xsize = 0.5
+        self._block_auto_refresh_and_notify = False
 
         ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
         MixinViewTrace.__init__(self)
@@ -219,13 +220,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
         time, seg_index = self.controller.get_time()
-        self._qt_change_segment(seg_index, notify=False)
-        self.timeseeker.seek(time, emit=False)
 
-        # Update xsize spinbox value
-        self.spinbox_xsize.setValue(self.xsize)
-        # _refresh avoids printing refresh time
-        self._refresh()
+        self._block_auto_refresh_and_notify = True
+        self._qt_change_segment(seg_index)
+        self.timeseeker.seek(time)
+
+        self._block_auto_refresh_and_notify = False
+        print(f"{self.__class__.__name__} refresh from qt time info updated - visible: {self.is_view_visible()}")
+        # self.refresh()
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -378,15 +380,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # Update segment and time slider range
         time, seg_index = self.controller.get_time()
 
+        self._block_auto_refresh_and_notify = True
         self._panel_change_segment(seg_index, notify=False)
 
         # Update time slider value
         self.time_slider.value = time
 
-        # Update xsize spinner value
-        self.xsize_spinner.value = self.xsize
-        # _refresh avoids printing refresh time
-        self._refresh()
+        self._block_auto_refresh_and_notify = False
+        print(f"{self.__class__.__name__} refresh from panel time info updated - visible: {self.is_view_visible()}")
+        # self.refresh()
 
 
 TraceMapView._gui_help_txt = """

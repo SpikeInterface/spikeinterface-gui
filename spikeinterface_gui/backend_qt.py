@@ -224,7 +224,7 @@ class QtMainWindow(QT.QMainWindow):
         
         # make tabs
         for zone, view_names in widgets_zone.items():
-            n = len(widgets_zone[zone]) 
+            n = len(widgets_zone[zone])
             if n < 2:
                 # no tab here
                 continue
