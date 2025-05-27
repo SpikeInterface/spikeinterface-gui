@@ -226,8 +226,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.timeseeker.seek(time)
 
         self._block_auto_refresh_and_notify = False
-        print(f"{self.__class__.__name__} refresh from qt time info updated - visible: {self.is_view_visible()}")
-        # self.refresh()
+        # we need a refresh in panel because changing tab triggers a refresh
+        self.refresh()
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -387,8 +387,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.time_slider.value = time
 
         self._block_auto_refresh_and_notify = False
-        print(f"{self.__class__.__name__} refresh from panel time info updated - visible: {self.is_view_visible()}")
-        # self.refresh()
+        # we don't need a refresh in panel because changing tab triggers a refresh
 
 
 TraceMapView._gui_help_txt = """

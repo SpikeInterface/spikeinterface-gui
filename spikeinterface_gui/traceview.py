@@ -101,28 +101,24 @@ class MixinViewTrace:
 
         self._qt_update_scroll_limits()
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from qt change segment")
             self.refresh()
             self.notify_time_info_updated()
 
     def _qt_on_time_changed(self, t):
         self.controller.set_time(time=t)
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from qt time seeker")
             self._qt_seek(t)
             self.notify_time_info_updated()
 
     def _qt_on_combo_seg_changed(self):
         s = self.combo_seg.currentIndex()
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from qt time combo seg")
             self._qt_change_segment(s)
     
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
         self.xsize = xsize
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from qt xsizie")
             self.refresh()
             self.notify_time_info_updated()
 
@@ -218,21 +214,18 @@ class MixinViewTrace:
         self.time_slider.end = t_stop
         self.controller.set_time(segment_index=seg_index)
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from panel change segment")
             self.refresh()
             self.notify_time_info_updated()
 
     def _panel_on_xsize_changed(self, event):
         self.xsize = event.new
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from panel xsize change")
             self.refresh()
             self.notify_time_info_updated()
 
     def _panel_on_time_slider_changed(self, event):
         self.controller.set_time(time=event.new)
         if not self._block_auto_refresh_and_notify:
-            print(f"{self.__class__.__name__} refresh from panel time slider change")
             self.refresh()
             self.notify_time_info_updated()
 
@@ -514,9 +507,8 @@ class TraceView(ViewBase, MixinViewTrace):
         self.timeseeker.seek(time)
         
         self._block_auto_refresh_and_notify = False
-        # _refresh avoids printing refresh time
-        print(f"{self.__class__.__name__} refresh from on time info updated")
-        # self.refresh()
+        # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
+        self.refresh()
 
 
     ## panel ##
@@ -645,8 +637,7 @@ class TraceView(ViewBase, MixinViewTrace):
         # Update time slider value
         self.time_slider.value = time
         self._block_auto_refresh = False
-        print(f"{self.__class__.__name__} refresh from panel time info updated")
-        # self.refresh()
+        # we don't need a refresh in panel because changing tab triggers a refresh
 
 
 
