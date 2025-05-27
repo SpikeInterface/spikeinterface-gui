@@ -93,6 +93,14 @@ class UnitListView(ViewBase):
         act.triggered.connect(self.show_all)
         act = self.menu.addAction('Hide all')
         act.triggered.connect(self.hide_all)
+
+        self.shortcut_only_previous = QT.QShortcut(self.qt_widget)
+        self.shortcut_only_previous.setKey(QT.QKeySequence(QT.CTRL | QT.Key_Up))
+        self.shortcut_only_previous.activated.connect(self._qt_on_only_previous_shortcut)
+
+        self.shortcut_only_next = QT.QShortcut(self.qt_widget)
+        self.shortcut_only_next.setKey(QT.QKeySequence(QT.CTRL | QT.Key_Down))
+        self.shortcut_only_next.activated.connect(self._qt_on_only_next_shortcut)
         
         if self.controller.curation:
             act = self.menu.addAction('Delete')
@@ -149,22 +157,6 @@ class UnitListView(ViewBase):
             item = self.items_visibility[unit_id]
             item.setCheckState({False: QT.Qt.Unchecked, True: QT.Qt.Checked}[self.controller.unit_visible_dict[unit_id]])
 
-        # Update table selected items: this makes sure that if the visible units are updated
-        # (e.g. form the mergeview), the selection is updated too
-        self.table.clearSelection()
-        selection_model = self.table.selectionModel()
-        selection_model.clearSelection()  # optional; included to make it feel "set"-like
-
-        row_list = []
-        for i, unit_id in enumerate(self.controller.unit_ids):
-            if self.controller.unit_visible_dict[unit_id]:
-                row_list.append(i)
-        for row in row_list:
-            index = self.table.model().index(row, 0)
-            selection_model.select(
-                index,
-                QT.QItemSelectionModel.Select | QT.QItemSelectionModel.Rows
-            )
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
@@ -174,7 +166,6 @@ class UnitListView(ViewBase):
         else:
             # the time at startup
             self._qt_full_table_refresh()
-        # self._qt_full_table_refresh()
         
 
     def _qt_set_default_label(self, label):
@@ -344,12 +335,36 @@ class UnitListView(ViewBase):
         self.controller.set_all_unit_visibility_off()
         for unit_id in self.get_selected_unit_ids():
             self.controller.unit_visible_dict[unit_id] = True
-        # self.refresh()
         self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
         for row in rows:
             self.table.selectRow(row)
 
+    def _qt_on_only_previous_shortcut(self):
+        sel_rows = self._qt_get_selected_rows()
+        if len(sel_rows) == 0:
+            sel_rows = [self.table.rowCount()]
+        new_row = max(sel_rows[0] - 1, 0)
+        self.controller.set_all_unit_visibility_off()
+        unit_id = self.table.item(new_row, 1).unit_id
+        self.controller.unit_visible_dict[unit_id] = True
+        self._qt_refresh_visibility_items()
+        self.notify_unit_visibility_changed()
+        self.table.clearSelection()
+        self.table.selectRow(new_row)
+
+    def _qt_on_only_next_shortcut(self):
+        sel_rows = self._qt_get_selected_rows()
+        if len(sel_rows) == 0:
+            sel_rows = [-1]
+        self.controller.set_all_unit_visibility_off()
+        new_row = min(sel_rows[-1] + 1, self.table.rowCount() - 1)
+        unit_id = self.table.item(new_row, 1).unit_id
+        self.controller.unit_visible_dict[unit_id] = True
+        self._qt_refresh_visibility_items()
+        self.notify_unit_visibility_changed()
+        self.table.clearSelection()
+        self.table.selectRow(new_row)
 
     def _qt_on_delete_shortcut(self):
         sel_rows = self._qt_get_selected_rows()
