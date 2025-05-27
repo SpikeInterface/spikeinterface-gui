@@ -379,6 +379,7 @@ class Controller():
         chan_ind = self._extremum_channel[unit_id]
         return chan_ind
     
+    # unit visibility zone
     def set_visible_unit_ids(self, visible_unit_ids):
         # lim = self.controller.main_settings['max_visible_units']
         # if len(visible_unit_ids) > lim:
@@ -386,7 +387,6 @@ class Controller():
         self.set_all_unit_visibility_off()
         for u in visible_unit_ids:
             self.unit_visible_dict[u] = True
-
 
     def get_visible_unit_ids(self):
         visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
@@ -404,6 +404,26 @@ class Controller():
         visible_unit_indices = self.get_visible_unit_indices()
         visible_unit_ids = self.unit_ids[visible_unit_indices]
         return zip(visible_unit_indices, visible_unit_ids)
+    
+    def append_visible_unit(self, unit_id):
+        self.unit_visible_dict[unit_id] = True
+
+    def remove_visible_unit(self, unit_id):
+        self.unit_visible_dict[unit_id] = False
+    
+    def get_units_visibility_mask(self):
+        mask = np.zeros(self.controller.unit_ids.size, dtype='bool')
+        mask[self.get_visible_unit_indices()] = True
+        return mask
+    
+    def get_dict_unit_visible(self):
+        dict_unit_visible = {u:False for u in self.unit_ids}
+        for u in self.get_visible_unit_ids():
+            dict_unit_visible[u] = True
+        return dict_unit_visible
+
+
+    ## end unit visibility zone
 
     def update_visible_spikes(self):
         inds = []

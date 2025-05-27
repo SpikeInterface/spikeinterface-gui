@@ -21,8 +21,7 @@ class UnitListView(ViewBase):
 
     ## common ##
     def show_all(self):
-        for unit_id in self.controller.unit_visible_dict:
-            self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids(self.controller.unit_ids)
         self.refresh()
         self.notify_unit_visibility_changed()
     
@@ -125,9 +124,13 @@ class UnitListView(ViewBase):
         from .myqt import QT
 
         self.table.itemChanged.disconnect(self._qt_on_item_changed)
-        for i, unit_id in enumerate(self.controller.unit_ids):
+        
+        for unit_id in self.controller.unit_ids:
             item = self.items_visibility[unit_id]
-            item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict[unit_id]])
+            item.setCheckState(QT.Qt.Unchecked)
+        for unit_id in self.controller.get_visible_unit_ids():
+            item = self.items_visibility[unit_id]
+            item.setCheckState(QT.Qt.Checked)
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
@@ -183,6 +186,9 @@ class UnitListView(ViewBase):
         self.table.setRowCount(len(unit_ids))
         self.table.setSortingEnabled(False)
 
+
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+
         # internal_column_names
         self.items_visibility = {}
         for i, unit_id in enumerate(unit_ids):
@@ -199,7 +205,8 @@ class UnitListView(ViewBase):
             
             item = OrderableCheckItem('')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable|QT.Qt.ItemIsUserCheckable)
-            item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[self.controller.unit_visible_dict.get(unit_id, False)])
+            
+            item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[unit_id in visible_unit_ids])
             self.table.setItem(i,1, item)
             item.unit_id = unit_id
             self.items_visibility[unit_id] = item
@@ -258,7 +265,10 @@ class UnitListView(ViewBase):
         if col == 1:
             # visibility checkbox
             unit_id = item.unit_id
-            self.controller.unit_visible_dict[unit_id] = bool(item.checkState())
+            if bool(item.checkState()):
+                self.controller.append_visible_unit(unit_id)
+            else:
+                self.controller.remove_visible_unit(unit_id)
             self.notify_unit_visibility_changed()
         elif col in self.label_columns:
             # label combobox
@@ -271,10 +281,8 @@ class UnitListView(ViewBase):
             self.controller.set_label_to_unit(unit_id, category, new_label)
 
     def _qt_on_double_clicked(self, row, col):
-        self.controller.set_all_unit_visibility_off()
-
         unit_id = self.table.item(row, 1).unit_id
-        self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids([unit_id])
         # self.refresh()
         self._qt_refresh_visibility_items()
 
@@ -299,9 +307,7 @@ class UnitListView(ViewBase):
 
     def on_visible_shortcut(self):
         rows = self._qt_get_selected_rows()
-        self.controller.set_all_unit_visibility_off()
-        for unit_id in self.get_selected_unit_ids():
-            self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids(self.get_selected_unit_ids())
         # self.refresh()
         self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
@@ -353,7 +359,7 @@ class UnitListView(ViewBase):
         # set unmutable data
         data = {
             "unit_id": [],
-            "visible": list(self.controller.unit_visible_dict.values()),
+            "visible": list(self.controller.get_units_visibility_mask()),
         }
         frozen_columns = ["unit_id", "visible"]
         if self.label_definitions is not None:
@@ -507,9 +513,9 @@ class UnitListView(ViewBase):
     def _panel_refresh(self):
         df = self.table.value
         visible = []
+        dict_unit_visible = self.controller.get_dict_unit_visible()
         for unit_id in df.index.values:
-            unit_is_visible = self.controller.unit_visible_dict[unit_id]
-            visible.append(self.controller.unit_visible_dict.get(unit_id, False))
+            visible.append(dict_unit_visible[unit_id])
         df.loc[:, "visible"] = visible
 
         table_columns = self.table.value.columns
@@ -528,7 +534,7 @@ class UnitListView(ViewBase):
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids
         n1 = len(unit_ids)
-        n2 = sum(self.controller.unit_visible_dict.values())
+        n2 = len(self.controller.get_visible_unit_ids())
         n3 = len(self.table.selection)
         txt = f"<b>All units</b>: {n1} - <b>visible</b>: {n2} - <b>selected</b>: {n3}"
         self.info_text.object = txt
@@ -550,11 +556,15 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_checkbox_toggled(self, row):
-        print("checkbox toggled on row", row)
+        # print("checkbox toggled on row", row)
         unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
         self.controller.unit_visible_dict[selected_unit_id] = not self.controller.unit_visible_dict[selected_unit_id]
-        print(f"Setting visibility of unit {selected_unit_id} to {self.controller.unit_visible_dict[selected_unit_id]}")
+        if selected_unit_id in self.get_visible_unit_ids():
+            self.controller.remove_visible_unit(selected_unit_id)
+        else:
+
+        # print(f"Setting visibility of unit {selected_unit_id} to {self.controller.unit_visible_dict[selected_unit_id]}")
         # update the visible column
         indices = list(self.controller.unit_visible_dict.keys())
         self.table.value.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
