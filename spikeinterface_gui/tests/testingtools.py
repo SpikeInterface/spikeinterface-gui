@@ -122,7 +122,7 @@ def make_curation_dict(analyzer):
         "unit_ids": unit_ids,
         "label_definitions": {
             "quality":{
-                "label_options": ["good", "noise", "MUA", "artifact"],
+                "label_options": ["good", "noise", "MUA"],
                 "exclusive": True,
             }, 
             "putative_type":{
