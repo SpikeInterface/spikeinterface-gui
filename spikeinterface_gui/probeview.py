@@ -224,7 +224,8 @@ class ProbeView(ViewBase):
         import pyqtgraph as pg
 
         # this change the ROI and so change also channel_visibility
-        visible_mask = np.array(list(self.controller.unit_visible_dict.values()))
+        visible_mask = self.controller.get_units_visibility_mask()
+
         unit_inds = np.flatnonzero(visible_mask)
         n = unit_inds.size
         x, y = None, None
@@ -255,7 +256,7 @@ class ProbeView(ViewBase):
         
         # change scatter pen for selection
         pen = [pg.mkPen('white', width=4)
-                    if self.controller.unit_visible_dict[u] else pg.mkPen('black', width=4)
+                    if self.controller.get_unit_visibility(u) else pg.mkPen('black', width=4)
                     for u in self.controller.unit_ids]
         self.scatter.setPen(pen)
         
@@ -278,10 +279,9 @@ class ProbeView(ViewBase):
         if unit_id is not None:
             radius = self.settings["radius_channel"]
             if multi_select:
-                self.controller.unit_visible_dict[unit_id] = not (self.controller.unit_visible_dict[unit_id])
+                self.controller.set_unit_visibility(unit_id, not self.get_unit_visibility(unit_id))
             else:
-                self.controller.set_all_unit_visibility_off()
-                self.controller.unit_visible_dict[unit_id] = True
+                self.controller.set_visible_unit_ids([unit_id])
                 self.roi_channel.blockSignals(True)
                 self.roi_channel.setPos(x - radius, y - radius)
                 self.roi_channel.blockSignals(False)
