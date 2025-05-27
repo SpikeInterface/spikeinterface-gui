@@ -75,6 +75,9 @@ class CurationView(ViewBase):
         self.merge_menu = QT.QMenu()
         act = self.merge_menu.addAction('Remove merge group')
         act.triggered.connect(self.unmerge_groups)
+        shortcut_unmerge = QT.QShortcut(self.qt_widget)
+        shortcut_unmerge.setKey(QT.QKeySequence("ctrl+u"))
+        shortcut_unmerge.activated.connect(self.unmerge_groups)
 
 
         v = QT.QVBoxLayout()
@@ -91,6 +94,9 @@ class CurationView(ViewBase):
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')
         act.triggered.connect(self.restore_units)
+        shortcut_restore = QT.QShortcut(self.qt_widget)
+        shortcut_restore.setKey(QT.QKeySequence("ctrl+r"))
+        shortcut_restore.activated.connect(self.restore_units)
 
     def _qt_refresh(self):
         from .myqt import QT
@@ -170,6 +176,14 @@ class CurationView(ViewBase):
         unit_id = self.controller.unit_ids.dtype.type(unit_id)
         self.controller.set_visible_unit_ids([unit_id])
         self.notify_unit_visibility_changed()
+
+    def _qt_on_restore_shortcut(self):
+        sel_rows = self._qt_get_selected_rows()
+        self._qt_delete_unit()
+        if len(sel_rows) > 0:
+            self.table.clearSelection()
+            self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
+
 
     def on_manual_curation_updated(self):
         self.refresh()
@@ -455,7 +469,7 @@ revert, and export the curation data.
 
 ### Controls
 - **save in analyzer**: Save the current curation state in the analyzer.
-- **export JSON**: Export the current curation state to a JSON file.
+- **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merge group from the merged units table.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).

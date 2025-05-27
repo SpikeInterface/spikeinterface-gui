@@ -529,22 +529,23 @@ class ProbeView(ViewBase):
     def _panel_on_pan_start(self, event):
         self.figure.toolbar.active_drag = None
         x, y = event.x, event.y
-        if self.channel_circle.is_close_to_diamond(x, y):
-            self.should_resize_channel_circle = [x, y]
-            self.channel_circle.select()
-        elif self.channel_circle.is_close_to_border(x, y):
-            self.figure.toolbar.active_drag = None
-            # Update channel circle
-            self.should_move_channel_circle = [x, y]
-            self.channel_circle.select()
-        elif self.unit_circle.is_close_to_diamond(x, y):
+
+        if self.unit_circle.is_close_to_diamond(x, y):
             self.should_resize_unit_circle = [x, y]
             self.unit_circle.select()
-        elif self.unit_circle.is_close_to_border(x, y):
+        elif self.unit_circle.is_position_inside(x, y, skip_other_positions=self._unit_positions):
             self.figure.toolbar.active_drag = None
             # Update unit circle
             self.should_move_unit_circle = [x, y]
             self.unit_circle.select()
+        elif self.channel_circle.is_close_to_diamond(x, y):
+            self.should_resize_channel_circle = [x, y]
+            self.channel_circle.select()
+        elif self.channel_circle.is_position_inside(x, y, skip_other_positions=self._unit_positions):
+            self.figure.toolbar.active_drag = None
+            # Update channel circle
+            self.should_move_channel_circle = [x, y]
+            self.channel_circle.select()
 
     def _panel_on_pan_end(self, event):
         x, y = event.x, event.y
@@ -617,9 +618,9 @@ class ProbeView(ViewBase):
         distances = np.sqrt(np.sum((unit_positions - np.array([x, y])) ** 2, axis=1))
         closest_idx = np.argmin(distances)
         if event.modifiers["ctrl"]:
-            select_only = True
-        else:
             select_only = False
+        else:
+            select_only = True
 
         # Only select if within reasonable distance (5 um)
         if distances[closest_idx] < 5:
@@ -668,8 +669,8 @@ Show contact and probe shape.
 Units are color coded.
 
 ### Controls
-- **left click** : select unit
-- **ctrl + left click** : select single unit
-- **mouse drag from circle borders** : change channel visibilty and unit visibility on other views
+- **left click** : select single unit
+- **ctrl + left click** : add unit to selection
+- **mouse drag from within circle** : change channel visibilty and unit visibility on other views
 - **mouse drag from "diamond"** : change channel / unit radii size
 """

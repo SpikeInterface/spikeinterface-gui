@@ -44,8 +44,6 @@ def add_stretch_to_qtoolbar(tb):
     tb.addWidget(empty)
     tb.addSeparator()
 
-
-
 class ViewBoxHandlingLasso(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     lasso_drawing = QT.pyqtSignal(object)
@@ -105,16 +103,16 @@ class ViewBoxHandlingDoubleClickToPosition(pg.ViewBox):
             self.doubleclicked.emit(x, y)
         ev.accept()
 
-    # this is not working because of the ROI that take it    
+    # # this is not working because of the ROI that take it
     # def mouseClickEvent(self, ev):
     #     print('mouseClickEvent', ev.modifiers(), QT.ControlModifier, ev.modifiers() == QT.ControlModifier)
+    #     pos = self.mapToView(ev.pos())
+    #     x, y = pos.x(), pos.y()
     #     if ev.modifiers() == QT.ControlModifier:
-    #         pos = self.mapToView(ev.pos())
-    #         x, y = pos.x(), pos.y()
     #         self.ctrl_doubleclicked.emit(x, y)
-    #         ev.accept()
     #     else:
-    #         pg.ViewBox.mouseClickEvent(self, ev)
+    #         self.doubleclicked.emit(x, y)
+    #     ev.accept()
     
     def raiseContextMenu(self, ev):
         #for some reasons enableMenu=False is not taken (bug ????)

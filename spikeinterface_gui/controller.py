@@ -405,12 +405,12 @@ class Controller():
         visible_unit_ids = self.unit_ids[visible_unit_indices]
         return zip(visible_unit_indices, visible_unit_ids)
     
-    def append_visible_unit(self, unit_id):
-        self.unit_visible_dict[unit_id] = True
-
-    def remove_visible_unit(self, unit_id):
-        self.unit_visible_dict[unit_id] = False
+    def set_unit_visibility(self, unit_id, state):
+        self.unit_visible_dict[unit_id] = state
     
+    def get_unit_visibility(self, unit_id):
+        return self.unit_visible_dict[unit_id]
+
     def get_units_visibility_mask(self):
         mask = np.zeros(self.controller.unit_ids.size, dtype='bool')
         mask[self.get_visible_unit_indices()] = True
@@ -421,8 +421,6 @@ class Controller():
         for u in self.get_visible_unit_ids():
             dict_unit_visible[u] = True
         return dict_unit_visible
-
-
     ## end unit visibility zone
 
     def update_visible_spikes(self):

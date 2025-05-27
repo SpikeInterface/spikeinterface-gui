@@ -126,7 +126,7 @@ class MergeView(ViewBase):
         group_ids = item.group_ids
         return row_ix, group_ids
 
-    def _qt_on_merge_shorcut(self):
+    def _qt_on_accept_shorcut(self):
         row_ix, group_ids = self._qt_get_selected_group_ids()
         if group_ids is None:
             return
@@ -210,11 +210,10 @@ class MergeView(ViewBase):
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self._qt_on_item_selection_changed)
-        self.table.itemDoubleClicked.connect(self._qt_on_double_click)
 
-        shortcut_merge = QT.QShortcut(self.qt_widget)
-        shortcut_merge.setKey(QT.QKeySequence('m'))
-        shortcut_merge.activated.connect(self._qt_on_merge_shorcut)
+        shortcut_accept = QT.QShortcut(self.qt_widget)
+        shortcut_accept.setKey(QT.QKeySequence('ctrl+a'))
+        shortcut_accept.activated.connect(self._qt_on_accept_shorcut)
 
         self.refresh()
 
@@ -301,7 +300,7 @@ class MergeView(ViewBase):
 
         # shortcuts
         shortcuts = [
-            KeyboardShortcut(name="merge", key="m", ctrlKey=True),
+            KeyboardShortcut(name="accept", key="a", ctrlKey=True),
             KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
             KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
         ]
@@ -400,7 +399,7 @@ class MergeView(ViewBase):
         self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):
-        if event.data == "merge":
+        if event.data == "accept":
             selected = self.table.selection
             for row in selected:
                 group_ids = self.table.value.iloc[row].group_ids
@@ -421,7 +420,6 @@ class MergeView(ViewBase):
     def _panel_on_unit_visibility_changed(self):
         pass
 
-    
 
 
 MergeView._gui_help_txt = """
@@ -433,10 +431,11 @@ The available methods are:
 - similarity: Computes the similarity between units based on their features.
 - automerge: uses the auto merge function in SpikeInterface to find potential merges.
 
-
 Click "Calculate merges" to compute the potential merges. When finished, the table will be populated 
 with the potential merges.
 
 ### Controls
-- **left click** : select a potential merge group.
+- **left click** : select a potential merge group
+- **arrow up/down** : navigate through the potential merge groups
+- **ctrl + a** : accept the selected merge group
 """
