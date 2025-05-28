@@ -290,6 +290,7 @@ class BaseScatterView(ViewBase):
         self.hist_fig.toolbar.logo = None
         self.hist_fig.yaxis.axis_label = self.y_label
         self.hist_fig.xaxis.axis_label = "Count"
+        self.hist_fig.x_range = Range1d(0, 1000)  # Initial x range for histogram
 
         self.layout = pn.Column(
             pn.Row(self.segment_selector, self.select_toggle_button, sizing_mode="stretch_width"),
@@ -306,7 +307,6 @@ class BaseScatterView(ViewBase):
                 ),
             )
         )
-
         self.hist_lines = []
         self.noise_harea = []
         self.plotted_inds = []
@@ -315,9 +315,8 @@ class BaseScatterView(ViewBase):
         from bokeh.models import ColumnDataSource, Range1d
 
         # clear figures
-        for renderer in self.hist_fig.renderers:
-            if renderer not in self.noise_harea:
-                self.hist_fig.renderers.remove(renderer)
+        for renderer in self.hist_lines:
+            self.hist_fig.renderers.remove(renderer)
         self.hist_lines = []
         self.plotted_inds = []
 
@@ -334,7 +333,7 @@ class BaseScatterView(ViewBase):
             )
             color = self.get_unit_color(unit_id)
             xs.extend(spike_times)
-            ys.extend(spike_amps)
+            ys.extend(spike_data)
             colors.extend([color] * len(spike_times))
             max_count = max(max_count, np.max(hist_count))
             self.plotted_inds.extend(inds)

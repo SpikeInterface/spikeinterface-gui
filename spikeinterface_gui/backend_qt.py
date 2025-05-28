@@ -17,26 +17,26 @@ class SignalNotifier(QT.QObject):
     unit_visibility_changed = QT.pyqtSignal()
     channel_visibility_changed = QT.pyqtSignal()
     manual_curation_updated = QT.pyqtSignal()
+    time_info_updated = QT.pyqtSignal()
 
     def __init__(self, parent=None, view=None):
         QT.QObject.__init__(self, parent=parent)
         self.view = view
 
     def notify_spike_selection_changed(self):
-        # print("SignalNotifier notify_spike_selection_changed", self.view.__class__.__name__)
         self.spike_selection_changed.emit()
 
     def notify_unit_visibility_changed(self):
-        # print("SignalNotifier notify_unit_visibility_changed", self.view.__class__.__name__)
         self.unit_visibility_changed.emit()
 
     def notify_channel_visibility_changed(self):
-        # print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.channel_visibility_changed.emit()
 
     def notify_manual_curation_updated(self):
-        # print("SignalNotifier notify_channel_visibility_changed", self.view.__class__.__name__)
         self.manual_curation_updated.emit()
+
+    def notify_time_info_updated(self):
+        self.time_info_updated.emit()
 
 # Used by controler to handle/callback signals
 class SignalHandler(QT.QObject):
@@ -56,6 +56,7 @@ class SignalHandler(QT.QObject):
         view.notifier.unit_visibility_changed.connect(self.on_unit_visibility_changed)
         view.notifier.channel_visibility_changed.connect(self.on_channel_visibility_changed)
         view.notifier.manual_curation_updated.connect(self.on_manual_curation_updated)
+        view.notifier.time_info_updated.connect(self.on_time_info_updated)
 
     def on_spike_selection_changed(self):
         if not self._active:
@@ -93,6 +94,15 @@ class SignalHandler(QT.QObject):
                 continue
             view.on_manual_curation_updated()
 
+    def on_time_info_updated(self):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if view.qt_widget == self.sender().parent():
+                # do not refresh it self
+                continue
+            view.on_time_info_updated()
+
 
 def create_settings(view, parent):
     view.settings = pg.parametertree.Parameter.create(name="settings", type='group', children=view._settings)
@@ -106,7 +116,6 @@ def create_settings(view, parent):
 
 def listen_setting_changes(view):
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
-
 
 
 class QtMainWindow(QT.QMainWindow):
@@ -169,7 +178,7 @@ class QtMainWindow(QT.QMainWindow):
 
         widgets_zone = {}
         for zone, view_names in preset.items():
-            # keep only instanciated views
+            # keep only instantiated views
             view_names = [view_name for view_name in view_names if view_name in self.views.keys()]
             widgets_zone[zone] = view_names
 
@@ -217,7 +226,7 @@ class QtMainWindow(QT.QMainWindow):
         
         # make tabs
         for zone, view_names in widgets_zone.items():
-            n = len(widgets_zone[zone]) 
+            n = len(widgets_zone[zone])
             if n < 2:
                 # no tab here
                 continue
@@ -228,7 +237,6 @@ class QtMainWindow(QT.QMainWindow):
                 self.tabifyDockWidget(self.docks[view_name0], dock)
             # make visible the first of each zone
             self.docks[view_name0].raise_()
-
 
 
 class ViewWidget(QT.QWidget):

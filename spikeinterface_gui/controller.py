@@ -281,7 +281,12 @@ class Controller():
             displayed_unit_properties += list(extra_unit_properties.keys())
         displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
         self.displayed_unit_properties = displayed_unit_properties
-        
+
+        # set default time info
+        self.time_info = dict(
+            time_by_seg=np.array([0] * self.num_segments, dtype="float64"),
+            segment_index=0
+        )
 
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
@@ -350,6 +355,28 @@ class Controller():
     @property
     def unit_ids(self):
         return self.analyzer.unit_ids
+
+    def get_time(self):
+        """
+        Returns selected time and segment index
+        """
+        seg_index = self.time_info['segment_index']
+        time_by_seg = self.time_info['time_by_seg']
+        time = time_by_seg[seg_index]
+        return time, seg_index
+
+    def set_time(self, time=None, segment_index=None):
+        """
+        Set selected time and segment index.
+        If time is None, then the current time is used.
+        If segment_index is None, then the current segment index is used.
+        """
+        if segment_index is not None:
+            self.time_info['segment_index'] = segment_index
+        else:
+            segment_index = self.time_info['segment_index']
+        if time is not None:
+            self.time_info['time_by_seg'][segment_index] = time
     
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()

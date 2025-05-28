@@ -46,6 +46,8 @@ class NDScatterView(ViewBase):
         projected = self.apply_dot(data)
         projected_2d = projected[:, :2]
         self.limit = float(np.percentile(np.abs(projected_2d), 95) * 2.)
+        self.limit = max(self.limit, 0.1)  # ensure limit is at least 0.1
+
 
         self.hyper_faces = list(itertools.permutations(range(ndim), 2))
         self.n_face = -1
@@ -87,7 +89,7 @@ class NDScatterView(ViewBase):
         self.projection[j,1] = 1.
         self.tour_step = 0
         self.refresh()
-        
+
     def get_one_random_projection(self):
         ndim = self.data.shape[1]
         projection = np.random.rand(ndim,2)*2-1.
@@ -98,20 +100,19 @@ class NDScatterView(ViewBase):
         return projection
 
     def random_projection(self):
+        self.update_selected_components()
         self.projection = self.get_one_random_projection()
         self.tour_step = 0
-        self.refresh()
-
+        # here we don't want to update the components because it's been done already!
+        self.refresh(update_components=False)
 
     def on_spike_selection_changed(self):
         self.refresh()
 
     def on_unit_visibility_changed(self):
-        # this does a refresh also
         self.random_projection()
     
     def on_channel_visibility_changed(self):
-        # this does a refresh also
         self.random_projection()
 
     def apply_dot(self, data):
@@ -126,17 +127,21 @@ class NDScatterView(ViewBase):
         scatter_x = projected[:, 0]
         scatter_y = projected[:, 1]
 
-
-        mask = np.isin(self.random_spikes_indices, self.controller.get_indices_spike_selected())
-        data_sel = self.data[mask, :]
-        projected_select = self.apply_dot(data_sel)
-        selected_scatter_x = projected_select[:, 0]
-        selected_scatter_y = projected_select[:, 1]
-
         # set new limit
         if len(projected) > 0 and self.auto_update_limit:
             projected_2d = projected[:, :2]
             self.limit = float(np.percentile(np.abs(projected_2d), 95) * 2.)
+        self.limit = max(self.limit, 0.1)  # ensure limit is at least 0.1
+
+        mask = np.isin(self.random_spikes_indices, self.controller.get_indices_spike_selected())
+        data_sel = self.data[mask, :]
+        if len(data_sel) == 0:
+            selected_scatter_x = np.array([])
+            selected_scatter_y = np.array([])
+        else:
+            projected_select = self.apply_dot(data_sel)
+            selected_scatter_x = projected_select[:, 0]
+            selected_scatter_y = projected_select[:, 1]
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
 
@@ -145,7 +150,7 @@ class NDScatterView(ViewBase):
         n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
         self.selected_comp[:] = False
         for i in range(n):
-            self.selected_comp[self.controller.visible_channel_inds*n_pc_per_chan+i] = True
+            self.selected_comp[self.controller.visible_channel_inds * n_pc_per_chan+i] = True
 
     ## Qt ##
     def _qt_make_layout(self):
@@ -242,11 +247,12 @@ class NDScatterView(ViewBase):
         spike_colors = self.controller.get_spike_colors(self.pc_unit_index)
         self.spike_qtcolors = np.array([pg.mkBrush(c) for c in spike_colors])
         
-    def _qt_refresh(self):
+    def _qt_refresh(self, update_components=True):
         import pyqtgraph as pg
 
         # update visible channel
-        self.update_selected_components()
+        if update_components:
+            self.update_selected_components()
 
         #ndscatter
         # TODO sam: I have the feeling taht it is a bit slow
@@ -404,8 +410,9 @@ class NDScatterView(ViewBase):
 
         self.tour_timer = None
 
-    def _panel_refresh(self):
-        self.update_selected_components()
+    def _panel_refresh(self, update_components=True):
+        if update_components:
+            self.update_selected_components()
         scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
 
         # format rgba
