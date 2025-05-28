@@ -55,8 +55,8 @@ class Controller():
         t0 = time.perf_counter()
 
         self.num_channels = self.analyzer.get_num_channels()
-        self.unit_visible_dict = {unit_id: False for unit_id in self.unit_ids}
-        self.unit_visible_dict[self.unit_ids[0]] = True
+        # this now private and shoudl be acess using function
+        self._visible_unit_ids = [self.unit_ids[0]]
 
         # sparsity
         if self.analyzer.sparsity is None:
@@ -382,41 +382,41 @@ class Controller():
     # unit visibility zone
     def set_visible_unit_ids(self, visible_unit_ids):
         """Make visible some units, all other off"""
-        # lim = self.controller.main_settings['max_visible_units']
-        # if len(visible_unit_ids) > lim:
-            # visible_unit_ids = visible_unit_ids[:lim]
-        self.set_all_unit_visibility_off()
-        for u in visible_unit_ids:
-            self.unit_visible_dict[u] = True
+        lim = self.main_settings['max_visible_units']
+        if len(visible_unit_ids) > lim:
+            visible_unit_ids = visible_unit_ids[:lim]
+        self._visible_unit_ids = list(visible_unit_ids)
 
     def get_visible_unit_ids(self):
         """Get list of visible unit_ids"""
-        visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
-        return visible_unit_ids
+        return self._visible_unit_ids
 
     def get_visible_unit_indices(self):
         """Get list of indicies of visible units"""
-        visible_unit_indices = np.flatnonzero(list(self.unit_visible_dict.values()))
+        unit_ids = list(self.unit_ids)
+        visible_unit_indices = [unit_ids.index(u) for u in self._visible_unit_ids]
         return visible_unit_indices
 
     def set_all_unit_visibility_off(self):
-        """As in teh name"""
-        for unit_id in self.unit_ids:
-            self.unit_visible_dict[unit_id] = False
+        """As in the name"""
+        self._visible_unit_ids = []
 
     def iter_visible_units(self):
         """For looping over unit_ind and unit_id"""
         visible_unit_indices = self.get_visible_unit_indices()
-        visible_unit_ids = self.unit_ids[visible_unit_indices]
+        visible_unit_ids = self._visible_unit_ids
         return zip(visible_unit_indices, visible_unit_ids)
     
     def set_unit_visibility(self, unit_id, state):
-        """Change the visibiity of on unit, other are unchanged"""
-        self.unit_visible_dict[unit_id] = state
+        """Change the visibility of on unit, other are unchanged"""
+        if state and not(unit_id in self._visible_unit_ids):
+            self._visible_unit_ids.append(unit_id)
+        elif not state and unit_id in self._visible_unit_ids:
+            self._visible_unit_ids.remove(unit_id)
     
     def get_unit_visibility(self, unit_id):
-        """Get thethe visibiity of on unit"""
-        return self.unit_visible_dict[unit_id]
+        """Get thethe visibility of on unit"""
+        return unit_id in self._visible_unit_ids
 
     def get_units_visibility_mask(self):
         """Get bool mask of visibility"""
@@ -434,9 +434,8 @@ class Controller():
 
     def update_visible_spikes(self):
         inds = []
-        for unit_index, unit_id in enumerate(self.unit_ids):
-            if self.unit_visible_dict[unit_id]:
-                inds.append(self._spike_index_by_units[unit_id])
+        for unit_index, unit_id in self.iter_visible_units():
+            inds.append(self._spike_index_by_units[unit_id])
         
         if len(inds) > 0:
             inds = np.concatenate(inds)
