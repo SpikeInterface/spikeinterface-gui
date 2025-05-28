@@ -379,7 +379,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         time, seg_index = self.controller.get_time()
 
         self._block_auto_refresh_and_notify = True
-        self._panel_change_segment(seg_index, notify=False)
+        self._panel_change_segment(seg_index)
 
         # Update time slider value
         self.time_slider.value = time

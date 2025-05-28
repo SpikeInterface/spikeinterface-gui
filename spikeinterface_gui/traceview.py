@@ -92,7 +92,7 @@ class MixinViewTrace:
         self.scroll_time.setMinimum(0)
         self.scroll_time.setMaximum(length)
 
-    def _qt_change_segment(self, seg_index, notify=True):
+    def _qt_change_segment(self, seg_index):
         #TODO: dirty because now seg_pos IS seg_index
         self.controller.set_time(segment_index=seg_index)
 
@@ -113,7 +113,7 @@ class MixinViewTrace:
     def _qt_on_combo_seg_changed(self):
         s = self.combo_seg.currentIndex()
         if not self._block_auto_refresh_and_notify:
-            self._qt_change_segment(s, notify=True)
+            self._qt_change_segment(s)
     
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
@@ -144,7 +144,7 @@ class MixinViewTrace:
             peak_time = peak_ind / self.controller.sampling_frequency
 
             if seg_index != self.controller.get_time()[1]:
-                self._qt_change_segment(seg_index, notify=False)
+                self._qt_change_segment(seg_index)
 
             self.spinbox_xsize.sigValueChanged.disconnect(self._qt_on_xsize_changed)
             self.xsize = self.settings['spike_selection_xsize']
@@ -204,7 +204,7 @@ class MixinViewTrace:
         seg_index = int(event.new.split()[-1])
         self._panel_change_segment(seg_index)
 
-    def _panel_change_segment(self, seg_index, notify=True):
+    def _panel_change_segment(self, seg_index):
         self.segment_selector.value = f"Segment {seg_index}"
 
         # Update time slider range
@@ -240,7 +240,7 @@ class MixinViewTrace:
             peak_time = peak_ind / self.controller.sampling_frequency
 
             if seg_index != self.controller.get_time()[1]:
-                self._panel_change_segment(seg_index, notify=False)
+                self._panel_change_segment(seg_index)
 
             # block callbacks
             self._block_auto_refresh_and_notify = True
@@ -502,7 +502,7 @@ class TraceView(ViewBase, MixinViewTrace):
         # Block auto refresh to avoid recursive calls
         self._block_auto_refresh_and_notify = True
 
-        self._qt_change_segment(seg_index, notify=False)
+        self._qt_change_segment(seg_index)
         self.timeseeker.seek(time)
         
         self._block_auto_refresh_and_notify = False
@@ -632,7 +632,7 @@ class TraceView(ViewBase, MixinViewTrace):
         # Update segment and time slider range
         time, seg_index = self.controller.get_time()
         self._block_auto_refresh = True
-        self._panel_change_segment(seg_index, notify=False)
+        self._panel_change_segment(seg_index)
         # Update time slider value
         self.time_slider.value = time
         self._block_auto_refresh = False
