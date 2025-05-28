@@ -11,6 +11,7 @@ import spikeinterface.qualitymetrics
 from pathlib import Path
 
 import numpy as np
+import sys
 
 
 test_folder = Path(__file__).parent / 'my_dataset_small'

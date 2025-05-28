@@ -59,7 +59,7 @@ class MergeView(ViewBase):
         if self.controller.verbose:
             print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
 
-    def get_table_data(self):
+    def get_table_data(self, include_deleted=False):
         """Get data for displaying in table"""
         if not self.proposed_merge_unit_groups:
             return [], []
@@ -79,6 +79,11 @@ class MergeView(ViewBase):
         rows = []
         unit_ids = list(self.controller.unit_ids)
         for group_ids in self.proposed_merge_unit_groups:
+            if not include_deleted and self.controller.curation:
+                deleted_unit_ids = self.controller.curation_data["removed_units"]
+                if any(unit_id in deleted_unit_ids for unit_id in group_ids):
+                    continue
+
             row = {}
             # Add unit information
             for i, unit_id in enumerate(group_ids):
@@ -121,7 +126,7 @@ class MergeView(ViewBase):
         group_ids = item.group_ids
         return row_ix, group_ids
 
-    def _qt_on_merge_shorcut(self):
+    def _qt_on_accept_shorcut(self):
         row_ix, group_ids = self._qt_get_selected_group_ids()
         if group_ids is None:
             return
@@ -137,10 +142,7 @@ class MergeView(ViewBase):
         if group_ids is None:
             return
         
-        for k in self.controller.unit_ids:
-            self.controller.unit_visible_dict[k] = False
-        for unit_id in group_ids:
-            self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids(group_ids)
 
         self.notify_unit_visibility_changed()
 
@@ -187,9 +189,18 @@ class MergeView(ViewBase):
         self.method = self.method_selector['method']
         self._qt_on_method_change()
 
+        row_layout = QT.QHBoxLayout()
+
         but = QT.QPushButton('Calculate merges')
-        self.layout.addWidget(but)
         but.clicked.connect(self._qt_calculate_potential_automerge)
+        row_layout.addWidget(but)
+
+        if self.controller.curation:
+            self.include_deleted = QT.QCheckBox("Include deleted units")
+            self.include_deleted.setChecked(False)
+            row_layout.addWidget(self.include_deleted)
+
+        self.layout.addLayout(row_layout)
 
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
@@ -199,11 +210,10 @@ class MergeView(ViewBase):
         self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self._qt_on_item_selection_changed)
-        self.table.itemDoubleClicked.connect(self._qt_on_double_click)
 
-        shortcut_merge = QT.QShortcut(self.qt_widget)
-        shortcut_merge.setKey(QT.QKeySequence('m'))
-        shortcut_merge.activated.connect(self._qt_on_merge_shorcut)
+        shortcut_accept = QT.QShortcut(self.qt_widget)
+        shortcut_accept.setKey(QT.QKeySequence('ctrl+a'))
+        shortcut_accept.activated.connect(self._qt_on_accept_shorcut)
 
         self.refresh()
 
@@ -214,7 +224,8 @@ class MergeView(ViewBase):
         self.table.clear()
         self.table.setSortingEnabled(False)
 
-        labels, rows = self.get_table_data()
+        include_deleted = self.include_deleted.isChecked() if self.controller.curation else False
+        labels, rows = self.get_table_data(include_deleted=include_deleted)
         if "group_ids" in labels:
             labels.remove("group_ids")
 
@@ -289,7 +300,7 @@ class MergeView(ViewBase):
 
         # shortcuts
         shortcuts = [
-            KeyboardShortcut(name="merge", key="m", ctrlKey=True),
+            KeyboardShortcut(name="accept", key="a", ctrlKey=True),
             KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
             KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
         ]
@@ -303,11 +314,18 @@ class MergeView(ViewBase):
         self.caluculate_merges_button = pn.widgets.Button(name="Calculate merges", button_type="primary", sizing_mode="stretch_width")
         self.caluculate_merges_button.on_click(self._panel_calculate_merges)
 
+        calculate_list = [self.caluculate_merges_button]
+
+        if self.controller.curation:
+            self.include_deleted = pn.widgets.Checkbox(name="Include deleted units", value=False)
+            calculate_list.append(self.include_deleted)
+        calculate_row = pn.Row(*calculate_list, sizing_mode="stretch_width")
+
         self.layout = pn.Column(
             # add params
             self.method_selector, 
             self.method_params_selectors[self.method],
-            self.caluculate_merges_button,
+            calculate_row,
             self.table_area,
             shortcuts_component,
             scroll=True,
@@ -324,7 +342,8 @@ class MergeView(ViewBase):
 
         pn.extension("tabulator")
         # Create table
-        labels, rows = self.get_table_data()
+        include_deleted = self.include_deleted.value if self.controller.curation else False
+        labels, rows = self.get_table_data(include_deleted=include_deleted)
         # set unmutable data
         data = {label: [] for label in labels}
         for row in rows:
@@ -371,16 +390,16 @@ class MergeView(ViewBase):
 
     def _panel_update_visible_pair(self, row):
         table_row = self.table.value.iloc[row]
-        # set all unit visibility to False
-        self.controller.set_all_unit_visibility_off()
+        visible_unit_ids = []
         for name, value in zip(table_row.index, table_row):
             if name.startswith("unit_id"):
                 unit_id = value["id"]
-                self.controller.unit_visible_dict[unit_id] = True
+                visible_unit_ids.append(unit_id)
+        self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):
-        if event.data == "merge":
+        if event.data == "accept":
             selected = self.table.selection
             for row in selected:
                 group_ids = self.table.value.iloc[row].group_ids
@@ -401,7 +420,6 @@ class MergeView(ViewBase):
     def _panel_on_unit_visibility_changed(self):
         pass
 
-    
 
 
 MergeView._gui_help_txt = """
@@ -413,10 +431,11 @@ The available methods are:
 - similarity: Computes the similarity between units based on their features.
 - automerge: uses the auto merge function in SpikeInterface to find potential merges.
 
-
 Click "Calculate merges" to compute the potential merges. When finished, the table will be populated 
 with the potential merges.
 
 ### Controls
-- **left click** : select a potential merge group.
+- **left click** : select a potential merge group
+- **arrow up/down** : navigate through the potential merge groups
+- **ctrl + a** : accept the selected merge group
 """

@@ -90,9 +90,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         scatter_colors = []
         scatter_unit_ids = []
 
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+        for unit_index, unit_id in self.controller.iter_visible_units():
 
             inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
             if inds.size == 0:

@@ -50,9 +50,7 @@ class ISIView(ViewBase):
             return
         
         n = 0
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+        for unit_index, unit_id in self.controller.iter_visible_units():
 
             isi = self.isi_histograms[unit_index, :]
             
@@ -98,9 +96,7 @@ class ISIView(ViewBase):
         self.lines = {}
 
         y_max = 0
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+        for unit_index, unit_id in self.controller.iter_visible_units():
             isi = self.isi_histograms[unit_index, :]
             source = ColumnDataSource({"x": self.isi_bins[:-1].tolist(), "y": isi.tolist()})
             color = self.get_unit_color(unit_id)
@@ -110,7 +106,7 @@ class ISIView(ViewBase):
                 source=source,
                 line_color=color,
                 line_width=2,
-                visible=self.controller.unit_visible_dict[unit_id],
+                visible=True,
             )
             y_max = max(y_max, isi.max())
         self.figure.y_range.end = y_max * 1.1

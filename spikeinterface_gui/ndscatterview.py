@@ -259,7 +259,7 @@ class NDScatterView(ViewBase):
 
         # TODO sam : kepp the old implementation in mind
         # for unit_index, unit_id in enumerate(self.controller.unit_ids):
-        #     if not self.controller.unit_visible_dict[unit_id]:
+        #     if not self.controller.get_unit_visibility(unit_id):
         #         continue
         #     #~ data = self.data_by_label(k)
         #     mask = self.pc_unit_index == unit_index

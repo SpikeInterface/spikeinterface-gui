@@ -14,6 +14,7 @@ class WaveformView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = [
+        {'name': 'overlap', 'type': 'bool', 'value': True},
         {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
         {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
@@ -81,6 +82,20 @@ class WaveformView(ViewBase):
             start_frame=peak_ind - nbefore, end_frame=peak_ind + nafter,
         )
         return wf, width
+
+    def get_xvectors_not_overlap(self, xvectors, num_visible_units):
+        num_x_samples = xvectors.shape[1]
+        if not self.settings["overlap"] and num_visible_units > 1:
+            xvects = []
+            # split xvectors into sub-vectors based on the number of visible units
+            num_samples_per_unit = int(num_x_samples // num_visible_units)
+            for i in range(num_visible_units):
+                sample_start = i * num_samples_per_unit
+                sample_end = min((i + 1) * num_samples_per_unit, len(xvectors[0])) - 1
+                xvects.append(np.array([np.linspace(x[sample_start], x[sample_end], num_x_samples, endpoint=True) for x in xvectors]))
+        else:
+            xvects = [xvectors] * num_visible_units
+        return xvects
 
 
     ## Qt ##
@@ -167,6 +182,14 @@ class WaveformView(ViewBase):
         self.viewBox1.limit_zoom.connect(self._qt_limit_zoom)
         
         self.viewBox1.widen_narrow.connect(self._qt_widen_narrow)
+
+        shortcut_overlap = QT.QShortcut(self.qt_widget)
+        shortcut_overlap.setKey(QT.QKeySequence("ctrl+o"))
+        shortcut_overlap.activated.connect(self.toggle_overlap)
+
+    def toggle_overlap(self):
+        self.settings['overlap'] = not self.settings['overlap']
+        self.refresh()
         
     def _qt_widen_narrow(self, factor_ratio):
         if self.mode=='geometry':
@@ -206,25 +229,27 @@ class WaveformView(ViewBase):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         
+        dict_visible_units = {k:False for k in self.controller.unit_ids}
         if self.settings['show_only_selected_cluster'] and n_selected==1:
-            unit_visible_dict = {k:False for k in self.controller.unit_visible_dict}
             ind = selected_inds[0]
             unit_index = self.controller.spikes[ind]['unit_index']
             unit_id = self.controller.unit_ids[unit_index]
-            unit_visible_dict[unit_id] = True
+            dict_visible_units[unit_id] = True
         else:
-            unit_visible_dict = self.controller.unit_visible_dict
+            for unit_id in self.controller.get_visible_unit_ids():
+                dict_visible_units[unit_id] = True
+        
         if self.mode=='flatten':
             self.plot1.setAspectLocked(lock=False, ratio=None)
-            self._qt_refresh_mode_flatten(unit_visible_dict, keep_range)
+            self._qt_refresh_mode_flatten(dict_visible_units, keep_range)
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
-            self._qt_refresh_mode_geometry(unit_visible_dict, keep_range)
+            self._qt_refresh_mode_geometry(dict_visible_units, keep_range)
         
         if self.controller.with_traces:
             self._qt_refresh_one_spike()
     
-    def _qt_refresh_mode_flatten(self, unit_visible_dict, keep_range):
+    def _qt_refresh_mode_flatten(self, dict_visible_units, keep_range):
         import pyqtgraph as pg
         from .myqt import QT
         if self._x_range is not None and keep_range:
@@ -244,7 +269,7 @@ class WaveformView(ViewBase):
         
         sparse = self.settings['sparse_display']
         
-        visible_unit_ids = [unit_id for unit_id, v in unit_visible_dict.items() if v ]
+        visible_unit_ids = [unit_id for unit_id, v in dict_visible_units.items() if v ]
         
         
         if sparse:
@@ -278,7 +303,7 @@ class WaveformView(ViewBase):
         min_std = 0
         max_std = 0
         for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not unit_visible_dict[unit_id]:
+            if not dict_visible_units[unit_id]:
                 continue
             
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
@@ -326,7 +351,7 @@ class WaveformView(ViewBase):
             self.plot1.setYRange(*self._y1_range, padding = 0.0)
             self.plot2.setYRange(*self._y2_range, padding = 0.0)
 
-    def _qt_refresh_mode_geometry(self, unit_visible_dict, keep_range):
+    def _qt_refresh_mode_geometry(self, dict_visible_units, keep_range):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -342,6 +367,7 @@ class WaveformView(ViewBase):
 
         sparse = self.settings['sparse_display']
         visible_unit_ids = self.controller.get_visible_unit_ids()
+        visible_unit_indices = self.controller.get_visible_unit_indices()
         if sparse:
             if len(visible_unit_ids) > 0:
                 common_channel_indexes = self.controller.get_common_sparse_channels(visible_unit_ids)
@@ -358,12 +384,11 @@ class WaveformView(ViewBase):
         
         self.plot1.addItem(self.curve_one_waveform)
 
-        xvect = self.xvect[common_channel_indexes, :] * self.factor_x
+        xvectors = self.xvect[common_channel_indexes, :] * self.factor_x
+        xvects = self.get_xvectors_not_overlap(xvectors, len(visible_unit_ids))
 
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not unit_visible_dict[unit_id]:
-                continue
-            
+
+        for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             
             ypos = self.contact_location[common_channel_indexes,1]
@@ -395,7 +420,7 @@ class WaveformView(ViewBase):
             x_margin =50
             y_margin =150
             self._x_range = np.min(self.xvect) - x_margin , np.max(self.xvect) + x_margin
-            visible_mask = list(self.controller.unit_visible_dict.values())
+            visible_mask = self.controller.get_units_visibility_mask()
             visible_pos = self.controller.unit_positions[visible_mask, :]
             self._y1_range = np.min(visible_pos[:,1]) - y_margin , np.max(visible_pos[:,1]) + y_margin
         
@@ -457,7 +482,7 @@ class WaveformView(ViewBase):
         from bokeh.models import WheelZoomTool, Range1d
         from bokeh.events import MouseWheel
 
-        from .utils_panel import _bg_color
+        from .utils_panel import _bg_color, KeyboardShortcut, KeyboardShortcuts
 
         contact_locations = self.controller.get_contact_location()
         x = contact_locations[:, 0]
@@ -524,14 +549,46 @@ class WaveformView(ViewBase):
             self.figure_geom
         )
 
+        # overlap shortcut
+        shortcuts = [KeyboardShortcut(name="overlap", key="o", ctrlKey=True)]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._panel_handle_shortcut)
+
         self.layout = pn.Column(
-                pn.Row(
-                    self.mode_selector
-                ),
-                self.figure_pane,
+            pn.Row(
+                self.mode_selector
+            ),
+            self.figure_pane,
+            shortcuts_component,
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both"
         )
+
+    def _panel_refresh(self, keep_range=False):
+        self.mode = self.mode_selector.value
+        selected_inds = self.controller.get_indices_spike_selected()
+        n_selected = selected_inds.size
+        dict_visible_units = {k: False for k in self.controller.unit_ids}
+        if self.settings['show_only_selected_cluster'] and n_selected == 1:
+            ind = selected_inds[0]
+            unit_index = self.controller.spikes[ind]['unit_index']
+            unit_id = self.controller.unit_ids[unit_index]
+            dict_visible_units[unit_id] = True
+        else:
+            for unit_id in self.controller.get_visible_unit_ids():
+                dict_visible_units[unit_id] = True
+
+        if self.mode=='geometry':
+            # zoom factor is reset
+            if self.settings["auto_zoom_on_unit_selection"]:
+                self.factor_x = 1.0
+                self.factor_y = .05
+            self._panel_refresh_mode_geometry(dict_visible_units, keep_range=keep_range)
+        elif self.mode=='flatten':
+            self._panel_refresh_mode_flatten(dict_visible_units, keep_range=keep_range)
+
+        self._panel_refresh_one_spike()
+
 
     def _panel_on_mode_selector_changed(self, event):
         import panel as pn
@@ -567,34 +624,11 @@ class WaveformView(ViewBase):
             self.figure_geom.toolbar.active_scroll = None
         self.last_wheel_event_time = current_time
 
-    def _panel_refresh(self, keep_range=False):
-        self.mode = self.mode_selector.value
-        selected_inds = self.controller.get_indices_spike_selected()
-        n_selected = selected_inds.size
-        if self.settings['show_only_selected_cluster'] and n_selected == 1:
-            unit_visible_dict = {k: False for k in self.controller.unit_visible_dict}
-            ind = selected_inds[0]
-            unit_index = self.controller.spikes[ind]['unit_index']
-            unit_id = self.controller.unit_ids[unit_index]
-            unit_visible_dict[unit_id] = True
-        else:
-            unit_visible_dict = self.controller.unit_visible_dict
-        if self.mode=='geometry':
-            # zoom factor is reset
-            if self.settings["auto_zoom_on_unit_selection"]:
-                self.factor_x = 1.0
-                self.factor_y = .05
-            self._panel_refresh_mode_geometry(unit_visible_dict, keep_range=keep_range)
-        elif self.mode=='flatten':
-            self._panel_refresh_mode_flatten(unit_visible_dict, keep_range=keep_range)
-
-        self._panel_refresh_one_spike()
-
-    def _panel_refresh_mode_geometry(self, unit_visible_dict=None, keep_range=False):
+    def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
         # this clear the figure
         self.figure_geom.renderers = []
         self.lines_geom = None
-        unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
+        dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
@@ -606,12 +640,13 @@ class WaveformView(ViewBase):
         if len(visible_unit_ids) == 0:
             return
 
-        xvect = self.xvect[common_channel_indexes, :] * self.factor_x
+        xvectors = self.xvect[common_channel_indexes, :] * self.factor_x
+        xvects = self.get_xvectors_not_overlap(xvectors, len(visible_unit_ids))
 
         xs = []
         ys = []
         colors = []
-        for i, (unit_index, unit_id) in enumerate(zip(visible_unit_indices, visible_unit_ids)):
+        for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             
             ypos = self.contact_location[common_channel_indexes,1]
@@ -638,20 +673,20 @@ class WaveformView(ViewBase):
             self.figure_geom.y_range.start = np.min(ypos) - 50
             self.figure_geom.y_range.end = np.max(ypos) + 50
 
-    def _panel_refresh_mode_flatten(self, unit_visible_dict=None, keep_range=False):
+    def _panel_refresh_mode_flatten(self, dict_visible_units=None, keep_range=False):
         from bokeh.models import Span
         # this clear the figure
         self.figure_avg.renderers = []
         self.figure_std.renderers = []
         self.lines_avg = {}
         self.lines_std = {}
-        unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
+        dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
 
-        for unit_index, (unit_id, visible) in enumerate(unit_visible_dict.items()):
+        for unit_index, (unit_id, visible) in enumerate(dict_visible_units.items()):
             if not visible:
                 continue
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
@@ -737,6 +772,9 @@ class WaveformView(ViewBase):
         keep_range = not self.settings['auto_zoom_on_unit_selection']
         self._panel_refresh(keep_range=keep_range)
 
+    def _panel_handle_shortcut(self, event):
+        if event.data == "overlap":
+            self.toggle_overlap()
 
 WaveformView._gui_help_txt = """
 ## Waveform View
@@ -751,6 +789,7 @@ There are 2 modes of display:
 
 ### Controls
 * **mode** : change displaye mode (geometry or flatten)
+* **ctrl + o** : toggle overlap mode
 * **mouse wheel** : scale waveform amplitudes
 * **alt + mouse wheel** : widen/narrow x axis
 * **shift + mouse wheel** : zoom

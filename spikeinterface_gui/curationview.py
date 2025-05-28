@@ -75,6 +75,9 @@ class CurationView(ViewBase):
         self.merge_menu = QT.QMenu()
         act = self.merge_menu.addAction('Remove merge group')
         act.triggered.connect(self.unmerge_groups)
+        shortcut_unmerge = QT.QShortcut(self.qt_widget)
+        shortcut_unmerge.setKey(QT.QKeySequence("ctrl+u"))
+        shortcut_unmerge.activated.connect(self.unmerge_groups)
 
 
         v = QT.QVBoxLayout()
@@ -91,6 +94,9 @@ class CurationView(ViewBase):
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')
         act.triggered.connect(self.restore_units)
+        shortcut_restore = QT.QShortcut(self.qt_widget)
+        shortcut_restore.setKey(QT.QKeySequence("ctrl+r"))
+        shortcut_restore.activated.connect(self.restore_units)
 
     def _qt_refresh(self):
         from .myqt import QT
@@ -153,13 +159,11 @@ class CurationView(ViewBase):
         if len(self.table_merge.selectedIndexes()) == 0:
             return
 
+        dtype = self.controller.unit_ids.dtype
         ind = self.table_merge.selectedIndexes()[0].row()
-        unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
-        self.controller.set_all_unit_visibility_off()
-        for unit_id in unit_ids:
-            # convert to the correct type
-            unit_id = self.controller.unit_ids.dtype.type(unit_id)
-            self.controller.unit_visible_dict[unit_id] = True
+        visible_unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
+        visible_unit_ids = [dtype.type(unit_id) for unit_id in visible_unit_ids]
+        self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
 
     def _qt_on_item_selection_changed_delete(self):
@@ -170,8 +174,16 @@ class CurationView(ViewBase):
         self.controller.set_all_unit_visibility_off()
         # convert to the correct type
         unit_id = self.controller.unit_ids.dtype.type(unit_id)
-        self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids([unit_id])
         self.notify_unit_visibility_changed()
+
+    def _qt_on_restore_shortcut(self):
+        sel_rows = self._qt_get_selected_rows()
+        self._qt_delete_unit()
+        if len(sel_rows) > 0:
+            self.table.clearSelection()
+            self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
+
 
     def on_manual_curation_updated(self):
         self.refresh()
@@ -340,23 +352,19 @@ class CurationView(ViewBase):
         self.table_delete.selection = []
 
     def _panel_update_unit_visibility(self, event):
+        unit_dtype = self.controller.unit_ids.dtype
         if self.active_table == "delete":
-            unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
-            self.controller.set_all_unit_visibility_off()
-            for unit_id in unit_ids:
-                # convert to the correct type
-                unit_id = self.controller.unit_ids.dtype.type(unit_id)
-                self.controller.unit_visible_dict[unit_id] = True
+            visible_unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
+            visible_unit_ids = [unit_dtype.type(unit_id) for unit_id in visible_unit_ids]
+            self.controller.set_visible_unit_ids(visible_unit_ids)
         elif self.active_table == "merge":
             merge_groups = self.table_merge.value["merge_groups"].values[self.table_merge.selection].tolist()
-            self.controller.set_all_unit_visibility_off()
-            unit_dtype = self.controller.unit_ids.dtype
+            # self.controller.set_all_unit_visibility_off()
+            visible_unit_ids = []
             for merge_group in merge_groups:
                 merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(" - ")]
-                for unit_id in merge_unit_ids:
-                    # convert to the correct type
-                    unit_id = self.controller.unit_ids.dtype.type(unit_id)
-                    self.controller.unit_visible_dict[unit_id] = True
+                visible_unit_ids.extend(merge_unit_ids)
+            self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
 
     def _panel_restore_units(self, event):
@@ -461,7 +469,7 @@ revert, and export the curation data.
 
 ### Controls
 - **save in analyzer**: Save the current curation state in the analyzer.
-- **export JSON**: Export the current curation state to a JSON file.
+- **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merge group from the merged units table.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).

@@ -154,6 +154,9 @@ class QtMainWindow(QT.QMainWindow):
             if view_name == 'curation' and not self.controller.curation:
                 continue
 
+            if view_name in ("trace", "tracemap") and not self.controller.with_traces:
+                continue
+
             widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
             widget.set_view(view)

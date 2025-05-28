@@ -202,6 +202,9 @@ class PanelMainWindow:
             if view_name == 'curation' and not self.controller.curation:
                 continue
 
+            if view_name in ("trace", "tracemap") and not self.controller.with_traces:
+                continue
+
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
