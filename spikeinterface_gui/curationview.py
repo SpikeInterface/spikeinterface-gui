@@ -159,13 +159,11 @@ class CurationView(ViewBase):
         if len(self.table_merge.selectedIndexes()) == 0:
             return
 
+        dtype = self.controller.unit_ids.dtype
         ind = self.table_merge.selectedIndexes()[0].row()
-        unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
-        self.controller.set_all_unit_visibility_off()
-        for unit_id in unit_ids:
-            # convert to the correct type
-            unit_id = self.controller.unit_ids.dtype.type(unit_id)
-            self.controller.unit_visible_dict[unit_id] = True
+        visible_unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
+        visible_unit_ids = [dtype.type(unit_id) for unit_id in visible_unit_ids]
+        self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
 
     def _qt_on_item_selection_changed_delete(self):
@@ -176,7 +174,7 @@ class CurationView(ViewBase):
         self.controller.set_all_unit_visibility_off()
         # convert to the correct type
         unit_id = self.controller.unit_ids.dtype.type(unit_id)
-        self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids([unit_id])
         self.notify_unit_visibility_changed()
 
     def _qt_on_restore_shortcut(self):
@@ -354,23 +352,19 @@ class CurationView(ViewBase):
         self.table_delete.selection = []
 
     def _panel_update_unit_visibility(self, event):
+        unit_dtype = self.controller.unit_ids.dtype
         if self.active_table == "delete":
-            unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
-            self.controller.set_all_unit_visibility_off()
-            for unit_id in unit_ids:
-                # convert to the correct type
-                unit_id = self.controller.unit_ids.dtype.type(unit_id)
-                self.controller.unit_visible_dict[unit_id] = True
+            visible_unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
+            visible_unit_ids = [unit_dtype.type(unit_id) for unit_id in visible_unit_ids]
+            self.controller.set_visible_unit_ids(visible_unit_ids)
         elif self.active_table == "merge":
             merge_groups = self.table_merge.value["merge_groups"].values[self.table_merge.selection].tolist()
-            self.controller.set_all_unit_visibility_off()
-            unit_dtype = self.controller.unit_ids.dtype
+            # self.controller.set_all_unit_visibility_off()
+            visible_unit_ids = []
             for merge_group in merge_groups:
                 merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(" - ")]
-                for unit_id in merge_unit_ids:
-                    # convert to the correct type
-                    unit_id = self.controller.unit_ids.dtype.type(unit_id)
-                    self.controller.unit_visible_dict[unit_id] = True
+                visible_unit_ids.extend(merge_unit_ids)
+            self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
 
     def _panel_restore_units(self, event):

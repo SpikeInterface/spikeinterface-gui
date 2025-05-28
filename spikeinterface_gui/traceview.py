@@ -301,9 +301,8 @@ class TraceView(ViewBase, MixinViewTrace):
         global_to_local_chan_inds = np.zeros(self.controller.channel_ids.size, dtype='int64')
         global_to_local_chan_inds[visible_channel_inds] = np.arange(visible_channel_inds.size, dtype='int64')
         
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+
+        for unit_index, unit_id in self.controller.iter_visible_units():
 
             inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
             if inds.size == 0:

@@ -146,9 +146,7 @@ class BaseScatterView(ViewBase):
             return
 
         max_count = 1
-        for unit_id in self.controller.unit_ids:
-            if not self.controller.unit_visible_dict[unit_id]:
-                continue
+        for unit_id in self.controller.get_visible_unit_ids():
 
             spike_times, spike_data, hist_count, hist_bins, _ = self.get_unit_data(unit_id)
 
@@ -196,9 +194,8 @@ class BaseScatterView(ViewBase):
         
         # Create mask for visible units
         visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            if self.controller.unit_visible_dict[unit_id]:
-                visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+        for unit_index, unit_id in self.controller.iter_visible_units():
+            visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
         
         # Only consider spikes from visible units
         visible_spikes = spikes_in_seg[visible_mask]
@@ -407,9 +404,8 @@ class BaseScatterView(ViewBase):
             spikes_in_seg = self.controller.spikes[sl]
             # Create mask for visible units
             visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-            for unit_index, unit_id in enumerate(self.controller.unit_ids):
-                if self.controller.unit_visible_dict[unit_id]:
-                    visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+            for unit_index, unit_id in self.controller.iter_visible_units():
+                visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
             
             # Map back to original indices
             visible_indices = np.nonzero(visible_mask)[0]
@@ -426,9 +422,8 @@ class BaseScatterView(ViewBase):
             sl = self.controller.segment_slices[self.segment_index]
             spikes_in_seg = self.controller.spikes[sl]
             visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-            for unit_index, unit_id in enumerate(self.controller.unit_ids):
-                if self.controller.unit_visible_dict[unit_id]:
-                    visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
+            for unit_index, unit_id in self.controller.iter_visible_units():
+                visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
             visible_indices = sl.start + np.nonzero(visible_mask)[0]
             selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
             # set selected spikes in scatter plot

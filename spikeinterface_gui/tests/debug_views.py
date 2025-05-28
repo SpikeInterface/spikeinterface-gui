@@ -31,7 +31,8 @@ def debug_one_view():
     
     controller = Controller(analyzer, verbose=True, curation=curation, curation_data=curation_dict)
 
-    view_class = possible_class_views['unitlist']
+    # view_class = possible_class_views['unitlist']
+    view_class = possible_class_views['mainsettings']
     # view_class = possible_class_views['spikeamplitude']
     widget = ViewWidget(view_class)
     view = view_class(controller=controller, parent=widget, backend='qt')

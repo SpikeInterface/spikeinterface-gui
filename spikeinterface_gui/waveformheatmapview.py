@@ -149,7 +149,6 @@ class WaveformHeatMapView(ViewBase):
         from .myqt import QT
         import pyqtgraph as pg
         
-        unit_visible_dict = self.controller.unit_visible_dict
         
         visible_unit_ids = self.controller.get_visible_unit_ids()
         

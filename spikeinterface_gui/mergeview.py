@@ -142,10 +142,7 @@ class MergeView(ViewBase):
         if group_ids is None:
             return
         
-        for k in self.controller.unit_ids:
-            self.controller.unit_visible_dict[k] = False
-        for unit_id in group_ids:
-            self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids(group_ids)
 
         self.notify_unit_visibility_changed()
 
@@ -393,12 +390,12 @@ class MergeView(ViewBase):
 
     def _panel_update_visible_pair(self, row):
         table_row = self.table.value.iloc[row]
-        # set all unit visibility to False
-        self.controller.set_all_unit_visibility_off()
+        visible_unit_ids = []
         for name, value in zip(table_row.index, table_row):
             if name.startswith("unit_id"):
                 unit_id = value["id"]
-                self.controller.unit_visible_dict[unit_id] = True
+                visible_unit_ids.append(unit_id)
+        self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):

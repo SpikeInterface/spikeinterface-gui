@@ -25,7 +25,7 @@ default_layout = dict(
     zone5=['probe'],
     zone6=['ndscatter', 'similarity'],
     zone7=['waveform', 'waveformheatmap', ],
-    zone8=['correlogram', 'isi'],
+    zone8=['correlogram', 'isi', 'mainsettings'],
 )
 _presets['default'] = default_layout
 

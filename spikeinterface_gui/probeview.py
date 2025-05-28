@@ -57,8 +57,9 @@ class ProbeView(ViewBase):
 
     def update_unit_visibility(self, x, y, roi_radius):
         dist = np.sqrt(np.sum((self.controller.unit_positions - np.array([[x, y]])) ** 2, axis=1))
-        for unit_index, unit_id in enumerate(self.controller.unit_ids):
-            self.controller.unit_visible_dict[unit_id] = dist[unit_index] < roi_radius
+        mask = dist < roi_radius
+        visible_unit_ids = self.controller.unit_ids[mask]
+        self.controller.set_visible_unit_ids(visible_unit_ids)
 
     def get_view_bounds(self, margin=20):
         xlim0 = np.min(self.contact_positions[:, 0]) - margin
@@ -223,7 +224,8 @@ class ProbeView(ViewBase):
         import pyqtgraph as pg
 
         # this change the ROI and so change also channel_visibility
-        visible_mask = np.array(list(self.controller.unit_visible_dict.values()))
+        visible_mask = self.controller.get_units_visibility_mask()
+
         unit_inds = np.flatnonzero(visible_mask)
         n = unit_inds.size
         x, y = None, None
@@ -254,7 +256,7 @@ class ProbeView(ViewBase):
         
         # change scatter pen for selection
         pen = [pg.mkPen('white', width=4)
-                    if self.controller.unit_visible_dict[u] else pg.mkPen('black', width=4)
+                    if self.controller.get_unit_visibility(u) else pg.mkPen('black', width=4)
                     for u in self.controller.unit_ids]
         self.scatter.setPen(pen)
         
@@ -264,11 +266,12 @@ class ProbeView(ViewBase):
         
         if auto_zoom:
             visible_pos = self.controller.unit_positions[visible_mask, :]
-            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
-            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
-            margin =50
-            self.plot.setXRange(x_min - margin, x_max+ margin)
-            self.plot.setYRange(y_min - margin, y_max+ margin)
+            if visible_pos.shape[0] > 0:
+                x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+                y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+                margin =50
+                self.plot.setXRange(x_min - margin, x_max+ margin)
+                self.plot.setYRange(y_min - margin, y_max+ margin)
 
     
     def _qt_on_pick_unit(self, x, y, multi_select=False):
@@ -276,10 +279,9 @@ class ProbeView(ViewBase):
         if unit_id is not None:
             radius = self.settings["radius_channel"]
             if multi_select:
-                self.controller.unit_visible_dict[unit_id] = not (self.controller.unit_visible_dict[unit_id])
+                self.controller.set_unit_visibility(unit_id, not self.controller.get_unit_visibility(unit_id))
             else:
-                self.controller.set_all_unit_visibility_off()
-                self.controller.unit_visible_dict[unit_id] = True
+                self.controller.set_visible_unit_ids([unit_id])
                 self.roi_channel.blockSignals(True)
                 self.roi_channel.setPos(x - radius, y - radius)
                 self.roi_channel.blockSignals(False)
@@ -376,7 +378,7 @@ class ProbeView(ViewBase):
         for unit_id in self.controller.unit_ids:
             # color = self.controller.qcolors[uid].name()
             color = self.get_unit_color(unit_id)
-            is_visible = self.controller.unit_visible_dict[unit_id]
+            is_visible = self.controller.get_unit_visibility(unit_id)
             colors.append(color)
             alphas.append(self.alpha_selected if is_visible else self.alpha_unselected)
             sizes.append(self.unit_marker_size_selected if is_visible else self.unit_marker_size_unselected)
@@ -474,10 +476,12 @@ class ProbeView(ViewBase):
             label.visible = self.settings['show_channel_id']
 
         # Update selection circles if only one unit is visible
-        if sum(list(self.controller.unit_visible_dict.values())) == 1:
-            selected_unit = np.flatnonzero(list(self.controller.unit_visible_dict.values()))[0]
+
+        selected_unit_indices = self.controller.get_visible_unit_indices()
+        if len(selected_unit_indices) == 1:
+            unit_index = selected_unit_indices[0]
             unit_positions = self.controller.unit_positions
-            x, y = unit_positions[selected_unit, 0], unit_positions[selected_unit, 1]
+            x, y = unit_positions[unit_index, 0], unit_positions[unit_index, 1]
             # Update circles position
             self.unit_circle.update_position(x, y)
 
@@ -487,7 +491,7 @@ class ProbeView(ViewBase):
             self.controller.set_channel_visibility(visible_channel_inds)
 
         if self.settings['auto_zoom_on_unit_selection']:
-            visible_mask = np.array(list(self.controller.unit_visible_dict.values()))
+            visible_mask = self.controller.get_units_visibility_mask()
             if sum(visible_mask) > 0:
                 visible_pos = self.controller.unit_positions[visible_mask, :]
                 x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
@@ -506,7 +510,7 @@ class ProbeView(ViewBase):
 
         for unit_id in self.controller.unit_ids:
             color = self.get_unit_color(unit_id)
-            is_visible = self.controller.unit_visible_dict[unit_id]
+            is_visible = self.controller.get_unit_visibility(unit_id)
             colors.append(color)
             alphas.append(self.alpha_selected if is_visible else self.alpha_unselected)
             sizes.append(self.unit_marker_size_selected if is_visible else self.unit_marker_size_unselected)
@@ -631,12 +635,12 @@ class ProbeView(ViewBase):
             if select_only:
                 # Update visibility - make only this unit visible
                 self.controller.set_all_unit_visibility_off()
-                self.controller.unit_visible_dict[unit_id] = True
-            else:
-                self.controller.unit_visible_dict[unit_id] = not self.controller.unit_visible_dict[unit_id]
+                self.controller.set_unit_visibility(unit_id, True)
 
+            else:
+                self.controller.set_unit_visibility(unit_id, not self.controller.get_unit_visibility(unit_id))
                 # Update circles position if this is the only visible unit
-                if sum(self.controller.unit_visible_dict.values()) == 1:
+                if len(self.controller.get_visible_unit_ids()) == 1:
                     select_only = True
 
             self._panel_update_unit_glyphs()

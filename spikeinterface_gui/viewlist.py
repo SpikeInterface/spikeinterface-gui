@@ -13,6 +13,7 @@ from .spikeamplitudeview import SpikeAmplitudeView
 from .spikedepthview import SpikeDepthView
 from .tracemapview import TraceMapView
 from .curationview import CurationView
+# from .mainsettingsview import MainSettingsView
 
 possible_class_views = dict(
     probe = ProbeView, # probe view is first, since it updates channels upon unit changes
@@ -30,4 +31,5 @@ possible_class_views = dict(
     spikedepth = SpikeDepthView,
     tracemap = TraceMapView,
     curation = CurationView,
+    # mainsettings=MainSettingsView,
 )
