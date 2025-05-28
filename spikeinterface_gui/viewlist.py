@@ -10,22 +10,26 @@ from .probeview import ProbeView
 from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
 from .spikeamplitudeview import SpikeAmplitudeView
+from .spikedepthview import SpikeDepthView
 from .tracemapview import TraceMapView
 from .curationview import CurationView
+# from .mainsettingsview import MainSettingsView
 
 possible_class_views = dict(
+    probe = ProbeView, # probe view is first, since it updates channels upon unit changes
     unitlist = UnitListView,
     spikelist = SpikeListView,
     mergelist = MergeView,
-    traceview = TraceView,
-    waveformview = WaveformView,
-    waveformheatmapview = WaveformHeatMapView,
-    isiview = ISIView,
-    crosscorrelogramview = CrossCorrelogramView,
-    probeview = ProbeView,
-    ndscatterview = NDScatterView,
-    similarityview = SimilarityView,
-    spikeamplitudeview = SpikeAmplitudeView,
-    tracemapview = TraceMapView,
+    trace = TraceView,
+    waveform = WaveformView,
+    waveformheatmap = WaveformHeatMapView,
+    isi = ISIView,
+    correlogram = CrossCorrelogramView,
+    ndscatter = NDScatterView,
+    similarity = SimilarityView,
+    spikeamplitude = SpikeAmplitudeView,
+    spikedepth = SpikeDepthView,
+    tracemap = TraceMapView,
     curation = CurationView,
+    # mainsettings=MainSettingsView,
 )

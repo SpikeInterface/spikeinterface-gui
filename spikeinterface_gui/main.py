@@ -2,6 +2,7 @@ import sys
 import argparse
 from pathlib import Path
 import numpy as np
+import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
@@ -10,20 +11,23 @@ from spikeinterface.core.core_tools import is_path_remote
 import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 
-from spikeinterface_gui import MainWindow, mkQApp
-
+from spikeinterface_gui.controller import Controller
 
 
 def run_mainwindow(
     analyzer,
+    mode="desktop",
     with_traces=True,
     curation=False,
     curation_dict=None,
     label_definitions=None,
     displayed_unit_properties=None,
     extra_unit_properties=None,
+    skip_extensions=None,
     recording=None,
-    start_qt_app=True,
+    start_app=True,
+    make_servable=False,
+    layout_preset=None,
     verbose=False,
 ):
     """
@@ -33,6 +37,10 @@ def run_mainwindow(
     ----------
     analyzer: SortingAnalyzer
         The sorting analyzer object
+    mode: 'desktop' | 'web'
+        The GUI mode to use.
+        'desktop' will run a Qt app.
+        'web' will run a Panel app.
     with_traces: bool, default: True
         If True, traces are displayed
     curation: bool, default: False
@@ -45,43 +53,82 @@ def run_mainwindow(
         The displayed unit properties in the unit table
     extra_unit_properties: list | None, default: None
         The extra unit properties in the unit table
+    skip_extensions: list | None, default: None
+        The list of extensions to skip when loading the sorting analyzer
     recording: RecordingExtractor | None, default: None
         The recording object to display traces. This can be used when the 
         SortingAnalyzer is recordingless.
     start_qt_app: bool, default: True
         If True, the QT app loop is started
+    layout_preset : str | None
+        The name of the layout preset. None is default.
     verbose: bool, default: False
         If True, print some information in the console
     """
-    from .myqt import QtGui
-    app = mkQApp()
+
+    if mode == "desktop":
+        backend = "qt"
+    elif mode == "web":
+        backend = "panel"
+    else:
+        raise ValueError(f"spikeinterface-gui wrong mode {mode}")
+
 
     if recording is not None:
         analyzer.set_temporary_recording(recording)
-    
-    win = MainWindow(
-        analyzer,
-        verbose=verbose,
-        with_traces=with_traces,
-        curation=curation,
-        curation_dict=curation_dict,
+
+    if verbose:
+        import time
+        t0 = time.perf_counter()
+    controller = Controller(
+        analyzer, backend=backend, verbose=verbose,
+        curation=curation, curation_data=curation_dict,
         label_definitions=label_definitions,
+        with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
+        skip_extensions=skip_extensions,
     )
-    win.setWindowTitle('SpikeInterface GUI')
-    this_file = Path(__file__).absolute()
-    win.setWindowIcon(QtGui.QIcon(str(this_file.parent / 'img' / 'si.png')))
-    win.show()
-    if start_qt_app:
-        app.exec()
+    if verbose:
+        t1 = time.perf_counter()
+        print('controller init time', t1 - t0)
 
+    if backend == "qt":
+        from spikeinterface_gui.myqt import QT, mkQApp
+        from spikeinterface_gui.backend_qt import QtMainWindow
+
+        # Suppress a known pyqtgraph warning
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
+        warnings.filterwarnings('ignore', category=UserWarning, message=".*QObject::connect.*")
+
+
+        app = mkQApp()
+        
+        win = QtMainWindow(controller, layout_preset=layout_preset)
+        win.setWindowTitle('SpikeInterface GUI')
+        this_file = Path(__file__).absolute()
+        win.setWindowIcon(QT.QIcon(str(this_file.parent / 'img' / 'si.png')))
+        win.show()
+        if start_app:
+            app.exec()
+    elif backend == "panel":
+        import panel
+        from .backend_panel import PanelMainWindow, start_server
+        win = PanelMainWindow(controller, layout_preset=layout_preset)
+        if start_app:
+            start_server(win)
+        elif make_servable:
+            win.main_layout.servable(title='SpikeInterface GUI')
+
+    return win
+ 
 
 def run_mainwindow_cli():
     argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(description='spikeinterface-gui')
     parser.add_argument('analyzer_folder', help='SortingAnalyzer folder path', default=None, nargs='?')
+    parser.add_argument('--mode', help='Mode desktop or web', default='desktop')
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
@@ -118,6 +165,5 @@ def run_mainwindow_cli():
                 if np.sum(channel_mask) != analyzer.get_num_channels():
                     raise ValueError('The recording does not have the same channel ids as the analyzer')
                 recording = recording.select_channels(recording.channel_ids[channel_mask])
-    
-    run_mainwindow(analyzer, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
-    
+
+    run_mainwindow(analyzer, mode=args.mode, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
