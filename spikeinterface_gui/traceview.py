@@ -92,7 +92,7 @@ class MixinViewTrace:
         self.scroll_time.setMinimum(0)
         self.scroll_time.setMaximum(length)
 
-    def _qt_change_segment(self, seg_index):
+    def _qt_change_segment(self, seg_index, notify=True):
         #TODO: dirty because now seg_pos IS seg_index
         self.controller.set_time(segment_index=seg_index)
 
@@ -113,7 +113,7 @@ class MixinViewTrace:
     def _qt_on_combo_seg_changed(self):
         s = self.combo_seg.currentIndex()
         if not self._block_auto_refresh_and_notify:
-            self._qt_change_segment(s)
+            self._qt_change_segment(s, notify=True)
     
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
@@ -502,7 +502,7 @@ class TraceView(ViewBase, MixinViewTrace):
         # Block auto refresh to avoid recursive calls
         self._block_auto_refresh_and_notify = True
 
-        self._qt_change_segment(seg_index)
+        self._qt_change_segment(seg_index, notify=False)
         self.timeseeker.seek(time)
         
         self._block_auto_refresh_and_notify = False
