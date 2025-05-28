@@ -535,14 +535,14 @@ class UnitListView(ViewBase):
                     KeyboardShortcut(name="merge", key="m", ctrlKey=True),
                 ]
             )
-        if self.controller.has_default_quality_labels:
-            shortcuts.extend(
-                [
-                    KeyboardShortcut(name="good", key="g", ctrlKey=False),
-                    KeyboardShortcut(name="mua", key="m", ctrlKey=False),
-                    KeyboardShortcut(name="noise", key="n", ctrlKey=False),
-                ]
-            )
+            if self.controller.has_default_quality_labels:
+                shortcuts.extend(
+                    [
+                        KeyboardShortcut(name="good", key="g", ctrlKey=False),
+                        KeyboardShortcut(name="mua", key="m", ctrlKey=False),
+                        KeyboardShortcut(name="noise", key="n", ctrlKey=False),
+                    ]
+                )
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 

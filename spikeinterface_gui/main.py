@@ -16,7 +16,7 @@ from spikeinterface_gui.controller import Controller
 
 def run_mainwindow(
     analyzer,
-    backend="qt",
+    mode="desktop",
     with_traces=True,
     curation=False,
     curation_dict=None,
@@ -37,8 +37,10 @@ def run_mainwindow(
     ----------
     analyzer: SortingAnalyzer
         The sorting analyzer object
-    backend: 'qt' | 'panel'
-        The GUI backend to use ('qt' or 'panel')
+    mode: 'desktop' | 'web'
+        The GUI mode to use.
+        'desktop' will run a Qt app.
+        'web' will run a Panel app.
     with_traces: bool, default: True
         If True, traces are displayed
     curation: bool, default: False
@@ -63,6 +65,14 @@ def run_mainwindow(
     verbose: bool, default: False
         If True, print some information in the console
     """
+
+    if mode == "desktop":
+        backend = "qt"
+    elif mode == "web":
+        backend = "panel"
+    else:
+        raise ValueError(f"spikeinterface-gui wrong mode {mode}")
+
 
     if recording is not None:
         analyzer.set_temporary_recording(recording)
@@ -109,8 +119,6 @@ def run_mainwindow(
             start_server(win)
         elif make_servable:
             win.main_layout.servable(title='SpikeInterface GUI')
-    else:
-        raise ValueError(f"spikeinterface-gui wrong backend {backend}")
 
     return win
  
@@ -120,6 +128,7 @@ def run_mainwindow_cli():
 
     parser = argparse.ArgumentParser(description='spikeinterface-gui')
     parser.add_argument('analyzer_folder', help='SortingAnalyzer folder path', default=None, nargs='?')
+    parser.add_argument('--mode', help='Mode desktop or web', default='desktop')
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
@@ -156,6 +165,5 @@ def run_mainwindow_cli():
                 if np.sum(channel_mask) != analyzer.get_num_channels():
                     raise ValueError('The recording does not have the same channel ids as the analyzer')
                 recording = recording.select_channels(recording.channel_ids[channel_mask])
-    
-    run_mainwindow(analyzer, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
-    
+
+    run_mainwindow(analyzer, mode=args.mode, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)

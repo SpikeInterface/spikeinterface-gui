@@ -1,6 +1,6 @@
 # spikeinterface-gui
 
-GUI for spikeinterface objects without data copy.
+GUI for the `SortingAnalyser` object from spikeinterface .
 
 This is a cross platform interactive viewer to inspect the final results
 and quality of any spike sorter supported by spikeinterface 
@@ -9,16 +9,12 @@ and quality of any spike sorter supported by spikeinterface
 This interactive GUI offer several views that dynamically refresh other views.
 This allows us to very quickly check the strengths and weaknesses of any sorter output.
 
-Contrary to other viewers (like phy), this viewer skips the tedious and long step of
-copying and reformatting the entire dataset (filtered signal + waveform + PCA) to a particular
-format or folder organisation. This gui is built on top of spikeinterface objects
-(Recording, Sorting, SortingAnalyzer)
-These objects are "lazy" and retrieve data on the fly (no copy!).
+This can be used as a replacement of [phy](https://github.com/cortex-lab/phy).
 
+This viewer has 2 modes:
+  * **mode=desktop** : this a local desktop app using internaly Qt, fast and easy when the data is local
+  * **mode=web** : this is a web app internally using Panel, usefull when the data is remote
 
-This viewer internally use Qt (with PySide6, PyQT6 or PyQt5) and pyqtgraph.
-And so, this viewer is a local desktop app (old school!!).
-There is a web based viewer [here](https://github.com/magland/sortingview).
 
 ![screenshot](screenshot.png)
 
@@ -43,6 +39,7 @@ This enable a very quick and convinient spike per spike jump on traces.
 
 Channel visibility can be handled with one of the roi in the probeview.
 
+Shortcuts: many shortcuts are available, please read the **?** button in each view.
 
 ## curation mode
 
@@ -56,12 +53,6 @@ This format enbale to:
 
 When this mode is activated a new view is added on top left to maintain the list of removal and merges.
 The curation format can be exported to json.
-
-
-## Important note
-
-The actual `main` branch is using the new `SortingAnalyzer` object from spikeinterface, so you need at least version **0.101.0** of 
-spikeinterface and be familiar with the `SortingAnalyzer` concept.
 
 
 
@@ -81,7 +72,6 @@ Note that:
   * the more extensions are computed the more view are displayed
 
 
-  
 Example:
 
 ```python
@@ -121,7 +111,9 @@ from spikeinterface_gui import run_mainwindow
 # reload the SortingAnalyzer
 sorting_analyzer = si.load_sorting_analyzer("/my_sorting_analyzer")
 # open and run the Qt app
-run_mainwindow(sorting_analyzer)
+run_mainwindow(sorting_analyzer, mode="desktop")
+# open and run the Web app
+run_mainwindow(sorting_analyzer, mode="web")
 ```
 
 Or from spikeinterface:
@@ -140,9 +132,9 @@ sigui /path/for/my/sorting_analyzer
 ```
 
 
-The command line support some otions like *--notraces* or *--curation*
+The command line support some otions like *--notraces* or *--curation* or *--mode*
 ```bash
-sigui  --no-traces --curation /path/for/my/sorting_analyzer
+sigui --mode=web --no-traces --curation /path/for/my/sorting_analyzer
 ```
 
 
@@ -191,6 +183,19 @@ From pypi:
 pip install spikeinterface-gui
 ```
 
+For Desktop you can do:
+
+```bash
+pip install spikeinterface-gui[desktop]
+```
+
+For web you can do:
+
+```bash
+pip install spikeinterface-gui[web]
+```
+
+
 From source:
 
 ```bash
@@ -199,12 +204,20 @@ cd spikeinterface-gui
 pip install .
 ```
 
-## Author
+## Cedits
 
-Samuel Garcia, CNRS, Lyon, France
+Original author : Samuel Garcia, CNRS, Lyon, France
 
 This work is a port of the old `tridesclous.gui` submodule on top of
 [spikeinterface](https://github.com/SpikeInterface/spikeinterface).
+
+Main authors and maintainers:
+
+ * qt side : Samuel Garcia, CNRS, Lyon, France
+ * web side : Alessio Paolo Buccino, Allen Institute for Neural Dynamics, Seattle, USA did
+
+
+## Message from dictator
 
 Contrary, to the spikeinterface package, for the developement of this viewer 
 all good practices of coding are deliberately put aside  : no test, no CI, no auto formating, no doc, ... 
