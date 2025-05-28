@@ -84,12 +84,12 @@ class ViewBase():
         elif self.backend == "panel":
             return self._panel_view_is_active
     
-    def refresh(self):
+    def refresh(self, **kwargs):
         if self.controller.verbose:
             t0 = time.perf_counter()
         if not self.is_view_visible():
             return
-        self._refresh()
+        self._refresh(**kwargs)
         if self.controller.verbose:
             t1 = time.perf_counter()
             print(f"Refresh {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
@@ -101,11 +101,11 @@ class ViewBase():
     def _compute(self):
         pass
 
-    def _refresh(self):
+    def _refresh(self, **kwargs):
         if self.backend == "qt":
-            self._qt_refresh()
+            self._qt_refresh(**kwargs)
         elif self.backend == "panel":
-            self._panel_refresh()
+            self._panel_refresh(**kwargs)
     
     def get_unit_color(self, unit_id):
         if self.backend == "qt":
