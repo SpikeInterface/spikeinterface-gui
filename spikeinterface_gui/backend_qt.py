@@ -118,7 +118,6 @@ def listen_setting_changes(view):
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
 
-
 class QtMainWindow(QT.QMainWindow):
     def __init__(self, controller, parent=None, layout_preset=None):
         QT.QMainWindow.__init__(self, parent)
@@ -179,7 +178,7 @@ class QtMainWindow(QT.QMainWindow):
 
         widgets_zone = {}
         for zone, view_names in preset.items():
-            # keep only instanciated views
+            # keep only instantiated views
             view_names = [view_name for view_name in view_names if view_name in self.views.keys()]
             widgets_zone[zone] = view_names
 
@@ -238,7 +237,6 @@ class QtMainWindow(QT.QMainWindow):
                 self.tabifyDockWidget(self.docks[view_name0], dock)
             # make visible the first of each zone
             self.docks[view_name0].raise_()
-
 
 
 class ViewWidget(QT.QWidget):
