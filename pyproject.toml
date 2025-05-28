@@ -42,13 +42,14 @@ sigui = "spikeinterface_gui.main:run_mainwindow_cli"
 
 [project.optional-dependencies]
 
-qt = [
+desktop = [
     "PySide6",
     "pyqtgraph",
 ]
 
-panel = [
+web = [
     "panel",
+    "bokeh",
 ]
 
 test = [
