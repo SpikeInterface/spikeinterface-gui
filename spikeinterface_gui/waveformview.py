@@ -229,7 +229,7 @@ class WaveformView(ViewBase):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         
-        dict_visible_units = {k:False for k in self.controller.unti_ids}
+        dict_visible_units = {k:False for k in self.controller.unit_ids}
         if self.settings['show_only_selected_cluster'] and n_selected==1:
             ind = selected_inds[0]
             unit_index = self.controller.spikes[ind]['unit_index']
@@ -673,20 +673,20 @@ class WaveformView(ViewBase):
             self.figure_geom.y_range.start = np.min(ypos) - 50
             self.figure_geom.y_range.end = np.max(ypos) + 50
 
-    def _panel_refresh_mode_flatten(self, unit_visible_dict=None, keep_range=False):
+    def _panel_refresh_mode_flatten(self, dict_visible_units=None, keep_range=False):
         from bokeh.models import Span
         # this clear the figure
         self.figure_avg.renderers = []
         self.figure_std.renderers = []
         self.lines_avg = {}
         self.lines_std = {}
-        unit_visible_dict = unit_visible_dict or self.controller.unit_visible_dict
+        dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
 
-        for unit_index, (unit_id, visible) in enumerate(unit_visible_dict.items()):
+        for unit_index, (unit_id, visible) in enumerate(dict_visible_units.items()):
             if not visible:
                 continue
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]

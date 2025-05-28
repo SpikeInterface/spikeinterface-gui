@@ -350,9 +350,8 @@ class UnitListView(ViewBase):
         if len(sel_rows) == 0:
             sel_rows = [self.table.rowCount()]
         new_row = max(sel_rows[0] - 1, 0)
-        self.controller.set_all_unit_visibility_off()
         unit_id = self.table.item(new_row, 1).unit_id
-        self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids([unit_id])
         self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
         self.table.clearSelection()
@@ -362,10 +361,9 @@ class UnitListView(ViewBase):
         sel_rows = self._qt_get_selected_rows()
         if len(sel_rows) == 0:
             sel_rows = [-1]
-        self.controller.set_all_unit_visibility_off()
         new_row = min(sel_rows[-1] + 1, self.table.rowCount() - 1)
         unit_id = self.table.item(new_row, 1).unit_id
-        self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids([unit_id])
         self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
         self.table.clearSelection()
@@ -623,11 +621,10 @@ class UnitListView(ViewBase):
         # print("checkbox toggled on row", row)
         unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
-        self.set_unit_visibility(selected_unit_id, not self.get_unit_visibility(selected_unit_id))
+        self.controller.set_unit_visibility(selected_unit_id, not self.controller.get_unit_visibility(selected_unit_id))
 
         # update the visible column
-        indices = list(self.controller.unit_visible_dict.keys())
-        self.table.value.loc[indices, "visible"] = list(self.controller.unit_visible_dict.values())
+        self.table.value.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
         self.refresh()
         self.notify_unit_visibility_changed()
 
@@ -651,15 +648,12 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_on_only_selection(self):
-        self.controller.set_all_unit_visibility_off()
         selected_unit = self.table.selection[0]
         unit_id = self.table.value.index.values[selected_unit]
-        self.controller.unit_visible_dict[unit_id] = True
+        self.controller.set_visible_unit_ids([unit_id])
         # update the visible column
         df = self.table.value
-        indices = list(self.controller.unit_visible_dict.keys())
-        visible = list(self.controller.unit_visible_dict.values())
-        df.loc[indices, "visible"] = visible
+        df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
         self.table.value = df
         self.notify_unit_visibility_changed()
 
@@ -695,9 +689,7 @@ class UnitListView(ViewBase):
                 if self.controller.curation:
                     self._panel_merge_units()
             elif event.data == "visible":
-                self.controller.set_all_unit_visibility_off()
-                for unit_id in selected_unit_ids:
-                    self.controller.unit_visible_dict[unit_id] = True
+                self.controller.set_visible_unit_ids(selected_unit_ids)
                 self.notify_unit_visibility_changed()
                 self.refresh()
             elif event.data == "good":

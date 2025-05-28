@@ -381,6 +381,7 @@ class Controller():
     
     # unit visibility zone
     def set_visible_unit_ids(self, visible_unit_ids):
+        """Make visible some units, all other off"""
         # lim = self.controller.main_settings['max_visible_units']
         # if len(visible_unit_ids) > lim:
             # visible_unit_ids = visible_unit_ids[:lim]
@@ -389,34 +390,42 @@ class Controller():
             self.unit_visible_dict[u] = True
 
     def get_visible_unit_ids(self):
+        """Get list of visible unit_ids"""
         visible_unit_ids = self.unit_ids[list(self.unit_visible_dict.values())]
         return visible_unit_ids
 
     def get_visible_unit_indices(self):
+        """Get list of indicies of visible units"""
         visible_unit_indices = np.flatnonzero(list(self.unit_visible_dict.values()))
         return visible_unit_indices
 
     def set_all_unit_visibility_off(self):
+        """As in teh name"""
         for unit_id in self.unit_ids:
             self.unit_visible_dict[unit_id] = False
 
     def iter_visible_units(self):
+        """For looping over unit_ind and unit_id"""
         visible_unit_indices = self.get_visible_unit_indices()
         visible_unit_ids = self.unit_ids[visible_unit_indices]
         return zip(visible_unit_indices, visible_unit_ids)
     
     def set_unit_visibility(self, unit_id, state):
+        """Change the visibiity of on unit, other are unchanged"""
         self.unit_visible_dict[unit_id] = state
     
     def get_unit_visibility(self, unit_id):
+        """Get thethe visibiity of on unit"""
         return self.unit_visible_dict[unit_id]
 
     def get_units_visibility_mask(self):
-        mask = np.zeros(self.controller.unit_ids.size, dtype='bool')
+        """Get bool mask of visibility"""
+        mask = np.zeros(self.unit_ids.size, dtype='bool')
         mask[self.get_visible_unit_indices()] = True
         return mask
     
     def get_dict_unit_visible(self):
+        """Construct the visibility dict keys are unit_ids, previous behavior"""
         dict_unit_visible = {u:False for u in self.unit_ids}
         for u in self.get_visible_unit_ids():
             dict_unit_visible[u] = True

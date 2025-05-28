@@ -31,7 +31,7 @@ class SimilarityView(ViewBase):
             visible_mask = np.ones(len(unit_ids), dtype="bool")
             s = self.similarity
         else:
-            visible_mask = np.array(list(self.controller.unit_visible_dict.keys()), dtype="bool")
+            visible_mask = self.controller.get_units_visibility_mask()
             s = self.similarity[visible_mask, :][:, visible_mask]
 
         if not np.any(visible_mask):
@@ -59,8 +59,8 @@ class SimilarityView(ViewBase):
         
         if reset:
             self.controller.set_all_unit_visibility_off()
-        self.controller.unit_visible_dict[unit_id0] = True
-        self.controller.unit_visible_dict[unit_id1] = True
+        self.controller.set_unit_visibility(unit_id0, True)
+        self.controller.set_unit_visibility(unit_id1, True)
 
         self.notify_unit_visibility_changed()
         self.refresh()
