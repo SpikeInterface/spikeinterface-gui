@@ -379,7 +379,7 @@ class MergeView(ViewBase):
         self.refresh()
 
     def _panel_on_method_change(self, event):
-        self.method = self.method_selector.value
+        self.method = event.new
         self.layout[1] = self.method_params_selectors[self.method]
 
     def _panel_on_click(self, event):

@@ -65,7 +65,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     make_servable = not start_app
     win = run_mainwindow(
         analyzer,
-        backend="panel",
+        mode="web",
         start_app=start_app, verbose=verbose,
         make_servable=make_servable,
         curation=curation, curation_dict=curation_dict, 
@@ -79,8 +79,8 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 if not test_folder.is_dir():
     setup_module()
 
-# win = test_mainwindow(start_app=False, verbose=True, curation=True)
 win = test_mainwindow(start_app=True, verbose=True, curation=True)
 
-# TO RUN:
+# TO RUN with panel serve:
+# win = test_mainwindow(start_app=False, verbose=True, curation=True)
 # >>> panel serve test_mainwindow_panel.py --autoreload
