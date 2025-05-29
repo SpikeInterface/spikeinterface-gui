@@ -57,7 +57,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 
     win = run_mainwindow(
         analyzer,
-        backend="qt",
+        mode="desktop",
         start_app=start_app,
         verbose=verbose,
         curation=curation, curation_dict=curation_dict, 
