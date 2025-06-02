@@ -150,10 +150,13 @@ class ProbeView(ViewBase):
 
     def _qt_refresh(self):
         current_unit_positions = self.controller.unit_positions
-        if not np.array_equal(current_unit_positions, self._unit_positions):
+        # if not np.array_equal(current_unit_positions, self._unit_positions):
+        if True:
+        
             self._unit_positions = current_unit_positions
-            brush = [self.controller.qcolors[u] for u in self.controller.unit_ids]
+            brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
             self.scatter.setData(pos=current_unit_positions, pxMode=False, size=10, brush=brush)
+        
         r, x, y = circle_from_roi(self.roi_channel)
         radius = self.settings['radius_channel']
 
@@ -259,6 +262,8 @@ class ProbeView(ViewBase):
                     if self.controller.get_unit_visibility(u) else pg.mkPen('black', width=4)
                     for u in self.controller.unit_ids]
         self.scatter.setPen(pen)
+        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
+        self.scatter.setBrush(brush)
         
         # auto zoom
         if auto_zoom is None:
@@ -376,7 +381,6 @@ class ProbeView(ViewBase):
         sizes = []
 
         for unit_id in self.controller.unit_ids:
-            # color = self.controller.qcolors[uid].name()
             color = self.get_unit_color(unit_id)
             is_visible = self.controller.get_unit_visibility(unit_id)
             colors.append(color)

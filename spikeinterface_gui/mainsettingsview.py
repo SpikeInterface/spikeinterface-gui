@@ -1,9 +1,12 @@
 from .view_base import ViewBase
 
 
-
+# this control controller.main_settings
 main_settings = [
     {'name': 'max_visible_units', 'type': 'int', 'value' : 10 },
+    {'name': 'color_mode', 'type': 'list', 'value' : 'all_colorized',
+        'limits': ['all_colorized', 'colorize_only_visible', 'colorize_by_visibility']},
+
 ]
 
 
@@ -26,7 +29,15 @@ class MainSettingsView(ViewBase):
             visible_ids = visible_ids[:max_visible]
             self.controller.set_visible_unit_ids(visible_ids)
             self.notify_unit_visibility_changed()
+    
+    def on_change_color_mode(self):
         
+        self.controller.main_settings['color_mode'] = self.main_settings['color_mode']
+        self.controller.refresh_colors()
+        self.notify_unit_color_changed()
+
+        # for view in self.controller.views:
+        #     view.refresh()
 
     ## QT zone
     def _qt_make_layout(self):
@@ -49,6 +60,9 @@ class MainSettingsView(ViewBase):
         self.layout.addWidget(self.tree_main_settings)
 
         self.main_settings.param('max_visible_units').sigValueChanged.connect(self.on_max_visible_units_changed)
+        self.main_settings.param('color_mode').sigValueChanged.connect(self.on_change_color_mode)
+
+        
 
 
     def _qt_refresh(self):

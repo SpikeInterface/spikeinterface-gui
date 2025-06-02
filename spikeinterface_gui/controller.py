@@ -21,6 +21,11 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
     ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
 
 
+_default_main_settings = dict(
+    max_visible_units=10,
+    color_mode='all_colorized',
+)
+
 # TODO handle return_scaled
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
@@ -53,6 +58,11 @@ class Controller():
 
         self.verbose = verbose
         t0 = time.perf_counter()
+
+
+        self.main_settings = _default_main_settings.copy()
+
+
 
         self.num_channels = self.analyzer.get_num_channels()
         # this now private and shoudl be acess using function
@@ -218,8 +228,7 @@ class Controller():
         self.sampling_frequency = self.analyzer.sampling_frequency
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
-        self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                      shuffle=True, seed=42)
+        self.refresh_colors()
 
         # at init, we set the visible channels as the sparsity of the first unit
         self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
@@ -328,9 +337,6 @@ class Controller():
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
-        self.main_settings = dict(
-            max_visible_units=10,
-        )
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -386,6 +392,29 @@ class Controller():
         txt += f"Loaded {len(self.analyzer.extensions)} extensions"
 
         return txt
+
+    def refresh_colors(self):
+        if self.backend == "qt":
+            self._cached_qcolors = {}
+        elif self.backend == "panel":
+            pass
+
+        if self.main_settings['color_mode'] == 'all_colorized':
+            self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
+                                        shuffle=True, seed=42)
+        elif  self.main_settings['color_mode'] == 'colorize_only_visible':
+            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
+                                        shuffle=True, seed=42)            
+            self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
+            for unit_id in self.get_visible_unit_ids():
+                self.colors[unit_id] = unit_colors[unit_id]
+        elif  self.main_settings['color_mode'] == 'colorize_by_visibility':
+            self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
+            import matplotlib.pyplot as plt
+            cmap = plt.colormaps['tab10']
+            for i, unit_id in enumerate(self.get_visible_unit_ids()):
+                self.colors[unit_id] = cmap(i)
+
 
     def get_unit_color(self, unit_id):
         # scalar unit_id -> color html or QtColor

@@ -258,7 +258,12 @@ class NDScatterView(ViewBase):
         # TODO sam: I have the feeling taht it is a bit slow
         self.scatter.clear()
         scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
-        scatter_colors = self.spike_qtcolors[spike_indices].tolist()
+        # scatter_colors = self.spike_qtcolors[spike_indices].tolist()
+
+        spike_colors = self.controller.get_spike_colors(self.pc_unit_index[spike_indices])
+        scatter_colors = [pg.mkBrush(c) for c in spike_colors]
+
+
         self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors, pen=pg.mkPen(None))
         self.scatter_select.setData(selected_scatter_x, selected_scatter_y)
 

@@ -61,6 +61,7 @@ class SignalHandler(param.Parameterized):
         view.notifier.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
         view.notifier.param.watch(self.on_time_info_updated, "time_info_updated")
         view.notifier.param.watch(self.on_active_view_updated, "active_view_updated")
+        view.notifier.param.watch(self.on_unit_color_changed, "unit_color_changed")
 
     def on_spike_selection_changed(self, param):
         if not self._active:
@@ -112,6 +113,14 @@ class SignalHandler(param.Parameterized):
                 view._panel_view_is_active = True
             else:
                 view._panel_view_is_active = False
+    
+    def on_unit_color_changed(self, param):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if param.obj.view == view:
+                continue
+            view.on_unit_color_changed()
 
 param_type_map = {
     "float": param.Number,

@@ -146,7 +146,11 @@ class UnitListView(ViewBase):
         self._qt_full_table_refresh()
     
     def _qt_on_unit_visibility_changed(self):
+        from .myqt import QT
+
         self._qt_refresh_visibility_items()
+
+
 
     def _qt_refresh_visibility_items(self):
         from .myqt import QT
@@ -159,16 +163,29 @@ class UnitListView(ViewBase):
         for unit_id in self.controller.get_visible_unit_ids():
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Checked)
+        self._qt_refresh_color_icons()
+
+    def _qt_refresh_color_icons(self):
+        from .myqt import QT
+        # refresh colors
+        for i, unit_id in enumerate(self.controller.unit_ids):
+            color = self.get_unit_color(unit_id)
+            pix = QT.QPixmap(16,16)
+            pix.fill(color)
+            icon = QT.QIcon(pix)
+            self.items_icon[unit_id].setIcon(icon)
 
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
-        # TODO sam change this bad hack after speedup the combox
-        if hasattr(self, 'items_visibility'):
-            self._qt_refresh_visibility_items()
-        else:
-            # the time at startup
-            self._qt_full_table_refresh()
+        # # TODO sam change this bad hack after speedup the combox
+        # if hasattr(self, 'items_visibility'):
+        #     self._qt_refresh_visibility_items()
+        # else:
+        #     # the time at startup
+        #     self._qt_full_table_refresh()
+        
+        self._qt_full_table_refresh()
         
 
     def _qt_set_default_label(self, label):
@@ -225,6 +242,7 @@ class UnitListView(ViewBase):
 
         # internal_column_names
         self.items_visibility = {}
+        self.items_icon = {}
         for i, unit_id in enumerate(unit_ids):
             color = self.get_unit_color(unit_id)
             pix = QT.QPixmap(16,16)
@@ -236,6 +254,7 @@ class UnitListView(ViewBase):
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i,0, item)
             item.setIcon(icon)
+            self.items_icon[unit_id] = item
             
             item = OrderableCheckItem('')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable|QT.Qt.ItemIsUserCheckable)
@@ -300,6 +319,9 @@ class UnitListView(ViewBase):
             unit_id = item.unit_id
             self.controller.set_unit_visibility(unit_id, bool(item.checkState()))
             self.notify_unit_visibility_changed()
+            # self._qt_refresh_color_icons()
+
+
         elif col in self.label_columns:
             # label combobox
             category = self.label_definitions_by_cols[col]
@@ -314,9 +336,10 @@ class UnitListView(ViewBase):
         unit_id = self.table.item(row, 1).unit_id
         self.controller.set_visible_unit_ids([unit_id])
         # self.refresh()
-        self._qt_refresh_visibility_items()
+        
 
         self.notify_unit_visibility_changed()
+        self._qt_refresh_visibility_items()
     
     def _qt_on_open_context_menu(self):
         self.menu.popup(self.qt_widget.cursor().pos())
@@ -340,8 +363,9 @@ class UnitListView(ViewBase):
 
         self.controller.set_visible_unit_ids(self.get_selected_unit_ids())
         # self.refresh()
-        self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
+        self._qt_refresh_visibility_items()
+        
         for row in rows:
             self.table.selectRow(row)
 
@@ -352,8 +376,9 @@ class UnitListView(ViewBase):
         new_row = max(sel_rows[0] - 1, 0)
         unit_id = self.table.item(new_row, 1).unit_id
         self.controller.set_visible_unit_ids([unit_id])
-        self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
+        self._qt_refresh_visibility_items()
+
         self.table.clearSelection()
         self.table.selectRow(new_row)
 
@@ -364,8 +389,8 @@ class UnitListView(ViewBase):
         new_row = min(sel_rows[-1] + 1, self.table.rowCount() - 1)
         unit_id = self.table.item(new_row, 1).unit_id
         self.controller.set_visible_unit_ids([unit_id])
-        self._qt_refresh_visibility_items()
         self.notify_unit_visibility_changed()
+        self._qt_refresh_visibility_items()
         self.table.clearSelection()
         self.table.selectRow(new_row)
 
