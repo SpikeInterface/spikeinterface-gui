@@ -119,18 +119,38 @@ class NDScatterView(ViewBase):
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
         return projected
     
-    def get_plotting_data(self):
+    def get_plotting_data(self, concatenated=True):
 
-        visible_unit_indices = self.controller.get_visible_unit_indices()
-        spike_indices = mask = np.flatnonzero(np.isin(self.pc_unit_index, visible_unit_indices))
-        projected = self.apply_dot(self.data[spike_indices, :])
-        scatter_x = projected[:, 0]
-        scatter_y = projected[:, 1]
+        if concatenated:
+            # panel prefer concatenated
+            visible_unit_indices = self.controller.get_visible_unit_indices()
+            spike_indices = np.flatnonzero(np.isin(self.pc_unit_index, visible_unit_indices))
+            projected = self.apply_dot(self.data[spike_indices, :])
+            scatter_x = projected[:, 0]
+            scatter_y = projected[:, 1]
 
-        # set new limit
-        if len(projected) > 0 and self.auto_update_limit:
-            projected_2d = projected[:, :2]
-            self.limit = float(np.percentile(np.abs(projected_2d), 95) * 2.)
+            # set new limit
+            if len(projected) > 0 and self.auto_update_limit:
+                projected_2d = projected[:, :2]
+                self.limit = float(np.percentile(np.abs(projected_2d), 95) * 2.)
+        else:
+            # qt prefer by unit (because no need for color vectors)
+            scatter_x = {}
+            scatter_y = {}
+            all_limits = []
+            spike_indices = None
+            for unit_ind, unit_id in self.controller.iter_visible_units():
+                mask = np.flatnonzero(self.pc_unit_index == unit_ind)
+                projected = self.apply_dot(self.data[mask, :])
+                scatter_x[unit_id] = projected[:, 0]
+                scatter_y[unit_id] = projected[:, 1]
+                if self.auto_update_limit and len(projected) > 0:
+                    projected_2d = projected[:, :2]
+                    all_limits.append(float(np.percentile(np.abs(projected_2d), 95) * 2.))
+            if len(all_limits) > 0 and self.auto_update_limit:
+                self.limit = max(all_limits)
+        
+
         self.limit = max(self.limit, 0.1)  # ensure limit is at least 0.1
 
         mask = np.isin(self.random_spikes_indices, self.controller.get_indices_spike_selected())
@@ -144,6 +164,7 @@ class NDScatterView(ViewBase):
             selected_scatter_y = projected_select[:, 1]
 
         return scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y
+    
 
     def update_selected_components(self):
         n_pc_per_chan = self.pc_data.shape[1]
@@ -244,8 +265,8 @@ class NDScatterView(ViewBase):
         self.settings.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
 
         # the color vector is precomputed
-        spike_colors = self.controller.get_spike_colors(self.pc_unit_index)
-        self.spike_qtcolors = np.array([pg.mkBrush(c) for c in spike_colors])
+        # spike_colors = self.controller.get_spike_colors(self.pc_unit_index)
+        # self.spike_qtcolors = np.array([pg.mkBrush(c) for c in spike_colors])
         
     def _qt_refresh(self, update_components=True):
         import pyqtgraph as pg
@@ -257,14 +278,18 @@ class NDScatterView(ViewBase):
         #ndscatter
         # TODO sam: I have the feeling taht it is a bit slow
         self.scatter.clear()
-        scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
-        # scatter_colors = self.spike_qtcolors[spike_indices].tolist()
 
-        spike_colors = self.controller.get_spike_colors(self.pc_unit_index[spike_indices])
-        scatter_colors = [pg.mkBrush(c) for c in spike_colors]
+        # scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data(concatenated=True)
+        # # scatter_colors = self.spike_qtcolors[spike_indices].tolist()
+        # spike_colors = self.controller.get_spike_colors(self.pc_unit_index[spike_indices])
+        # scatter_colors = [pg.mkBrush(c) for c in spike_colors]
+        # self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors, pen=pg.mkPen(None))
+        # self.scatter_select.setData(selected_scatter_x, selected_scatter_y)
 
-
-        self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors, pen=pg.mkPen(None))
+        scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data(concatenated=False)
+        for unit_index, unit_id in self.controller.iter_visible_units():
+            color = self.get_unit_color(unit_id)
+            self.scatter.addPoints(x=scatter_x[unit_id], y=scatter_y[unit_id],  pen=pg.mkPen(None), brush=color)
         self.scatter_select.setData(selected_scatter_x, selected_scatter_y)
 
 
@@ -418,7 +443,7 @@ class NDScatterView(ViewBase):
     def _panel_refresh(self, update_components=True):
         if update_components:
             self.update_selected_components()
-        scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
+        scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data(concatenated=True)
 
         # format rgba
         spike_colors = self.controller.get_spike_colors(self.pc_unit_index[spike_indices])
