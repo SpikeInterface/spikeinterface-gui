@@ -62,17 +62,19 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
     win = None
 
-    make_servable = not start_app
+    # make_servable = not start_app
     win = run_mainwindow(
         analyzer,
         mode="web",
         start_app=start_app, verbose=verbose,
-        make_servable=make_servable,
+        # make_servable=make_servable,
         curation=curation, curation_dict=curation_dict, 
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
         layout_preset='default',
         # skip_extensions=["waveforms", "principal_components", "template_similarity", "spike_amplitudes"],
+        # address="10.69.168.40",
+        # port=5000,
     )
     return win
 

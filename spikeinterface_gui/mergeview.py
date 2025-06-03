@@ -285,16 +285,16 @@ class MergeView(ViewBase):
 
         # Create method and arguments layout
         method_settings = SettingsProxy(create_dynamic_parameterized(self._methods))
-        self.method_selector = pn.Param(method_settings._parametrized, sizing_mode="stretch_width", name="Method")
+        self.method_selector = pn.Param(method_settings._parameterized, sizing_mode="stretch_width", name="Method")
         for setting_data in self._methods:
-            method_settings._parametrized.param.watch(self._panel_on_method_change, setting_data["name"])
+            method_settings._parameterized.param.watch(self._panel_on_method_change, setting_data["name"])
 
         self.method_params = {}
         self.method_params_selectors = {}
         for method, params in self._method_params.items():
             method_params = SettingsProxy(create_dynamic_parameterized(params))
             self.method_params[method] = method_params
-            self.method_params_selectors[method] = pn.Param(method_params._parametrized, sizing_mode="stretch_width",
+            self.method_params_selectors[method] = pn.Param(method_params._parameterized, sizing_mode="stretch_width",
                                                             name=f"{method.capitalize()} parameters")
         self.method = list(self.method_params.keys())[0]
 

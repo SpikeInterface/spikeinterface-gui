@@ -26,8 +26,9 @@ def run_mainwindow(
     skip_extensions=None,
     recording=None,
     start_app=True,
-    make_servable=False,
     layout_preset=None,
+    address="localhost",
+    port=0,
     verbose=False,
 ):
     """
@@ -62,6 +63,10 @@ def run_mainwindow(
         If True, the QT app loop is started
     layout_preset : str | None
         The name of the layout preset. None is default.
+    address: str, default : "localhost"
+        For "web" mode only. By default only on local machine.
+    port: int, default: 0
+        For "web" mode only. If 0 then the port is automatic.
     verbose: bool, default: False
         If True, print some information in the console
     """
@@ -111,14 +116,15 @@ def run_mainwindow(
         win.show()
         if start_app:
             app.exec()
+    
     elif backend == "panel":
         import panel
         from .backend_panel import PanelMainWindow, start_server
         win = PanelMainWindow(controller, layout_preset=layout_preset)
+        win.main_layout.servable(title='SpikeInterface GUI')
         if start_app:
-            start_server(win)
-        elif make_servable:
-            win.main_layout.servable(title='SpikeInterface GUI')
+            start_server(win, address=address, port=port)
+            
 
     return win
  

@@ -185,6 +185,8 @@ class SpikeListView(ViewBase):
    
     def _qt_refresh(self):
         self._qt_refresh_label()
+        qcolors = {unit_id:self.get_unit_color(unit_id) for unit_id in self.controller.unit_ids}
+        self.model.refresh_colors(qcolors)
         self.model.refresh()
     
     def _qt_on_tree_selection(self):
@@ -202,6 +204,17 @@ class SpikeListView(ViewBase):
         # it is too slow. So the list is clear.
         self._qt_refresh_label()
         self.model.clear()
+        qcolors = {unit_id:self.get_unit_color(unit_id) for unit_id in self.controller.unit_ids}
+        self.model.refresh_colors(qcolors)
+
+    def _qt_on_unit_color_changed(self):
+        # we cannot refresh this list in real time whil moving channel/unit visibility
+        # it is too slow. So the list is clear.
+        self._qt_refresh_label()
+        self.model.clear()
+        qcolors = {unit_id:self.get_unit_color(unit_id) for unit_id in self.controller.unit_ids}
+        self.model.refresh_colors(qcolors)
+
 
     def _qt_on_spike_selection_changed(self):
         from .myqt import QT

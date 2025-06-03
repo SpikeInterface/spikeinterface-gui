@@ -41,6 +41,11 @@ class ViewBase():
         self.notifier.notify_spike_selection_changed()
 
     def notify_unit_visibility_changed(self):
+        if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
+            # in the mode color change dynamically but without notify to avoid double refresh
+            print('refresh colors')
+            self.controller.refresh_colors()
+
         self.controller.update_visible_spikes()
         self.notifier.notify_unit_visibility_changed()
 
@@ -57,6 +62,9 @@ class ViewBase():
         # this is used for panel
         if self.backend == "panel":
             self.notifier.notify_active_view_updated()
+    
+    def notify_unit_color_changed(self):
+        self.notifier.notify_unit_color_changed()
     
     def on_settings_changed(self, *params):
         # what to do when one settings is changed
@@ -112,14 +120,14 @@ class ViewBase():
             from .myqt import QT
             # cache qcolors in the controller
             if not hasattr(self.controller, "_cached_qcolors"):
-                self._cached_qcolors = {}
-            if unit_id not in self._cached_qcolors:
+                self.controller._cached_qcolors = {}
+            if unit_id not in self.controller._cached_qcolors:
                 color = self.controller.get_unit_color(unit_id)
                 r, g, b, a = color
                 qcolor = QT.QColor(int(r*255), int(g*255), int(b*255))
-                self._cached_qcolors[unit_id] = qcolor
+                self.controller._cached_qcolors[unit_id] = qcolor
 
-            return self._cached_qcolors[unit_id]
+            return self.controller._cached_qcolors[unit_id]
 
         elif self.backend == "panel":
             import matplotlib
@@ -170,6 +178,12 @@ class ViewBase():
             self._qt_on_time_info_updated()
         elif self.backend == "panel":
             self._panel_on_time_info_updated()
+    
+    def on_unit_color_changed(self):
+        if self.backend == "qt":
+            self._qt_on_unit_color_changed()
+        elif self.backend == "panel":
+            self._panel_on_unit_color_changed()
 
     ## Zone to be done per layout ##
 
@@ -196,6 +210,9 @@ class ViewBase():
     def _qt_on_time_info_updated(self):
         pass
 
+    def _qt_on_unit_color_changed(self):
+        self.refresh()
+
     ## PANEL ##
     def _panel_make_layout(self):
         raise NotImplementedError
@@ -218,3 +235,6 @@ class ViewBase():
 
     def _panel_on_time_info_updated(self):
         pass
+
+    def _panel_on_unit_color_changed(self):
+        self.refresh()

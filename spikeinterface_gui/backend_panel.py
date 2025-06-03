@@ -13,6 +13,7 @@ class SignalNotifier(param.Parameterized):
     manual_curation_updated = param.Event()
     time_info_updated = param.Event()
     active_view_updated = param.Event()
+    unit_color_changed = param.Event()
 
     def __init__(self, view=None):
         param.Parameterized.__init__(self)
@@ -41,6 +42,9 @@ class SignalNotifier(param.Parameterized):
         # views
         self.param.trigger("active_view_updated")
 
+    def notify_unit_color_changed(self):
+        self.param.trigger("unit_color_changed")
+
 
 class SignalHandler(param.Parameterized):
     def __init__(self, controller, parent=None):
@@ -61,6 +65,7 @@ class SignalHandler(param.Parameterized):
         view.notifier.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
         view.notifier.param.watch(self.on_time_info_updated, "time_info_updated")
         view.notifier.param.watch(self.on_active_view_updated, "active_view_updated")
+        view.notifier.param.watch(self.on_unit_color_changed, "unit_color_changed")
 
     def on_spike_selection_changed(self, param):
         if not self._active:
@@ -112,6 +117,14 @@ class SignalHandler(param.Parameterized):
                 view._panel_view_is_active = True
             else:
                 view._panel_view_is_active = False
+    
+    def on_unit_color_changed(self, param):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if param.obj.view == view:
+                continue
+            view.on_unit_color_changed()
 
 param_type_map = {
     "float": param.Number,
@@ -125,16 +138,16 @@ class SettingsProxy:
     # for instance self.settings['my_params'] instead of self.settings.my_params
     # self.settings['my_params'] = value instead of self.settings.my_params = value
     def __init__(self, myparametrized):
-        self._parametrized = myparametrized
+        self._parameterized = myparametrized
     
     def __getitem__(self, key):
-        return getattr(self._parametrized, key)
+        return getattr(self._parameterized, key)
     
     def __setitem__(self, key, value):
-        self._parametrized.param.update(**{key:value})
+        self._parameterized.param.update(**{key:value})
 
     def keys(self):
-        return list(p for p in self._parametrized.param if p != "name")
+        return list(p for p in self._parameterized.param if p != "name")
 
 
 def create_dynamic_parameterized(settings):
@@ -167,7 +180,7 @@ def create_settings(view):
 
 def listen_setting_changes(view):
     for setting_data in view._settings:
-        view.settings._parametrized.param.watch(view.on_settings_changed, setting_data["name"])
+        view.settings._parameterized.param.watch(view.on_settings_changed, setting_data["name"])
 
 
 
@@ -216,7 +229,7 @@ class PanelMainWindow:
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
-                settings = pn.Param(view.settings._parametrized, sizing_mode="stretch_height", 
+                settings = pn.Param(view.settings._parameterized, sizing_mode="stretch_height", 
                                     name=f"{view_name.capitalize()} settings")
                 if view_class._need_compute:
                     compute_button = pn.widgets.Button(name="Compute", button_type="primary")
@@ -351,8 +364,14 @@ def start_server(mainwindow, address="localhost", port=0):
 
     pn.config.sizing_mode = "stretch_width"
 
-    mainwindow.main_layout.servable()
+    # mainwindow.main_layout.servable()
+    # TODO alessio : find automatically a port when port = 0
 
+    if address != "localhost":
+        websocket_origin = f"{address}:{port}"
+    else:
+        websocket_origin = None
+    
     server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
-                      show=False, start=True, dev=True, autoreload=True,
+                      show=False, start=True, dev=True, autoreload=True,websocket_origin=websocket_origin,
                       title="SpikeInterface GUI")
