@@ -13,6 +13,7 @@ class SignalNotifier(param.Parameterized):
     manual_curation_updated = param.Event()
     time_info_updated = param.Event()
     active_view_updated = param.Event()
+    unit_color_changed = param.Event()
 
     def __init__(self, view=None):
         param.Parameterized.__init__(self)
@@ -361,7 +362,13 @@ def start_server(mainwindow, address="localhost", port=0):
     pn.config.sizing_mode = "stretch_width"
 
     # mainwindow.main_layout.servable()
+    # TODO alessio : find automatically a port when port = 0
 
+    if address != "localhost":
+        websocket_origin = f"{address}:{port}"
+    else:
+        websocket_origin = None
+    
     server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
-                      show=False, start=True, dev=True, autoreload=True,
+                      show=False, start=True, dev=True, autoreload=True,websocket_origin=websocket_origin,
                       title="SpikeInterface GUI")
