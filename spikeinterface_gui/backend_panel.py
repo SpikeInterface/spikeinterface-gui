@@ -42,6 +42,9 @@ class SignalNotifier(param.Parameterized):
         # views
         self.param.trigger("active_view_updated")
 
+    def notify_unit_color_changed(self):
+        self.param.trigger("unit_color_changed")
+
 
 class SignalHandler(param.Parameterized):
     def __init__(self, controller, parent=None):
@@ -135,16 +138,16 @@ class SettingsProxy:
     # for instance self.settings['my_params'] instead of self.settings.my_params
     # self.settings['my_params'] = value instead of self.settings.my_params = value
     def __init__(self, myparametrized):
-        self._parametrized = myparametrized
+        self._parameterized = myparametrized
     
     def __getitem__(self, key):
-        return getattr(self._parametrized, key)
+        return getattr(self._parameterized, key)
     
     def __setitem__(self, key, value):
-        self._parametrized.param.update(**{key:value})
+        self._parameterized.param.update(**{key:value})
 
     def keys(self):
-        return list(p for p in self._parametrized.param if p != "name")
+        return list(p for p in self._parameterized.param if p != "name")
 
 
 def create_dynamic_parameterized(settings):
@@ -177,7 +180,7 @@ def create_settings(view):
 
 def listen_setting_changes(view):
     for setting_data in view._settings:
-        view.settings._parametrized.param.watch(view.on_settings_changed, setting_data["name"])
+        view.settings._parameterized.param.watch(view.on_settings_changed, setting_data["name"])
 
 
 
@@ -226,7 +229,7 @@ class PanelMainWindow:
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
-                settings = pn.Param(view.settings._parametrized, sizing_mode="stretch_height", 
+                settings = pn.Param(view.settings._parameterized, sizing_mode="stretch_height", 
                                     name=f"{view_name.capitalize()} settings")
                 if view_class._need_compute:
                     compute_button = pn.widgets.Button(name="Compute", button_type="primary")

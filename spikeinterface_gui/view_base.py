@@ -41,7 +41,7 @@ class ViewBase():
         self.notifier.notify_spike_selection_changed()
 
     def notify_unit_visibility_changed(self):
-        if self.controller.main_settings['color_mode'] in ('colorize_by_visibility', 'colorize_only_visible'):
+        if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
             # in the mode color change dynamically but without notify to avoid double refresh
             print('refresh colors')
             self.controller.refresh_colors()

@@ -580,8 +580,8 @@ class ProbeView(ViewBase):
             # Update unit visibility
             new_x, new_y = self.unit_circle.center
             self.update_unit_visibility(new_x, new_y, self.settings['radius_units'])
-            self._panel_update_unit_glyphs()  # Update glyphs to reflect new visibility
             self.notify_unit_visibility_changed()
+            self._panel_update_unit_glyphs()  # Update glyphs to reflect new visibility
 
         elif self.should_resize_channel_circle is not None:
             x_center, y_center = self.channel_circle.center
@@ -609,8 +609,8 @@ class ProbeView(ViewBase):
             self.settings["radius_units"] = new_radius
             # Update unit visibility
             self.update_unit_visibility(x_center, y_center, self.settings['radius_units'])
-            self._panel_update_unit_glyphs()
             self.notify_unit_visibility_changed()
+            self._panel_update_unit_glyphs()
 
         self.should_move_channel_circle = None
         self.should_move_unit_circle = None
@@ -647,7 +647,6 @@ class ProbeView(ViewBase):
                 if len(self.controller.get_visible_unit_ids()) == 1:
                     select_only = True
 
-            self._panel_update_unit_glyphs()
             
             if select_only:
                 # Update selection circles
@@ -659,6 +658,7 @@ class ProbeView(ViewBase):
                 self.controller.set_channel_visibility(visible_channel_inds)
                 self.notify_channel_visibility_changed
             self.notify_unit_visibility_changed()
+            self._panel_update_unit_glyphs()
 
 
 def circle_from_roi(roi):

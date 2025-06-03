@@ -1,6 +1,5 @@
 import warnings
 import numpy as np
-import time
 
 from .view_base import ViewBase
 
@@ -22,13 +21,13 @@ class UnitListView(ViewBase):
     ## common ##
     def show_all(self):
         self.controller.set_visible_unit_ids(self.controller.unit_ids)
-        self.refresh()
         self.notify_unit_visibility_changed()
+        self.refresh()
     
     def hide_all(self):
         self.controller.set_all_unit_visibility_off()
-        self.refresh()
         self.notify_unit_visibility_changed()
+        self.refresh()
 
     def get_selected_unit_ids(self):
         if self.backend == 'qt':
@@ -605,6 +604,10 @@ class UnitListView(ViewBase):
             visible.append(dict_unit_visible[unit_id])
         df.loc[:, "visible"] = visible
 
+        if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
+            # in the mode color change dynamically but without notify to avoid double refresh
+            self._panel_refresh_colors()
+
         table_columns = self.table.value.columns
 
         for table_col in table_columns:
@@ -650,8 +653,8 @@ class UnitListView(ViewBase):
 
         # update the visible column
         self.table.value.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
-        self.refresh()
         self.notify_unit_visibility_changed()
+        self.refresh()
 
     def _panel_on_unit_visibility_changed(self):
         # update selection to match visible units
@@ -659,6 +662,25 @@ class UnitListView(ViewBase):
         unit_ids = list(self.table.value.index.values)
         rows_to_select = [unit_ids.index(unit_id) for unit_id in visible_units if unit_id in unit_ids]
         self.table.selection = rows_to_select
+        self.refresh()
+
+    def _panel_refresh_colors(self):
+        import matplotlib.colors as mcolors
+
+        unit_ids_data = []
+        for unit_id in self.table.value.index.values:
+            unit_ids_data.append(
+                {
+                    "id": str(unit_id),
+                    "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))
+                }
+            )
+        self.table.value.loc[:, "unit_id"] = unit_ids_data
+
+    def _panel_on_unit_color_changed(self):
+        # here we update the unit colors, since they are then fixed in the table
+        # during refresh
+        self._panel_refresh_colors()
         self.refresh()
 
     def _panel_on_edit(self, event):

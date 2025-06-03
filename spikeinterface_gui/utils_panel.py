@@ -466,6 +466,8 @@ class SelectableTabulator(pn.viewable.Viewer):
                 self.selection = [row]
                 if self._on_only_function is not None:
                     self._on_only_function()
+                if self._refresh_table_function is not None:
+                    self._refresh_table_function()
         if not double_clicked:
             current_selection = self.selection
             if row in current_selection:
@@ -473,10 +475,12 @@ class SelectableTabulator(pn.viewable.Viewer):
             else:
                 current_selection.append(row)
             self.selection = current_selection
-        if col in self._column_callbacks:
-            callback = self._column_callbacks[col]
-            if callable(callback):
-                callback(row)
+
+            if col in self._column_callbacks:
+                callback = self._column_callbacks[col]
+                if callable(callback):
+                    callback(row)
+
         self._last_selected_row = row
         self._last_clicked = time_clicked
 
@@ -538,18 +542,18 @@ class SelectableTabulator(pn.viewable.Viewer):
                 # this should go in self._on_only_function()
                 self.selection = [next_row]
                 # self.notify_unit_visibility_changed()
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 if self._on_only_function is not None:
                     self._on_only_function()
+                if self._refresh_table_function is not None:
+                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "previous_only":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 if self._on_only_function is not None:
                     self._on_only_function()
+                if self._refresh_table_function is not None:
+                    self._refresh_table_function()
                 self._last_selected_row = previous_row
             elif event.data == "append_next":
                 next_row = self._get_next_row()

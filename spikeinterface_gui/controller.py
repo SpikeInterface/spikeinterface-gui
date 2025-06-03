@@ -23,7 +23,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 
 _default_main_settings = dict(
     max_visible_units=10,
-    color_mode='all_colorized',
+    color_mode='color_by_unit',
 )
 
 # TODO handle return_scaled
@@ -399,16 +399,16 @@ class Controller():
         elif self.backend == "panel":
             pass
 
-        if self.main_settings['color_mode'] == 'all_colorized':
+        if self.main_settings['color_mode'] == 'color_by_unit':
             self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                         shuffle=True, seed=42)
-        elif  self.main_settings['color_mode'] == 'colorize_only_visible':
+        elif  self.main_settings['color_mode'] == 'color_only_visible':
             unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                         shuffle=True, seed=42)            
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             for unit_id in self.get_visible_unit_ids():
                 self.colors[unit_id] = unit_colors[unit_id]
-        elif  self.main_settings['color_mode'] == 'colorize_by_visibility':
+        elif  self.main_settings['color_mode'] == 'color_by_visibility':
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             import matplotlib.pyplot as plt
             cmap = plt.colormaps['tab10']
