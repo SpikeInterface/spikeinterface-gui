@@ -258,7 +258,7 @@ class NDScatterView(ViewBase):
         # spike_colors = self.controller.get_spike_colors(self.pc_unit_index)
         # self.spike_qtcolors = np.array([pg.mkBrush(c) for c in spike_colors])
         
-    def _qt_refresh(self, update_components=True):
+    def _qt_refresh(self, update_components=True, update_colors=True):
         import pyqtgraph as pg
 
         # update visible channel

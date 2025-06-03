@@ -301,8 +301,9 @@ class ProbeView(ViewBase):
             self.roi_units.setPos(x - r, y - r)
             self.roi_units.blockSignals(False)
 
-            self._qt_on_unit_visibility_changed()
             self.notify_unit_visibility_changed()
+            self._qt_on_unit_visibility_changed()
+            
 
 
     
