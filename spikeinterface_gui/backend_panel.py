@@ -360,7 +360,7 @@ def start_server(mainwindow, address="localhost", port=0):
 
     pn.config.sizing_mode = "stretch_width"
 
-    mainwindow.main_layout.servable()
+    # mainwindow.main_layout.servable()
 
     server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
                       show=False, start=True, dev=True, autoreload=True,
