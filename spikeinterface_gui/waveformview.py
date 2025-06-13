@@ -419,7 +419,7 @@ class WaveformView(ViewBase):
 
             x_margin =50
             y_margin =150
-            self._x_range = np.min(xvect) - x_margin , np.max(xvect) + x_margin
+            self._x_range = np.min(xvects) - x_margin , np.max(xvects) + x_margin
             visible_mask = self.controller.get_units_visibility_mask()
             visible_pos = self.controller.unit_positions[visible_mask, :]
             self._y1_range = np.min(visible_pos[:,1]) - y_margin , np.max(visible_pos[:,1]) + y_margin
