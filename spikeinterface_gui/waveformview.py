@@ -387,7 +387,7 @@ class WaveformView(ViewBase):
         xvectors = self.xvect[common_channel_indexes, :] * self.factor_x
         xvects = self.get_xvectors_not_overlap(xvectors, len(visible_unit_ids))
 
-        
+
         for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             
