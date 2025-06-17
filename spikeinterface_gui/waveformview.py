@@ -419,7 +419,7 @@ class WaveformView(ViewBase):
 
             x_margin =50
             y_margin =150
-            self._x_range = np.min(self.xvect) - x_margin , np.max(self.xvect) + x_margin
+            self._x_range = np.min(xvects) - x_margin , np.max(xvects) + x_margin
             visible_mask = self.controller.get_units_visibility_mask()
             visible_pos = self.controller.unit_positions[visible_mask, :]
             self._y1_range = np.min(visible_pos[:,1]) - y_margin , np.max(visible_pos[:,1]) + y_margin
@@ -668,8 +668,8 @@ class WaveformView(ViewBase):
             self._panel_refresh_one_spike()
 
         if not keep_range:
-            self.figure_geom.x_range.start = np.min(self.xvect) - 50
-            self.figure_geom.x_range.end = np.max(self.xvect) + 50
+            self.figure_geom.x_range.start = np.min(xvects) - 50
+            self.figure_geom.x_range.end = np.max(xvects) + 50
             self.figure_geom.y_range.start = np.min(ypos) - 50
             self.figure_geom.y_range.end = np.max(ypos) + 50
 
