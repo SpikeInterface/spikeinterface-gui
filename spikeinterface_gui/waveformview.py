@@ -668,8 +668,8 @@ class WaveformView(ViewBase):
             self._panel_refresh_one_spike()
 
         if not keep_range:
-            self.figure_geom.x_range.start = np.min(self.xvect) - 50
-            self.figure_geom.x_range.end = np.max(self.xvect) + 50
+            self.figure_geom.x_range.start = np.min(xvects) - 50
+            self.figure_geom.x_range.end = np.max(xvects) + 50
             self.figure_geom.y_range.start = np.min(ypos) - 50
             self.figure_geom.y_range.end = np.max(ypos) + 50
 
