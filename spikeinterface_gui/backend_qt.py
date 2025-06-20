@@ -135,12 +135,14 @@ def listen_setting_changes(view):
 
 
 class QtMainWindow(QT.QMainWindow):
-    def __init__(self, controller, parent=None, layout_preset=None):
+    def __init__(self, controller, parent=None, layout_preset=None, launcher_window=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_preset = layout_preset
+        # in launcher mode, the launcher window is showed when the main window is closed
+        self.launcher_window = launcher_window
 
         self.make_views()
         self.create_main_layout()
@@ -253,6 +255,15 @@ class QtMainWindow(QT.QMainWindow):
                 self.tabifyDockWidget(self.docks[view_name0], dock)
             # make visible the first of each zone
             self.docks[view_name0].raise_()
+
+    # used by the launcher to show the main window
+    def closeEvent(self, event):
+        # When main window is closed, show the launcher again
+        if self.launcher_window is not None:
+            self.launcher_window.show()
+            self.launcher_window.raise_()
+            self.launcher_window.activateWindow()
+        event.accept()
 
 
 class ViewWidget(QT.QWidget):
