@@ -30,6 +30,7 @@ def run_mainwindow(
     address="localhost",
     port=0,
     verbose=False,
+    launcher_window=None,
 ):
     """
     Create the main window and start the QT app loop.
@@ -109,10 +110,12 @@ def run_mainwindow(
 
         app = mkQApp()
         
-        win = QtMainWindow(controller, layout_preset=layout_preset)
+        win = QtMainWindow(controller, layout_preset=layout_preset, launcher_window=launcher_window)
         win.setWindowTitle('SpikeInterface GUI')
-        this_file = Path(__file__).absolute()
-        win.setWindowIcon(QT.QIcon(str(this_file.parent / 'img' / 'si.png')))
+        # Set window icon
+        icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
+        if icon_file.exists():
+            win.setWindowIcon(QT.QIcon(str(icon_file)))
         win.show()
         if start_app:
             app.exec()
@@ -124,10 +127,60 @@ def run_mainwindow(
         win.main_layout.servable(title='SpikeInterface GUI')
         if start_app:
             start_server(win, address=address, port=port)
-            
 
     return win
- 
+
+
+def run_launcher(mode="desktop", analyzers_folder=None, address="localhost", port=0):
+    """
+    Run the launcher for the SpikeInterface GUI.
+
+    Parameters
+    ----------
+    mode: 'desktop' | 'app', default: 'desktop'
+        The backend to use for the GUI.
+    analyzer_folders: list of str | None, default: None
+        List of analyzer folders to load.
+    address: str, default: "localhost"
+        The address to use for the web mode. Default is "localhost".
+    port: int, default: 0
+        The port to use for the web mode. If 0, a random available port is chosen.
+    """
+    from spikeinterface_gui.launcher import Launcher
+
+    if mode == "desktop":
+        from .myqt import QT, mkQApp
+        app = mkQApp()
+        launcher = Launcher(analyzers_folder=analyzers_folder, backend="qt")
+        app.exec()
+    elif mode == "web":
+        import panel as pn
+        import webbrowser
+
+        from spikeinterface_gui.launcher import panel_gui_view
+
+        launcher = Launcher(analyzers_folder=analyzers_folder, backend="panel")
+        if address != "localhost":
+            websocket_origin = f"{address}:{port}"
+        else:
+            websocket_origin = None
+
+        server = pn.serve(
+            {"/launcher": launcher.layout, "/gui": panel_gui_view},
+            address=address, port=port,
+            show=False, start=False,
+            websocket_origin=websocket_origin,
+            title="SpikeInterface GUI"
+        )
+
+        # Now we can open the browser and start the server
+        real_port = server.port
+        url = f"http://{address}:{real_port}/launcher"
+        webbrowser.open(url)
+        server.start()
+        # BLOCK main thread so server stays alive:
+        server.io_loop.start()
+
 
 def run_mainwindow_cli():
     argv = sys.argv[1:]
@@ -140,36 +193,39 @@ def run_mainwindow_cli():
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
     parser.add_argument('--recording-base-folder', help='Base folder path for the recording (if .json/.pkl)', default=None)
     parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
+    parser.add_argument('--port', help='Port for web mode', default=0, type=int)
+    parser.add_argument('--address', help='Address for web mode', default='localhost')
     
     args = parser.parse_args(argv)
 
     analyzer_folder = args.analyzer_folder
     if analyzer_folder is None:
-        print('You must specify the analyzer folder like this: sigui /path/to/my/analyzer/folder')
-        exit()
-    if args.verbose:
-        print('Loading analyzer...')
-    analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=not is_path_remote(analyzer_folder))
-    if args.verbose:
-        print('Analyzer loaded')
+        print('Running launcher...')
+        run_launcher(mode=args.mode, address=args.address, port=args.port)
+    else:
+        if args.verbose:
+            print('Loading analyzer...')
+        analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=not is_path_remote(analyzer_folder))
+        if args.verbose:
+            print('Analyzer loaded')
 
-    recording = None
-    if args.recording is not None:
-        try:
-            if args.verbose:
-                print('Loading recording...')
-            recording_base_path = args.recording_base_path
-            recording = load(args.recording, base_folder=recording_base_path)
-            if args.verbose:
-                print('Recording loaded')
-        except Exception as e:
-            print('Error when loading recording. Please check the path or the file format')
-        if recording is not None:
-            if analyzer.get_num_channels() != recording.get_num_channels():
-                print('Recording and analyzer have different number of channels. Slicing recording')
-                channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
-                if np.sum(channel_mask) != analyzer.get_num_channels():
-                    raise ValueError('The recording does not have the same channel ids as the analyzer')
-                recording = recording.select_channels(recording.channel_ids[channel_mask])
+        recording = None
+        if args.recording is not None:
+            try:
+                if args.verbose:
+                    print('Loading recording...')
+                recording_base_path = args.recording_base_path
+                recording = load(args.recording, base_folder=recording_base_path)
+                if args.verbose:
+                    print('Recording loaded')
+            except Exception as e:
+                print('Error when loading recording. Please check the path or the file format')
+            if recording is not None:
+                if analyzer.get_num_channels() != recording.get_num_channels():
+                    print('Recording and analyzer have different number of channels. Slicing recording')
+                    channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
+                    if np.sum(channel_mask) != analyzer.get_num_channels():
+                        raise ValueError('The recording does not have the same channel ids as the analyzer')
+                    recording = recording.select_channels(recording.channel_ids[channel_mask])
 
-    run_mainwindow(analyzer, mode=args.mode, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
+        run_mainwindow(analyzer, mode=args.mode, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
