@@ -129,7 +129,7 @@ def run_mainwindow(
     return win
 
 
-def run_launcher(mode="desktop", analyzers_folder=None, address="localhost", port=0):
+def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", port=0):
     """
     Run the launcher for the SpikeInterface GUI.
 
@@ -138,7 +138,7 @@ def run_launcher(mode="desktop", analyzers_folder=None, address="localhost", por
     mode: 'desktop' | 'app', default: 'desktop'
         The backend to use for the GUI.
     analyzer_folders: list of str | None, default: None
-        List of analyzer folders to load.
+        List of analyzer folders to load. If str, it is a single folder and subfolders are searched.
     address: str, default: "localhost"
         The address to use for the web mode. Default is "localhost".
     port: int, default: 0
@@ -149,7 +149,7 @@ def run_launcher(mode="desktop", analyzers_folder=None, address="localhost", por
     if mode == "desktop":
         from .myqt import QT, mkQApp
         app = mkQApp()
-        launcher = Launcher(analyzers_folder=analyzers_folder, backend="qt")
+        launcher = Launcher(analyzer_folders=analyzer_folders, backend="qt")
         app.exec()
     elif mode == "web":
         import panel as pn
@@ -157,7 +157,7 @@ def run_launcher(mode="desktop", analyzers_folder=None, address="localhost", por
 
         from spikeinterface_gui.launcher import panel_gui_view
 
-        launcher = Launcher(analyzers_folder=analyzers_folder, backend="panel")
+        launcher = Launcher(analyzer_folders=analyzer_folders, backend="panel")
         if address != "localhost":
             websocket_origin = f"{address}:{port}"
         else:
@@ -228,7 +228,7 @@ def run_mainwindow_cli():
 
     parser = argparse.ArgumentParser(description='spikeinterface-gui')
     parser.add_argument('analyzer_folder', help='SortingAnalyzer folder path', default=None, nargs='?')
-    parser.add_argument('--analyzers-folder', help='Base folder for launcher mode with multiple analyzer folders', default=None)
+    parser.add_argument('--analyzer-folders', help='Base folder for launcher mode with multiple analyzer folders', default=None)
     parser.add_argument('--mode', help='Mode desktop or web', default='desktop')
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
@@ -243,8 +243,8 @@ def run_mainwindow_cli():
     analyzer_folder = args.analyzer_folder
     if analyzer_folder is None:
         print('Running launcher...')
-        analyzers_folder = args.analyzers_folder
-        run_launcher(analyzers_folder=analyzers_folder, mode=args.mode, address=args.address, port=args.port)
+        analyzer_folders = args.analyzer_folders
+        run_launcher(analyzer_folders=analyzer_folders, mode=args.mode, address=args.address, port=args.port)
     else:
         if args.verbose:
             print('Loading analyzer...')

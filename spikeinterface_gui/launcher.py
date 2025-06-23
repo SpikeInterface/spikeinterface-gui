@@ -7,33 +7,44 @@ from spikeinterface_gui.layout_presets import _presets
 
 
 class Launcher:
-    def __init__(self, analyzers_folder=None, backend="qt", verbose=False):
+    """
+    Launcher class for the SpikeInterface GUI.
+
+    Parameters
+    ----------
+    analyzers_folder : str, list or None
+        Path to the folder containing analyzer folders or a list/dict of analyzer paths.
+        If None, the user will be prompted to select an analyzer folder.
+    backend : str
+        The backend to use for the GUI. Options are "qt" or "panel".
+    verbose : bool
+        If True, enables verbose logging in the GUI.
+    """
+
+    def __init__(self, analyzer_folders=None, backend="qt", verbose=False):
         from spikeinterface_gui.main import check_folder_is_analyzer
 
-        if analyzers_folder is not None:
-            self.analyzer_folders = [
-                p for p in Path(analyzers_folder).iterdir() if p.is_dir() and check_folder_is_analyzer(p)
-            ]
+        if analyzer_folders is not None:
+            if isinstance(analyzer_folders, (str, Path)):
+                self.analyzer_folders = [
+                    p for p in Path(analyzer_folders).iterdir() if p.is_dir() and check_folder_is_analyzer(p)
+                ]
+            elif isinstance(analyzer_folders, (list, tuple)):
+                self.analyzer_folders = [
+                    p for p in analyzer_folders if isinstance(p, (str, Path)) and check_folder_is_analyzer(p)
+                ]
+            else:
+                raise ValueError("analyzer_folders must be a string, Path, list, or None")
         else:
             self.analyzer_folders = None
 
-        self.analyzer_path = None
-        self.recording_path = None
-        self.curation = True
-        self.displayed_properties = None
         self.verbose = verbose
+        self.main_windows = []
 
         if backend == "qt":
             self._qt_make_layout()
         elif backend == "panel":
             self._panel_make_layout()
-
-    def _load_analyzer(self):
-        if self.verbose:
-            print(f"Loading analyzer from {self.analyzer_path}...")
-        self.analyzer = si.load(self.analyzer_path, load_extensions=False)
-        if self.verbose:
-            print(f"Analyzer loaded: {self.analyzer}")
 
     def _qt_make_layout(self):
         from .myqt import QT
@@ -82,8 +93,12 @@ class Launcher:
         browse_recording_button.clicked.connect(self._qt_browse_recording_path)
         browse_recording_button.setVisible(False)
         self.browse_recording_button = browse_recording_button
+        recording_select_type = QT.QComboBox()
+        recording_select_type.addItems(["raw", "preprocessed"])
+        recording_select_type.setVisible(False)
+        self.recording_select_type = recording_select_type
         recording_path_layout.addWidget(self.recording_path_input)
-        recording_path_layout.addWidget(browse_recording_button)
+        recording_path_layout.addWidget(recording_select_type)
         form_layout.addRow("Recording path (optional):", recording_path_layout)
 
         # Displayed properties input
@@ -104,9 +119,17 @@ class Launcher:
 
         # Curation checkbox
         self.curation_checkbox = QT.QCheckBox()
-        self.curation_checkbox.setChecked(self.curation)
+        self.curation_checkbox.setChecked(True)
         self.curation_checkbox.setToolTip("Enable or disable curation features in the GUI")
         form_layout.addRow("Enable curation:", self.curation_checkbox)
+
+        # With traces checkbox
+        self.with_traces_checkbox = QT.QCheckBox()
+        self.with_traces_checkbox.setChecked(True)
+        self.with_traces_checkbox.setToolTip(
+            "Check this box to display traces in the GUI.\n" "Uncheck to disable traces for performance reasons."
+        )
+        form_layout.addRow("With traces:", self.with_traces_checkbox)
 
         # Launch button
         self.launch_button = QT.QPushButton("Launch!")
@@ -133,6 +156,7 @@ class Launcher:
         is_visible = bool(state)
         self.recording_path_input.setVisible(is_visible)
         self.browse_recording_button.setVisible(is_visible)
+        self.recording_select_type.setVisible(is_visible)
 
     def _qt_browse_analyzer_path(self):
         from .myqt import QT
@@ -157,20 +181,25 @@ class Launcher:
 
         # Get values from inputs
         if self.analyzer_folders is None:
-            self.analyzer_path = self.analyzer_path_input.text()
+            analyzer_path = self.analyzer_path_input.text()
         else:
-            self.analyzer_path = str(self.analyzer_folders[self.analyzer_path_input.currentIndex()])
+            analyzer_path = str(self.analyzer_folders[self.analyzer_path_input.currentIndex()])
 
         if self.select_recording_checkbox.isChecked():
-            self.recording_path = self.recording_path_input.text()
+            recording_path = self.recording_path_input.text()
         else:
-            self.recording_path = None
+            recording_path = None
 
         if self.displayed_properties_input.text() != "default":
-            self.displayed_properties = [
+            displayed_properties = [
                 prop.strip() for prop in self.displayed_properties_input.text().split(",") if prop.strip()
             ]
-        self.curation = self.curation_checkbox.isChecked()
+        else:
+            displayed_properties = _default_displayed_unit_properties
+        curation = self.curation_checkbox.isChecked()
+        with_traces = self.with_traces_checkbox.isChecked()
+        layout_preset = self.layout_preset_selector.currentText()
+        recording_type = self.recording_select_type.currentText()
 
         # Create loading dialog with spinner
         loading = QT.QDialog(self.window)
@@ -212,38 +241,38 @@ class Launcher:
 
         loading.show()
 
-        # Load the analyzer
-        if self.verbose:
-            print(f"Loading analyzer from {self.analyzer_path}...")
-        label.setText("Loading analyzer...")
-        QT.QApplication.processEvents()  # Update UI
-        self._load_analyzer()
-
-        label.setText("Initializing main window...")
-        QT.QApplication.processEvents()  # Update UI
-
         # Get reference to existing Qt app
         app = QT.QApplication.instance()
 
         try:
+            analyzer = instantiate_analyzer(
+                analyzer_path=analyzer_path,
+                recording_path=recording_path,
+                recording_type=recording_type,
+            )
+
+            label.setText("Initializing main window...")
+            QT.QApplication.processEvents()  # Update UI
             # Run the main window without starting a new event loop
-            self.main_window = run_mainwindow(
-                self.analyzer,
+            main_window = run_mainwindow(
+                analyzer,
                 mode="desktop",
-                with_traces=True,
-                curation=self.curation,
-                displayed_unit_properties=self.displayed_properties,
-                layout_preset=self.layout_preset_selector.currentText(),
-                recording=None if not self.recording_path else self.recording_path,
+                with_traces=with_traces,
+                curation=curation,
+                displayed_unit_properties=displayed_properties,
+                layout_preset=layout_preset,
+                verbose=self.verbose,
                 start_app=False,  # Don't start a new event loop, using the one from run_launcher
             )
             # Close dialog
             loading.close()
 
             # Set the main window as active
-            self.main_window.show()
-            self.main_window.raise_()
-            self.main_window.activateWindow()
+            main_window.show()
+            # self.main_window.raise_()
+            main_window.activateWindow()
+            self.main_windows.append(main_window)
+            # TODO: Sam - delete windows when closed
         except Exception as e:
             print(f"Error initializing main window: {e}")
             label.setText(f"Error: {e}")
@@ -292,7 +321,13 @@ class Launcher:
         curation_checkbox = pn.widgets.Checkbox(
             name="Enable curation", value=True, height=50, sizing_mode="stretch_width"
         )
-        curation_checkbox.tooltip = ("Enable or disable curation features in the GUI",)
+        curation_checkbox.tooltip = "Enable or disable curation features in the GUI"
+        with_traces_checkbox = pn.widgets.Checkbox(
+            name="With traces", value=True, height=50, sizing_mode="stretch_width"
+        )
+        with_traces_checkbox.tooltip = (
+            "Check this box to display traces in the GUI.\n" "Uncheck to disable traces for performance reasons."
+        )
 
         select_recording_checkbox = pn.widgets.Checkbox(
             name="Select recording", value=False, height=50, sizing_mode="stretch_width"
@@ -304,6 +339,14 @@ class Launcher:
         self.recording_path_widget = pn.widgets.TextInput(
             name="Recording path (optional)", value="", height=50, visible=False, sizing_mode="stretch_width"
         )
+        self.recording_select_type = pn.widgets.Select(
+            name="Recording type",
+            options=["raw", "preprocessed"],
+            value="raw",
+            height=50,
+            visible=False,
+            sizing_mode="stretch_width",
+        )
 
         # Add event listeners
         select_recording_checkbox.param.watch(self._panel_on_select_recording, "value")
@@ -313,17 +356,23 @@ class Launcher:
             args=dict(
                 analyzer=analyzer_loader,
                 recording_path=self.recording_path_widget,
+                recording_type=self.recording_select_type,
                 displayed=displayed_properties_widget,
                 layout_presets=layout_selector,
                 curation=curation_checkbox,
+                with_traces=with_traces_checkbox,
+                verbose=self.verbose,
             ),
             code="""
                 const url = `/gui?` +
                             `analyzer_path=${encodeURIComponent(analyzer.value)}&` +
                             `recording_path=${encodeURIComponent(recording_path.value)}&` +
+                            `recording_type=${recording_type.value}&` +
                             `layout_preset=${layout_presets.value}&` +
                             `displayed_properties=${encodeURIComponent(displayed.value)}&` +
-                            `curation=${curation.active}`;
+                            `curation=${curation.active}&` +
+                            `with_traces=${with_traces.active}  &` +
+                            `verbose=${verbose}`;
                 console.log("Launching URL:", url);
                 window.open(url, '_blank');
             """,
@@ -333,6 +382,7 @@ class Launcher:
             pn.Row(
                 analyzer_loader,
                 self.recording_path_widget,
+                self.recording_select_type,
                 sizing_mode="stretch_width",
             ),
             pn.Row(
@@ -341,6 +391,7 @@ class Launcher:
             ),
             pn.Row(
                 curation_checkbox,
+                with_traces_checkbox,
                 select_recording_checkbox,
                 sizing_mode="stretch_width",
             ),
@@ -355,6 +406,7 @@ class Launcher:
 
     def _panel_on_select_recording(self, event):
         self.recording_path_widget.visible = event.new
+        self.recording_select_type.visible = event.new
 
 
 def panel_gui_view():
@@ -367,51 +419,37 @@ def panel_gui_view():
     params = pn.state.session_args
     analyzer_path = params.get("analyzer_path", [None])[0].decode("utf-8")
     recording_path = params.get("recording_path", [None])[0].decode("utf-8")
+    recording_type = params.get("recording_type", [None])[0].decode("utf-8")
     displayed_properties = params.get("displayed_properties", [None])[0].decode("utf-8")
     curation = bool(params.get("curation", [False])[0].decode("utf-8"))
+    with_traces = bool(params.get("with_traces", [True])[0].decode("utf-8"))
     layout_preset = params.get("layout_preset", [None])[0].decode("utf-8")
+    verbose = bool(params.get("verbose", [False])[0].decode("utf-8"))
 
     try:
-        if analyzer_path is None:
-            raise ValueError(
-                "You must specify the analyzer path in the URL query parameters, e.g., ?analyzer_path=/path/to/analyzer"
-            )
-
+        # Instantiate the analyzer based on the provided parameters
+        analyzer = instantiate_analyzer(
+            analyzer_path=analyzer_path, recording_path=recording_path, recording_type=recording_type
+        )
         if displayed_properties is not None:
             displayed_properties = [prop.strip() for prop in displayed_properties.split(",") if prop.strip()]
-
-        analyzer = si.load(analyzer_path, load_extensions=False)
-        if recording_path is not None and recording_path != "":
-            from spikeinterface.preprocessing.pipeline import (
-                get_preprocessing_dict_from_analyzer,
-                apply_preprocessing_pipeline,
-            )
-
-            try:
-                recording = si.load(recording_path)
-                preprocessing_pipeline = get_preprocessing_dict_from_analyzer(analyzer_path)
-                recording_processed = apply_preprocessing_pipeline(
-                    recording,
-                    preprocessing_pipeline,
-                )
-                analyzer.set_temporary_recording(recording_processed)
-            except:
-                print(f"Failed to load processed recording from {recording_path}.")
 
         # instantiate the main window with the loaded analyzer
         win = run_mainwindow(
             analyzer,
             mode="web",
-            with_traces=True,
             curation=curation,
             displayed_unit_properties=displayed_properties,
             layout_preset=layout_preset,
+            with_traces=with_traces,
+            verbose=verbose,
             start_app=False,  # Do not start the app loop here
         )
         win.main_layout.servable(title="SpikeInterface GUI")
+        main_layout = win.main_layout
     except Exception as e:
         print(f"Error initializing GUI: {e}")
-        win = pn.pane.Markdown(
+        main_layout = pn.pane.Markdown(
             f"""
             # Loading error!
 
@@ -421,5 +459,35 @@ def panel_gui_view():
             """,
             sizing_mode="stretch_width",
         )
-        win.servable(title="SpikeInterface GUI Error")
-    return win
+        main_layout.servable(title="SpikeInterface GUI Error")
+    return main_layout
+
+
+def instantiate_analyzer(analyzer_path=None, recording_path=None, recording_type="raw"):
+    if analyzer_path is None:
+        raise ValueError(
+            "You must specify the analyzer path in the URL query parameters, e.g., ?analyzer_path=/path/to/analyzer"
+        )
+
+    analyzer = si.load(analyzer_path, load_extensions=False)
+    if recording_path is not None and recording_path != "":
+        try:
+            recording = si.load(recording_path)
+            if recording_type == "raw":
+                from spikeinterface.preprocessing.pipeline import (
+                    get_preprocessing_dict_from_analyzer,
+                    apply_preprocessing_pipeline,
+                )
+
+                preprocessing_pipeline = get_preprocessing_dict_from_analyzer(analyzer_path)
+                recording_processed = apply_preprocessing_pipeline(
+                    recording,
+                    preprocessing_pipeline,
+                )
+            else:
+                recording_processed = recording
+            analyzer.set_temporary_recording(recording_processed)
+        except:
+            print(f"Failed to load processed recording from {recording_path}.")
+
+    return analyzer
