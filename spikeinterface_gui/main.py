@@ -1,15 +1,12 @@
 import sys
 import argparse
+import json
 from pathlib import Path
 import numpy as np
 import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
-
-# this force the loding of spikeinterface sub module
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
 
 from spikeinterface_gui.controller import Controller
 
@@ -27,10 +24,10 @@ def run_mainwindow(
     recording=None,
     start_app=True,
     layout_preset=None,
+    layout=None,
     address="localhost",
     port=0,
     verbose=False,
-    launcher_window=None,
 ):
     """
     Create the main window and start the QT app loop.
@@ -64,6 +61,8 @@ def run_mainwindow(
         If True, the QT app loop is started
     layout_preset : str | None
         The name of the layout preset. None is default.
+    layout : dict | None
+        The layout dictionary to use instead of the preset.
     address: str, default : "localhost"
         For "web" mode only. By default only on local machine.
     port: int, default: 0
@@ -110,7 +109,7 @@ def run_mainwindow(
 
         app = mkQApp()
         
-        win = QtMainWindow(controller, layout_preset=layout_preset, launcher_window=launcher_window)
+        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -121,9 +120,8 @@ def run_mainwindow(
             app.exec()
     
     elif backend == "panel":
-        import panel
         from .backend_panel import PanelMainWindow, start_server
-        win = PanelMainWindow(controller, layout_preset=layout_preset)
+        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout)
         win.main_layout.servable(title='SpikeInterface GUI')
         if start_app:
             start_server(win, address=address, port=port)
@@ -182,11 +180,55 @@ def run_launcher(mode="desktop", analyzers_folder=None, address="localhost", por
         server.io_loop.start()
 
 
+def check_folder_is_analyzer(folder):
+    """
+    Check if the given folder is a valid SortingAnalyzer folder.
+
+    Parameters
+    ----------
+    folder: str or Path
+        The path to the folder to check.
+
+    Returns
+    -------
+    bool
+        True if the folder is a valid SortingAnalyzer folder, False otherwise.
+    """
+    folder = Path(folder)
+    if not str(folder).endswith(".zarr"):
+        spikeinterface_info_file = folder / 'spikeinterface_info.json'
+        if not spikeinterface_info_file.exists():
+            return False
+        # Check if the folder contains the necessary files for a SortingAnalyzer
+        with open(spikeinterface_info_file, 'r') as f:
+            spikeinterface_info = json.load(f)
+        if spikeinterface_info.get("object") != "SortingAnalyzer":
+            return False
+        else:
+            return True
+    else:  #zarr folder
+        import zarr
+        # Check if the folder contains the necessary files for a SortingAnalyzer
+        if not folder.exists():
+            return False
+        zarr_root = zarr.open(folder, mode='r')
+        spikeinterface_info = zarr_root.get('spikeinterface_info')
+        if spikeinterface_info is None:
+            return False
+        if spikeinterface_info.get("object") != "SortingAnalyzer":
+            return False
+        else:
+            return True
+        
+        
+
+
 def run_mainwindow_cli():
     argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(description='spikeinterface-gui')
     parser.add_argument('analyzer_folder', help='SortingAnalyzer folder path', default=None, nargs='?')
+    parser.add_argument('--analyzers-folder', help='Base folder for launcher mode with multiple analyzer folders', default=None)
     parser.add_argument('--mode', help='Mode desktop or web', default='desktop')
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
@@ -201,10 +243,12 @@ def run_mainwindow_cli():
     analyzer_folder = args.analyzer_folder
     if analyzer_folder is None:
         print('Running launcher...')
-        run_launcher(mode=args.mode, address=args.address, port=args.port)
+        analyzers_folder = args.analyzers_folder
+        run_launcher(analyzers_folder=analyzers_folder, mode=args.mode, address=args.address, port=args.port)
     else:
         if args.verbose:
             print('Loading analyzer...')
+        assert check_folder_is_analyzer(analyzer_folder), f'The folder {analyzer_folder} is not a valid SortingAnalyzer folder'
         analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=not is_path_remote(analyzer_folder))
         if args.verbose:
             print('Analyzer loaded')

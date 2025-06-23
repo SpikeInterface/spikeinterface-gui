@@ -135,12 +135,13 @@ def listen_setting_changes(view):
 
 
 class QtMainWindow(QT.QMainWindow):
-    def __init__(self, controller, parent=None, layout_preset=None, launcher_window=None):
+    def __init__(self, controller, parent=None, layout_preset=None, layout=None, launcher_window=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_preset = layout_preset
+        self.layout = layout
         # in launcher mode, the launcher window is showed when the main window is closed
         self.launcher_window = launcher_window
 
@@ -192,7 +193,7 @@ class QtMainWindow(QT.QMainWindow):
 
         self.setDockNestingEnabled(True)
 
-        preset = get_layout_description(self.layout_preset)
+        preset = get_layout_description(self.layout_preset, self.layout)
 
         widgets_zone = {}
         for zone, view_names in preset.items():

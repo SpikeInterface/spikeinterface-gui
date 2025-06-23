@@ -10,11 +10,14 @@ A preset need 8 zones like this:
 """
 
 _presets = {}
-def get_layout_description(preset_name):
-    if preset_name is None:
-        preset_name = 'default'
-    _presets[preset_name]
-    return _presets[preset_name]
+def get_layout_description(preset_name, layout_dict=None):
+    if layout_dict is not None:
+        # If a layout_dict is provided, use it instead of the preset
+        return layout_dict
+    else:
+        if preset_name is None:
+            preset_name = 'default'
+        return _presets[preset_name]
 
 
 default_layout = dict(
