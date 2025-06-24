@@ -186,9 +186,10 @@ def listen_setting_changes(view):
 
 class PanelMainWindow:
 
-    def __init__(self, controller, layout_preset=None):
+    def __init__(self, controller, layout_preset=None, layout=None):
         self.controller = controller
         self.layout_preset = layout_preset
+        self.layout = layout
         self.verbose = controller.verbose
 
         self.make_views()
@@ -251,7 +252,7 @@ class PanelMainWindow:
 
         pn.extension("gridstack")
 
-        preset = get_layout_description(self.layout_preset)
+        preset = get_layout_description(self.layout_preset, self.layout)
 
         layout_zone = {}
         for zone, view_names in preset.items():
@@ -359,19 +360,89 @@ class PanelMainWindow:
                 view.notify_active_view_updated()
 
 
+def get_local_ip():
+    """
+    Get the local IP address of the machine.
+    """
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Doesn't actually need to connect
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
 
-def start_server(mainwindow, address="localhost", port=0):
+def find_free_port():
+    """
+    Find a free port on the local machine.
+    This is useful for starting a server without specifying a port.
 
-    pn.config.sizing_mode = "stretch_width"
+    Returns
+    -------
+    int
+        A free port number.
+    """
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))  # Bind to a free port assigned by the OS
+        return s.getsockname()[1]
 
-    # mainwindow.main_layout.servable()
-    # TODO alessio : find automatically a port when port = 0
+def start_server(window_or_dict, address="localhost", port=0, **panel_kwargs):
+    """
+    Start a Panel server with the main window layout.
+
+    Parameters
+    ----------
+    window_or_dict : Panel window or dict
+        The main window instance containing the layout to serve or a dictionary of
+        windows to serve. If a dictionary is provided, it should contain the names
+        of the views as keys and their corresponding Panel objects as values.
+    address : str, optional
+        The address to bind the server to. Defaults to "localhost".
+        If "auto-ip" is specified, it will use the local IP address.
+    port : int, optional
+        The port to bind the server to. If 0, a free port will be found
+        automatically. Defaults to 0.
+    panel_kwargs : dict, optional
+        Additional keyword arguments to pass to the Panel server.
+        These can include options like `show`, `start`, `dev`, `autoreload`,
+        and `websocket_origin`.
+    """
+    if port == 0:
+        port = find_free_port()
+        print(f"Found available port: {port}")
+
+    if address == "auto-ip":
+        address = get_local_ip()
 
     if address != "localhost":
         websocket_origin = f"{address}:{port}"
     else:
         websocket_origin = None
-    
-    server = pn.serve({"/": mainwindow.main_layout}, address=address, port=port,
-                      show=False, start=True, dev=True, autoreload=True,websocket_origin=websocket_origin,
-                      title="SpikeInterface GUI")
+
+    dev = panel_kwargs.get("dev", False)
+    autoreload = panel_kwargs.get("autoreload", False)
+    start = panel_kwargs.get("start", True)
+    show = panel_kwargs.get("show", True)
+    verbose = panel_kwargs.get("verbose", True)
+
+    if not isinstance(window_or_dict, dict):
+        # If a single window is provided, convert it to a dictionary
+        mainwindow = window_or_dict
+        mainwindow.main_layout = mainwindow.main_layout if hasattr(mainwindow, 'main_layout') else mainwindow.layout
+        window_dict = {"/": mainwindow.main_layout}
+    else:
+        # If a dictionary is provided, use it directly
+        window_dict = window_or_dict
+
+    server = pn.serve(
+        window_dict, address=address, port=port,
+        show=show, start=start, dev=dev, autoreload=autoreload,
+        websocket_origin=websocket_origin, verbose=verbose,
+        title="SpikeInterface GUI"
+    )
+    return server, address, port, websocket_origin

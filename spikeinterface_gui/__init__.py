@@ -12,5 +12,5 @@ Some design notes:
 
 from .version import version as __version__
 
-from .main import run_mainwindow
+from .main import run_mainwindow, run_launcher
 

@@ -10,11 +10,14 @@ A preset need 8 zones like this:
 """
 
 _presets = {}
-def get_layout_description(preset_name):
-    if preset_name is None:
-        preset_name = 'default'
-    _presets[preset_name]
-    return _presets[preset_name]
+def get_layout_description(preset_name, layout_dict=None):
+    if layout_dict is not None:
+        # If a layout_dict is provided, use it instead of the preset
+        return layout_dict
+    else:
+        if preset_name is None:
+            preset_name = 'default'
+        return _presets[preset_name]
 
 
 default_layout = dict(
@@ -43,15 +46,14 @@ legacy_layout = dict(
 )
 _presets['legacy'] = legacy_layout
 
-# yep is for testing
-yep_layout = dict(
-    zone1=['curation', 'spikelist'],
-    zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap', 'spikeamplitude'],
-    zone4=['similarity'],
-    zone5=['probe'],
-    zone6=['ndscatter', ],
+unit_focus_layout = dict(
+    zone1=['unitlist', 'mergelist', 'curation', 'spikelist'],
+    zone2=[],
+    zone3=['trace', 'tracemap',  'spikeamplitude', 'spikedepth'],
+    zone4=[],
+    zone5=['probe', 'mainsettings'],
+    zone6=['ndscatter', 'similarity'],
     zone7=['waveform', 'waveformheatmap', ],
     zone8=['correlogram', 'isi'],
 )
-_presets['yep'] = yep_layout
+_presets['unit_focus'] = unit_focus_layout

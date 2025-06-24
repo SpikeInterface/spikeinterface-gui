@@ -1,4 +1,4 @@
-from spikeinterface_gui import run_mainwindow
+from spikeinterface_gui import run_mainwindow, run_launcher
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder, make_curation_dict
 
@@ -52,7 +52,6 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
             analyzer.delete_extension(k)
         print(analyzer)
 
-
     n = analyzer.unit_ids.size
     analyzer.sorting.set_property(key='yep', values=np.array([f"yep{i}" for i in range(n)]))
 
@@ -62,12 +61,10 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
     win = None
 
-    # make_servable = not start_app
     win = run_mainwindow(
         analyzer,
         mode="web",
         start_app=start_app, verbose=verbose,
-        # make_servable=make_servable,
         curation=curation, curation_dict=curation_dict, 
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
@@ -78,10 +75,34 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
     return win
 
-if not test_folder.is_dir():
-    setup_module()
 
-win = test_mainwindow(start_app=True, verbose=True, curation=True)
+def test_launcher(verbose=True):
+
+    # case 1
+    analyzer_folders = None
+    # case 2 : explore parent
+    analyzer_folders = Path(__file__).parent 
+    # case 3 : list
+    analyzer_folders = [
+        Path(__file__).parent / 'my_dataset_small/sorting_analyzer',
+        Path(__file__).parent / 'my_dataset_big/sorting_analyzer',
+    ]
+    # case 4 : dict
+    analyzer_folders = {
+        'small' : Path(__file__).parent / 'my_dataset_small/sorting_analyzer',
+        'big' : Path(__file__).parent / 'my_dataset_big/sorting_analyzer',
+    }
+
+    win = run_launcher(mode="web", analyzer_folders=analyzer_folders, verbose=verbose)
+
+
+if __name__ == '__main__':
+    if not test_folder.is_dir():
+        setup_module()
+
+    # win = test_mainwindow(start_app=True, verbose=True, curation=True)
+
+    test_launcher(verbose=True)
 
 # TO RUN with panel serve:
 # win = test_mainwindow(start_app=False, verbose=True, curation=True)

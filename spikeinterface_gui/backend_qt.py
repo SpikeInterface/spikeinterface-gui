@@ -135,13 +135,15 @@ def listen_setting_changes(view):
 
 
 class QtMainWindow(QT.QMainWindow):
-    def __init__(self, controller, parent=None, layout_preset=None):
+    main_window_closed = QT.pyqtSignal(object)
+
+    def __init__(self, controller, parent=None, layout_preset=None, layout=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_preset = layout_preset
-
+        self.layout = layout
         self.make_views()
         self.create_main_layout()
 
@@ -190,7 +192,7 @@ class QtMainWindow(QT.QMainWindow):
 
         self.setDockNestingEnabled(True)
 
-        preset = get_layout_description(self.layout_preset)
+        preset = get_layout_description(self.layout_preset, self.layout)
 
         widgets_zone = {}
         for zone, view_names in preset.items():
@@ -253,6 +255,11 @@ class QtMainWindow(QT.QMainWindow):
                 self.tabifyDockWidget(self.docks[view_name0], dock)
             # make visible the first of each zone
             self.docks[view_name0].raise_()
+
+    # used by to tell the launcher this is closed
+    def closeEvent(self, event):
+        self.main_window_closed.emit(self)
+        event.accept()
 
 
 class ViewWidget(QT.QWidget):
