@@ -133,8 +133,7 @@ def run_mainwindow(
         win.main_layout.servable(title='SpikeInterface GUI')
         if start_app:
             panel_start_server_kwargs = panel_start_server_kwargs or {}
-            _ = start_server(win, address=address, port=port, use_real_ip=use_real_ip,
-                             **panel_start_server_kwargs)
+            _ = start_server(win, address=address, port=port, **panel_start_server_kwargs)
 
     return win
 
@@ -176,12 +175,13 @@ def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", por
         server, address, port, _ = start_server(
             {"/launcher": launcher.layout, "/gui": panel_gui_view},
             address=address, port=port,
-            show=False, start=False
+            show=False, start=False, verbose=False
         )
 
         url = f"http://{address}:{port}/launcher"
         webbrowser.open(url)
         server.start()
+        print(f"SpikeInterface GUI launcher running at {url}")
         # BLOCK main thread so server stays alive:
         server.io_loop.start()
 

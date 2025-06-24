@@ -428,6 +428,7 @@ def start_server(window_or_dict, address="localhost", port=0, **panel_kwargs):
     autoreload = panel_kwargs.get("autoreload", False)
     start = panel_kwargs.get("start", True)
     show = panel_kwargs.get("show", True)
+    verbose = panel_kwargs.get("verbose", True)
 
     if not isinstance(window_or_dict, dict):
         # If a single window is provided, convert it to a dictionary
@@ -441,7 +442,7 @@ def start_server(window_or_dict, address="localhost", port=0, **panel_kwargs):
     server = pn.serve(
         window_dict, address=address, port=port,
         show=show, start=start, dev=dev, autoreload=autoreload,
-        websocket_origin=websocket_origin,
+        websocket_origin=websocket_origin, verbose=verbose,
         title="SpikeInterface GUI"
     )
     return server, address, port, websocket_origin
