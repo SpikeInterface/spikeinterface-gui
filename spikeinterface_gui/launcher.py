@@ -26,8 +26,12 @@ class Launcher:
 
         if analyzer_folders is not None:
             if isinstance(analyzer_folders, (str, Path)):
+                # self.analyzer_folders = [
+                #     p for p in Path(analyzer_folders).iterdir() if p.is_dir() and check_folder_is_analyzer(p)
+                # ]
+                # @alessio I prefer this which explore also sub folders
                 self.analyzer_folders = [
-                    p for p in Path(analyzer_folders).iterdir() if p.is_dir() and check_folder_is_analyzer(p)
+                    f.parent for f in Path(analyzer_folders).glob('**/spikeinterface_info.json') if f.parent.is_dir() and check_folder_is_analyzer(f.parent)
                 ]
             elif isinstance(analyzer_folders, (list, tuple)):
                 self.analyzer_folders = [
@@ -37,8 +41,11 @@ class Launcher:
                 self.analyzer_folders = {
                     k: p for k, p in analyzer_folders.items() if isinstance(p, (str, Path)) and check_folder_is_analyzer(p)
                 }
+            else:
+                self.analyzer_folders = None
         else:
             self.analyzer_folders = None
+        
 
         self.verbose = verbose
         self.main_windows = []
@@ -48,6 +55,8 @@ class Launcher:
         elif backend == "panel":
             self._panel_make_layout()
 
+
+    ## Qt zone
     def _qt_open_help(self):
         import markdown
         from .myqt import QT
@@ -221,7 +230,9 @@ class Launcher:
         if self.analyzer_folders is None:
             analyzer_path = self.analyzer_path_input.text()
         else:
-            analyzer_path = str(self.analyzer_folders[self.analyzer_path_input.currentIndex()])
+            ind = self.analyzer_path_input.currentIndex()
+            k = list(self.analyzer_folders.keys())[ind]
+            analyzer_path = str(self.analyzer_folders[k])
 
         if self.select_recording_checkbox.isChecked():
             recording_path = self.recording_path_input.text()
@@ -310,12 +321,21 @@ class Launcher:
             main_window.show()
             # self.main_window.raise_()
             main_window.activateWindow()
+            main_window.main_window_closed.connect(self._qt_on_main_window_closed)
             self.main_windows.append(main_window)
-            # TODO: Sam - delete windows when closed
+
+
         except Exception as e:
             print(f"Error initializing main window: {e}")
             label.setText(f"Error: {e}")
             loading.adjustSize()
+    
+
+    def _qt_on_main_window_closed(self, win):
+        # this free memory of windows + analyzer + recording
+        self.main_windows.remove(win)
+
+    ## Panel zone
 
     def _panel_make_layout(self):
         import panel as pn

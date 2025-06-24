@@ -163,6 +163,7 @@ def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", por
         app = mkQApp()
         launcher = Launcher(analyzer_folders=analyzer_folders, backend="qt", verbose=verbose)
         app.exec()
+    
     elif mode == "web":
         import panel as pn
         import webbrowser

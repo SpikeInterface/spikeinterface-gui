@@ -22,14 +22,16 @@ test_folder = Path(__file__).parent / 'my_dataset_big'
 def debug_one_view():
 
     app = mkQApp()
-    analyzer = si.load_sorting_analyzer(test_folder / "sorting_analyzer")
+    analyzer = si.load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False)
     
     curation_dict = make_curation_dict(analyzer)
     # curation_dict = None
 
     curation = curation_dict is not None
     
-    controller = Controller(analyzer, verbose=True, curation=curation, curation_data=curation_dict)
+    controller = Controller(analyzer, verbose=True, curation=curation, curation_data=curation_dict, 
+                            skip_extensions=['principal_components'],
+                            )
 
     # view_class = possible_class_views['unitlist']
     view_class = possible_class_views['mainsettings']

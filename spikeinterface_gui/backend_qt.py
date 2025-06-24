@@ -135,16 +135,15 @@ def listen_setting_changes(view):
 
 
 class QtMainWindow(QT.QMainWindow):
-    def __init__(self, controller, parent=None, layout_preset=None, layout=None, launcher_window=None):
+    main_window_closed = QT.pyqtSignal(object)
+
+    def __init__(self, controller, parent=None, layout_preset=None, layout=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_preset = layout_preset
         self.layout = layout
-        # in launcher mode, the launcher window is showed when the main window is closed
-        self.launcher_window = launcher_window
-
         self.make_views()
         self.create_main_layout()
 
@@ -257,13 +256,9 @@ class QtMainWindow(QT.QMainWindow):
             # make visible the first of each zone
             self.docks[view_name0].raise_()
 
-    # used by the launcher to show the main window
+    # used by to tell the launcher this is closed
     def closeEvent(self, event):
-        # When main window is closed, show the launcher again
-        if self.launcher_window is not None:
-            self.launcher_window.show()
-            self.launcher_window.raise_()
-            self.launcher_window.activateWindow()
+        self.main_window_closed.emit(self)
         event.accept()
 
 

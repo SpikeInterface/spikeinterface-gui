@@ -1,4 +1,4 @@
-from spikeinterface_gui import run_mainwindow
+from spikeinterface_gui import run_mainwindow, run_launcher
 import warnings
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder, make_curation_dict
@@ -15,7 +15,7 @@ import sys
 
 
 test_folder = Path(__file__).parent / 'my_dataset_small'
-# test_folder = Path(__file__).parent / 'my_dataset_big'
+test_folder = Path(__file__).parent / 'my_dataset_big'
 # test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 # yep is for testing
@@ -80,8 +80,30 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
 
 
+def test_launcher(verbose=True):
+
+    # case 1
+    # analyzer_folders = None
+    # case 2 : explore parent
+    analyzer_folders = Path(__file__).parent 
+    # case 3 : list
+    analyzer_folders = [
+        Path(__file__).parent / 'my_dataset_small/sorting_analyzer',
+        Path(__file__).parent / 'my_dataset_big/sorting_analyzer',
+    ]
+    # case 4 : dict
+    analyzer_folders = {
+        'small' : Path(__file__).parent / 'my_dataset_small/sorting_analyzer',
+        'big' : Path(__file__).parent / 'my_dataset_big/sorting_analyzer',
+    }
+
+    win = run_launcher(mode="desktop", analyzer_folders=analyzer_folders, verbose=verbose)
+
+
 if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
     # win = test_mainwindow(start_app=True, verbose=True, curation=True)
-    win = test_mainwindow(start_app=True, verbose=True, curation=False)
+    # win = test_mainwindow(start_app=True, verbose=True, curation=False)
+
+    test_launcher(verbose=True)
