@@ -57,16 +57,3 @@ unit_focus_layout = dict(
     zone8=['correlogram', 'isi'],
 )
 _presets['unit_focus'] = unit_focus_layout
-
-# yep is for testing
-yep_layout = dict(
-    zone1=['curation', 'spikelist'],
-    zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap', 'spikeamplitude'],
-    zone4=['similarity'],
-    zone5=['probe'],
-    zone6=['ndscatter', ],
-    zone7=['waveform', 'waveformheatmap', ],
-    zone8=['correlogram', 'isi'],
-)
-_presets['yep'] = yep_layout

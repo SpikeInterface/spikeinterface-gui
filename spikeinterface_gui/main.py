@@ -27,6 +27,7 @@ def run_mainwindow(
     layout=None,
     address="localhost",
     port=0,
+    panel_start_server_kwargs=None,
     verbose=False,
 ):
     """
@@ -64,9 +65,16 @@ def run_mainwindow(
     layout : dict | None
         The layout dictionary to use instead of the preset.
     address: str, default : "localhost"
-        For "web" mode only. By default only on local machine.
+        For "web" mode only. By default it is "localhost".
+        Use "auto-ip" to use the real IP address of the machine.
     port: int, default: 0
         For "web" mode only. If 0 then the port is automatic.
+    panel_start_server_kwargs: dict, default: None
+        For "web" mode only. Additional arguments to pass to the Panel server
+        - `{'show': True}` to automatically open the browser (default is True).
+        - `{'dev': True}` to enable development mode (default is False).
+        - `{'autoreload': True}` to enable autoreload of the server when files change
+          (default is False).
     verbose: bool, default: False
         If True, print some information in the console
     """
@@ -124,12 +132,14 @@ def run_mainwindow(
         win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout)
         win.main_layout.servable(title='SpikeInterface GUI')
         if start_app:
-            start_server(win, address=address, port=port)
+            panel_start_server_kwargs = panel_start_server_kwargs or {}
+            _ = start_server(win, address=address, port=port, use_real_ip=use_real_ip,
+                             **panel_start_server_kwargs)
 
     return win
 
 
-def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", port=0):
+def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", port=0, verbose=False):
     """
     Run the launcher for the SpikeInterface GUI.
 
@@ -141,39 +151,35 @@ def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", por
         List of analyzer folders to load. If str, it is a single folder and subfolders are searched.
     address: str, default: "localhost"
         The address to use for the web mode. Default is "localhost".
+        Use "auto-ip" to use the real IP address of the machine.
     port: int, default: 0
         The port to use for the web mode. If 0, a random available port is chosen.
+    verbose: bool, default: False
+        If True, print some information in the console.
     """
     from spikeinterface_gui.launcher import Launcher
 
     if mode == "desktop":
         from .myqt import QT, mkQApp
         app = mkQApp()
-        launcher = Launcher(analyzer_folders=analyzer_folders, backend="qt")
+        launcher = Launcher(analyzer_folders=analyzer_folders, backend="qt", verbose=verbose)
         app.exec()
     elif mode == "web":
         import panel as pn
         import webbrowser
 
         from spikeinterface_gui.launcher import panel_gui_view
+        from spikeinterface_gui.backend_panel import start_server
 
-        launcher = Launcher(analyzer_folders=analyzer_folders, backend="panel")
-        if address != "localhost":
-            websocket_origin = f"{address}:{port}"
-        else:
-            websocket_origin = None
+        launcher = Launcher(analyzer_folders=analyzer_folders, backend="panel", verbose=verbose)
 
-        server = pn.serve(
+        server, address, port, _ = start_server(
             {"/launcher": launcher.layout, "/gui": panel_gui_view},
             address=address, port=port,
-            show=False, start=False,
-            websocket_origin=websocket_origin,
-            title="SpikeInterface GUI"
+            show=False, start=False
         )
 
-        # Now we can open the browser and start the server
-        real_port = server.port
-        url = f"http://{address}:{real_port}/launcher"
+        url = f"http://{address}:{port}/launcher"
         webbrowser.open(url)
         server.start()
         # BLOCK main thread so server stays alive:
@@ -220,8 +226,6 @@ def check_folder_is_analyzer(folder):
         else:
             return True
         
-        
-
 
 def run_mainwindow_cli():
     argv = sys.argv[1:]
@@ -244,7 +248,7 @@ def run_mainwindow_cli():
     if analyzer_folder is None:
         print('Running launcher...')
         analyzer_folders = args.analyzer_folders
-        run_launcher(analyzer_folders=analyzer_folders, mode=args.mode, address=args.address, port=args.port)
+        run_launcher(analyzer_folders=analyzer_folders, mode=args.mode, address=args.address, port=args.port, verbose=args.verbose)
     else:
         if args.verbose:
             print('Loading analyzer...')
@@ -272,4 +276,11 @@ def run_mainwindow_cli():
                         raise ValueError('The recording does not have the same channel ids as the analyzer')
                     recording = recording.select_channels(recording.channel_ids[channel_mask])
 
-        run_mainwindow(analyzer, mode=args.mode, with_traces=not(args.no_traces), curation=args.curation, recording=recording, verbose=args.verbose)
+        run_mainwindow(
+            analyzer,
+            mode=args.mode,
+            with_traces=not(args.no_traces),
+            curation=args.curation,
+            recording=recording,
+            verbose=args.verbose
+        )

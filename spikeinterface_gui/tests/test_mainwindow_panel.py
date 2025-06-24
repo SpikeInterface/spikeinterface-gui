@@ -52,7 +52,6 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
             analyzer.delete_extension(k)
         print(analyzer)
 
-
     n = analyzer.unit_ids.size
     analyzer.sorting.set_property(key='yep', values=np.array([f"yep{i}" for i in range(n)]))
 
@@ -62,12 +61,10 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
     win = None
 
-    # make_servable = not start_app
     win = run_mainwindow(
         analyzer,
         mode="web",
         start_app=start_app, verbose=verbose,
-        # make_servable=make_servable,
         curation=curation, curation_dict=curation_dict, 
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,

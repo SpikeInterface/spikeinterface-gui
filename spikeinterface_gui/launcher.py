@@ -46,10 +46,45 @@ class Launcher:
         elif backend == "panel":
             self._panel_make_layout()
 
+    def _qt_open_help(self):
+        import markdown
+        from .myqt import QT
+
+        # Create a help window
+        help_window = QT.QDialog(self.window)
+        help_window.setWindowTitle("SpikeInterface GUI Help")
+        help_window.setModal(False)  # Allow interaction with main window
+        help_window.resize(600, 500)
+
+        # Create layout
+        layout = QT.QVBoxLayout(help_window)
+
+        # Create text browser for HTML content
+        text_browser = QT.QTextBrowser()
+        txt = _launcher_help
+        html_content = markdown.markdown(txt)
+        text_browser.setHtml(html_content)
+
+        # Create close button
+        close_button = QT.QPushButton("Close")
+        close_button.clicked.connect(help_window.close)
+
+        # Add widgets to layout
+        layout.addWidget(text_browser)
+
+        # Create button layout
+        button_layout = QT.QHBoxLayout()
+        button_layout.addStretch()  # Push button to the right
+        button_layout.addWidget(close_button)
+        layout.addLayout(button_layout)
+
+        # Show the help window
+        help_window.show()
+
     def _qt_make_layout(self):
+        import markdown
         from .myqt import QT
         from .layout_presets import _presets
-        from .main import run_mainwindow
 
         # Get the Qt app instance created by run_launcher
         app = QT.QApplication.instance()
@@ -78,13 +113,29 @@ class Launcher:
             self.analyzer_path_input.addItems([str(p) for p in self.analyzer_folders])
             form_layout.addRow("Analyzer folder:", self.analyzer_path_input)
 
+        # Displayed properties input
+        self.displayed_properties_input = QT.QLineEdit()
+        self.displayed_properties_input.setText("default")
+
+        form_layout.addRow("Displayed unit properties:", self.displayed_properties_input)
+
+        # Layout preset selector
+        self.layout_preset_selector = QT.QComboBox()
+        self.layout_preset_selector.addItems(list(_presets.keys()))
+        form_layout.addRow("Layout preset:", self.layout_preset_selector)
+
+        # Curation checkbox
+        self.curation_checkbox = QT.QCheckBox()
+        self.curation_checkbox.setChecked(True)
+        form_layout.addRow("Enable curation:", self.curation_checkbox)
+
+        # With traces checkbox
+        self.with_traces_checkbox = QT.QCheckBox()
+        self.with_traces_checkbox.setChecked(True)
+        form_layout.addRow("With traces:", self.with_traces_checkbox)
+
         # Recording selection checkbox and path input
         self.select_recording_checkbox = QT.QCheckBox()
-        self.select_recording_checkbox.setToolTip(
-            "Check this box to select a recording to load for the analyzer.\n"
-            "The preprocessing pipeline will be applied to the recording if available."
-        )
-        form_layout.addRow("Select recording:", self.select_recording_checkbox)
 
         recording_path_layout = QT.QHBoxLayout()
         self.recording_path_input = QT.QLineEdit()
@@ -97,42 +148,19 @@ class Launcher:
         recording_select_type.addItems(["raw", "preprocessed"])
         recording_select_type.setVisible(False)
         self.recording_select_type = recording_select_type
+        recording_path_layout.addWidget(self.select_recording_checkbox)
         recording_path_layout.addWidget(self.recording_path_input)
         recording_path_layout.addWidget(recording_select_type)
-        form_layout.addRow("Recording path (optional):", recording_path_layout)
-
-        # Displayed properties input
-        self.displayed_properties_input = QT.QLineEdit()
-        self.displayed_properties_input.setText("default")
-        self.displayed_properties_input.setToolTip(
-            "Comma-separated list of unit properties to display.\n"
-            "Use 'default' to show the default properties.\n"
-            "Example: 'amplitude, snr, firing_rate'\n"
-        )
-
-        form_layout.addRow("Displayed unit properties:", self.displayed_properties_input)
-
-        # Layout preset selector
-        self.layout_preset_selector = QT.QComboBox()
-        self.layout_preset_selector.addItems(list(_presets.keys()))
-        form_layout.addRow("Layout preset:", self.layout_preset_selector)
-
-        # Curation checkbox
-        self.curation_checkbox = QT.QCheckBox()
-        self.curation_checkbox.setChecked(True)
-        self.curation_checkbox.setToolTip("Enable or disable curation features in the GUI")
-        form_layout.addRow("Enable curation:", self.curation_checkbox)
-
-        # With traces checkbox
-        self.with_traces_checkbox = QT.QCheckBox()
-        self.with_traces_checkbox.setChecked(True)
-        self.with_traces_checkbox.setToolTip(
-            "Check this box to display traces in the GUI.\n" "Uncheck to disable traces for performance reasons."
-        )
-        form_layout.addRow("With traces:", self.with_traces_checkbox)
+        recording_path_layout.addWidget(browse_recording_button)
+        form_layout.addRow("Select recording:", recording_path_layout)
 
         # Launch button
         self.launch_button = QT.QPushButton("Launch!")
+
+        # Help button
+        self.help_button = QT.QPushButton("?")
+        self.help_button.clicked.connect(self._qt_open_help)
+        form_layout.addRow("Help:", self.help_button)
 
         # Add layouts to main layout
         layout.addLayout(form_layout)
@@ -170,11 +198,19 @@ class Launcher:
     def _qt_browse_recording_path(self):
         from .myqt import QT
 
-        path = QT.QFileDialog.getExistingDirectory(
-            self.window, "Select Recording Directory", "", QT.QFileDialog.ShowDirsOnly
-        )
-        if path:
-            self.recording_path_input.setText(path)
+        # Create a dialog that allows selecting both files and directories
+        dialog = QT.QFileDialog(self.window)
+        dialog.setWindowTitle("Select Recording Directory or File")
+        dialog.setFileMode(QT.QFileDialog.AnyFile)
+        dialog.setOption(QT.QFileDialog.DontUseNativeDialog, True)
+        dialog.setOption(QT.QFileDialog.ShowDirsOnly, False)
+        dialog.setOption(QT.QFileDialog.ReadOnly, True)
+
+        if dialog.exec_():
+            selected_paths = dialog.selectedFiles()
+            if selected_paths:
+                path = selected_paths[0]
+                self.recording_path_input.setText(path)
 
     def _qt_on_launch_clicked(self):
         from .myqt import QT
@@ -245,7 +281,7 @@ class Launcher:
         app = QT.QApplication.instance()
 
         try:
-            analyzer = instantiate_analyzer(
+            analyzer, recording = instantiate_analyzer_and_recording(
                 analyzer_path=analyzer_path,
                 recording_path=recording_path,
                 recording_type=recording_type,
@@ -256,6 +292,7 @@ class Launcher:
             # Run the main window without starting a new event loop
             main_window = run_mainwindow(
                 analyzer,
+                recording=recording,
                 mode="desktop",
                 with_traces=with_traces,
                 curation=curation,
@@ -286,11 +323,6 @@ class Launcher:
         displayed_properties_widget = pn.widgets.TextInput(
             name="Displayed unit properties", value="default", height=50, sizing_mode="stretch_width"
         )
-        displayed_properties_widget.tooltip = (
-            "Comma-separated list of unit properties to display.\n"
-            "Use 'default' to show the default properties.\n"
-            "Example: 'amplitude, snr, firing_rate'\n"
-        )
 
         analyzer_path_widget = pn.widgets.TextInput(
             name="Analyzer path", value="", height=50, sizing_mode="stretch_width"
@@ -304,6 +336,7 @@ class Launcher:
             height=50,
             sizing_mode="stretch_width",
         )
+
         if self.analyzer_folders is None:
             analyzer_loader = analyzer_path_widget
         else:
@@ -321,20 +354,12 @@ class Launcher:
         curation_checkbox = pn.widgets.Checkbox(
             name="Enable curation", value=True, height=50, sizing_mode="stretch_width"
         )
-        curation_checkbox.tooltip = "Enable or disable curation features in the GUI"
+
         with_traces_checkbox = pn.widgets.Checkbox(
             name="With traces", value=True, height=50, sizing_mode="stretch_width"
         )
-        with_traces_checkbox.tooltip = (
-            "Check this box to display traces in the GUI.\n" "Uncheck to disable traces for performance reasons."
-        )
-
         select_recording_checkbox = pn.widgets.Checkbox(
             name="Select recording", value=False, height=50, sizing_mode="stretch_width"
-        )
-        select_recording_checkbox.tooltip = (
-            "Check this box to select a recording to load for the analyzer.\n"
-            "The preprocessing pipeline will be applied to the recording if available."
         )
         self.recording_path_widget = pn.widgets.TextInput(
             name="Recording path (optional)", value="", height=50, visible=False, sizing_mode="stretch_width"
@@ -343,9 +368,9 @@ class Launcher:
             name="Recording type",
             options=["raw", "preprocessed"],
             value="raw",
-            height=50,
             visible=False,
-            sizing_mode="stretch_width",
+            height=50,
+            width=200,
         )
 
         # Add event listeners
@@ -371,14 +396,19 @@ class Launcher:
                             `layout_preset=${layout_presets.value}&` +
                             `displayed_properties=${encodeURIComponent(displayed.value)}&` +
                             `curation=${curation.active}&` +
-                            `with_traces=${with_traces.active}  &` +
+                            `with_traces=${with_traces.active}&` +
                             `verbose=${verbose}`;
                 console.log("Launching URL:", url);
                 window.open(url, '_blank');
             """,
         )
 
-        self.layout = pn.Column(
+        helper_tab = pn.pane.Markdown(
+            _launcher_help,
+            sizing_mode="stretch_width",
+        )
+
+        launcher_layout = pn.Column(
             pn.Row(
                 analyzer_loader,
                 self.recording_path_widget,
@@ -404,6 +434,13 @@ class Launcher:
             sizing_mode="stretch_width",
         )
 
+        self.layout = pn.Tabs(
+            ("📊", launcher_layout),
+            ("ℹ️", helper_tab),
+            dynamic=True,
+            tabs_location="left",
+        )
+
     def _panel_on_select_recording(self, event):
         self.recording_path_widget.visible = event.new
         self.recording_select_type.visible = event.new
@@ -421,14 +458,14 @@ def panel_gui_view():
     recording_path = params.get("recording_path", [None])[0].decode("utf-8")
     recording_type = params.get("recording_type", [None])[0].decode("utf-8")
     displayed_properties = params.get("displayed_properties", [None])[0].decode("utf-8")
-    curation = bool(params.get("curation", [False])[0].decode("utf-8"))
-    with_traces = bool(params.get("with_traces", [True])[0].decode("utf-8"))
+    curation = params.get("curation", [False])[0].decode("utf-8") == "true"
+    with_traces = params.get("with_traces", [True])[0].decode("utf-8") == "true"
     layout_preset = params.get("layout_preset", [None])[0].decode("utf-8")
-    verbose = bool(params.get("verbose", [False])[0].decode("utf-8"))
+    verbose = params.get("verbose", [False])[0].decode("utf-8") == "true"
 
     try:
         # Instantiate the analyzer based on the provided parameters
-        analyzer = instantiate_analyzer(
+        analyzer, recording = instantiate_analyzer_and_recording(
             analyzer_path=analyzer_path, recording_path=recording_path, recording_type=recording_type
         )
         if displayed_properties is not None:
@@ -437,6 +474,7 @@ def panel_gui_view():
         # instantiate the main window with the loaded analyzer
         win = run_mainwindow(
             analyzer,
+            recording=recording,
             mode="web",
             curation=curation,
             displayed_unit_properties=displayed_properties,
@@ -463,13 +501,14 @@ def panel_gui_view():
     return main_layout
 
 
-def instantiate_analyzer(analyzer_path=None, recording_path=None, recording_type="raw"):
+def instantiate_analyzer_and_recording(analyzer_path=None, recording_path=None, recording_type="raw"):
     if analyzer_path is None:
         raise ValueError(
             "You must specify the analyzer path in the URL query parameters, e.g., ?analyzer_path=/path/to/analyzer"
         )
 
     analyzer = si.load(analyzer_path, load_extensions=False)
+    recording_processed = None
     if recording_path is not None and recording_path != "":
         try:
             recording = si.load(recording_path)
@@ -486,8 +525,50 @@ def instantiate_analyzer(analyzer_path=None, recording_path=None, recording_type
                 )
             else:
                 recording_processed = recording
-            analyzer.set_temporary_recording(recording_processed)
         except:
             print(f"Failed to load processed recording from {recording_path}.")
 
-    return analyzer
+    return analyzer, recording_processed
+
+
+_launcher_help = """
+# SpikeInterface GUI Launcher
+
+This launcher allows you to start the SpikeInterface GUI with a specific analyzer and recording.
+You can select an analyzer folder, specify a recording path, choose displayed properties, and set layout presets.
+The GUI will open in a new tab with the specified parameters whrn you click "Launch!".
+
+## Instructions
+
+**Analyzer Path**:  
+
+Enter the path to the analyzer folder or select from the dropdown.
+
+**Displayed Unit Properties**:
+
+Enter a comma-separated list of unit properties to display in the GUI.
+Use 'default' to show the default properties.
+
+**Layout Preset**:
+
+Select a layout preset for the GUI from the dropdown.
+
+**Curation**:
+
+Check the box to enable curation features in the GUI.
+
+**With Traces**:
+
+Check the box to display traces in the GUI, or uncheck to disable them for performance reasons.
+
+**Select Recording**:
+
+Check the box to enable the recording path input and select a recording to load for the analyzer.
+This can be useful when the original recording is not available or it has been moved or renamed.
+When selecting this option, you can specify a recording path that will be used to load the recording.
+
+* **Recording Path**: Enter the path to a recording to load and set as the recording for the analyzer.
+* **Recording Type**: Choose between "raw" or "preprocessed" recording types.
+  - "raw" will load the raw recording and apply the preprocessing pipeline from the analyzer.
+  - "preprocessed" will load the recording as is without applying any preprocessing.
+"""
