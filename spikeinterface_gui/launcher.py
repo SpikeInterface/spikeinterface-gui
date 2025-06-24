@@ -33,8 +33,10 @@ class Launcher:
                 self.analyzer_folders = [
                     p for p in analyzer_folders if isinstance(p, (str, Path)) and check_folder_is_analyzer(p)
                 ]
-            else:
-                raise ValueError("analyzer_folders must be a string, Path, list, or None")
+            elif isinstance(analyzer_folders, dict):
+                self.analyzer_folders = {
+                    k: p for k, p in analyzer_folders.items() if isinstance(p, (str, Path)) and check_folder_is_analyzer(p)
+                }
         else:
             self.analyzer_folders = None
 
@@ -340,10 +342,13 @@ class Launcher:
         if self.analyzer_folders is None:
             analyzer_loader = analyzer_path_widget
         else:
+            value = self.analyzer_folders[0] if isinstance(self.analyzer_folders, list) \
+                else list(self.analyzer_folders.values())[0]
+            print(value)
             analyzer_loader = pn.widgets.Select(
                 name="Analyzer folder",
                 options=self.analyzer_folders,
-                value=self.analyzer_folders[0],
+                value=value,
                 height=50,
                 width=500,
             )

@@ -184,7 +184,8 @@ def run_launcher(mode="desktop", analyzer_folders=None, address="localhost", por
         print(f"SpikeInterface GUI launcher running at {url}")
         # BLOCK main thread so server stays alive:
         server.io_loop.start()
-
+    else:
+        raise ValueError(f"spikeinterface-gui wrong mode {mode}")
 
 def check_folder_is_analyzer(folder):
     """
