@@ -207,7 +207,7 @@ def check_folder_is_analyzer(folder):
         True if the folder is a valid SortingAnalyzer folder, False otherwise.
     """
     if not isinstance(folder, (str, Path)):
-        return None
+        return False
 
     folder = Path(folder)
     if not folder.is_dir():
