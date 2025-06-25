@@ -15,36 +15,32 @@ class Launcher:
     analyzers_folder : str, list or None
         Path to the folder containing analyzer folders or a list/dict of analyzer paths.
         If None, the user will be prompted to select an analyzer folder.
+    root_folder: str|Path| None
+        A folder that is explore to construct the list of analyzers.
+        When not None analyzer_folders must be None.
     backend : str
         The backend to use for the GUI. Options are "qt" or "panel".
     verbose : bool
         If True, enables verbose logging in the GUI.
     """
 
-    def __init__(self, analyzer_folders=None, backend="qt", verbose=False):
+    def __init__(self, analyzer_folders=None, root_folder=None, backend="qt", verbose=False):
         from spikeinterface_gui.main import check_folder_is_analyzer
 
-        if analyzer_folders is not None:
-            if isinstance(analyzer_folders, (str, Path)):
-                # self.analyzer_folders = [
-                #     p for p in Path(analyzer_folders).iterdir() if p.is_dir() and check_folder_is_analyzer(p)
-                # ]
-                # @alessio I prefer this which explore also sub folders
-                self.analyzer_folders = [
-                    f.parent for f in Path(analyzer_folders).glob('**/spikeinterface_info.json') if f.parent.is_dir() and check_folder_is_analyzer(f.parent)
-                ]
-            elif isinstance(analyzer_folders, (list, tuple)):
-                self.analyzer_folders = [
-                    p for p in analyzer_folders if isinstance(p, (str, Path)) and check_folder_is_analyzer(p)
-                ]
+        self.analyzer_folders = None
+        if root_folder is not None:
+            assert analyzer_folders is None, "When using root_folder, analyzer_folders must be None"
+            root_folder = Path(root_folder)
+            self.analyzer_folders = [
+                f.parent for f in root_folder.glob('**/spikeinterface_info.json') if check_folder_is_analyzer(f.parent)
+            ] + [
+                f.parent for f in root_folder.glob('**/.zmetadata') if check_folder_is_analyzer(f.parent)
+            ]
+        elif analyzer_folders is not None:
+            if isinstance(analyzer_folders, (list, tuple)):
+                self.analyzer_folders = [ p for p in analyzer_folders if check_folder_is_analyzer(p) ]
             elif isinstance(analyzer_folders, dict):
-                self.analyzer_folders = {
-                    k: p for k, p in analyzer_folders.items() if isinstance(p, (str, Path)) and check_folder_is_analyzer(p)
-                }
-            else:
-                self.analyzer_folders = None
-        else:
-            self.analyzer_folders = None
+                self.analyzer_folders = { k: p for k, p in analyzer_folders.items() if check_folder_is_analyzer(p)}
         
 
         self.verbose = verbose
@@ -231,8 +227,12 @@ class Launcher:
             analyzer_path = self.analyzer_path_input.text()
         else:
             ind = self.analyzer_path_input.currentIndex()
-            k = list(self.analyzer_folders.keys())[ind]
-            analyzer_path = str(self.analyzer_folders[k])
+            if isinstance(self.analyzer_folders, dict):
+                k = list(self.analyzer_folders.keys())[ind]
+                analyzer_path = str(self.analyzer_folders[k])
+            else:
+                analyzer_path = self.analyzer_folders[ind]
+
 
         if self.select_recording_checkbox.isChecked():
             recording_path = self.recording_path_input.text()
