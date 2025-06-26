@@ -21,6 +21,11 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
         durations = [300.0, 100.0]
         num_channels = 32
         num_units = 16
+    elif case ==  'medium_split':
+        num_probe = 1
+        durations = [600.0,]
+        num_channels = 128
+        num_units = 100
     elif case == 'big':
         num_probe = 1
         durations = [3600.0]
@@ -72,6 +77,19 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
             recordings.append(recording)
             sortings.append(sorting)
             probes.append(probe.copy())
+        
+        if 'split' in  case:
+            # create an intermediate analyzer to make a simulated split
+            analyzer_pre_split = si.create_sorting_analyzer(sorting, recording)
+            analyzer_pre_split.compute(["random_spikes", "templates", "spike_amplitudes"])
+
+            sorting, split_units = si.split_sorting_by_amplitudes(
+                analyzer_pre_split,
+                min_snr=10,
+                splitting_probability=0.2
+            )
+        
+        sorting.set_property(key='my_own_property', values=np.array([f"yep{i}" for i in range(sorting.unit_ids.size)]))
     
     if num_probe > 1:
         #
