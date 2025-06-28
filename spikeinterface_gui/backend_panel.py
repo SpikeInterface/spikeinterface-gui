@@ -419,10 +419,10 @@ def start_server(window_or_dict, address="localhost", port=0, **panel_kwargs):
     if address == "auto-ip":
         address = get_local_ip()
 
-    if address != "localhost":
+    # Set websocket_origin automatically if not explicitly provided
+    websocket_origin = panel_kwargs.get("websocket_origin")
+    if websocket_origin is None and address != "localhost":
         websocket_origin = f"{address}:{port}"
-    else:
-        websocket_origin = None
 
     dev = panel_kwargs.get("dev", False)
     autoreload = panel_kwargs.get("autoreload", False)
