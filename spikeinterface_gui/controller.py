@@ -188,7 +188,7 @@ class Controller():
                     # precompute similarity when low channel/units count
                     method = 'l1'
                     ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
-                self._similarity_by_method[method] = ts_ext.get_data()
+                    self._similarity_by_method[method] = ts_ext.get_data()
 
         if "waveforms" in skip_extensions:
             if self.verbose:
