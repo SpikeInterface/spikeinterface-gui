@@ -54,6 +54,8 @@ class NDScatterView(ViewBase):
 
         self.tour_step = 0
         self.auto_update_limit = True
+        self._lasso_vertices = []
+
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
         
@@ -107,9 +109,6 @@ class NDScatterView(ViewBase):
         # here we don't want to update the components because it's been done already!
         self.refresh(update_components=False)
 
-    def on_spike_selection_changed(self):
-        self.refresh()
-
     def on_unit_visibility_changed(self):
         self.random_projection()
     
@@ -121,6 +120,19 @@ class NDScatterView(ViewBase):
         return projected
 
     def get_plotting_data(self, return_spike_indices=False):
+        """
+        Get the data to plot in the scatter plot.
+
+        Parameters
+        ----------
+        return_spike_indices : bool, default: False
+            If True, also return the indices of the spikes for each unit.
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         scatter_x = {}
         scatter_y = {}
         all_limits = []
@@ -134,7 +146,7 @@ class NDScatterView(ViewBase):
                 projected_2d = projected[:, :2]
                 all_limits.append(float(np.percentile(np.abs(projected_2d), 95) * 2.))
             if return_spike_indices:
-                spike_indices[unit_id] = mask
+                spike_indices[unit_id] = self.random_spikes_indices[mask]
         if len(all_limits) > 0 and self.auto_update_limit:
             self.limit = max(all_limits)
         
@@ -323,7 +335,9 @@ class NDScatterView(ViewBase):
         self.plot.setYRange(-self.limit, self.limit)
         
         # self.graphicsview.repaint()
-            
+
+    def _qt_on_spike_selection_changed(self):
+        self.refresh()
     
     def _qt_start_stop_tour(self, checked):
         if checked:
@@ -346,17 +360,31 @@ class NDScatterView(ViewBase):
         points = np.array(points)
         self.lasso.setData(points[:, 0], points[:, 1])
     
-    def _qt_on_lasso_finished(self, points):
+    def _qt_on_lasso_finished(self, points, shift_held=False):
         self.lasso.setData([], [])
         vertices = np.array(points)
+        self._lasso_vertices.append(vertices)
         
         # inside lasso and visibles
         ind_visibles,   = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
         
-        inds = self.random_spikes_indices[ind_visibles[inside]]
-        self.controller.set_indices_spike_selected(inds)
+        new_selected_inds = self.random_spikes_indices[ind_visibles[inside]]
+        
+        if shift_held:
+            # Extend existing selection
+            current_selection = self.controller.get_indices_spike_selected()
+            if len(current_selection) > 0 and len(new_selected_inds) > 0:
+                extended_selection = np.unique(np.concatenate([current_selection, new_selected_inds]))
+                self.controller.set_indices_spike_selected(extended_selection)
+            elif len(new_selected_inds) > 0:
+                # No current selection, just use new selection
+                self.controller.set_indices_spike_selected(new_selected_inds)
+            # If no new selection and shift held, keep existing selection unchanged
+        else:
+            # Replace selection (original behavior)
+            self.controller.set_indices_spike_selected(new_selected_inds)
         
         self.refresh()
         self.notify_spike_selection_changed()
@@ -369,7 +397,7 @@ class NDScatterView(ViewBase):
         from bokeh.models import ColumnDataSource, LassoSelectTool, Range1d
         from bokeh.events import MouseWheel
 
-        from .utils_panel import _bg_color, slow_lasso
+        from .utils_panel import _bg_color
 
         self.lasso_tool = LassoSelectTool()
 
@@ -393,12 +421,9 @@ class NDScatterView(ViewBase):
         # remove the bokeh mousewheel zoom and keep only this one
         self.scatter_fig.on_event(MouseWheel, self._panel_gain_zoom)
 
-        self.scatter_source = ColumnDataSource({"x": [], "y": [], "color": []})
-        self.scatter_select_source = ColumnDataSource({"x": [], "y": [], "color": []})
+        self.scatter_source = ColumnDataSource({"x": [], "y": [], "color": [], "spike_indices": []})
 
         self.scatter = self.scatter_fig.scatter("x", "y", source=self.scatter_source, size=3, color="color", alpha=0.7)
-        self.scatter_select = self.scatter_fig.scatter("x", "y", source=self.scatter_select_source,
-                                                       size=11, color="white", alpha=0.8)
 
         # toolbar
         self.next_face_button = pn.widgets.Button(name="Next Face", button_type="default", width=100)
@@ -410,14 +435,14 @@ class NDScatterView(ViewBase):
         self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
-        # self.select_toggle_button = pn.widgets.Toggle(name="Select")
-        # self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
+        self.select_toggle_button = pn.widgets.Toggle(name="Select")
+        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
 
-        # TODO: add a lasso selection
-        # slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
+        self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)
 
         self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, sizing_mode="stretch_both",
+            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, 
+            sizing_mode="stretch_both",
             styles={"flex": "0.15"}
         )
 
@@ -433,15 +458,16 @@ class NDScatterView(ViewBase):
     def _panel_refresh(self, update_components=True, update_colors=True):
         if update_components:
             self.update_selected_components()
-        scatter_x, scatter_y, selected_scatter_x, selected_scatter_y = self.get_plotting_data()
+        scatter_x, scatter_y, _, _, spike_indices = self.get_plotting_data(return_spike_indices=True)
 
-        xs, ys, colors = [], [], []
+        xs, ys, colors, plotted_spike_indices = [], [], [], []
         for unit_id in scatter_x.keys():
             color = self.get_unit_color(unit_id)
             xs.extend(scatter_x[unit_id])
             ys.extend(scatter_y[unit_id])
             if update_colors:
                 colors.extend([color] * len(scatter_x[unit_id]))
+            plotted_spike_indices.extend(spike_indices[unit_id])
 
         if not update_colors:
             colors = self.scatter_source.data.get("color")
@@ -450,22 +476,19 @@ class NDScatterView(ViewBase):
             "x": xs,
             "y": ys,
             "color": colors,
+            "spike_indices": plotted_spike_indices
         }
-
-        self.scatter_select_source.data = {
-            "x": selected_scatter_x,
-            "y": selected_scatter_y,
-        }
-
-        # TODO: handle selection with lasso
-        # mask = np.isin(self.random_spikes_indices, self.controller.get_indices_spike_selected())
-        # selected_indices = np.flatnonzero(mask)
-        # self.scatter_source.selected.indices = selected_indices.tolist()
 
         self.scatter_fig.x_range.start = -self.limit
         self.scatter_fig.x_range.end = self.limit
         self.scatter_fig.y_range.start = -self.limit
         self.scatter_fig.y_range.end = self.limit
+
+    def _panel_on_spike_selection_changed(self):
+        # handle selection with lasso
+        plotted_spike_indices = self.scatter_source.data.get("spike_indices", [])
+        ind_selected, = np.nonzero(np.isin(plotted_spike_indices, self.controller.get_indices_spike_selected()))
+        self.scatter_source.selected.indices = ind_selected
 
     def _panel_gain_zoom(self, event):
         from bokeh.models import Range1d
@@ -501,24 +524,37 @@ class NDScatterView(ViewBase):
         else:
             self.scatter_fig.toolbar.active_drag = None
             self.scatter_source.selected.indices = []
-            # self._on_panel_lasso_selected(None, None, None)
 
+    def _on_panel_selection_geometry(self, event):
+        """
+        Handle SelectionGeometry event to capture lasso polygon vertices.
+        """
+        if event.final:
+            xs = np.array(event.geometry["x"])
+            ys = np.array(event.geometry["y"])
+            polygon = np.column_stack((xs, ys))
 
-    # TODO: Handle lasso selection and updates
-    # def _on_panel_lasso_selected(self, attr, old, new):
-    #     if len(self.scatter_source.selected.indices) == 0:
-    #         self.notify_spike_selection_changed()
-    #         self.refresh()
-    #         return
+            selected = self.scatter_source.selected.indices
 
-    #     # inside lasso and visibles
-    #     inside = self.scatter_source.selected.indices
+            if len(selected) == 0:
+                self.notify_spike_selection_changed()
+                self.refresh()
+                return
 
-    #     inds = self.random_spikes_indices[inside]
-    #     self.controller.set_indices_spike_selected(inds)
+            if len(selected) > self._current_selected:
+                self._current_selected = len(selected)
+                # Store the current polygon for the current segment
+                self._lasso_vertices.append(polygon)
+            else:
+                self._lasso_vertices = [polygon]
 
-    #     self.refresh()
-    #     self.notify_spike_selection_changed()
+            # inside lasso and visibles
+            ind_visibles, = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
+            inds = self.random_spikes_indices[ind_visibles[selected]]
+            self.controller.set_indices_spike_selected(inds)
+
+            self.notify_spike_selection_changed()
+            self.refresh()
 
 
 def inside_poly(data, vertices):

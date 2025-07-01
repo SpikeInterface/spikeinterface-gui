@@ -325,6 +325,12 @@ class Controller():
                 # assume version 2 if not present
                 if format_version is None:
                     curation_data["format_version"] = "2"
+                if curation_data.get("merges") is None:
+                    curation_data["merges"] = []
+                if curation_data.get("splits") is None:
+                    curation_data["splits"] = []
+                if curation_data.get("removed") is None:
+                    curation_data["removed"] = []
                 try:
                     validate_curation_dict(curation_data)
                     self.curation_data = curation_data
@@ -518,9 +524,14 @@ class Controller():
 
     def get_indices_spike_selected(self):
         return self._spike_selected_indices
-    
+
     def set_indices_spike_selected(self, inds):
         self._spike_selected_indices = np.array(inds)
+        if len(self._spike_selected_indices) == 1:
+            # set time info 
+            segment_index = self.spikes['segment_index'][self._spike_selected_indices[0]]
+            sample_index = self.spikes['sample_index'][self._spike_selected_indices[0]]
+            self.set_time(time=sample_index / self.sampling_frequency, segment_index=segment_index)
 
     def get_spike_indices(self, unit_id, seg_index=None):
         if seg_index is None:

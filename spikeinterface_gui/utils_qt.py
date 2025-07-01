@@ -47,12 +47,13 @@ def add_stretch_to_qtoolbar(tb):
 class ViewBoxHandlingLasso(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     lasso_drawing = QT.pyqtSignal(object)
-    lasso_finished = QT.pyqtSignal(object)
+    lasso_finished = QT.pyqtSignal(object, bool)  # Added bool parameter for shift_held
     
     def __init__(self, *args, **kwds):
         pg.ViewBox.__init__(self, *args, **kwds)
         self.drag_points = []
         self.lasso_active = False
+        self.shift_held = False
     
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
@@ -68,12 +69,14 @@ class ViewBoxHandlingLasso(pg.ViewBox):
             
             if ev.isStart():
                 self.drag_points = []
+                # Check if shift is held at the start of the drag
+                self.shift_held = ev.modifiers() == QT.Qt.ShiftModifier
             
             pos = self.mapToView(ev.pos())
             self.drag_points.append([pos.x(), pos.y()])
             
             if ev.isFinish():
-                self.lasso_finished.emit(self.drag_points)
+                self.lasso_finished.emit(self.drag_points, self.shift_held)
             else:
                 self.lasso_drawing.emit(self.drag_points)
     
@@ -123,12 +126,13 @@ class ViewBoxHandlingLassoAndGain(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     gain_zoom = QT.pyqtSignal(float)
     lasso_drawing = QT.pyqtSignal(object)
-    lasso_finished = QT.pyqtSignal(object)
+    lasso_finished = QT.pyqtSignal(object, bool)  # Added bool parameter for shift_held
     
     def __init__(self, *args, **kwds):
         pg.ViewBox.__init__(self, *args, **kwds)
         self.disableAutoRange()
         self.drag_points = []
+        self.shift_held = False
         
     def mouseClickEvent(self, ev):
         ev.accept()
@@ -152,12 +156,14 @@ class ViewBoxHandlingLassoAndGain(pg.ViewBox):
         
         if ev.isStart():
             self.drag_points = []
+            # Check if shift is held at the start of the drag
+            self.shift_held = ev.modifiers() == QT.Qt.ShiftModifier
         
         pos = self.mapToView(ev.pos())
         self.drag_points.append([pos.x(), pos.y()])
         
         if ev.isFinish():
-            self.lasso_finished.emit(self.drag_points)
+            self.lasso_finished.emit(self.drag_points, self.shift_held)
         else:
             self.lasso_drawing.emit(self.drag_points)
         

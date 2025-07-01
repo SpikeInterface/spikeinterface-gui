@@ -32,7 +32,7 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False, port=0):
 
 
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
@@ -71,7 +71,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         layout_preset='default',
         # skip_extensions=["waveforms", "principal_components", "template_similarity", "spike_amplitudes"],
         # address="10.69.168.40",
-        # port=5000,
+        port=port,
     )
     return win
 
@@ -100,9 +100,9 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    # win = test_mainwindow(start_app=True, verbose=True, curation=True)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True, port=5006)
 
-    test_launcher(verbose=True)
+    # test_launcher(verbose=True)
 
 # TO RUN with panel serve:
 # win = test_mainwindow(start_app=False, verbose=True, curation=True)
