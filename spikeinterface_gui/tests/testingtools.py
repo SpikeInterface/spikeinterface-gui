@@ -153,8 +153,8 @@ def make_curation_dict(analyzer):
             {'unit_id': unit_ids[2], "putative_type": ["exitatory"]},
             {'unit_id': unit_ids[3], "quality": ["noise"], "putative_type": ["inhibitory"]},
         ],
-        "merge_unit_groups": [unit_ids[:3], unit_ids[3:5]],
-        "removed_units": unit_ids[5:8],
+        "merges": [{"unit_ids": unit_ids[:3]}, {"unit_ids": unit_ids[3:5]}],
+        "removed": unit_ids[5:8],
     }
     return curation_dict
 

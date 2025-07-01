@@ -12,9 +12,10 @@ import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
+from spikeinterface.curation import validate_curation_dict
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
-from .curation_tools import adding_group, default_label_definitions, empty_curation_data
+from .curation_tools import add_merge, default_label_definitions, empty_curation_data
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -319,7 +320,17 @@ class Controller():
             if curation_data is None:
                 self.curation_data = empty_curation_data.copy()
             else:
-                self.curation_data = curation_data
+                # validate the curation data
+                format_version = curation_data.get("format_version", None)
+                # assume version 2 if not present
+                if format_version is None:
+                    curation_data["format_version"] = "2"
+                try:
+                    validate_curation_dict(curation_data)
+                    self.curation_data = curation_data
+                except Exception as e:
+                    print(f"Invalid curation data. Initializing with empty curation data.\nError: {e}")
+                    self.curation_data = empty_curation_data.copy()
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
@@ -699,14 +710,14 @@ class Controller():
         if not self.curation:
             return
 
-        all_merged_units = sum(self.curation_data["merge_unit_groups"], [])
+        all_merged_units = sum([m["unit_ids"] for m in self.curation_data["merges"]], [])
         for unit_id in removed_unit_ids:
-            if unit_id in self.curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed"]:
                 continue
             # TODO: check if unit is already in a merge group
             if unit_id in all_merged_units:
                 continue
-            self.curation_data["removed_units"].append(unit_id)
+            self.curation_data["removed"].append(unit_id)
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
     
@@ -718,10 +729,10 @@ class Controller():
             return
 
         for unit_id in restore_unit_ids:
-            if unit_id in self.curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed"]:
                 if self.verbose:
                     print(f"Unit {unit_id} is restored from the curation data")
-                self.curation_data["removed_units"].remove(unit_id)
+                self.curation_data["removed"].remove(unit_id)
 
     def make_manual_merge_if_possible(self, merge_unit_ids):
         """
@@ -740,22 +751,22 @@ class Controller():
             return False
 
         for unit_id in merge_unit_ids:
-            if unit_id in self.curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed"]:
                 return False
-        merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
-        self.curation_data["merge_unit_groups"] = merged_groups
+
+        new_merges = add_merge(self.curation_data["merges"], merge_unit_ids)
+        self.curation_data["merges"] = new_merges
         if self.verbose:
-            print(f"Merged unit group: {merge_unit_ids}")
+            print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
     
     def make_manual_restore_merge(self, merge_group_indices):
         if not self.curation:
             return
-        merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
-        for merge_group in merge_groups_to_remove:
+        for merge_index in merge_group_indices:
             if self.verbose:
-                print(f"Unmerged merge group {merge_group}")
-            self.curation_data["merge_unit_groups"].remove(merge_group)
+                print(f"Unmerged merge group {self.curation_data['merge_unit_groups'][merge_index]['unit_ids']}")
+            self.curation_data["merges"].pop(merge_index)
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive
