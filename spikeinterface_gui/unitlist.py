@@ -188,10 +188,17 @@ class UnitListView(ViewBase):
         
 
     def _qt_set_default_label(self, label):
+
         selected_unit_ids = self.get_selected_unit_ids()
         for unit_id in selected_unit_ids:
             self.controller.set_label_to_unit(unit_id, "quality", label)
-        self._qt_full_table_refresh()
+
+        selected_rows = self._qt_get_selected_rows()
+        for row in selected_rows:
+            curation_label = self.table.item(row, self.label_columns[0])
+            curation_label.setText(label)
+        
+        self._qt_on_only_next_shortcut()
 
     def _qt_full_table_refresh(self):
         # TODO sam make this faster
