@@ -75,7 +75,7 @@ class UnitListView(ViewBase):
         self.table.itemChanged.connect(self._qt_on_item_changed)
         self.table.cellDoubleClicked.connect(self._qt_on_double_clicked)
         self.shortcut_visible = QT.QShortcut(self.qt_widget)
-        self.shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
+        self.shortcut_visible.setKey(QT.QKeySequence(QT.Key.Key_Space))
         self.shortcut_visible.activated.connect(self.on_visible_shortcut)
         
         # Enable column dragging
@@ -93,11 +93,11 @@ class UnitListView(ViewBase):
         act.triggered.connect(self.hide_all)
 
         self.shortcut_only_previous = QT.QShortcut(self.qt_widget)
-        self.shortcut_only_previous.setKey(QT.QKeySequence(QT.CTRL | QT.Key_Up))
+        self.shortcut_only_previous.setKey(QT.QKeySequence(QT.KeyboardModifier.ControlModifier | QT.Key.Key_Up))
         self.shortcut_only_previous.activated.connect(self._qt_on_only_previous_shortcut)
 
         self.shortcut_only_next = QT.QShortcut(self.qt_widget)
-        self.shortcut_only_next.setKey(QT.QKeySequence(QT.CTRL | QT.Key_Down))
+        self.shortcut_only_next.setKey(QT.QKeySequence(QT.KeyboardModifier.ControlModifier | QT.Key.Key_Down))
         self.shortcut_only_next.activated.connect(self._qt_on_only_next_shortcut)
         
         if self.controller.curation:
@@ -158,10 +158,10 @@ class UnitListView(ViewBase):
         
         for unit_id in self.controller.unit_ids:
             item = self.items_visibility[unit_id]
-            item.setCheckState(QT.Qt.Unchecked)
+            item.setCheckState(QT.CheckState.Unchecked)
         for unit_id in self.controller.get_visible_unit_ids():
             item = self.items_visibility[unit_id]
-            item.setCheckState(QT.Qt.Checked)
+            item.setCheckState(QT.CheckState.Checked)
         self._qt_refresh_color_icons()
 
     def _qt_refresh_color_icons(self):
@@ -233,10 +233,10 @@ class UnitListView(ViewBase):
         self.table.setColumnCount(len(column_labels))
         self.table.setHorizontalHeaderLabels(column_labels)
 
-        self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
+        self.table.setContextMenuPolicy(QT.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._qt_on_open_context_menu)
-        self.table.setSelectionMode(QT.QAbstractItemView.ExtendedSelection)
-        self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QT.QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.table.setSelectionBehavior(QT.QAbstractItemView.SelectionBehavior.SelectRows)
 
         unit_ids = self.controller.unit_ids
         
@@ -257,15 +257,15 @@ class UnitListView(ViewBase):
             
             # item = QT.QTableWidgetItem( f'{unit_id}')
             item = CustomItemUnitID(unit_ids, f'{unit_id}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.ItemFlag.ItemIsEnabled|QT.ItemFlag.ItemIsSelectable)
             self.table.setItem(i,0, item)
             item.setIcon(icon)
             self.items_icon[unit_id] = item
             
             item = OrderableCheckItem('')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable|QT.Qt.ItemIsUserCheckable)
+            item.setFlags(QT.ItemFlag.ItemIsEnabled|QT.ItemFlag.ItemIsSelectable|QT.ItemFlag.ItemIsUserCheckable)
             
-            item.setCheckState({ False: QT.Qt.Unchecked, True : QT.Qt.Checked}[unit_id in visible_unit_ids])
+            item.setCheckState({ False: QT.CheckState.Unchecked, True : QT.CheckState.Checked}[unit_id in visible_unit_ids])
             self.table.setItem(i,1, item)
             item.unit_id = unit_id
             self.items_visibility[unit_id] = item
@@ -273,12 +273,12 @@ class UnitListView(ViewBase):
             channel_index = self.controller.get_extremum_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
             item = CustomItem(f'{channel_id}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.ItemFlag.ItemIsEnabled|QT.ItemFlag.ItemIsSelectable)
             self.table.setItem(i, 2, item)
             
             num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
             item = CustomItem(f'{num_chan}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.ItemFlag.ItemIsEnabled|QT.ItemFlag.ItemIsSelectable)
             self.table.setItem(i, 3, item)
 
             n_first = len(internal_column_names)

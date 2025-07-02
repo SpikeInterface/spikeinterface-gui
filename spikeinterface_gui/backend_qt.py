@@ -347,11 +347,11 @@ class ViewWidget(QT.QWidget):
         
 
 areas = {
-    'right' : QT.Qt.RightDockWidgetArea,
-    'left' : QT.Qt.LeftDockWidgetArea,
+    'right' : QT.Qt.DockWidgetArea.RightDockWidgetArea,
+    'left' : QT.Qt.DockWidgetArea.LeftDockWidgetArea,
 }
 
 orientations = {
-    'horizontal' : QT.Qt.Horizontal,
-    'vertical' : QT.Qt.Vertical,
+    'horizontal' : QT.Qt.Orientation.Horizontal,
+    'vertical' : QT.Qt.Orientation.Vertical,
 }

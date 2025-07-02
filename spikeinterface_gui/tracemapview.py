@@ -141,7 +141,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.plot.addItem(self.scatter)
 
 
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
+        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Orientation.Horizontal)
         g.addWidget(self.scroll_time, 1,1)
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
