@@ -231,7 +231,12 @@ class Controller():
         self.refresh_colors()
 
         # at init, we set the visible channels as the sparsity of the first unit
-        self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
+        if self.analyzer_sparsity is not None:
+            self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
+        else:
+            # if no sparsity, then all channels are visible
+            assert self.external_sparsity is not None, "No sparsity found"
+            self.visible_channel_inds = self.external_sparsity.mask[0].astype("int64")
 
         t0 = time.perf_counter()
         
