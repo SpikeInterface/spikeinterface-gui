@@ -236,7 +236,7 @@ class Controller():
         else:
             # if no sparsity, then all channels are visible
             assert self.external_sparsity is not None, "No sparsity found"
-            self.visible_channel_inds = np.flatnonzero(self.external_sparsity.mask[0])```
+            self.visible_channel_inds = np.flatnonzero(self.external_sparsity.mask[0])
 
         t0 = time.perf_counter()
         
