@@ -63,12 +63,12 @@ class CurationView(ViewBase):
         v = QT.QVBoxLayout()
         h.addLayout(v)
         v.addWidget(QT.QLabel("<b>Merges</b>"))
-        self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SelectionMode.SingleSelection,
+                                     selectionBehavior=QT.QAbstractItemView.SelectionBehavior.SelectRows)
         # self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         v.addWidget(self.table_merge)
 
-        self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
+        self.table_merge.setContextMenuPolicy(QT.ContextMenuPolicy.CustomContextMenu)
         self.table_merge.customContextMenuRequested.connect(self._qt_open_context_menu_merge)
         self.table_merge.itemSelectionChanged.connect(self._qt_on_item_selection_changed_merge)
 
@@ -83,10 +83,10 @@ class CurationView(ViewBase):
         v = QT.QVBoxLayout()
         h.addLayout(v)
         v.addWidget(QT.QLabel("<b>Deleted</b>"))
-        self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SelectionMode.SingleSelection,
+                                     selectionBehavior=QT.QAbstractItemView.SelectionBehavior.SelectRows)
         v.addWidget(self.table_delete)
-        self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
+        self.table_delete.setContextMenuPolicy(QT.ContextMenuPolicy.CustomContextMenu)
         self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
         self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
 
@@ -109,7 +109,7 @@ class CurationView(ViewBase):
         self.table_merge.setSortingEnabled(False)
         for ix, group in enumerate(merged_units):
             item = QT.QTableWidgetItem(str(group))
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.ItemFlag.ItemIsEnabled|QT.ItemFlag.ItemIsSelectable)
             self.table_merge.setItem(ix, 0, item)
         for i in range(self.table_merge.columnCount()):
             self.table_merge.resizeColumnToContents(i)
@@ -127,7 +127,7 @@ class CurationView(ViewBase):
             pix.fill(color)
             icon = QT.QIcon(pix)
             item = QT.QTableWidgetItem( f'{unit_id}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.ItemFlag.ItemIsEnabled|QT.ItemFlag.ItemIsSelectable)
             self.table_delete.setItem(i,0, item)
             item.setIcon(icon)
             item.unit_id = unit_id
