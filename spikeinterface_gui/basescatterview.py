@@ -31,7 +31,6 @@ class BaseScatterView(ViewBase):
         self._max_count = None
         self._lasso_vertices = {segment_index: [] for segment_index in range(controller.num_segments)}
         # this is used in panel
-        self._current_polygon = None  # Used to store the current lasso polygon in panel mode
         self._current_selected = 0
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
@@ -86,21 +85,29 @@ class BaseScatterView(ViewBase):
 
         fs = self.controller.sampling_frequency
         indices = []
+        offset = 0
         for segment_index, vertices in self._lasso_vertices.items():
-            inds = self.controller.get_spike_indices(visible_unit_id, seg_index=segment_index)
-            spike_times = self.controller.spikes["sample_index"][inds] / fs
-            spike_data = self.spike_data[inds]
+            spike_inds = self.controller.get_spike_indices(visible_unit_id, seg_index=segment_index)
+            spike_times = self.controller.spikes["sample_index"][spike_inds] / fs
+            spike_data = self.spike_data[spike_inds]
+
+            # spike inds within spike train
+            inds = np.arange(offset, offset + len(spike_inds), dtype=int)
+
             points = np.column_stack((spike_times, spike_data))
+            indices_in_segment = []
             for polygon in vertices:
                 # Check if points are inside the polygon
                 inside = mpl_path(polygon).contains_points(points)
                 if np.any(inside):
                     # If any point is inside, we can proceed with the split
-                    indices.extend(inds[inside])
+                    indices_in_segment.extend(inds[inside])
+            indices.extend(indices_in_segment)
+            offset += len(spike_inds)
 
         # Create a dictionary to hold the split data
         new_split = {
-            "unit_ids": visible_unit_id,
+            "unit_id": visible_unit_id,
             "mode": "indices",
             "indices": np.array(indices, dtype=int)
         }
@@ -108,12 +115,14 @@ class BaseScatterView(ViewBase):
         
         # Clear the lasso vertices after splitting
         self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
-        self.controller.set_indices_spike_selected([])
         self.refresh()
-        self.notify_spike_selection_changed()
         self.notify_manual_curation_updated()
-        print(self.controller.curation_data["splits"])
+        
 
+    def on_unit_visibility_changed(self):
+        self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
+        self._current_selected = 0
+        self.refresh()
 
     ## QT zone ##
     def _qt_make_layout(self):
@@ -129,8 +138,11 @@ class BaseScatterView(ViewBase):
         self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
         self.combo_seg.currentIndexChanged.connect(self.refresh)
         add_stretch_to_qtoolbar(tb)
+        if self.controller.curation:
+            self.split_but = QT.QPushButton("Split")
+            tb.addWidget(self.split_but)
+            self.split_but.clicked.connect(self.split)
         self.lasso_but = QT.QPushButton("select", checkable = True)
-
         tb.addWidget(self.lasso_but)
         self.lasso_but.clicked.connect(self.enable_disable_lasso)
         
@@ -139,7 +151,6 @@ class BaseScatterView(ViewBase):
         
         self.graphicsview = pg.GraphicsView()
         h.addWidget(self.graphicsview, 3)
-
         self.graphicsview2 = pg.GraphicsView()
         h.addWidget(self.graphicsview2, 1)
 
@@ -216,7 +227,7 @@ class BaseScatterView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         self._max_count = max_count
-        seg_index =  self.combo_seg.currentIndex()
+        seg_index = self.combo_seg.currentIndex()
         time_max = self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
 
         self.plot.setXRange( 0., time_max, padding = 0.0)
@@ -274,15 +285,10 @@ class BaseScatterView(ViewBase):
             # If shift is not held, clear the existing lasso vertices for this segment
             self._lasso_vertices[seg_index] = [vertices]
 
-        print(f"Lasso selection for segment {seg_index} has {self._lasso_vertices[seg_index]} polygons.")
+        print(f"Lasso selection for segment {seg_index} has {len(self._lasso_vertices[seg_index])} polygons.")
         
         # Handle selection based on whether shift is held
-        if not np.any(inside):
-            # No spikes inside lasso
-            if not shift_held:
-                # Clear selection if shift not held
-                self.controller.set_indices_spike_selected([])
-        else:
+        if np.any(inside):
             # Map back to original indices
             visible_indices = np.nonzero(visible_mask)[0]
             new_selected_indices = sl.start + visible_indices[inside]
@@ -298,7 +304,6 @@ class BaseScatterView(ViewBase):
         
         self.refresh()
         self.notify_spike_selection_changed()
-
 
 
     ## Panel zone ##
@@ -373,6 +378,13 @@ class BaseScatterView(ViewBase):
         toolbar_elements = [self.segment_selector, self.select_toggle_button]
         if self.controller.curation:
             toolbar_elements.append(self.split_button)
+
+        if self.controller.curation:
+            from .utils_panel import KeyboardShortcut, KeyboardShortcuts
+            shortcuts = [KeyboardShortcut(key="s", name="split", ctrlKey=True)]
+            shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+            shortcuts_component.on_msg(self._panel_handle_shortcut)
+            toolbar_elements.append(shortcuts_component)
 
         self.layout = pn.Column(
             pn.Row(*toolbar_elements, sizing_mode="stretch_width"),
@@ -463,6 +475,7 @@ class BaseScatterView(ViewBase):
             self.scatter_source.selected.indices = []
 
     def _panel_change_segment(self, event):
+        self._current_selected = 0
         self.segment_index = int(self.segment_selector.value.split()[-1])
         time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
         self.scatter_fig.x_range.end = time_max
@@ -505,7 +518,9 @@ class BaseScatterView(ViewBase):
             # Map back to original indices
             visible_indices = np.nonzero(visible_mask)[0]
             selected_indices = sl.start + visible_indices[selected]
-            self.controller.set_indices_spike_selected(selected_indices)
+            already_selected = self.controller.get_indices_spike_selected()
+            all_selected = np.concatenate([already_selected, selected_indices])
+            self.controller.set_indices_spike_selected(all_selected)
             self.notify_spike_selection_changed()
 
     def _panel_split(self, event):
@@ -513,43 +528,6 @@ class BaseScatterView(ViewBase):
         Handle split button click in panel mode.
         """
         self.split()
-
-    # def _on_panel_lasso_selected(self, attr, old, new):
-    #     """
-    #     Handle selection changes in the scatter plot.
-    #     """
-    #     if self.select_toggle_button.value:
-    #         print("Lasso selection triggered")
-    #         selected = self.scatter_source.selected.indices
-    #         if len(selected) == 0:
-    #             self.controller.set_indices_spike_selected([])
-    #             self.notify_spike_selection_changed()
-    #             return
-    #         # Append the current polygon to the lasso vertices if shift is held
-    #         if len(selected) > self._current_selected:
-    #             self._current_selected = len(selected)
-    #             if self._current_polygon is not None:
-    #                 # Store the current polygon for the current segment
-    #                 seg_index = self.segment_index
-    #                 self._lasso_vertices[seg_index].append(self._current_polygon)
-    #         else:
-    #             self._lasso_vertices[seg_index] = [self._current_polygon]
-    #         print(f"Lasso selection for segment {self.segment_index} has {len(self._lasso_vertices[self.segment_index])} polygons.")
-
-    #         # Map back to original indices
-    #         sl = self.controller.segment_slices[self.segment_index]
-    #         spikes_in_seg = self.controller.spikes[sl]
-    #         # Create mask for visible units
-    #         visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-    #         for unit_index, unit_id in self.controller.iter_visible_units():
-    #             visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
-            
-    #         # Map back to original indices
-    #         visible_indices = np.nonzero(visible_mask)[0]
-    #         selected_indices = sl.start + visible_indices[selected]
-    #         self.controller.set_indices_spike_selected(selected_indices)
-    #         self.notify_spike_selection_changed()
-
 
     def _panel_update_selected_spikes(self):
         # handle selected spikes
@@ -564,7 +542,7 @@ class BaseScatterView(ViewBase):
             visible_indices = sl.start + np.nonzero(visible_mask)[0]
             selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
             # set selected spikes in scatter plot
-            if self.settings["auto_decimate"]:
+            if self.settings["auto_decimate"] and len(selected_indices) > 0:
                 selected_indices, = np.nonzero(np.isin(self.plotted_inds, selected_spike_indices))
             self.scatter_source.selected.indices = list(selected_indices)
         else:
@@ -584,3 +562,7 @@ class BaseScatterView(ViewBase):
                 self._panel_change_segment(None)
         # update selected spikes
         self._panel_update_selected_spikes()
+
+    def _panel_handle_shortcut(self, event):
+        if event.data == "split":
+            self.split()

@@ -261,13 +261,14 @@ class Controller():
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         # this is dict of list because per segment spike_indices[segment_index][unit_id]
+        spike_indices_abs = spike_vector_to_indices(spike_vector2, unit_ids, absolute_index=True)
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
         spike_per_seg = [s.size for s in spike_vector2]
         # dict[unit_id] -> all indices for this unit across segments
         self._spike_index_by_units = {}
         # dict[seg_index][unit_id] -> all indices for this unit for one segment
-        self._spike_index_by_segment_and_units = spike_indices
+        self._spike_index_by_segment_and_units = spike_indices_abs
         for unit_id in unit_ids:
             inds = []
             for seg_ind in range(num_seg):
@@ -354,6 +355,8 @@ class Controller():
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
+        # this is used to store the active split unit
+        self.active_split = None
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -459,6 +462,13 @@ class Controller():
         if len(visible_unit_ids) > lim:
             visible_unit_ids = visible_unit_ids[:lim]
         self._visible_unit_ids = list(visible_unit_ids)
+        self.active_split = None
+        if len(visible_unit_ids) == 1 and self.curation:
+            # check if unit is split
+            for split in self.curation_data['splits']:
+                if visible_unit_ids[0] == split['unit_id']:
+                    self.active_split = split
+                    break
 
     def get_visible_unit_ids(self):
         """Get list of visible unit_ids"""
@@ -523,6 +533,12 @@ class Controller():
         return self._spike_visible_indices
 
     def get_indices_spike_selected(self):
+        if self.active_split is not None:
+            # select the splitted spikes in the active split
+            split_unit_id = self.active_split['unit_id']
+            spike_inds = self.get_spike_indices(split_unit_id, seg_index=None)
+            split_indices = self.active_split['indices']
+            self._spike_selected_indices = np.array(spike_inds[split_indices], dtype='int64')
         return self._spike_selected_indices
 
     def set_indices_spike_selected(self, inds):
@@ -771,13 +787,38 @@ class Controller():
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
     
-    def make_manual_restore_merge(self, merge_group_indices):
+    def make_manual_restore_merge(self, merge_indices):
         if not self.curation:
             return
-        for merge_index in merge_group_indices:
+        for merge_index in merge_indices:
             if self.verbose:
-                print(f"Unmerged merge group {self.curation_data['merge_unit_groups'][merge_index]['unit_ids']}")
+                print(f"Unmerged {self.curation_data['merges'][merge_index]['unit_ids']}")
             self.curation_data["merges"].pop(merge_index)
+
+    def make_manual_restore_split(self, split_indices):
+        if not self.curation:
+            return
+        for split_index in split_indices:
+            if self.verbose:
+                print(f"Unsplitting {self.curation_data['splits'][split_index]['unit_id']}")
+            self.curation_data["splits"].pop(split_index)
+
+    def set_active_split_unit(self, unit_id):
+        """
+        Set the active split unit_id.
+        This is used to set the label for the split unit.
+        """
+        if not self.curation:
+            return
+        if unit_id is None:
+            self.active_split = None
+        else:
+            if unit_id in self.curation_data["removed"]:
+                print(f"Unit {unit_id} is removed, cannot set as active split unit")
+                return
+            active_split = [s for s in self.curation_data["splits"] if s["unit_id"] == unit_id]
+            if len(active_split) == 1:
+                self.active_split = active_split[0]
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive

@@ -28,13 +28,23 @@ class CurationView(ViewBase):
             self.notify_manual_curation_updated()
             self.refresh()
 
-    def unmerge_groups(self):
+    def unmerge(self):
         if self.backend == 'qt':
             merge_indices = self._qt_get_merge_table_row()
         else:
             merge_indices = self._panel_get_merge_table_row()
         if merge_indices is not None:
             self.controller.make_manual_restore_merge(merge_indices)
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+    def unsplit(self):
+        if self.backend == 'qt':
+            split_indices = self._qt_get_split_table_row()
+        else:
+            split_indices = self._panel_get_split_table_row()
+        if split_indices is not None:
+            self.controller.make_manual_restore_split(split_indices)
             self.notify_manual_curation_updated()
             self.refresh()
 
@@ -60,6 +70,26 @@ class CurationView(ViewBase):
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
 
+
+        v = QT.QVBoxLayout()
+        h.addLayout(v)
+        v.addWidget(QT.QLabel("<b>Deleted</b>"))
+        self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
+                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        v.addWidget(self.table_delete)
+        self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
+        self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
+        self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
+
+
+
+        self.delete_menu = QT.QMenu()
+        act = self.delete_menu.addAction('Restore')
+        act.triggered.connect(self.restore_units)
+        shortcut_restore = QT.QShortcut(self.qt_widget)
+        shortcut_restore.setKey(QT.QKeySequence("ctrl+r"))
+        shortcut_restore.activated.connect(self.restore_units)
+
         v = QT.QVBoxLayout()
         h.addLayout(v)
         v.addWidget(QT.QLabel("<b>Merges</b>"))
@@ -73,30 +103,27 @@ class CurationView(ViewBase):
         self.table_merge.itemSelectionChanged.connect(self._qt_on_item_selection_changed_merge)
 
         self.merge_menu = QT.QMenu()
-        act = self.merge_menu.addAction('Remove merge group')
-        act.triggered.connect(self.unmerge_groups)
+        act = self.merge_menu.addAction('Remove merge')
+        act.triggered.connect(self.unmerge)
         shortcut_unmerge = QT.QShortcut(self.qt_widget)
         shortcut_unmerge.setKey(QT.QKeySequence("ctrl+u"))
-        shortcut_unmerge.activated.connect(self.unmerge_groups)
-
+        shortcut_unmerge.activated.connect(self.unmerge)
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        v.addWidget(QT.QLabel("<b>Deleted</b>"))
-        self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
+        v.addWidget(QT.QLabel("<b>Splits</b>"))
+        self.table_split = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
-        v.addWidget(self.table_delete)
-        self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
-        self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
-        self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
-
-
-        self.delete_menu = QT.QMenu()
-        act = self.delete_menu.addAction('Restore')
-        act.triggered.connect(self.restore_units)
-        shortcut_restore = QT.QShortcut(self.qt_widget)
-        shortcut_restore.setKey(QT.QKeySequence("ctrl+r"))
-        shortcut_restore.activated.connect(self.restore_units)
+        v.addWidget(self.table_split)
+        self.table_split.setContextMenuPolicy(QT.Qt.CustomContextMenu)
+        self.table_split.customContextMenuRequested.connect(self._qt_open_context_menu_split)
+        self.table_split.itemSelectionChanged.connect(self._qt_on_item_selection_changed_split)
+        self.split_menu = QT.QMenu()
+        act = self.split_menu.addAction('Remove split')
+        act.triggered.connect(self.unsplit)
+        shortcut_unsplit = QT.QShortcut(self.qt_widget)
+        shortcut_unsplit.setKey(QT.QKeySequence("ctrl+x"))
+        shortcut_unsplit.activated.connect(self.unsplit)
 
     def _qt_refresh(self):
         from .myqt import QT
@@ -114,7 +141,7 @@ class CurationView(ViewBase):
         for i in range(self.table_merge.columnCount()):
             self.table_merge.resizeColumnToContents(i)
 
-        ## deleted        
+        # Removed      
         removed_units = self.controller.curation_data["removed"]
         self.table_delete.clear()
         self.table_delete.setRowCount(len(removed_units))
@@ -133,6 +160,24 @@ class CurationView(ViewBase):
             item.unit_id = unit_id
         self.table_delete.resizeColumnToContents(0)
 
+        # Splits
+        splits = self.controller.curation_data["splits"]
+        self.table_split.clear()
+        self.table_split.setRowCount(len(splits))
+        self.table_split.setColumnCount(1)
+        self.table_split.setHorizontalHeaderLabels(["Split units"])
+        self.table_split.setSortingEnabled(False)
+        for i, split in enumerate(splits):
+            unit_id = split["unit_id"]
+            num_indices = len(split["indices"])
+            num_spikes = self.controller.num_spikes[unit_id]
+            num_splits = f"({num_indices}-{num_spikes - num_indices})"
+            item = QT.QTableWidgetItem(f"{unit_id} {num_splits}")
+            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            self.table_split.setItem(i, 0, item)
+            item.unit_id = unit_id
+        self.table_split.resizeColumnToContents(0)
+
 
 
     def _qt_get_delete_table_selection(self):
@@ -148,12 +193,22 @@ class CurationView(ViewBase):
             return None
         else:
             return [s.row() for s in selected_items]
+    
+    def _qt_get_split_table_row(self):
+        selected_items = self.table_split.selectedItems()
+        if len(selected_items) == 0:
+            return None
+        else:
+            return [s.row() for s in selected_items]
 
     def _qt_open_context_menu_delete(self):
         self.delete_menu.popup(self.qt_widget.cursor().pos())
 
     def _qt_open_context_menu_merge(self):
         self.merge_menu.popup(self.qt_widget.cursor().pos())
+
+    def _qt_open_context_menu_split(self):
+        self.split_menu.popup(self.qt_widget.cursor().pos())
     
     def _qt_on_item_selection_changed_merge(self):
         if len(self.table_merge.selectedIndexes()) == 0:
@@ -164,6 +219,18 @@ class CurationView(ViewBase):
         visible_unit_ids = [m["unit_ids"] for m in self.controller.curation_data["merges"]][ind]
         visible_unit_ids = [dtype.type(unit_id) for unit_id in visible_unit_ids]
         self.controller.set_visible_unit_ids(visible_unit_ids)
+        self.notify_unit_visibility_changed()
+
+    def _qt_on_item_selection_changed_split(self):
+        if len(self.table_split.selectedIndexes()) == 0:
+            return
+
+        dtype = self.controller.unit_ids.dtype
+        ind = self.table_split.selectedIndexes()[0].row()
+        split_unit_str = self.table_split.item(ind, 0).text()
+        split_unit_id = dtype.type(split_unit_str.split(" ")[0])
+        self.controller.set_visible_unit_ids([split_unit_id])
+        self.controller.set_active_split_unit(split_unit_id)
         self.notify_unit_visibility_changed()
 
     def _qt_on_item_selection_changed_delete(self):
@@ -216,39 +283,56 @@ class CurationView(ViewBase):
         pn.extension("tabulator")
 
         # Create dataframe
-        merge_df = pd.DataFrame({"merge_groups": []})
-        delete_df = pd.DataFrame({"deleted_unit_id": []})
+        delete_df = pd.DataFrame({"removed": []})
+        merge_df = pd.DataFrame({"merges": []})
+        split_df = pd.DataFrame({"splits": []})        
 
         # Create tables
-        self.table_merge = SelectableTabulator(
-            merge_df,
-            show_index=False,
-            disabled=True,
-            sortable=False,
-            formatters={"merge_groups": "plaintext"},
-            sizing_mode="stretch_width",
-            # SelectableTabulator functions
-            parent_view=self,
-            # refresh_table_function=self.refresh,
-            conditional_shortcut=self._conditional_refresh_merge,
-            column_callbacks={"merge_groups": self._panel_on_merged_col},
-        )
         self.table_delete = SelectableTabulator(
             delete_df,
             show_index=False,
             disabled=True,
             sortable=False,
-            formatters={"deleted_unit_id": "plaintext"},
+            formatters={"removed": "plaintext"},
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
             # refresh_table_function=self.refresh,
             conditional_shortcut=self._conditional_refresh_delete,
-            column_callbacks={"deleted_unit_id": self._panel_on_deleted_col},
+            column_callbacks={"removed": self._panel_on_deleted_col},
+        )
+        self.table_merge = SelectableTabulator(
+            merge_df,
+            show_index=False,
+            disabled=True,
+            sortable=False,
+            selectable=1,
+            formatters={"merges": "plaintext"},
+            sizing_mode="stretch_width",
+            # SelectableTabulator functions
+            parent_view=self,
+            # refresh_table_function=self.refresh,
+            conditional_shortcut=self._conditional_refresh_merge,
+            column_callbacks={"merges": self._panel_on_merged_col},
+        )
+        self.table_split = SelectableTabulator(
+            split_df,
+            show_index=False,
+            disabled=True,
+            sortable=False,
+            selectable=1,
+            formatters={"splits": "plaintext"},
+            sizing_mode="stretch_width",
+            # SelectableTabulator functions
+            parent_view=self,
+            # refresh_table_function=self.refresh,
+            conditional_shortcut=self._conditional_refresh_split,
+            column_callbacks={"splits": self._panel_on_split_col},
         )
 
         self.table_delete.param.watch(self._panel_update_unit_visibility, "selection")
         self.table_merge.param.watch(self._panel_update_unit_visibility, "selection")
+        self.table_split.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
         save_button = pn.widgets.Button(
@@ -277,7 +361,7 @@ class CurationView(ViewBase):
             button_type="primary",
             height=30
         )
-        remove_merge_button.on_click(self._panel_unmerge_groups)
+        remove_merge_button.on_click(self._panel_unmerge)
 
         submit_button = pn.widgets.Button(
             name="Submit to parent", 
@@ -306,12 +390,14 @@ class CurationView(ViewBase):
         shortcuts = [
             KeyboardShortcut(name="restore", key="r", ctrlKey=True),
             KeyboardShortcut(name="unmerge", key="u", ctrlKey=True),
+            KeyboardShortcut(name="unsplit", key="x", ctrlKey=True),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         # Create main layout with proper sizing
-        sections = pn.Row(self.table_merge, self.table_delete, sizing_mode="stretch_width")
+        sections = pn.Row(self.table_delete, self.table_merge, self.table_split,
+                          sizing_mode="stretch_width")
         self.layout = pn.Column(
             save_sections,
             buttons_curate,
@@ -331,47 +417,66 @@ class CurationView(ViewBase):
 
     def _panel_refresh(self):
         import pandas as pd
+
+        ## deleted        
+        removed_units = self.controller.curation_data["removed"]
+        removed_units = [str(unit_id) for unit_id in removed_units]
+        df = pd.DataFrame({"removed": removed_units})
+        self.table_delete.value = df
+        self.table_delete.selection = []
+
         # Merged
         merged_units = [m["unit_ids"] for m in self.controller.curation_data["merges"]]
-
         # for visualization, we make all row entries strings
         merged_units_str = []
         for group in merged_units:
             # convert to string
             group = [str(unit_id) for unit_id in group]
             merged_units_str.append(" - ".join(group))
-        df = pd.DataFrame({"merge_groups": merged_units_str})
+        df = pd.DataFrame({"merges": merged_units_str})
         self.table_merge.value = df
         self.table_merge.selection = []
 
-        ## deleted        
-        removed_units = self.controller.curation_data["removed"]
-        removed_units = [str(unit_id) for unit_id in removed_units]
-        df = pd.DataFrame({"deleted_unit_id": removed_units})
-        self.table_delete.value = df
-        self.table_delete.selection = []
+        # Splits
+        split_units_str = []
+        num_spikes = self.controller.num_spikes
+        for split in self.controller.curation_data["splits"]:
+            unit_id = split["unit_id"]
+            num_indices = len(split["indices"])
+            num_splits = f"({num_indices}-{num_spikes[unit_id] - num_indices})"
+            split_units_str.append(f"{unit_id} {num_splits}")
+        df = pd.DataFrame({"splits": split_units_str})
+        self.table_split.value = df
+        self.table_split.selection = []
 
     def _panel_update_unit_visibility(self, event):
         unit_dtype = self.controller.unit_ids.dtype
         if self.active_table == "delete":
-            visible_unit_ids = self.table_delete.value["deleted_unit_id"].values[self.table_delete.selection].tolist()
+            visible_unit_ids = self.table_delete.value["removed"].values[self.table_delete.selection].tolist()
             visible_unit_ids = [unit_dtype.type(unit_id) for unit_id in visible_unit_ids]
             self.controller.set_visible_unit_ids(visible_unit_ids)
         elif self.active_table == "merge":
-            merge_groups = self.table_merge.value["merge_groups"].values[self.table_merge.selection].tolist()
+            merge_groups = self.table_merge.value["merges"].values[self.table_merge.selection].tolist()
             # self.controller.set_all_unit_visibility_off()
             visible_unit_ids = []
             for merge_group in merge_groups:
                 merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(" - ")]
                 visible_unit_ids.extend(merge_unit_ids)
             self.controller.set_visible_unit_ids(visible_unit_ids)
+        elif self.active_table == "split":
+            split_unit_str = self.table_split.value["splits"].values[self.table_split.selection].tolist()[0]
+            split_unit = split_unit_str.split(" ")[0]
+            # self.controller.set_all_unit_visibility_off()
+            split_unit = unit_dtype.type(split_unit)
+            self.controller.set_visible_unit_ids([split_unit])
+            self.controller.set_active_split_unit(split_unit)
         self.notify_unit_visibility_changed()
 
     def _panel_restore_units(self, event):
         self.restore_units()
 
-    def _panel_unmerge_groups(self, event):
-        self.unmerge_groups()
+    def _panel_unmerge(self, event):
+        self.unmerge()
 
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()
@@ -392,10 +497,17 @@ class CurationView(ViewBase):
         if len(selected_items) == 0:
             return None
         else:
-            return self.table_delete.value["deleted_unit_id"].values[selected_items].tolist()
+            return self.table_delete.value["removed"].values[selected_items].tolist()
 
     def _panel_get_merge_table_row(self):
         selected_items = self.table_merge.selection
+        if len(selected_items) == 0:
+            return None
+        else:
+            return selected_items
+
+    def _panel_get_split_table_row(self):
+        selected_items = self.table_split.selection
         if len(selected_items) == 0:
             return None
         else:
@@ -405,7 +517,9 @@ class CurationView(ViewBase):
         if event.data == "restore":
             self.restore_units()
         elif event.data == "unmerge":
-            self.unmerge_groups()
+            self.unmerge()
+        elif event.data == "unsplit":
+            pass
 
     def _panel_submit_to_parent(self, event):
         """Send the curation data to the parent window"""
@@ -441,10 +555,17 @@ class CurationView(ViewBase):
     def _panel_on_deleted_col(self, row):
         self.active_table = "delete"
         self.table_merge.selection = []
+        self.table_split.selection = []
 
     def _panel_on_merged_col(self, row):
         self.active_table = "merge"
         self.table_delete.selection = []
+        self.table_split.selection = []
+
+    def _panel_on_split_col(self, row):
+        self.active_table = "split"
+        self.table_delete.selection = []
+        self.table_merge.selection = []
 
     def _conditional_refresh_merge(self):
         # Check if the view is active before refreshing
@@ -456,6 +577,13 @@ class CurationView(ViewBase):
     def _conditional_refresh_delete(self):
         # Check if the view is active before refreshing
         if self.is_view_active() and self.active_table == "delete":
+            return True
+        else:
+            return False
+
+    def _conditional_refresh_split(self):
+        # Check if the view is active before refreshing
+        if self.is_view_active() and self.active_table == "split":
             return True
         else:
             return False
