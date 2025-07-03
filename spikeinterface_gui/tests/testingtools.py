@@ -137,6 +137,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
 def make_curation_dict(analyzer):
     unit_ids = analyzer.unit_ids.tolist()
     curation_dict = {
+        "format_version": "2",
         "unit_ids": unit_ids,
         "label_definitions": {
             "quality":{

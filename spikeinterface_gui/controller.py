@@ -324,7 +324,7 @@ class Controller():
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
                 if format_version is None:
-                    curation_data["format_version"] = "2"
+                    raise ValueError("Curation data format version is missing and is required in the curation data.")
                 try:
                     validate_curation_dict(curation_data)
                     self.curation_data = curation_data
@@ -679,7 +679,7 @@ class Controller():
 
     def construct_final_curation(self):
         d = dict()
-        d["format_version"] = "1"
+        d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
         return d
