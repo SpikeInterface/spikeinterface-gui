@@ -101,7 +101,7 @@ class CurationView(ViewBase):
     def _qt_refresh(self):
         from .myqt import QT
         # Merged
-        merged_units = self.controller.curation_data["merge_unit_groups"]
+        merged_units = [m["unit_ids"] for m in self.controller.curation_data["merges"]]
         self.table_merge.clear()
         self.table_merge.setRowCount(len(merged_units))
         self.table_merge.setColumnCount(1)
@@ -115,7 +115,7 @@ class CurationView(ViewBase):
             self.table_merge.resizeColumnToContents(i)
 
         ## deleted        
-        removed_units = self.controller.curation_data["removed_units"]
+        removed_units = self.controller.curation_data["removed"]
         self.table_delete.clear()
         self.table_delete.setRowCount(len(removed_units))
         self.table_delete.setColumnCount(1)
@@ -161,7 +161,7 @@ class CurationView(ViewBase):
 
         dtype = self.controller.unit_ids.dtype
         ind = self.table_merge.selectedIndexes()[0].row()
-        visible_unit_ids = self.controller.curation_data["merge_unit_groups"][ind]
+        visible_unit_ids = [m["unit_ids"] for m in self.controller.curation_data["merges"]][ind]
         visible_unit_ids = [dtype.type(unit_id) for unit_id in visible_unit_ids]
         self.controller.set_visible_unit_ids(visible_unit_ids)
         self.notify_unit_visibility_changed()
@@ -170,7 +170,7 @@ class CurationView(ViewBase):
         if len(self.table_delete.selectedIndexes()) == 0:
             return
         ind = self.table_delete.selectedIndexes()[0].row()
-        unit_id = self.controller.curation_data["removed_units"][ind]
+        unit_id = self.controller.curation_data["removed"][ind]
         self.controller.set_all_unit_visibility_off()
         # convert to the correct type
         unit_id = self.controller.unit_ids.dtype.type(unit_id)
@@ -332,7 +332,7 @@ class CurationView(ViewBase):
     def _panel_refresh(self):
         import pandas as pd
         # Merged
-        merged_units = self.controller.curation_data["merge_unit_groups"]
+        merged_units = [m["unit_ids"] for m in self.controller.curation_data["merges"]]
 
         # for visualization, we make all row entries strings
         merged_units_str = []
@@ -345,7 +345,7 @@ class CurationView(ViewBase):
         self.table_merge.selection = []
 
         ## deleted        
-        removed_units = self.controller.curation_data["removed_units"]
+        removed_units = self.controller.curation_data["removed"]
         removed_units = [str(unit_id) for unit_id in removed_units]
         df = pd.DataFrame({"deleted_unit_id": removed_units})
         self.table_delete.value = df
