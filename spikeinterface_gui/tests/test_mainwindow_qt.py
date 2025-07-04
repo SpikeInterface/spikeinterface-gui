@@ -15,7 +15,7 @@ import sys
 
 
 test_folder = Path(__file__).parent / 'my_dataset_small'
-test_folder = Path(__file__).parent / 'my_dataset_big'
+# test_folder = Path(__file__).parent / 'my_dataset_big'
 # test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 # yep is for testing
@@ -110,7 +110,7 @@ def test_launcher(verbose=True):
 if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
-    # win = test_mainwindow(start_app=True, verbose=True, curation=True)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True)
     # win = test_mainwindow(start_app=True, verbose=True, curation=False)
 
-    test_launcher(verbose=True)
+    # test_launcher(verbose=True)
