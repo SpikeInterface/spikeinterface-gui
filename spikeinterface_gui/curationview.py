@@ -464,12 +464,14 @@ class CurationView(ViewBase):
                 visible_unit_ids.extend(merge_unit_ids)
             self.controller.set_visible_unit_ids(visible_unit_ids)
         elif self.active_table == "split":
-            split_unit_str = self.table_split.value["splits"].values[self.table_split.selection].tolist()[0]
-            split_unit = split_unit_str.split(" ")[0]
-            # self.controller.set_all_unit_visibility_off()
-            split_unit = unit_dtype.type(split_unit)
-            self.controller.set_visible_unit_ids([split_unit])
-            self.controller.set_active_split_unit(split_unit)
+            split_unit_str = self.table_split.value["splits"].values[self.table_split.selection].tolist()
+            if len(split_unit_str) == 1:
+                split_unit_str = split_unit_str[0]
+                split_unit = split_unit_str.split(" ")[0]
+                # self.controller.set_all_unit_visibility_off()
+                split_unit = unit_dtype.type(split_unit)
+                self.controller.set_visible_unit_ids([split_unit])
+                self.controller.set_active_split_unit(split_unit)
         self.notify_unit_visibility_changed()
 
     def _panel_restore_units(self, event):

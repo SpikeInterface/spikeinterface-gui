@@ -113,6 +113,12 @@ class ViewBase():
             self._qt_refresh(**kwargs)
         elif self.backend == "panel":
             self._panel_refresh(**kwargs)
+
+    def warning(self, warning_msg):
+        if self.backend == "qt":
+            self._qt_insert_warning(warning_msg)
+        elif self.backend == "panel":
+            self._panel_insert_warning(warning_msg)
     
     def get_unit_color(self, unit_id):
         if self.backend == "qt":
@@ -212,6 +218,13 @@ class ViewBase():
     def _qt_on_unit_color_changed(self):
         self.refresh()
 
+    def _qt_insert_warning(self, warning_msg):
+        from .myqt import QT
+
+        alert = QT.QMessageBox(QT.QMessageBox.Warning, "Warning", warning_msg, parent=self.qt_widget)
+        alert.setStandardButtons(QT.QMessageBox.Ok)
+        alert.exec_()
+
     ## PANEL ##
     def _panel_make_layout(self):
         raise NotImplementedError
@@ -237,3 +250,15 @@ class ViewBase():
 
     def _panel_on_unit_color_changed(self):
         self.refresh()
+
+    def _panel_insert_warning(self, warning_msg):
+        import panel as pn
+
+        alert_markdown = pn.pane.Markdown(f"⚠️⚠️⚠️ {warning_msg} ⚠️⚠️⚠️", styles={'color': 'red', 'font-size': '16px'})
+        close_button = pn.widgets.Button(name="X")
+        close_button.on_click(self._panel_clear_warning)
+        row = pn.Row(alert_markdown, close_button, sizing_mode='stretch_width')
+        self.layout.insert(0, row)
+
+    def _panel_clear_warning(self, event):
+        self.layout.pop(0)

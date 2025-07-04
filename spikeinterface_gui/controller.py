@@ -786,6 +786,34 @@ class Controller():
         if self.verbose:
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
+
+    def make_manual_split_if_possible(self, unit_id, indices):
+        """
+        Check if the a unit_id can be split into a new split in the curation_data.
+
+        If unit_id is already in the removed list then the split is skipped.
+        If unit_id is already in some other split then the split is skipped.
+        """
+        if not self.curation:
+            return False
+
+        if unit_id in self.curation_data["removed"]:
+            return False
+
+        # check if unit_id is already in a split
+        for split in self.curation_data["splits"]:
+            if split["unit_id"] == unit_id:
+                return False
+
+        new_split = {
+            "unit_id": unit_id,
+            "mode": "indices",
+            "indices": indices
+        }
+        self.curation_data["splits"].append(new_split)
+        if self.verbose:
+            print(f"Split unit {unit_id} with {len(indices)} spikes")
+        return True
     
     def make_manual_restore_merge(self, merge_indices):
         if not self.curation:
