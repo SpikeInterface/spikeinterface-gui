@@ -325,19 +325,19 @@ class Controller():
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
                 if format_version is None:
-                    curation_data["format_version"] = "2"
-                if curation_data.get("merges") is None:
-                    curation_data["merges"] = []
-                if curation_data.get("splits") is None:
-                    curation_data["splits"] = []
-                if curation_data.get("removed") is None:
-                    curation_data["removed"] = []
+                    raise ValueError("Curation data format version is missing and is required in the curation data.")
                 try:
                     validate_curation_dict(curation_data)
                     self.curation_data = curation_data
                 except Exception as e:
                     print(f"Invalid curation data. Initializing with empty curation data.\nError: {e}")
                     self.curation_data = empty_curation_data.copy()
+                if curation_data.get("merges") is None:
+                    curation_data["merges"] = []
+                if curation_data.get("splits") is None:
+                    curation_data["splits"] = []
+                if curation_data.get("removed") is None:
+                    curation_data["removed"] = []
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
@@ -706,7 +706,7 @@ class Controller():
 
     def construct_final_curation(self):
         d = dict()
-        d["format_version"] = "1"
+        d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
         return d
