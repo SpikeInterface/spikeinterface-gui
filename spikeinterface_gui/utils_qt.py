@@ -40,7 +40,7 @@ QSpinBox{
 def add_stretch_to_qtoolbar(tb):
     # add an expending widget + a seprator
     empty = QT.QWidget()
-    empty.setSizePolicy(QT.QSizePolicy.Expanding, QT.QSizePolicy.Preferred)
+    empty.setSizePolicy(QT.QSizePolicy.Policy.Expanding, QT.QSizePolicy.Policy.Preferred)
     tb.addWidget(empty)
     tb.addSeparator()
 
@@ -253,7 +253,7 @@ class TimeSeeker(QT.QWidget) :
         self.setLayout(self.layout)
         
         if show_slider:
-            self.slider = QT.QSlider(orientation=QT.Qt.Horizontal, minimum=0, maximum=999)
+            self.slider = QT.QSlider(orientation=QT.Qt.Orientation.Horizontal, minimum=0, maximum=999)
             self.layout.addWidget(self.slider)
             self.slider.valueChanged.connect(self.slider_changed)
         else:
@@ -470,7 +470,7 @@ class CustomItemUnitID(QT.QTableWidgetItem):
 class OrderableCheckItem(QT.QTableWidgetItem):
     # special case for checkbox
     def is_checked(self):
-        checked = {QT.Qt.Unchecked : False, QT.Qt.Checked : True}[self.checkState()]
+        checked = {QT.CheckState.Unchecked : False, QT.CheckState.Checked : True}[self.checkState()]
         return checked
 
     def __lt__(self, other):

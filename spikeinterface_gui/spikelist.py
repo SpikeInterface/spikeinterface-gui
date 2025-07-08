@@ -45,7 +45,7 @@ def get_qt_spike_model():
             if not index.isValid():
                 return None
             
-            if role not in (QT.Qt.DisplayRole, QT.Qt.DecorationRole):
+            if role not in (QT.ItemDataRole.DisplayRole, QT.ItemDataRole.DecorationRole):
                 return
             
             col = index.column()
@@ -55,7 +55,7 @@ def get_qt_spike_model():
             spike = self.controller.spikes[abs_ind]
             unit_id = self.controller.unit_ids[spike['unit_index']]
             
-            if role ==QT.Qt.DisplayRole :
+            if role ==QT.ItemDataRole.DisplayRole :
                 if col == 0:
                     return '{}'.format(abs_ind)
                 elif col == 1:
@@ -70,7 +70,7 @@ def get_qt_spike_model():
                     return '{}'.format(spike['rand_selected'])
                 else:
                     return None
-            elif role == QT.Qt.DecorationRole :
+            elif role == QT.ItemDataRole.DecorationRole :
                 if col != 0:
                     return None
                 if unit_id in self.icons:
@@ -84,10 +84,10 @@ def get_qt_spike_model():
         def flags(self, index):
             if not index.isValid():
                 return QT.Qt.NoItemFlags
-            return QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable #| Qt.ItemIsDragEnabled
+            return QT.ItemFlag.ItemIsEnabled | QT.ItemFlag.ItemIsSelectable #| Qt.ItemIsDragEnabled
 
         def headerData(self, section, orientation, role):
-            if orientation == QT.Qt.Horizontal and role == QT.Qt.DisplayRole:
+            if orientation == QT.Qt.Orientation.Horizontal and role == QT.ItemDataRole.DisplayRole:
                 return  self.columns[section]
             return
 
@@ -158,8 +158,8 @@ class SpikeListView(ViewBase):
         but.clicked.connect(self.refresh)
         
         self.tree = QT.QTreeView(minimumWidth = 100, uniformRowHeights = True,
-                    selectionMode= QT.QAbstractItemView.ExtendedSelection, selectionBehavior = QT.QTreeView.SelectRows,
-                    contextMenuPolicy = QT.Qt.CustomContextMenu,)
+                    selectionMode= QT.QAbstractItemView.SelectionMode.ExtendedSelection, selectionBehavior = QT.QAbstractItemView.SelectionBehavior.SelectRows,
+                    contextMenuPolicy = QT.ContextMenuPolicy.CustomContextMenu,)
 
         
         self.layout.addWidget(self.tree)
