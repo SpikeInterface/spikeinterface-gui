@@ -80,7 +80,7 @@ class MergeView(ViewBase):
         unit_ids = list(self.controller.unit_ids)
         for group_ids in self.proposed_merge_unit_groups:
             if not include_deleted and self.controller.curation:
-                deleted_unit_ids = self.controller.curation_data["removed_units"]
+                deleted_unit_ids = self.controller.curation_data["removed"]
                 if any(unit_id in deleted_unit_ids for unit_id in group_ids):
                     continue
 
