@@ -85,7 +85,11 @@ class Controller():
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
 
         self.templates_average = temp_ext.get_templates(operator='average')
-        self.templates_std = temp_ext.get_templates(operator='std')
+        
+        if 'std' in temp_ext.params['operators']:
+            self.templates_std = temp_ext.get_templates(operator='std')
+        else:
+            self.templates_std = None
 
         if verbose:
             print('\tLoading unit_locations')

@@ -400,7 +400,7 @@ class WaveformView(ViewBase):
 
         for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
-            template_std = self.controller.templates_std[unit_index, :, :][:, common_channel_indexes]
+            template_std = self.controller.templates_std
 
             ypos = self.contact_location[common_channel_indexes,1]
             
@@ -418,8 +418,10 @@ class WaveformView(ViewBase):
             
             if self.settings['plot_std'] and (template_std is not None):
 
-                wf_std_p = wf + template_std * self.factor_y * self.delta_y
-                wf_std_m = wf - template_std * self.factor_y * self.delta_y
+                wv_std = template_std[unit_index, :, :][:, common_channel_indexes]
+
+                wf_std_p = wf + wv_std * self.factor_y * self.delta_y
+                wf_std_m = wf - wv_std * self.factor_y * self.delta_y
             
                 curve_p = pg.PlotCurveItem(xvect.flatten(), wf_std_p.T.flatten(), connect=connect.T.flatten())
                 curve_m = pg.PlotCurveItem(xvect.flatten(), wf_std_m.T.flatten(), connect=connect.T.flatten())
@@ -672,8 +674,12 @@ class WaveformView(ViewBase):
         xs = []
         ys = []
         colors = []
+
+        patch_ys_lower = []
+        patch_ys_higher = []
         for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
+            template_std = self.controller.templates_std
             
             ypos = self.contact_location[common_channel_indexes,1]
             
@@ -688,7 +694,23 @@ class WaveformView(ViewBase):
             ys.append(wf.T.flatten())
             colors.append(color)
 
+            if self.settings['plot_std'] and (template_std is not None):
+
+                wv_std = template_std[unit_index, :, :][:, common_channel_indexes]
+
+                wv_lower = wf - wv_std * self.factor_y * self.delta_y
+                wv_higher = wf + wv_std * self.factor_y * self.delta_y
+
+                patch_ys_lower.append( wv_lower.T.flatten() )
+                patch_ys_higher.append( wv_higher.T.flatten() )
+
+
         self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
+
+        # plot the mean plus/minus the std as semi-transparent lines
+        if len(patch_ys_lower) > 0:
+            self.figure_geom.multi_line(xs, patch_ys_higher, alpha=0.6, line_color=colors)
+            self.figure_geom.multi_line(xs, patch_ys_lower, alpha=0.6, line_color=colors)
 
         if self.settings["plot_selected_spike"]:
             self._panel_refresh_one_spike()
