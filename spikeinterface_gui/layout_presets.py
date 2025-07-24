@@ -2,9 +2,9 @@
 A preset need 8 zones like this:
 
 +-----------------+-----------------+
-| [zone1   zone2] | [zone3   zone4] |
-+-----------------+-----------------+
-| [zone5   zone6] | [zone7   zone8] |
+| [zone1   zone2] | [zone3 | [zone4 |
++-----------------+        |        +
+| [zone5   zone6] | zone7] | zone8] |
 +-----------------+-----------------+
 
 """
