@@ -205,9 +205,9 @@ class MergeView(ViewBase):
         self.sorting_column = 2
         self.sorting_direction = QT.Qt.SortOrder.AscendingOrder
 
-        self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
-        self.table.setContextMenuPolicy(QT.Qt.CustomContextMenu)
+        self.table = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SelectionMode.SingleSelection,
+                                     selectionBehavior=QT.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setContextMenuPolicy(QT.ContextMenuPolicy.CustomContextMenu)
         self.layout.addWidget(self.table)
         self.table.itemSelectionChanged.connect(self._qt_on_item_selection_changed)
 
@@ -250,7 +250,7 @@ class MergeView(ViewBase):
                     icon = QT.QIcon(pix)
                     item = QT.QTableWidgetItem(name)
                     item.setData(QT.Qt.ItemDataRole.UserRole, unit_id)
-                    item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
+                    item.setFlags(QT.ItemFlag.ItemIsEnabled | QT.ItemFlag.ItemIsSelectable)
                     self.table.setItem(r, c, item)
                     item.setIcon(icon)
                     item.group_ids = row.get("group_ids", [])
