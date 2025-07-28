@@ -1,3 +1,6 @@
+import json
+from spikeinterface_gui.backend_qt import possible_class_views
+
 """
 A preset need 8 zones like this:
 
@@ -8,8 +11,6 @@ A preset need 8 zones like this:
 +-----------------+-----------------+
 
 """
-
-from spikeinterface_gui.backend_qt import possible_class_views
 _presets = {}
 
 def _check_valid_layout_dict(layout_dict):
@@ -29,7 +30,6 @@ def get_layout_description(preset_name, layout=None):
         return layout
     elif isinstance(layout, str):
         if layout.endswith('json'):
-            import json
             with open(layout) as layout_file:
                 layout_dict = json.load(layout_file)
             return get_layout_description(None, layout=layout_dict)
