@@ -251,7 +251,7 @@ def run_mainwindow_cli():
     parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
     parser.add_argument('--port', help='Port for web mode', default=0, type=int)
     parser.add_argument('--address', help='Address for web mode', default='localhost')
-    parser.add_argument('--layout_file', help='Path to json file defining layout', default=None)
+    parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
 
     args = parser.parse_args(argv)
 
