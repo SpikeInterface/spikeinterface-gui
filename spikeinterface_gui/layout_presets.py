@@ -1,5 +1,5 @@
 import json
-from spikeinterface_gui.backend_qt import possible_class_views
+from spikeinterface_gui.viewlist import possible_class_views
 
 """
 A preset need 8 zones like this:
