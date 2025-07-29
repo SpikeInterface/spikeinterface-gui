@@ -1,3 +1,6 @@
+import json
+from spikeinterface_gui.viewlist import possible_class_views
+
 """
 A preset need 8 zones like this:
 
@@ -8,12 +11,28 @@ A preset need 8 zones like this:
 +-----------------+-----------------+
 
 """
-
 _presets = {}
-def get_layout_description(preset_name, layout_dict=None):
-    if layout_dict is not None:
+
+def _check_valid_layout_dict(layout_dict):
+    for key, class_views in layout_dict.items():
+        if key not in [f"zone{a}" for a in range(1,9)]:
+            raise KeyError(f"Key {key} in layout dictionary not equal to zone1, zone2, ... or zone8.")
+        for class_view in class_views:
+            list_of_possible_class_views = list(possible_class_views.keys())
+            if class_view not in list_of_possible_class_views:
+                raise KeyError(f"View '{class_view}' in layout dictionary not equal to a valid View. "\
+                                "Valid views are {list_of_possible_class_views}")
+
+def get_layout_description(preset_name, layout=None):
+    if isinstance(layout, dict):
+        _check_valid_layout_dict(layout)
         # If a layout_dict is provided, use it instead of the preset
-        return layout_dict
+        return layout
+    elif isinstance(layout, str):
+        if layout.endswith('json'):
+            with open(layout) as layout_file:
+                layout_dict = json.load(layout_file)
+            return get_layout_description(None, layout=layout_dict)
     else:
         if preset_name is None:
             preset_name = 'default'
