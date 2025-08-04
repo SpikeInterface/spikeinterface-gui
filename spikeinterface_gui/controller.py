@@ -27,7 +27,6 @@ _default_main_settings = dict(
     color_mode='color_by_unit',
 )
 
-# TODO handle return_scaled
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
 
@@ -54,7 +53,7 @@ class Controller():
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
         
-        self.return_scaled = True
+        self.return_in_uV = self.analyzer.return_in_uV
         self.save_on_compute = save_on_compute
 
         self.verbose = verbose
@@ -549,7 +548,7 @@ class Controller():
         elif trace_source == 'raw':
             raise NotImplemented
             # TODO get with parent recording the non process recording
-        kargs['return_scaled'] = self.return_scaled
+        kargs['return_in_uV'] = self.return_in_uV
         traces = rec.get_traces(**kargs)
         # put in cache for next call
         self._traces_cached[cache_key] = traces

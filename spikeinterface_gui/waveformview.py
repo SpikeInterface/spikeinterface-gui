@@ -80,6 +80,7 @@ class WaveformView(ViewBase):
             trace_source='preprocessed', 
             segment_index=seg_num, 
             start_frame=peak_ind - nbefore, end_frame=peak_ind + nafter,
+            return_in_uV=self.controller.return_in_uV
         )
         return wf, width
 
