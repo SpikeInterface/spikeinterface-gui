@@ -28,6 +28,7 @@ def run_mainwindow(
     address="localhost",
     port=0,
     panel_start_server_kwargs=None,
+    panel_window_servable=True,
     verbose=False,
 ):
     """
@@ -75,6 +76,10 @@ def run_mainwindow(
         - `{'dev': True}` to enable development mode (default is False).
         - `{'autoreload': True}` to enable autoreload of the server when files change
           (default is False).
+    panel_window_servable: bool, default: True
+        For "web" mode only. If True, the Panel app is made servable.
+        This is useful when embedding the GUI in another Panel app. In that case,
+        the `panel_window_servable` should be set to False.
     verbose: bool, default: False
         If True, print some information in the console
     """
@@ -130,7 +135,10 @@ def run_mainwindow(
     elif backend == "panel":
         from .backend_panel import PanelMainWindow, start_server
         win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout)
-        win.main_layout.servable(title='SpikeInterface GUI')
+
+        if start_app or panel_window_servable:
+            win.main_layout.servable(title='SpikeInterface GUI')
+
         if start_app:
             panel_start_server_kwargs = panel_start_server_kwargs or {}
             _ = start_server(win, address=address, port=port, **panel_start_server_kwargs)

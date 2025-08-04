@@ -538,13 +538,10 @@ def instantiate_analyzer_and_recording(analyzer_path=None, recording_path=None, 
         try:
             recording = si.load(recording_path)
             if recording_type == "raw":
-                from spikeinterface.preprocessing.pipeline import (
-                    get_preprocessing_dict_from_analyzer,
-                    apply_preprocessing_pipeline,
-                )
+                import spikeinterface.preprocessing as spre
 
-                preprocessing_pipeline = get_preprocessing_dict_from_analyzer(analyzer_path)
-                recording_processed = apply_preprocessing_pipeline(
+                preprocessing_pipeline = spre.get_preprocessing_dict_from_analyzer(analyzer_path)
+                recording_processed = spre.apply_preprocessing_pipeline(
                     recording,
                     preprocessing_pipeline,
                 )
