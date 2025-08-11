@@ -204,7 +204,55 @@ cd spikeinterface-gui
 pip install .
 ```
 
-## Cedits
+## Custom layout
+
+You can create your own custom layout by specifying which views you'd like
+to see, and where they go. The basic window layout supports eight "zones",
+which are laid out as follows:
+
+```
++-----------------+-----------------+
+| [zone1   zone2] | [zone3 | [zone4 |
++-----------------+        |        +
+| [zone5   zone6] | zone7] | zone8] |
++-----------------+-----------------+
+```
+
+If zones are not included, the other zones take over their space. Hence if you'd
+like to show waveforms as a long view, you can set zone3 to display waveforms
+and then set zone7 to display nothing. The waveforms in zone3 will take over the
+blank space from zone7.
+
+To specify your own layout, put the specification in a `.json` file. This should
+be a list of zones, and which views should appear in which zones. An example:
+
+
+**my_layout.json**
+```
+{
+    "zone1": ["unitlist", "spikelist"], 
+    "zone2": ["spikeamplitude"], 
+    "zone3": ["waveform", "waveformheatmap"], 
+    "zone4": ["similarity"], 
+    "zone5": ["spikedepth"], 
+    "zone6": [], 
+    "zone7": [], 
+    "zone8": ["correlogram"]
+}
+```
+
+When you open spikeinterface-gui, you can then point to the `my_layout.json`
+using the `--layout_file` flag:
+
+```
+sigui --layout_file=path/to/my_layout.json path/to/sorting_analyzer
+```
+
+Find a list of available views [in this file](https://github.com/SpikeInterface/spikeinterface-gui/blob/main/spikeinterface_gui/viewlist.py).
+
+
+
+## Credits
 
 Original author : Samuel Garcia, CNRS, Lyon, France
 
