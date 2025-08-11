@@ -277,71 +277,60 @@ class PanelMainWindow:
                 ))
 
         # Create GridStack layout with resizable regions
-        grid_per_zone = 2
         gs = pn.GridStack(
             sizing_mode='stretch_both',
             allow_resize=False,
             allow_drag=False,
         )
 
-        # Top modifications
-        for zone in ['zone1', 'zone2', 'zone3', 'zone4']:
-            view = layout_zone[zone]
-            row_slice = slice(0, 2 * grid_per_zone)  # First two rows
+        all_zones = [f'zone{a}' for a in range(1,9)]
+        is_zone = [(layout_zone.get(zone) is not None) and (len(layout_zone.get(zone)) > 0) for zone in all_zones]
 
-            if zone == 'zone1':
-                if layout_zone.get('zone2') is None or len(layout_zone['zone2']) == 0:
-                    col_slice = slice(0, 2 * grid_per_zone)  # Full width when merged
-                else:
-                    col_slice = slice(0, grid_per_zone)  # Half width when not merged
-            elif zone == 'zone2':
-                if layout_zone.get('zone1') is None or len(layout_zone['zone1']) == 0:
-                    col_slice = slice(0, 2 * grid_per_zone)  # Full width when merged
-                else:
-                    col_slice = slice(grid_per_zone, 2 * grid_per_zone)  # Right half
-            elif zone == 'zone3':
-                if layout_zone.get('zone4') is None or len(layout_zone['zone4']) == 0:
-                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)  # Full width when merged
-                else:
-                    col_slice = slice(2 * grid_per_zone, 3 * grid_per_zone)  # Left half
-            elif zone == 'zone4':
-                if layout_zone.get('zone3') is None or len(layout_zone['zone3']) == 0:
-                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)  # Full width when merged
-                else:
-                    col_slice = slice(3 * grid_per_zone, 4 * grid_per_zone)  # Right half
+        # Get number of columns and rows per sub-region
+        num_cols_12 = max(is_zone[0]*1 + is_zone[1]*1, is_zone[4]*1 + is_zone[5]*1)
+        num_cols_56 = num_cols_12
+        num_cols_37 = (is_zone[2] or is_zone[6])*1 
 
-            if view is not None and len(view) > 0:
-                # Note: order of slices swapped to [row, col]
-                gs[row_slice, col_slice] = view
+        num_rows_12 = ((is_zone[0] or is_zone[1])*1 - (is_zone[4] or is_zone[5])*1) + 1
 
-        # Bottom
-        for zone in ['zone5', 'zone6', 'zone7', 'zone8']:
-            view = layout_zone[zone]
-            row_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
+        # Do sub-regions [1,2], [4,5] [3][7] and [5][8] separately. For each, find out if
+        # both zones are present. If they are, place both in sub-region. If not, place one.
 
-            if zone == 'zone5':
-                if layout_zone.get('zone6') is None or len(layout_zone['zone6']) == 0:
-                    col_slice = slice(0, 2 * grid_per_zone)
-                else:
-                    col_slice = slice(0, grid_per_zone)
-            elif zone == 'zone6':
-                if layout_zone.get('zone5') is None or len(layout_zone['zone5']) == 0:
-                    col_slice = slice(0, 2 * grid_per_zone)
-                else:
-                    col_slice = slice(grid_per_zone, 2 * grid_per_zone)
-            elif zone == 'zone7':
-                if layout_zone.get('zone8') is None or len(layout_zone['zone8']) == 0:
-                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
-                else:
-                    col_slice = slice(2 * grid_per_zone, 3 * grid_per_zone)
-            elif zone == 'zone8':
-                if layout_zone.get('zone7') is None or len(layout_zone['zone7']) == 0:
-                    col_slice = slice(2 * grid_per_zone, 4 * grid_per_zone)
-                else:
-                    col_slice = slice(3 * grid_per_zone, 4 * grid_per_zone)
+        row_slice_12 = slice(0,num_rows_12)
+        if (is_zone[0] and is_zone[1]):
+            gs[row_slice_12, slice(0,1)] = layout_zone.get('zone1')
+            gs[row_slice_12, slice(1,2)] = layout_zone.get('zone2')
+        elif (is_zone[0] and not is_zone[1]):
+            gs[row_slice_12, slice(0,num_cols_12)] = layout_zone.get('zone1')
+        elif (is_zone[1] and not is_zone[0]):
+            gs[row_slice_12, slice(0,num_cols_12)] = layout_zone.get('zone2')
 
-            if view is not None and len(view) > 0:
-                gs[row_slice, col_slice] = view
+        row_slice_56 = slice(num_rows_12, 2)
+        if (is_zone[4] and is_zone[5]):
+            gs[row_slice_56, slice(0,1)] = layout_zone.get('zone5')
+            gs[row_slice_56, slice(1,2)] = layout_zone.get('zone6')
+        elif (is_zone[4] and not is_zone[5]):
+            gs[row_slice_56, slice(0,num_cols_56)] = layout_zone.get('zone5')
+        elif (is_zone[5] and not is_zone[4]):
+            gs[row_slice_56, slice(0,num_cols_56)] = layout_zone.get('zone6')
+
+        col_slice_37 = slice(num_cols_12,num_cols_12+1)
+        if is_zone[2] and is_zone[6]:
+            gs[slice(0, 1), col_slice_37] = layout_zone.get('zone3')
+            gs[slice(1, 2), col_slice_37] = layout_zone.get('zone7')
+        elif is_zone[2] and not is_zone[6]:
+            gs[slice(0, 2), col_slice_37] = layout_zone.get('zone3')
+        elif is_zone[6] and not is_zone[2]:
+            gs[slice(0, 2), col_slice_37] = layout_zone.get('zone7')
+
+        col_slice_48 = slice(num_cols_12+num_cols_37,num_cols_12+num_cols_37+1)
+        if is_zone[3] and is_zone[7]:
+            gs[slice(0, 1), col_slice_48] = layout_zone.get('zone4')
+            gs[slice(1, 2), col_slice_48] = layout_zone.get('zone8')
+        elif is_zone[3] and not is_zone[7]:
+            gs[slice(0, 2), col_slice_48] = layout_zone.get('zone4')
+        elif is_zone[7] and not is_zone[3]:
+            gs[slice(0, 2), col_slice_48] = layout_zone.get('zone8')
 
         self.main_layout = gs
 
