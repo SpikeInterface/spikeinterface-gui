@@ -49,16 +49,6 @@ default_layout = dict(
     zone7=['waveform', 'waveformheatmap', ],
     zone8=['correlogram', 'isi', 'mainsettings'],
 )
-default_layout = dict(
-    zone1=[],
-    zone2=['unitlist', 'mergelist'],
-    zone3=[],
-    zone4=[],
-    zone5=[],
-    zone6=[],
-    zone7=['waveform'],
-    zone8=[],
-)
 _presets['default'] = default_layout
 
 
