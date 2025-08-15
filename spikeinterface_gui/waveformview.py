@@ -16,7 +16,8 @@ class WaveformView(ViewBase):
     _settings = [
         {'name': 'overlap', 'type': 'bool', 'value': True},
         {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
-        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
+        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': False},
+        {'name': 'auto_move_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
         {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
         {'name': 'plot_std', 'type': 'bool', 'value': True },
@@ -207,7 +208,7 @@ class WaveformView(ViewBase):
     def _qt_gain_zoom(self, factor_ratio):
         if self.mode=='geometry':
             self.factor_y *= factor_ratio
-            self._qt_refresh(keep_range=True)
+            self._qt_refresh(keep_range=True, auto_zoom=False)
     
     def _qt_limit_zoom(self, factor_ratio):
         if self.mode=='geometry':
@@ -226,7 +227,7 @@ class WaveformView(ViewBase):
         self._y2_range = None
         self._qt_refresh(keep_range=False)
     
-    def _qt_refresh(self, keep_range=False):
+    def _qt_refresh(self, keep_range=False, auto_zoom=False):
         
         if not hasattr(self, 'viewBox1'):
             self._qt_initialize_plot()
@@ -252,7 +253,7 @@ class WaveformView(ViewBase):
             self._qt_refresh_mode_flatten(dict_visible_units, keep_range)
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
-            self._qt_refresh_mode_geometry(dict_visible_units, keep_range)
+            self._qt_refresh_mode_geometry(dict_visible_units, keep_range, auto_zoom)
         
         if self.controller.with_traces:
             self._qt_refresh_one_spike()
@@ -359,7 +360,7 @@ class WaveformView(ViewBase):
             self.plot1.setYRange(*self._y1_range, padding = 0.0)
             self.plot2.setYRange(*self._y2_range, padding = 0.0)
 
-    def _qt_refresh_mode_geometry(self, dict_visible_units, keep_range):
+    def _qt_refresh_mode_geometry(self, dict_visible_units, keep_range, auto_zoom):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -395,7 +396,7 @@ class WaveformView(ViewBase):
         xvectors = self.xvect[common_channel_indexes, :] * self.factor_x
         xvects = self.get_xvectors_not_overlap(xvectors, len(visible_unit_ids))
 
-        if keep_range is False:
+        if auto_zoom is True:
             self.factor_y = 0.02
 
         for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
@@ -501,8 +502,9 @@ class WaveformView(ViewBase):
             self.curve_one_waveform.setData([], [])
     
     def _qt_on_unit_visibility_changed(self):
-        keep_range = not(self.settings['auto_zoom_on_unit_selection'])
-        self._qt_refresh(keep_range=keep_range)
+        keep_range = not(self.settings['auto_move_on_unit_selection'])
+        auto_zoom = self.settings['auto_zoom_on_unit_selection']
+        self._qt_refresh(keep_range=keep_range, auto_zoom=auto_zoom)
 
     def _panel_make_layout(self):
         import panel as pn
@@ -817,7 +819,7 @@ class WaveformView(ViewBase):
                     self.figure_avg.renderers.remove(line)
 
     def _panel_on_channel_visibility_changed(self):
-        keep_range = not self.settings['auto_zoom_on_unit_selection']
+        keep_range = not self.settings['auto_move_on_unit_selection']
         self._panel_refresh(keep_range=keep_range)
 
     def _panel_handle_shortcut(self, event):
