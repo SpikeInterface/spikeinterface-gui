@@ -222,25 +222,25 @@ class QtMainWindow(QT.QMainWindow):
                     self.splitDockWidget(self.docks[first_left], dock, orientations['vertical'])
 
         ## Handle right
-        first_left = None
-        for zone in ['zone3', 'zone7', 'zone4',  'zone8']:
+        first_top = None
+        for zone in ['zone3', 'zone4', 'zone7',  'zone8']:
             if len(widgets_zone[zone]) == 0:
                 continue
             view_name = widgets_zone[zone][0]
             dock = self.docks[view_name]
-            if len(widgets_zone[zone]) > 0 and first_left is None:
+            if len(widgets_zone[zone]) > 0 and first_top is None:
                 self.addDockWidget(areas['right'], dock)
-                first_left = view_name
-            elif zone == 'zone7':
-                self.splitDockWidget(self.docks[first_left], dock, orientations['vertical'])
+                first_top = view_name
             elif zone == 'zone4':
-                self.splitDockWidget(self.docks[first_left], dock, orientations['horizontal'])
+                self.splitDockWidget(self.docks[first_top], dock, orientations['horizontal'])
+            elif zone == 'zone7':
+                self.splitDockWidget(self.docks[first_top], dock, orientations['vertical'])
             elif zone == 'zone8':
-                if len(widgets_zone['zone7']) > 0:
-                    z = widgets_zone['zone7'][0]
-                    self.splitDockWidget(self.docks[z], dock, orientations['horizontal'])
+                if len(widgets_zone['zone4']) > 0:
+                    z = widgets_zone['zone4'][0]
+                    self.splitDockWidget(self.docks[z], dock, orientations['vertical'])
                 else:
-                    self.splitDockWidget(self.docks[first_left], dock, orientations['vertical'])
+                    self.splitDockWidget(self.docks[first_top], dock, orientations['horizontal'])
         
         # make tabs
         for zone, view_names in widgets_zone.items():
