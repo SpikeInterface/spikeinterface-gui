@@ -15,9 +15,9 @@ class SpikeAmplitudeView(BaseScatterView):
         y_label = "Amplitude (uV)"
         spike_data = controller.spike_amplitudes
         # set noise level to False by default in panel
-        if backend == 'panel':
+        if backend == 'panel' or controller.noise_levels is None:
             noise_level_settings_index = [s["name"] for s in SpikeAmplitudeView._settings].index("noise_level")
-            SpikeAmplitudeView._settings[noise_level_settings_index]['value'] = False
+            SpikeAmplitudeView._settings[noise_level_settings_index]['value'] = False        
         BaseScatterView.__init__(
             self,
             controller=controller,
