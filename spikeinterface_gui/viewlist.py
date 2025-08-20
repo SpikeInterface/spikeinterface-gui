@@ -14,6 +14,7 @@ from .spikedepthview import SpikeDepthView
 from .tracemapview import TraceMapView
 from .curationview import CurationView
 from .mainsettingsview import MainSettingsView
+from .binnedspikesview import BinnedSpikesView
 
 possible_class_views = dict(
     probe = ProbeView, # probe view is first, since it updates channels upon unit changes
@@ -32,4 +33,5 @@ possible_class_views = dict(
     tracemap = TraceMapView,
     curation = CurationView,
     mainsettings=MainSettingsView,
+    binnedspikes=BinnedSpikesView,
 )
