@@ -252,7 +252,6 @@ class Controller():
 
         spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
         # spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True)
-        self.final_spike_sample = spike_vector[-1][0]
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
@@ -269,6 +268,7 @@ class Controller():
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
+        self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
         # this is dict of list because per segment spike_indices[segment_index][unit_id]
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
