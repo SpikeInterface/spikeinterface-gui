@@ -666,6 +666,7 @@ class Controller():
 
         merge_unit_groups, extra = compute_merge_unit_groups(
             self.analyzer,
+            preset=params['preset'],
             extra_outputs=True,
             resolve_graph=False
         )
