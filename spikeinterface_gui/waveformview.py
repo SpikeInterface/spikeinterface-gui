@@ -364,11 +364,6 @@ class WaveformView(ViewBase):
         from .myqt import QT
         import pyqtgraph as pg
 
-        if self._x_range is not None and keep_range:
-            #this may change with pyqtgraph
-            self._x_range = tuple(self.viewBox1.state['viewRange'][0])
-            self._y1_range = tuple(self.viewBox1.state['viewRange'][1])
-
         self.plot1.clear()
         
         if self.xvect is None:
@@ -433,8 +428,8 @@ class WaveformView(ViewBase):
                 self.plot1.addItem(fill)
 
             self.plot1.addItem(curve)
-            
-        
+
+
         if self.settings['show_channel_id']:
             for chan_ind in common_channel_indexes:
                 chan_id = self.controller.channel_ids[chan_ind]
@@ -444,17 +439,9 @@ class WaveformView(ViewBase):
                 self.plot1.addItem(itemtxt)
                 itemtxt.setPos(x, y)
 
-        if self._x_range is None or not keep_range:
+        if not keep_range:
+            self.plot1.autoRange(padding = 0.1)
 
-            x_margin = 15
-            y_margin = 20
-            self._x_range = np.min(xvects) - x_margin , np.max(xvects) + x_margin
-            
-            channel_positions_y = self.contact_location[common_channel_indexes,1]
-            self._y1_range = np.min(channel_positions_y) - y_margin , np.max(channel_positions_y) + y_margin
-
-        self.plot1.setXRange(*self._x_range, padding = 0.0)
-        self.plot1.setYRange(*self._y1_range, padding = 0.0)
         
     
     def _qt_refresh_one_spike(self):
