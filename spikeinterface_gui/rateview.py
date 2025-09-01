@@ -63,7 +63,7 @@ class RateView(ViewBase):
 
             curve = pg.PlotCurveItem(bins/sampling_frequency, count, stepMode='center', fillLevel=0, brush=color, pen=color)
             plot.addItem(curve)
-            self.grid.addItem(plot, row=r)
+            self.grid.addItem(plot, row=r, col=0)
     
     ## panel ##
 
