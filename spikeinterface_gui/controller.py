@@ -35,7 +35,6 @@ class Controller():
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
                  extra_unit_properties=None, skip_extensions=None):
-        
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
         self.skip_extensions = skip_extensions
@@ -744,18 +743,21 @@ class Controller():
         If unit are already deleted or in a merge group then the delete operation is skipped.
         """
         if not self.curation:
-            return
+            return False
 
         all_merged_units = sum([m["unit_ids"] for m in self.curation_data["merges"]], [])
+        all_split_units = [s["unit_id"] for s in self.curation_data["splits"]]
         for unit_id in removed_unit_ids:
             if unit_id in self.curation_data["removed"]:
-                continue
-            # TODO: check if unit is already in a merge group
+                return False
             if unit_id in all_merged_units:
-                continue
+                return False
+            if unit_id in all_split_units:
+                return False
             self.curation_data["removed"].append(unit_id)
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
+        return True
     
     def make_manual_restore(self, restore_unit_ids):
         """
@@ -786,8 +788,11 @@ class Controller():
         if len(merge_unit_ids) < 2:
             return False
 
+        all_split_units = [s["unit_id"] for s in self.curation_data["splits"]]
         for unit_id in merge_unit_ids:
             if unit_id in self.curation_data["removed"]:
+                return False
+            if unit_id in all_split_units:
                 return False
 
         new_merges = add_merge(self.curation_data["merges"], merge_unit_ids)
@@ -809,6 +814,10 @@ class Controller():
         if unit_id in self.curation_data["removed"]:
             return False
 
+        for merge in self.curation_data["merges"]:
+            if unit_id in merge["unit_ids"]:
+                return False
+
         # check if unit_id is already in a split
         for split in self.curation_data["splits"]:
             if split["unit_id"] == unit_id:
@@ -821,7 +830,7 @@ class Controller():
         }
         self.curation_data["splits"].append(new_split)
         if self.verbose:
-            print(f"Split unit {unit_id} with {len(indices)} spikes")
+            print(f"Split unit {unit_id} with {len(indices[0])} spikes")
         return True
     
     def make_manual_restore_merge(self, merge_indices):

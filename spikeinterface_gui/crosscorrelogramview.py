@@ -1,3 +1,5 @@
+import numpy as np
+
 from .view_base import ViewBase
 
 
@@ -39,11 +41,11 @@ class CrossCorrelogramView(ViewBase):
 
         split_unit_id = self.controller.active_split["unit_id"]
         spike_inds = self.controller.get_spike_indices(split_unit_id, seg_index=None)
-        split_indices = self.controller.active_split['indices']
+        split_indices = self.controller.active_split['indices'][0]
         spikes_split_unit = self.controller.spikes[spike_inds]
-        unit_index = spikes_split_unit[0]["unit_index"]
+        spikes_split_unit["unit_index"] = np.zeros(spikes_split_unit.shape, dtype=int)
         # change unit_index for split indices
-        spikes_split_unit["unit_index"][split_indices] = unit_index + 1
+        spikes_split_unit["unit_index"][split_indices] = 1
         split_sorting = NumpySorting(
             spikes=spikes_split_unit,
             sampling_frequency=self.controller.sampling_frequency,

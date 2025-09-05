@@ -605,4 +605,5 @@ revert, and export the curation data.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
 - **press 'ctrl+u'**: Unmerge the selected merge groups from the merged units table.
+- **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.
 """

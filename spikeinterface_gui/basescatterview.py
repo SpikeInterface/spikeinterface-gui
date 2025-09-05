@@ -104,10 +104,15 @@ class BaseScatterView(ViewBase):
             indices.extend(indices_in_segment)
             offset += len(spike_inds)
 
-        self.controller.make_manual_split_if_possible(
+        success = self.controller.make_manual_split_if_possible(
             unit_id=visible_unit_id,
-            indices=indices,
+            indices=[indices],
         )
+        if not success:
+            self.warning(
+                "Split could not be performed. Ensure split unit ids are not "
+                "removed, merged, or split already.")
+            return
         
         # Clear the lasso vertices after splitting
         self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
