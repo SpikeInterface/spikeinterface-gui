@@ -3,7 +3,7 @@ import numpy as np
 
 from .view_base import ViewBase
 
-
+from functools import partial
 
 _wheel_refresh_time = 0.1
 
@@ -16,10 +16,11 @@ class WaveformView(ViewBase):
     _settings = [
         {'name': 'overlap', 'type': 'bool', 'value': True},
         {'name': 'plot_selected_spike', 'type': 'bool', 'value': False }, # true here can be very slow because it loads traces
-        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': True},
+        {'name': 'auto_zoom_on_unit_selection', 'type': 'bool', 'value': False},
+        {'name': 'auto_move_on_unit_selection', 'type': 'bool', 'value': True},
         {'name': 'show_only_selected_cluster', 'type': 'bool', 'value': True},
         {'name': 'plot_limit_for_flatten', 'type': 'bool', 'value': True },
-        {'name': 'fillbetween', 'type': 'bool', 'value': True },
+        {'name': 'plot_std', 'type': 'bool', 'value': True },
         {'name': 'show_channel_id', 'type': 'bool', 'value': False},
         {'name': 'sparse_display', 'type': 'bool', 'value' : True },
     ]
@@ -44,7 +45,7 @@ class WaveformView(ViewBase):
             self.delta_y = np.min(np.diff(unique_y))
         else:
             self.delta_y = 40. # um
-        self.factor_y = .05
+        self.factor_y = .02
         self.factor_x = 1.0
         espx = self.delta_x / 2.5
         for chan_ind, chan_id in enumerate(self.controller.channel_ids):
@@ -80,6 +81,7 @@ class WaveformView(ViewBase):
             trace_source='preprocessed', 
             segment_index=seg_num, 
             start_frame=peak_ind - nbefore, end_frame=peak_ind + nafter,
+            return_in_uV=self.controller.return_in_uV
         )
         return wf, width
 
@@ -183,6 +185,14 @@ class WaveformView(ViewBase):
         
         self.viewBox1.widen_narrow.connect(self._qt_widen_narrow)
 
+        shortcut_scale_waveforms_up = QT.QShortcut(self.qt_widget)
+        shortcut_scale_waveforms_up.setKey(QT.QKeySequence("ctrl+="))
+        shortcut_scale_waveforms_up.activated.connect(partial(self._qt_gain_zoom, 1.3))
+
+        shortcut_scale_waveforms_down = QT.QShortcut(self.qt_widget)
+        shortcut_scale_waveforms_down.setKey(QT.QKeySequence("ctrl+-"))
+        shortcut_scale_waveforms_down.activated.connect(partial(self._qt_gain_zoom, 1/1.3))
+
         shortcut_overlap = QT.QShortcut(self.qt_widget)
         shortcut_overlap.setKey(QT.QKeySequence("ctrl+o"))
         shortcut_overlap.activated.connect(self.toggle_overlap)
@@ -199,7 +209,7 @@ class WaveformView(ViewBase):
     def _qt_gain_zoom(self, factor_ratio):
         if self.mode=='geometry':
             self.factor_y *= factor_ratio
-            self._qt_refresh(keep_range=True)
+            self._qt_refresh(keep_range=True, auto_zoom=False)
     
     def _qt_limit_zoom(self, factor_ratio):
         if self.mode=='geometry':
@@ -218,7 +228,7 @@ class WaveformView(ViewBase):
         self._y2_range = None
         self._qt_refresh(keep_range=False)
     
-    def _qt_refresh(self, keep_range=False):
+    def _qt_refresh(self, keep_range=False, auto_zoom=False):
         
         if not hasattr(self, 'viewBox1'):
             self._qt_initialize_plot()
@@ -244,7 +254,7 @@ class WaveformView(ViewBase):
             self._qt_refresh_mode_flatten(dict_visible_units, keep_range)
         elif self.mode=='geometry':
             self.plot1.setAspectLocked(lock=True, ratio=1)
-            self._qt_refresh_mode_geometry(dict_visible_units, keep_range)
+            self._qt_refresh_mode_geometry(dict_visible_units, keep_range, auto_zoom)
         
         if self.controller.with_traces:
             self._qt_refresh_one_spike()
@@ -314,7 +324,7 @@ class WaveformView(ViewBase):
             self.plot1.addItem(curve)
             
             
-            if self.settings['fillbetween']:
+            if self.settings['plot_std']:
                 color2 = QT.QColor(color)
                 color2.setAlpha(self.alpha)
                 curve1 = pg.PlotCurveItem(xvect, template_avg.T.flatten() + template_std.T.flatten(), pen=color2)
@@ -351,7 +361,7 @@ class WaveformView(ViewBase):
             self.plot1.setYRange(*self._y1_range, padding = 0.0)
             self.plot2.setYRange(*self._y2_range, padding = 0.0)
 
-    def _qt_refresh_mode_geometry(self, dict_visible_units, keep_range):
+    def _qt_refresh_mode_geometry(self, dict_visible_units, keep_range, auto_zoom):
         from .myqt import QT
         import pyqtgraph as pg
 
@@ -387,15 +397,18 @@ class WaveformView(ViewBase):
         xvectors = self.xvect[common_channel_indexes, :] * self.factor_x
         xvects = self.get_xvectors_not_overlap(xvectors, len(visible_unit_ids))
 
+        if auto_zoom is True:
+            self.factor_y = 0.02
 
         for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
-            
+            template_std = self.controller.templates_std
+
             ypos = self.contact_location[common_channel_indexes,1]
             
             wf = template_avg
             wf = wf * self.factor_y * self.delta_y + ypos[None, :]
-            
+
             connect = np.ones(wf.shape, dtype='bool')
             connect[0, :] = 0
             connect[-1, :] = 0
@@ -404,7 +417,24 @@ class WaveformView(ViewBase):
             color = self.get_unit_color(unit_id)
             
             curve = pg.PlotCurveItem(xvect.flatten(), wf.T.flatten(), pen=pg.mkPen(color, width=2), connect=connect.T.flatten())
+            
+            if self.settings['plot_std'] and (template_std is not None):
+
+                wv_std = template_std[unit_index, :, :][:, common_channel_indexes]
+
+                wf_std_p = wf + wv_std * self.factor_y * self.delta_y
+                wf_std_m = wf - wv_std * self.factor_y * self.delta_y
+            
+                curve_p = pg.PlotCurveItem(xvect.flatten(), wf_std_p.T.flatten(), connect=connect.T.flatten())
+                curve_m = pg.PlotCurveItem(xvect.flatten(), wf_std_m.T.flatten(), connect=connect.T.flatten())
+
+                color2 = QT.QColor(color)
+                color2.setAlpha(80)
+                fill = pg.FillBetweenItem(curve1=curve_m, curve2=curve_p, brush=color2)
+                self.plot1.addItem(fill)
+
             self.plot1.addItem(curve)
+            
         
         if self.settings['show_channel_id']:
             for chan_ind in common_channel_indexes:
@@ -414,16 +444,16 @@ class WaveformView(ViewBase):
                 itemtxt.setFont(QT.QFont('', pointSize=12))
                 self.plot1.addItem(itemtxt)
                 itemtxt.setPos(x, y)
-        
+
         if self._x_range is None or not keep_range:
 
-            x_margin =50
-            y_margin =150
+            x_margin = 15
+            y_margin = 20
             self._x_range = np.min(xvects) - x_margin , np.max(xvects) + x_margin
-            visible_mask = self.controller.get_units_visibility_mask()
-            visible_pos = self.controller.unit_positions[visible_mask, :]
-            self._y1_range = np.min(visible_pos[:,1]) - y_margin , np.max(visible_pos[:,1]) + y_margin
-        
+            
+            channel_positions_y = self.contact_location[common_channel_indexes,1]
+            self._y1_range = np.min(channel_positions_y) - y_margin , np.max(channel_positions_y) + y_margin
+
         self.plot1.setXRange(*self._x_range, padding = 0.0)
         self.plot1.setYRange(*self._y1_range, padding = 0.0)
         
@@ -473,8 +503,9 @@ class WaveformView(ViewBase):
             self.curve_one_waveform.setData([], [])
     
     def _qt_on_unit_visibility_changed(self):
-        keep_range = not(self.settings['auto_zoom_on_unit_selection'])
-        self._qt_refresh(keep_range=keep_range)
+        keep_range = not(self.settings['auto_move_on_unit_selection'])
+        auto_zoom = self.settings['auto_zoom_on_unit_selection']
+        self._qt_refresh(keep_range=keep_range, auto_zoom=auto_zoom)
 
     def _panel_make_layout(self):
         import panel as pn
@@ -582,7 +613,7 @@ class WaveformView(ViewBase):
             # zoom factor is reset
             if self.settings["auto_zoom_on_unit_selection"]:
                 self.factor_x = 1.0
-                self.factor_y = .05
+                self.factor_y = .02
             self._panel_refresh_mode_geometry(dict_visible_units, keep_range=keep_range)
         elif self.mode=='flatten':
             self._panel_refresh_mode_flatten(dict_visible_units, keep_range=keep_range)
@@ -646,8 +677,12 @@ class WaveformView(ViewBase):
         xs = []
         ys = []
         colors = []
+
+        patch_ys_lower = []
+        patch_ys_higher = []
         for (xvect, unit_index, unit_id) in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
+            template_std = self.controller.templates_std
             
             ypos = self.contact_location[common_channel_indexes,1]
             
@@ -662,7 +697,23 @@ class WaveformView(ViewBase):
             ys.append(wf.T.flatten())
             colors.append(color)
 
+            if self.settings['plot_std'] and (template_std is not None):
+
+                wv_std = template_std[unit_index, :, :][:, common_channel_indexes]
+
+                wv_lower = wf - wv_std * self.factor_y * self.delta_y
+                wv_higher = wf + wv_std * self.factor_y * self.delta_y
+
+                patch_ys_lower.append( wv_lower.T.flatten() )
+                patch_ys_higher.append( wv_higher.T.flatten() )
+
+
         self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
+
+        # plot the mean plus/minus the std as semi-transparent lines
+        if len(patch_ys_lower) > 0:
+            self.figure_geom.multi_line(xs, patch_ys_higher, alpha=0.6, line_color=colors)
+            self.figure_geom.multi_line(xs, patch_ys_lower, alpha=0.6, line_color=colors)
 
         if self.settings["plot_selected_spike"]:
             self._panel_refresh_one_spike()
@@ -769,7 +820,7 @@ class WaveformView(ViewBase):
                     self.figure_avg.renderers.remove(line)
 
     def _panel_on_channel_visibility_changed(self):
-        keep_range = not self.settings['auto_zoom_on_unit_selection']
+        keep_range = not self.settings['auto_move_on_unit_selection']
         self._panel_refresh(keep_range=keep_range)
 
     def _panel_handle_shortcut(self, event):

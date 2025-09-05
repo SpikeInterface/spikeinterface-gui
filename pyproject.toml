@@ -16,7 +16,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "spikeinterface[full]>=0.102.3",
+    "spikeinterface[full]>=0.103.0",
     "markdown"
 ]
 
@@ -44,7 +44,7 @@ sigui = "spikeinterface_gui.main:run_mainwindow_cli"
 [project.optional-dependencies]
 
 desktop = [
-    "PySide6",
+    "PySide6==6.7.3",
     "pyqtgraph",
 ]
 
@@ -55,5 +55,5 @@ web = [
 
 test = [
     "pytest",
-    "PySide6",
+    "PySide6==6.7.3",
 ]

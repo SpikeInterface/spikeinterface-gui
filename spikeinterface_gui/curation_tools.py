@@ -10,6 +10,7 @@ default_label_definitions = {
 
 
 empty_curation_data = {
+    "format_version": "2",
     "manual_labels": [],
     "merges": [],
     "splits": [],

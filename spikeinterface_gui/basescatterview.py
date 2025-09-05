@@ -24,8 +24,8 @@ class BaseScatterView(ViewBase):
         self.spike_data = spike_data
         self.y_label = y_label
 
-        self._data_min = np.min(spike_data)
-        self._data_max = np.max(spike_data)
+        self._data_min = np.nanmin(spike_data)
+        self._data_max = np.nanmax(spike_data)
         eps = (self._data_max - self._data_min) / 100.0
         self._data_max += eps
         self._max_count = None

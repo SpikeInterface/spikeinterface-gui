@@ -170,31 +170,19 @@ For beginners or Anaconda users please see our [installation tips](https://githu
 where we provide a yaml for Mac/Windows/Linux to help properly install `spikeinterface` and `spikeinterface-gui` for you in a dedicated
 conda environment.
 
-Otherwise, 
-
-You need first to install **one** of these 3 packages (by order of preference):
-  * `pip install PySide6` or
-  * `pip install PyQt6` or
-  * `pip install PyQt5`
-
-From pypi:
+In your environment, if you wish to use the Desktop version of the GUI, you can do:
 
 ```bash
-pip install spikeinterface-gui
+pip install 'spikeinterface-gui[desktop]'
 ```
 
-For Desktop you can do:
+Note: this installs `PySide6`. You can use the `PyQt5` backend instead by uninstalling `PySide6` and then installing `PyQt5`.
+
+If you wish to use the Web version of the GUI, you can do:
 
 ```bash
-pip install spikeinterface-gui[desktop]
+pip install 'spikeinterface-gui[web]'
 ```
-
-For web you can do:
-
-```bash
-pip install spikeinterface-gui[web]
-```
-
 
 From source:
 
@@ -204,7 +192,57 @@ cd spikeinterface-gui
 pip install .
 ```
 
-## Cedits
+You'll then need to install the appropriate backends yourself (`pyqtgraph` and `PySide6` or `PyQt5` for the desktop; `panel` and `bokeh` for web).
+
+## Custom layout
+
+You can create your own custom layout by specifying which views you'd like
+to see, and where they go. The basic window layout supports eight "zones",
+which are laid out as follows:
+
+```
++-----------------+-----------------+
+| [zone1   zone2] | [zone3 | [zone4 |
++-----------------+        |        +
+| [zone5   zone6] | zone7] | zone8] |
++-----------------+-----------------+
+```
+
+If zones are not included, the other zones take over their space. Hence if you'd
+like to show waveforms as a long view, you can set zone3 to display waveforms
+and then set zone7 to display nothing. The waveforms in zone3 will take over the
+blank space from zone7.
+
+To specify your own layout, put the specification in a `.json` file. This should
+be a list of zones, and which views should appear in which zones. An example:
+
+
+**my_layout.json**
+```
+{
+    "zone1": ["unitlist", "spikelist"], 
+    "zone2": ["spikeamplitude"], 
+    "zone3": ["waveform", "waveformheatmap"], 
+    "zone4": ["similarity"], 
+    "zone5": ["spikedepth"], 
+    "zone6": [], 
+    "zone7": [], 
+    "zone8": ["correlogram"]
+}
+```
+
+When you open spikeinterface-gui, you can then point to the `my_layout.json`
+using the `--layout_file` flag:
+
+```
+sigui --layout_file=path/to/my_layout.json path/to/sorting_analyzer
+```
+
+Find a list of available views [in this file](https://github.com/SpikeInterface/spikeinterface-gui/blob/main/spikeinterface_gui/viewlist.py).
+
+
+
+## Credits
 
 Original author : Samuel Garcia, CNRS, Lyon, France
 

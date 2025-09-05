@@ -27,7 +27,6 @@ _default_main_settings = dict(
     color_mode='color_by_unit',
 )
 
-# TODO handle return_scaled
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
 
@@ -54,7 +53,7 @@ class Controller():
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
         
-        self.return_scaled = True
+        self.return_in_uV = self.analyzer.return_in_uV
         self.save_on_compute = save_on_compute
 
         self.verbose = verbose
@@ -86,7 +85,11 @@ class Controller():
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
 
         self.templates_average = temp_ext.get_templates(operator='average')
-        self.templates_std = temp_ext.get_templates(operator='std')
+        
+        if 'std' in temp_ext.params['operators']:
+            self.templates_std = temp_ext.get_templates(operator='std')
+        else:
+            self.templates_std = None
 
         if verbose:
             print('\tLoading unit_locations')
@@ -232,7 +235,12 @@ class Controller():
         self.refresh_colors()
 
         # at init, we set the visible channels as the sparsity of the first unit
-        self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
+        if self.analyzer_sparsity is not None:
+            self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
+        else:
+            # if no sparsity, then all channels are visible
+            assert self.external_sparsity is not None, "No sparsity found"
+            self.visible_channel_inds = np.flatnonzero(self.external_sparsity.mask[0])
 
         t0 = time.perf_counter()
         
@@ -328,16 +336,16 @@ class Controller():
                     raise ValueError("Curation data format version is missing and is required in the curation data.")
                 try:
                     validate_curation_dict(curation_data)
-                    self.curation_data = curation_data
                 except Exception as e:
-                    print(f"Invalid curation data. Initializing with empty curation data.\nError: {e}")
-                    self.curation_data = empty_curation_data.copy()
+                    raise ValueError(f"Invalid curation data.\nError: {e}")
+
                 if curation_data.get("merges") is None:
                     curation_data["merges"] = []
                 if curation_data.get("splits") is None:
                     curation_data["splits"] = []
                 if curation_data.get("removed") is None:
                     curation_data["removed"] = []
+                self.curation_data = curation_data
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
@@ -576,7 +584,7 @@ class Controller():
         elif trace_source == 'raw':
             raise NotImplemented
             # TODO get with parent recording the non process recording
-        kargs['return_scaled'] = self.return_scaled
+        kargs['return_in_uV'] = self.return_in_uV
         traces = rec.get_traces(**kargs)
         # put in cache for next call
         self._traces_cached[cache_key] = traces
@@ -695,6 +703,7 @@ class Controller():
 
         merge_unit_groups, extra = compute_merge_unit_groups(
             self.analyzer,
+            preset=params['preset'],
             extra_outputs=True,
             resolve_graph=False
         )
