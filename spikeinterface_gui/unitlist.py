@@ -410,7 +410,10 @@ class UnitListView(ViewBase):
 
     def _qt_delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
-        self.controller.make_manual_delete_if_possible(removed_unit_ids)
+        success = self.controller.make_manual_delete_if_possible(removed_unit_ids)
+        if not success:
+            self.warning("Delete could not be performed. Ensure unit ids are not removed or merged already.")
+            return
         self.notify_manual_curation_updated()
 
     def _qt_on_merge_shortcut(self):
@@ -422,13 +425,14 @@ class UnitListView(ViewBase):
 
     def _qt_merge_selected(self):
         merge_unit_ids = self.get_selected_unit_ids()
-        merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
-        if merge_successful:
-            self.notify_manual_curation_updated()
-        else:
-            warnings.warn("Merge not possible, some units are already deleted or in a merge group")
-            # optional: notify.failed merge?
-
+        success = self.controller.make_manual_merge_if_possible(merge_unit_ids)
+        if not success:
+            self.warning(
+                "Merge could not be performed. Ensure unit ids are not removed "
+                "merged, or split already."
+            )
+            return
+        self.notify_manual_curation_updated()
 
 
 
@@ -717,19 +721,24 @@ class UnitListView(ViewBase):
 
     def _panel_delete_unit(self):
         removed_unit_ids = self.get_selected_unit_ids()
-        self.controller.make_manual_delete_if_possible(removed_unit_ids)
+        success = self.controller.make_manual_delete_if_possible(removed_unit_ids)
+        if not success:
+            self.warning("Delete could not be performed. Ensure unit ids are not removed or merged already.")
+            return
         self.notify_manual_curation_updated()
         self.refresh()
 
     def _panel_merge_units(self):
         merge_unit_ids = self.get_selected_unit_ids()
-        merge_successful = self.controller.make_manual_merge_if_possible(merge_unit_ids)
-        if merge_successful:
-            self.notify_manual_curation_updated()
-            self.refresh()
-        else:
-            print("Merge not possible, some units are already deleted or in a merge group")
-            # optional: notify.failed merge?
+        success = self.controller.make_manual_merge_if_possible(merge_unit_ids)
+        if not success:
+            self.warning(
+                "Merge could not be performed. Ensure unit ids are not removed "
+                "merged, or split already."
+            )
+            return
+        self.notify_manual_curation_updated()
+        self.refresh()
 
     def _panel_handle_shortcut(self, event):
         if self.is_view_active():

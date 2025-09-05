@@ -35,7 +35,6 @@ class Controller():
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
                  extra_unit_properties=None, skip_extensions=None):
-        
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
         self.skip_extensions = skip_extensions
@@ -269,13 +268,14 @@ class Controller():
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         # this is dict of list because per segment spike_indices[segment_index][unit_id]
+        spike_indices_abs = spike_vector_to_indices(spike_vector2, unit_ids, absolute_index=True)
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
         spike_per_seg = [s.size for s in spike_vector2]
         # dict[unit_id] -> all indices for this unit across segments
         self._spike_index_by_units = {}
         # dict[seg_index][unit_id] -> all indices for this unit for one segment
-        self._spike_index_by_segment_and_units = spike_indices
+        self._spike_index_by_segment_and_units = spike_indices_abs
         for unit_id in unit_ids:
             inds = []
             for seg_ind in range(num_seg):
@@ -335,9 +335,16 @@ class Controller():
                     raise ValueError("Curation data format version is missing and is required in the curation data.")
                 try:
                     validate_curation_dict(curation_data)
-                    self.curation_data = curation_data
                 except Exception as e:
                     raise ValueError(f"Invalid curation data.\nError: {e}")
+
+                if curation_data.get("merges") is None:
+                    curation_data["merges"] = []
+                if curation_data.get("splits") is None:
+                    curation_data["splits"] = []
+                if curation_data.get("removed") is None:
+                    curation_data["removed"] = []
+                self.curation_data = curation_data
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
@@ -355,6 +362,8 @@ class Controller():
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
+        # this is used to store the active split unit
+        self.active_split = None
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -460,6 +469,13 @@ class Controller():
         if len(visible_unit_ids) > lim:
             visible_unit_ids = visible_unit_ids[:lim]
         self._visible_unit_ids = list(visible_unit_ids)
+        self.active_split = None
+        if len(visible_unit_ids) == 1 and self.curation:
+            # check if unit is split
+            for split in self.curation_data['splits']:
+                if visible_unit_ids[0] == split['unit_id']:
+                    self.active_split = split
+                    break
 
     def get_visible_unit_ids(self):
         """Get list of visible unit_ids"""
@@ -524,10 +540,21 @@ class Controller():
         return self._spike_visible_indices
 
     def get_indices_spike_selected(self):
+        if self.active_split is not None:
+            # select the splitted spikes in the active split
+            split_unit_id = self.active_split['unit_id']
+            spike_inds = self.get_spike_indices(split_unit_id, seg_index=None)
+            split_indices = self.active_split['indices']
+            self._spike_selected_indices = np.array(spike_inds[split_indices], dtype='int64')
         return self._spike_selected_indices
-    
+
     def set_indices_spike_selected(self, inds):
         self._spike_selected_indices = np.array(inds)
+        if len(self._spike_selected_indices) == 1:
+            # set time info 
+            segment_index = self.spikes['segment_index'][self._spike_selected_indices[0]]
+            sample_index = self.spikes['sample_index'][self._spike_selected_indices[0]]
+            self.set_time(time=sample_index / self.sampling_frequency, segment_index=segment_index)
 
     def get_spike_indices(self, unit_id, seg_index=None):
         if seg_index is None:
@@ -716,18 +743,21 @@ class Controller():
         If unit are already deleted or in a merge group then the delete operation is skipped.
         """
         if not self.curation:
-            return
+            return False
 
         all_merged_units = sum([m["unit_ids"] for m in self.curation_data["merges"]], [])
+        all_split_units = [s["unit_id"] for s in self.curation_data["splits"]]
         for unit_id in removed_unit_ids:
             if unit_id in self.curation_data["removed"]:
-                continue
-            # TODO: check if unit is already in a merge group
+                return False
             if unit_id in all_merged_units:
-                continue
+                return False
+            if unit_id in all_split_units:
+                return False
             self.curation_data["removed"].append(unit_id)
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
+        return True
     
     def make_manual_restore(self, restore_unit_ids):
         """
@@ -758,8 +788,11 @@ class Controller():
         if len(merge_unit_ids) < 2:
             return False
 
+        all_split_units = [s["unit_id"] for s in self.curation_data["splits"]]
         for unit_id in merge_unit_ids:
             if unit_id in self.curation_data["removed"]:
+                return False
+            if unit_id in all_split_units:
                 return False
 
         new_merges = add_merge(self.curation_data["merges"], merge_unit_ids)
@@ -767,14 +800,71 @@ class Controller():
         if self.verbose:
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
+
+    def make_manual_split_if_possible(self, unit_id, indices):
+        """
+        Check if the a unit_id can be split into a new split in the curation_data.
+
+        If unit_id is already in the removed list then the split is skipped.
+        If unit_id is already in some other split then the split is skipped.
+        """
+        if not self.curation:
+            return False
+
+        if unit_id in self.curation_data["removed"]:
+            return False
+
+        for merge in self.curation_data["merges"]:
+            if unit_id in merge["unit_ids"]:
+                return False
+
+        # check if unit_id is already in a split
+        for split in self.curation_data["splits"]:
+            if split["unit_id"] == unit_id:
+                return False
+
+        new_split = {
+            "unit_id": unit_id,
+            "mode": "indices",
+            "indices": indices
+        }
+        self.curation_data["splits"].append(new_split)
+        if self.verbose:
+            print(f"Split unit {unit_id} with {len(indices[0])} spikes")
+        return True
     
-    def make_manual_restore_merge(self, merge_group_indices):
+    def make_manual_restore_merge(self, merge_indices):
         if not self.curation:
             return
-        for merge_index in merge_group_indices:
+        for merge_index in merge_indices:
             if self.verbose:
-                print(f"Unmerged merge group {self.curation_data['merge_unit_groups'][merge_index]['unit_ids']}")
+                print(f"Unmerged {self.curation_data['merges'][merge_index]['unit_ids']}")
             self.curation_data["merges"].pop(merge_index)
+
+    def make_manual_restore_split(self, split_indices):
+        if not self.curation:
+            return
+        for split_index in split_indices:
+            if self.verbose:
+                print(f"Unsplitting {self.curation_data['splits'][split_index]['unit_id']}")
+            self.curation_data["splits"].pop(split_index)
+
+    def set_active_split_unit(self, unit_id):
+        """
+        Set the active split unit_id.
+        This is used to set the label for the split unit.
+        """
+        if not self.curation:
+            return
+        if unit_id is None:
+            self.active_split = None
+        else:
+            if unit_id in self.curation_data["removed"]:
+                print(f"Unit {unit_id} is removed, cannot set as active split unit")
+                return
+            active_split = [s for s in self.curation_data["splits"] if s["unit_id"] == unit_id]
+            if len(active_split) == 1:
+                self.active_split = active_split[0]
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive
