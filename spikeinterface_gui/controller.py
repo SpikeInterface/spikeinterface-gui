@@ -328,8 +328,7 @@ class Controller():
                     validate_curation_dict(curation_data)
                     self.curation_data = curation_data
                 except Exception as e:
-                    print(f"Invalid curation data. Initializing with empty curation data.\nError: {e}")
-                    self.curation_data = empty_curation_data.copy()
+                    raise ValueError(f"Invalid curation data.\nError: {e}")
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
