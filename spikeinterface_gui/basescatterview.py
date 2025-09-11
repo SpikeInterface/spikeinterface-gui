@@ -178,13 +178,11 @@ class BaseScatterView(ViewBase):
         self.viewBox = ViewBoxHandlingLasso()
         self.viewBox.lasso_drawing.connect(self.on_lasso_drawing)
         self.viewBox.lasso_finished.connect(self.on_lasso_finished)
-        self.viewBox.disableAutoRange()
         self.plot = pg.PlotItem(viewBox=self.viewBox)
         self.graphicsview.setCentralItem(self.plot)
         self.plot.hideButtons()
     
         self.viewBox2 = ViewBoxHandlingLasso()
-        self.viewBox2.disableAutoRange()
         self.plot2 = pg.PlotItem(viewBox=self.viewBox2)
         self.graphicsview2.setCentralItem(self.plot2)
         self.plot2.hideButtons()
@@ -195,8 +193,7 @@ class BaseScatterView(ViewBase):
         self.plot.addItem(self.scatter)
         
         self._text_items = []
-        
-        self.plot.setYRange(self._data_min,self._data_max, padding = 0.0)
+
 
     def _qt_on_spike_selection_changed(self):
         self.refresh()
@@ -232,11 +229,13 @@ class BaseScatterView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
 
         self._max_count = max_count
-        seg_index = self.combo_seg.currentIndex()
-        time_max = self.controller.get_num_samples(seg_index) / self.controller.sampling_frequency
-
-        self.plot.setXRange( 0., time_max, padding = 0.0)
+        
+        self.plot.getViewBox().autoRange(padding = 0.0)
         self.plot2.setXRange(0, self._max_count, padding = 0.0)
+
+        # explicitly set the y-range of the histogram to match the spike data
+        y_range_plot_1 = self.plot.getViewBox().viewRange()
+        self.viewBox2.setYRange(y_range_plot_1[1][0], y_range_plot_1[1][1], padding = 0.0)
         
         spike_times, spike_data = self.get_selected_spikes_data(seg_index=self.combo_seg.currentIndex())
         self.scatter_select.setData(spike_times, spike_data)
