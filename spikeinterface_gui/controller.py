@@ -268,6 +268,7 @@ class Controller():
         self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
+        self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
         # this is dict of list because per segment spike_indices[segment_index][unit_id]
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
