@@ -8,7 +8,7 @@ class BaseScatterView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _depend_on = None
     _settings = [
-            {'name': 'auto_decimate', 'type': 'bool', 'value' : True },
+            {'name': "auto_decimate", 'type': 'bool', 'value' : True },
             {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 10_000 },
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
             {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5 },
@@ -29,6 +29,9 @@ class BaseScatterView(ViewBase):
         eps = (self._data_max - self._data_min) / 100.0
         self._data_max += eps
         self._max_count = None
+        self._lasso_vertices = {segment_index: [] for segment_index in range(controller.num_segments)}
+        # this is used in panel
+        self._current_selected = 0
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
@@ -42,7 +45,7 @@ class BaseScatterView(ViewBase):
 
         hist_count, hist_bins = np.histogram(spike_data, bins=np.linspace(hist_min, hist_max, self.settings['num_bins']))
 
-        if self.settings['auto_decimate'] and spike_times.size > self.settings['max_spikes_per_unit']:
+        if self.settings["auto_decimate"] and spike_times.size > self.settings['max_spikes_per_unit']:
             step = spike_times.size // self.settings['max_spikes_per_unit']
             spike_times = spike_times[::step]
             spike_data = spike_data[::step]
@@ -61,6 +64,67 @@ class BaseScatterView(ViewBase):
         return (spike_times, spike_data)
 
 
+    def split(self):
+        """
+        Add a split to the curation data based on the lasso vertices.
+        """
+        if self.controller.num_segments > 1:
+            # check that lasso vertices are defined for all segments
+            if not all(len(self._lasso_vertices[seg_index]) > 0 for seg_index in range(self.controller.num_segments)):
+                self.warning("Select areas for all segments.")
+                return
+
+        # split is only possible if one unit is visible
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+        if len(visible_unit_ids) != 1:
+            self.warning("Split is only possible if one unit is visible.")
+            return
+
+        visible_unit_id = visible_unit_ids[0]
+
+        fs = self.controller.sampling_frequency
+        indices = []
+        offset = 0
+        for segment_index, vertices in self._lasso_vertices.items():
+            spike_inds = self.controller.get_spike_indices(visible_unit_id, seg_index=segment_index)
+            spike_times = self.controller.spikes["sample_index"][spike_inds] / fs
+            spike_data = self.spike_data[spike_inds]
+
+            # spike inds within spike train
+            inds = np.arange(offset, offset + len(spike_inds), dtype=int)
+
+            points = np.column_stack((spike_times, spike_data))
+            indices_in_segment = []
+            for polygon in vertices:
+                # Check if points are inside the polygon
+                inside = mpl_path(polygon).contains_points(points)
+                if np.any(inside):
+                    # If any point is inside, we can proceed with the split
+                    indices_in_segment.extend(inds[inside])
+            indices.extend(indices_in_segment)
+            offset += len(spike_inds)
+
+        success = self.controller.make_manual_split_if_possible(
+            unit_id=visible_unit_id,
+            indices=[indices],
+        )
+        if not success:
+            self.warning(
+                "Split could not be performed. Ensure split unit ids are not "
+                "removed, merged, or split already.")
+            return
+        
+        # Clear the lasso vertices after splitting
+        self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
+        self.refresh()
+        self.notify_manual_curation_updated()
+        
+
+    def on_unit_visibility_changed(self):
+        self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
+        self._current_selected = 0
+        self.refresh()
+
     ## QT zone ##
     def _qt_make_layout(self):
         from .myqt import QT
@@ -76,16 +140,20 @@ class BaseScatterView(ViewBase):
         self.combo_seg.currentIndexChanged.connect(self.refresh)
         add_stretch_to_qtoolbar(tb)
         self.lasso_but = QT.QPushButton("select", checkable = True)
-
         tb.addWidget(self.lasso_but)
         self.lasso_but.clicked.connect(self.enable_disable_lasso)
-        
+        if self.controller.curation:
+            self.split_but = QT.QPushButton("split")
+            tb.addWidget(self.split_but)
+            self.split_but.clicked.connect(self.split)
+            shortcut_split = QT.QShortcut(self.qt_widget)
+            shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
+            shortcut_split.activated.connect(self.split)
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
         
         self.graphicsview = pg.GraphicsView()
         h.addWidget(self.graphicsview, 3)
-
         self.graphicsview2 = pg.GraphicsView()
         h.addWidget(self.graphicsview2, 1)
 
@@ -103,7 +171,6 @@ class BaseScatterView(ViewBase):
         self.scatter_select.setZValue(1000)
 
 
-    
     def initialize_plot(self):
         import pyqtgraph as pg
         from .utils_qt import ViewBoxHandlingLasso
@@ -145,7 +212,10 @@ class BaseScatterView(ViewBase):
         max_count = 1
         for unit_id in self.controller.get_visible_unit_ids():
 
-            spike_times, spike_data, hist_count, hist_bins, _ = self.get_unit_data(unit_id)
+            spike_times, spike_data, hist_count, hist_bins, _ = self.get_unit_data(
+                unit_id, 
+                seg_index=self.combo_seg.currentIndex()
+            )
 
             # make a copy of the color
             color = QT.QColor(self.get_unit_color(unit_id))
@@ -167,7 +237,7 @@ class BaseScatterView(ViewBase):
         y_range_plot_1 = self.plot.getViewBox().viewRange()
         self.viewBox2.setYRange(y_range_plot_1[1][0], y_range_plot_1[1][1], padding = 0.0)
         
-        spike_times, spike_data = self.get_selected_spikes_data()
+        spike_times, spike_data = self.get_selected_spikes_data(seg_index=self.combo_seg.currentIndex())
         self.scatter_select.setData(spike_times, spike_data)
 
     def enable_disable_lasso(self, checked):
@@ -182,7 +252,7 @@ class BaseScatterView(ViewBase):
         points = np.array(points)
         self.lasso.setData(points[:, 0], points[:, 1])
     
-    def on_lasso_finished(self, points):
+    def on_lasso_finished(self, points, shift_held=False):
         self.lasso.setData([], [])
         vertices = np.array(points)
         
@@ -199,32 +269,45 @@ class BaseScatterView(ViewBase):
         # Only consider spikes from visible units
         visible_spikes = spikes_in_seg[visible_mask]
         if len(visible_spikes) == 0:
-            # Clear selection if no visible spikes
-            self.controller.set_indices_spike_selected([])
-            self.refresh()
-            self.notify_spike_selection_changed()
+            # Clear selection if no visible spikes and shift not held
+            if not shift_held:
+                self.controller.set_indices_spike_selected([])
+                self.refresh()
+                self.notify_spike_selection_changed()
             return
-            
+
         spike_times = visible_spikes['sample_index'] / fs
         spike_data = self.spike_data[sl][visible_mask]
         
-        points = np.column_stack((spike_times, spike_data))
-        inside = mpl_path(vertices).contains_points(points)
-        
-        # Clear selection if no spikes inside lasso
-        if not np.any(inside):
-            self.controller.set_indices_spike_selected([])
-            self.refresh()
-            self.notify_spike_selection_changed()
-            return
+        scatter_data = np.column_stack((spike_times, spike_data))
+        inside = mpl_path(vertices).contains_points(scatter_data)
 
-        # Map back to original indices
-        visible_indices = np.nonzero(visible_mask)[0]
-        selected_indices = sl.start + visible_indices[inside]
-        self.controller.set_indices_spike_selected(selected_indices)
+        if shift_held:
+            # If shift is held, append the vertices to the current lasso vertices
+            self._lasso_vertices[seg_index].append(vertices)
+        else:
+            # If shift is not held, clear the existing lasso vertices for this segment
+            self._lasso_vertices[seg_index] = [vertices]
+
+        # print(f"Lasso selection for segment {seg_index} has {len(self._lasso_vertices[seg_index])} polygons.")
+        
+        # Handle selection based on whether shift is held
+        if np.any(inside):
+            # Map back to original indices
+            visible_indices = np.nonzero(visible_mask)[0]
+            new_selected_indices = sl.start + visible_indices[inside]
+            
+            if shift_held:
+                # Extend existing selection
+                current_selection = self.controller.get_indices_spike_selected()
+                extended_selection = np.unique(np.concatenate([current_selection, new_selected_indices]))
+                self.controller.set_indices_spike_selected(extended_selection)
+            else:
+                # Replace selection
+                self.controller.set_indices_spike_selected(new_selected_indices)
+        
         self.refresh()
         self.notify_spike_selection_changed()
-
 
 
     ## Panel zone ##
@@ -232,7 +315,7 @@ class BaseScatterView(ViewBase):
         import panel as pn
         import bokeh.plotting as bpl
         from bokeh.models import ColumnDataSource, LassoSelectTool, Range1d
-        from .utils_panel import _bg_color, slow_lasso
+        from .utils_panel import _bg_color #, slow_lasso
 
         self.lasso_tool = LassoSelectTool()
 
@@ -245,7 +328,11 @@ class BaseScatterView(ViewBase):
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
         self.select_toggle_button = pn.widgets.Toggle(name="Select")
-        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')        
+        self.select_toggle_button.param.watch(self._panel_on_select_button, 'value')
+
+        if self.controller.curation:
+            self.split_button = pn.widgets.Button(name="Split", button_type="primary")
+            self.split_button.on_click(self._panel_split)
 
         self.y_range = Range1d(self._data_min, self._data_max)
         self.scatter_source = ColumnDataSource(data={"x": [], "y": [], "color": []})
@@ -275,7 +362,8 @@ class BaseScatterView(ViewBase):
         time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
         self.scatter_fig.x_range = Range1d(0., time_max)
 
-        slow_lasso(self.scatter_source, self._on_panel_lasso_selected)
+        # Add SelectionGeometry event handler to capture lasso vertices
+        self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)
 
         self.hist_fig = bpl.figure(
             tools="reset,wheel_zoom",
@@ -291,8 +379,19 @@ class BaseScatterView(ViewBase):
         self.hist_fig.xaxis.axis_label = "Count"
         self.hist_fig.x_range = Range1d(0, 1000)  # Initial x range for histogram
 
+        toolbar_elements = [self.segment_selector, self.select_toggle_button]
+        if self.controller.curation:
+            toolbar_elements.append(self.split_button)
+
+        if self.controller.curation:
+            from .utils_panel import KeyboardShortcut, KeyboardShortcuts
+            shortcuts = [KeyboardShortcut(key="s", name="split", ctrlKey=True)]
+            shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+            shortcuts_component.on_msg(self._panel_handle_shortcut)
+            toolbar_elements.append(shortcuts_component)
+
         self.layout = pn.Column(
-            pn.Row(self.segment_selector, self.select_toggle_button, sizing_mode="stretch_width"),
+            pn.Row(*toolbar_elements, sizing_mode="stretch_width"),
             pn.Row(
                 pn.Column(
                     self.scatter_fig,
@@ -373,29 +472,45 @@ class BaseScatterView(ViewBase):
             self.hist_fig.x_range.end = max_count
 
     def _panel_on_select_button(self, event):
-        if self.select_toggle_button.value and len(self.controller.get_visible_unit_ids()) == 1:
+        if self.select_toggle_button.value:
             self.scatter_fig.toolbar.active_drag = self.lasso_tool
         else:
             self.scatter_fig.toolbar.active_drag = None
             self.scatter_source.selected.indices = []
-            self._on_panel_lasso_selected(None, None, None)
+
 
     def _panel_change_segment(self, event):
+        self._current_selected = 0
         self.segment_index = int(self.segment_selector.value.split()[-1])
         time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
         self.scatter_fig.x_range.end = time_max
         self.refresh()
 
-    def _on_panel_lasso_selected(self, attr, old, new):
+    def _on_panel_selection_geometry(self, event):
         """
-        Handle selection changes in the scatter plot.
+        Handle SelectionGeometry event to capture lasso polygon vertices.
         """
-        if self.select_toggle_button.value:
+        if event.final:
+            xs = np.array(event.geometry["x"])
+            ys = np.array(event.geometry["y"])
+            polygon = np.column_stack((xs, ys))
+
             selected = self.scatter_source.selected.indices
             if len(selected) == 0:
                 self.controller.set_indices_spike_selected([])
                 self.notify_spike_selection_changed()
                 return
+
+            # Append the current polygon to the lasso vertices if shift is held
+            seg_index = self.segment_index
+            if len(selected) > self._current_selected:
+                self._current_selected = len(selected)
+                # Store the current polygon for the current segment
+                self._lasso_vertices[seg_index].append(polygon)
+            else:
+                self._lasso_vertices[seg_index] = [polygon]
+
+            # print(f"Lasso selection for segment {self.segment_index} has {len(self._lasso_vertices[self.segment_index])} polygons.")
 
             # Map back to original indices
             sl = self.controller.segment_slices[self.segment_index]
@@ -408,9 +523,16 @@ class BaseScatterView(ViewBase):
             # Map back to original indices
             visible_indices = np.nonzero(visible_mask)[0]
             selected_indices = sl.start + visible_indices[selected]
-            self.controller.set_indices_spike_selected(selected_indices)
+            already_selected = self.controller.get_indices_spike_selected()
+            all_selected = np.concatenate([already_selected, selected_indices])
+            self.controller.set_indices_spike_selected(all_selected)
             self.notify_spike_selection_changed()
 
+    def _panel_split(self, event):
+        """
+        Handle split button click in panel mode.
+        """
+        self.split()
 
     def _panel_update_selected_spikes(self):
         # handle selected spikes
@@ -425,7 +547,7 @@ class BaseScatterView(ViewBase):
             visible_indices = sl.start + np.nonzero(visible_mask)[0]
             selected_indices = np.nonzero(np.isin(visible_indices, selected_spike_indices))[0]
             # set selected spikes in scatter plot
-            if self.settings["auto_decimate"]:
+            if self.settings["auto_decimate"] and len(selected_indices) > 0:
                 selected_indices, = np.nonzero(np.isin(self.plotted_inds, selected_spike_indices))
             self.scatter_source.selected.indices = list(selected_indices)
         else:
@@ -446,3 +568,7 @@ class BaseScatterView(ViewBase):
         # update selected spikes
         self._panel_update_selected_spikes()
 
+    def _panel_handle_shortcut(self, event):
+        if event.data == "split":
+            if len(self.controller.get_visible_unit_ids()) == 1:
+                self.split()
