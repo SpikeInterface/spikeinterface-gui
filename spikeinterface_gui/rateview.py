@@ -48,8 +48,10 @@ class RateView(ViewBase):
         sampling_frequency = self.controller.sampling_frequency
 
         total_frames = self.controller.final_spike_samples
-        num_bins = total_frames[seg_index] // int(sampling_frequency) // self.settings['bin_s']
+        bins_s = self.settings['bin_s']
+        num_bins = total_frames[seg_index] // int(sampling_frequency) // bins_s
         
+        plot = pg.PlotItem()
         for r, unit_id in enumerate(visible_unit_ids):
 
             spike_inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
@@ -57,13 +59,15 @@ class RateView(ViewBase):
 
             count, bins = np.histogram(spikes, bins=num_bins)
             
-            plot = pg.PlotItem()
-            
             color = self.get_unit_color(unit_id)
-
-            curve = pg.PlotCurveItem(bins/sampling_frequency, count, stepMode='center', fillLevel=0, brush=color, pen=color)
+            curve = pg.PlotCurveItem(
+                (bins[1:]+bins[:-1])/(2*sampling_frequency), 
+                count/bins_s, 
+                pen=pg.mkPen(color, width=3)
+            )
             plot.addItem(curve)
-            self.grid.addItem(plot, row=r, col=0)
+        
+        self.grid.addItem(plot, row=r, col=0)
     
     ## panel ##
 
@@ -106,17 +110,27 @@ class RateView(ViewBase):
 
         seg_index =  self.segment_index
 
-        # clear previous plot
-        self.plots = []
-
         visible_unit_ids = self.controller.get_visible_unit_ids()
 
         sampling_frequency = self.controller.sampling_frequency
 
         total_frames = self.controller.final_spike_samples
-        num_bins = total_frames[seg_index] // int(sampling_frequency) // self.settings['bin_s']
+        bins_s = self.settings['bin_s']
+        num_bins = total_frames[seg_index] // int(sampling_frequency) // bins_s
 
-        row_plots = []
+        # Create Bokeh figure
+        p = bpl.figure(
+            width=250,
+            height=250,
+            tools="pan,wheel_zoom,reset",
+            active_drag="pan",
+            active_scroll="wheel_zoom",
+            background_fill_color=_bg_color,
+            border_fill_color=_bg_color,
+            outline_line_color="white",
+        )
+        p.toolbar.logo = None
+        p.grid.visible = False
         for unit_id in visible_unit_ids:
 
             spike_inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
@@ -124,36 +138,17 @@ class RateView(ViewBase):
 
             count, bins = np.histogram(spikes, bins=num_bins)
             
-            # Create Bokeh figure
-            p = bpl.figure(
-                width=250,
-                height=250,
-                tools="pan,wheel_zoom,reset",
-                active_drag="pan",
-                active_scroll="wheel_zoom",
-                background_fill_color=_bg_color,
-                border_fill_color=_bg_color,
-                outline_line_color="white",
-            )
-            p.toolbar.logo = None
-
             # Get color from controller
             color = self.get_unit_color(unit_id)
-            fill_alpha = 0.7
 
-            p.quad(
-                top=count,
-                bottom=0,
-                left=bins[:-1]/sampling_frequency,
-                right=bins[1:]/sampling_frequency,
-                fill_color=color,
-                line_color=color,
-                alpha=fill_alpha,
+            p.line(
+                x=(bins[1:]+bins[:-1])/(2*sampling_frequency),
+                y=count/bins_s,
+                color=color,
+                line_width=2,
             )
 
-            row_plots.append(p)
-
-        self.plots = [[row_plot] for row_plot in row_plots]
+        self.plots = [[p]]
 
         if len(self.plots) > 0:
             grid = gridplot(self.plots, toolbar_location="right", sizing_mode="stretch_both")
@@ -173,5 +168,5 @@ class RateView(ViewBase):
 RateView._gui_help_txt = """
 # RateView View
 
-This view shows the number of spikes per some time unit.
+This view shows firing rate for spikes per `bin_s`.
 """
