@@ -773,7 +773,7 @@ class Controller():
             return
         for merge_index in merge_group_indices:
             if self.verbose:
-                print(f"Unmerged merge group {self.curation_data['merge_unit_groups'][merge_index]['unit_ids']}")
+                print(f"Unmerged merge group {self.curation_data['merges'][merge_index]['unit_ids']}")
             self.curation_data["merges"].pop(merge_index)
 
     def get_curation_label_definitions(self):
@@ -794,9 +794,10 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
-        if category in lbl:
-            labels = lbl[category]
-            return labels[0]
+        if 'labels' in lbl: 
+            if category in lbl['labels']:
+                labels = lbl['labels'][category]
+                return labels[0]
 
     def set_label_to_unit(self, unit_id, category, label):
         if label is None:
