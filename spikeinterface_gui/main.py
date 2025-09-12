@@ -260,6 +260,7 @@ def run_mainwindow_cli():
     parser.add_argument('--port', help='Port for web mode', default=0, type=int)
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
+    parser.add_argument('--curation-file', help='Path to json file defining a curation', default=None)
 
     args = parser.parse_args(argv)
 
@@ -295,6 +296,12 @@ def run_mainwindow_cli():
                         raise ValueError('The recording does not have the same channel ids as the analyzer')
                     recording = recording.select_channels(recording.channel_ids[channel_mask])
 
+        if args.curation_file is not None:
+            with open(args.curation_file, "r") as f:
+                curation_data = json.load(f)
+        else:
+            curation_data = None
+
         run_mainwindow(
             analyzer,
             mode=args.mode,
@@ -303,4 +310,5 @@ def run_mainwindow_cli():
             recording=recording,
             verbose=args.verbose,
             layout=args.layout_file,
+            curation_dict=curation_data,
         )
