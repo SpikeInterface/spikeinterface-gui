@@ -838,7 +838,7 @@ class Controller():
             return
         for merge_index in merge_indices:
             if self.verbose:
-                print(f"Unmerged {self.curation_data['merges'][merge_index]['unit_ids']}")
+                print(f"Unmerged merge group {self.curation_data['merges'][merge_index]['unit_ids']}")
             self.curation_data["merges"].pop(merge_index)
 
     def make_manual_restore_split(self, split_indices):
@@ -884,9 +884,10 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
-        if category in lbl:
-            labels = lbl[category]
-            return labels[0]
+        if 'labels' in lbl: 
+            if category in lbl['labels']:
+                labels = lbl['labels'][category]
+                return labels[0]
 
     def set_label_to_unit(self, unit_id, category, label):
         if label is None:
