@@ -67,6 +67,8 @@ class RateView(ViewBase):
             )
             plot.addItem(curve)
         
+        current_max_y_range = plot.getViewBox().viewRange()[1][1]
+        plot.getViewBox().setYRange(min=0, max=current_max_y_range)
         self.grid.addItem(plot, row=r, col=0)
     
     ## panel ##
@@ -148,6 +150,7 @@ class RateView(ViewBase):
                 line_width=2,
             )
 
+        p.y_range.start = 0
         self.plots = [[p]]
 
         if len(self.plots) > 0:
