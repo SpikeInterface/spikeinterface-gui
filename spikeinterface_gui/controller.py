@@ -12,9 +12,10 @@ import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
+from spikeinterface.curation import validate_curation_dict
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
-from .curation_tools import adding_group, default_label_definitions, empty_curation_data
+from .curation_tools import add_merge, default_label_definitions, empty_curation_data
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -26,7 +27,6 @@ _default_main_settings = dict(
     color_mode='color_by_unit',
 )
 
-# TODO handle return_scaled
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
 
 
@@ -53,7 +53,7 @@ class Controller():
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
         
-        self.return_scaled = True
+        self.return_in_uV = self.analyzer.return_in_uV
         self.save_on_compute = save_on_compute
 
         self.verbose = verbose
@@ -329,7 +329,16 @@ class Controller():
             if curation_data is None:
                 self.curation_data = empty_curation_data.copy()
             else:
-                self.curation_data = curation_data
+                # validate the curation data
+                format_version = curation_data.get("format_version", None)
+                # assume version 2 if not present
+                if format_version is None:
+                    raise ValueError("Curation data format version is missing and is required in the curation data.")
+                try:
+                    validate_curation_dict(curation_data)
+                    self.curation_data = curation_data
+                except Exception as e:
+                    raise ValueError(f"Invalid curation data.\nError: {e}")
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
@@ -548,7 +557,7 @@ class Controller():
         elif trace_source == 'raw':
             raise NotImplemented
             # TODO get with parent recording the non process recording
-        kargs['return_scaled'] = self.return_scaled
+        kargs['return_in_uV'] = self.return_in_uV
         traces = rec.get_traces(**kargs)
         # put in cache for next call
         self._traces_cached[cache_key] = traces
@@ -667,6 +676,7 @@ class Controller():
 
         merge_unit_groups, extra = compute_merge_unit_groups(
             self.analyzer,
+            preset=params['preset'],
             extra_outputs=True,
             resolve_graph=False
         )
@@ -678,7 +688,7 @@ class Controller():
 
     def construct_final_curation(self):
         d = dict()
-        d["format_version"] = "1"
+        d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
         return d
@@ -709,14 +719,14 @@ class Controller():
         if not self.curation:
             return
 
-        all_merged_units = sum(self.curation_data["merge_unit_groups"], [])
+        all_merged_units = sum([m["unit_ids"] for m in self.curation_data["merges"]], [])
         for unit_id in removed_unit_ids:
-            if unit_id in self.curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed"]:
                 continue
             # TODO: check if unit is already in a merge group
             if unit_id in all_merged_units:
                 continue
-            self.curation_data["removed_units"].append(unit_id)
+            self.curation_data["removed"].append(unit_id)
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
     
@@ -728,10 +738,10 @@ class Controller():
             return
 
         for unit_id in restore_unit_ids:
-            if unit_id in self.curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed"]:
                 if self.verbose:
                     print(f"Unit {unit_id} is restored from the curation data")
-                self.curation_data["removed_units"].remove(unit_id)
+                self.curation_data["removed"].remove(unit_id)
 
     def make_manual_merge_if_possible(self, merge_unit_ids):
         """
@@ -750,22 +760,22 @@ class Controller():
             return False
 
         for unit_id in merge_unit_ids:
-            if unit_id in self.curation_data["removed_units"]:
+            if unit_id in self.curation_data["removed"]:
                 return False
-        merged_groups = adding_group(self.curation_data["merge_unit_groups"], merge_unit_ids)
-        self.curation_data["merge_unit_groups"] = merged_groups
+
+        new_merges = add_merge(self.curation_data["merges"], merge_unit_ids)
+        self.curation_data["merges"] = new_merges
         if self.verbose:
-            print(f"Merged unit group: {merge_unit_ids}")
+            print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
     
     def make_manual_restore_merge(self, merge_group_indices):
         if not self.curation:
             return
-        merge_groups_to_remove = [self.curation_data["merge_unit_groups"][merge_group_index] for merge_group_index in merge_group_indices]
-        for merge_group in merge_groups_to_remove:
+        for merge_index in merge_group_indices:
             if self.verbose:
-                print(f"Unmerged merge group {merge_group}")
-            self.curation_data["merge_unit_groups"].remove(merge_group)
+                print(f"Unmerged merge group {self.curation_data['merges'][merge_index]['unit_ids']}")
+            self.curation_data["merges"].pop(merge_index)
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive
@@ -785,9 +795,10 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
-        if category in lbl:
-            labels = lbl[category]
-            return labels[0]
+        if 'labels' in lbl: 
+            if category in lbl['labels']:
+                labels = lbl['labels'][category]
+                return labels[0]
 
     def set_label_to_unit(self, unit_id, category, label):
         if label is None:

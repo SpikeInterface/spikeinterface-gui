@@ -39,14 +39,6 @@ if QT_MODE is None:
 
 if QT_MODE is None:
     try:
-        import PyQt6
-        from PyQt6 import QtCore, QtGui, QtWidgets
-        QT_MODE = 'PyQt6'
-    except ImportError:
-        pass
-
-if QT_MODE is None:
-    try:
         import PyQt5
         from PyQt5 import QtCore, QtGui, QtWidgets
         QT_MODE = 'PyQt5'
@@ -56,8 +48,6 @@ if QT_MODE is None:
 #~ print(QT_MODE)
 
 if QT_MODE == 'PySide6':
-    QT = ModuleProxy(['', 'Q', 'Qt'], [QtCore.Qt, QtCore, QtGui, QtWidgets])
-elif QT_MODE == 'PyQt6':
     QT = ModuleProxy(['', 'Q', 'Qt'], [QtCore.Qt, QtCore, QtGui, QtWidgets])
 elif QT_MODE == 'PyQt5':
     QT = ModuleProxy(['', 'Q', 'Qt'], [QtCore.Qt, QtCore, QtGui, QtWidgets])

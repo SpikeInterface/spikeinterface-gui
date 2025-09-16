@@ -10,28 +10,31 @@ default_label_definitions = {
 
 
 empty_curation_data = {
+    "format_version": "2",
     "manual_labels": [],
-    "merge_unit_groups": [],
-    "removed_units": []
+    "merges": [],
+    "splits": [],
+    "removes": []
 }
 
-def adding_group(previous_groups, new_group):
+def add_merge(previous_merges, new_merge_unit_ids):
     # this is to ensure that np.str_ types are rendered as str
-    to_merge = [np.array(new_group).tolist()]
+    to_merge = [np.array(new_merge_unit_ids).tolist()]
     unchanged = []
-    for c_prev in previous_groups:
+    for c_prev in previous_merges:
         is_unaffected = True
-
-        for c_new in new_group:
-            if c_new in c_prev:
+        c_prev_unit_ids = c_prev["unit_ids"]
+        for c_new in new_merge_unit_ids:
+            if c_new in c_prev_unit_ids:
                 is_unaffected = False
-                to_merge.append(c_prev)
+                to_merge.append(c_prev_unit_ids)
                 break
 
         if is_unaffected:
-            unchanged.append(c_prev)
-    new_merge_group = [sum(to_merge, [])]
-    new_merge_group.extend(unchanged)
-    # Ensure the unicity
-    new_merge_group = [list(set(gp)) for gp in new_merge_group]
-    return new_merge_group
+            unchanged.append(c_prev_unit_ids)
+
+    new_merge_units = [sum(to_merge, [])]
+    new_merge_units.extend(unchanged)
+    # Ensure the uniqueness
+    new_merges = [{"unit_ids": list(set(gp))} for gp in new_merge_units]
+    return new_merges
