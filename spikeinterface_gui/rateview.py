@@ -32,14 +32,17 @@ class RateView(ViewBase):
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
 
-        self.grid = pg.GraphicsLayoutWidget()
-        self.layout.addWidget(self.grid)
+        self.plot = pg.PlotItem(viewBox=None)
+        self.graphicsview = pg.GraphicsView()
+        self.graphicsview.setCentralItem(self.plot)
+        self.layout.addWidget(self.graphicsview)
+        
 
 
     def _qt_refresh(self):
         import pyqtgraph as pg
 
-        self.grid.clear()
+        self.plot.clear()
 
         seg_index =  self.combo_seg.currentIndex()
 
@@ -51,7 +54,6 @@ class RateView(ViewBase):
         bins_s = self.settings['bin_s']
         num_bins = total_frames[seg_index] // int(sampling_frequency) // bins_s
         
-        plot = pg.PlotItem()
         for r, unit_id in enumerate(visible_unit_ids):
 
             spike_inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
@@ -63,14 +65,10 @@ class RateView(ViewBase):
             curve = pg.PlotCurveItem(
                 (bins[1:]+bins[:-1])/(2*sampling_frequency), 
                 count/bins_s, 
-                pen=pg.mkPen(color, width=3)
+                pen=pg.mkPen(color, width=2)
             )
-            plot.addItem(curve)
+            self.plot.addItem(curve)
         
-        current_max_y_range = plot.getViewBox().viewRange()[1][1]
-        plot.getViewBox().setYRange(min=0, max=current_max_y_range)
-        self.grid.addItem(plot, row=r, col=0)
-    
     ## panel ##
 
     def _panel_make_layout(self):
@@ -87,22 +85,36 @@ class RateView(ViewBase):
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
 
-        empty_fig = bpl.figure(
-            sizing_mode="stretch_both",
+        # empty_fig = bpl.figure(
+        #     sizing_mode="stretch_both",
+        #     background_fill_color=_bg_color,
+        #     border_fill_color=_bg_color,
+        #     outline_line_color="white",
+        # )
+        # self.empty_plot_pane = pn.pane.Bokeh(empty_fig, sizing_mode="stretch_both")
+        self.rate_fig = bpl.figure(
+            width=250,
+            height=250,
+            tools="pan,wheel_zoom,reset",
+            active_drag="pan",
+            active_scroll="wheel_zoom",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
         )
-        self.empty_plot_pane = pn.pane.Bokeh(empty_fig, sizing_mode="stretch_both")
+        self.rate_fig.toolbar.logo = None
+        self.rate_fig.grid.visible = False
 
         self.layout = pn.Column(
             pn.Row(self.segment_selector, sizing_mode="stretch_width"),
             #pn.Row(self.empty_plot_pane),
-            pn.Row(empty_fig, sizing_mode="stretch_both"),
+            # pn.Row(empty_fig, sizing_mode="stretch_both"),
+            pn.Row(self.rate_fig,sizing_mode="stretch_both"),
         )
         self.is_warning_active = False
 
-        self.plots = []
+        # self.plots = []
+        # self.lines = []
 
     def _panel_refresh(self):
         import panel as pn
@@ -121,18 +133,25 @@ class RateView(ViewBase):
         num_bins = total_frames[seg_index] // int(sampling_frequency) // bins_s
 
         # Create Bokeh figure
-        p = bpl.figure(
-            width=250,
-            height=250,
-            tools="pan,wheel_zoom,reset",
-            active_drag="pan",
-            active_scroll="wheel_zoom",
-            background_fill_color=_bg_color,
-            border_fill_color=_bg_color,
-            outline_line_color="white",
-        )
-        p.toolbar.logo = None
-        p.grid.visible = False
+        # p = bpl.figure(
+        #     width=250,
+        #     height=250,
+        #     tools="pan,wheel_zoom,reset",
+        #     active_drag="pan",
+        #     active_scroll="wheel_zoom",
+        #     background_fill_color=_bg_color,
+        #     border_fill_color=_bg_color,
+        #     outline_line_color="white",
+        # )
+        # p.toolbar.logo = None
+        # p.grid.visible = False
+
+        # self.rate_fig.clear()
+        # for l in self.lines:
+        #     l.remove()
+        # self.lines = []
+        self.rate_fig.renderers = []
+        
         for unit_id in visible_unit_ids:
 
             spike_inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
@@ -143,24 +162,27 @@ class RateView(ViewBase):
             # Get color from controller
             color = self.get_unit_color(unit_id)
 
-            p.line(
+            # p.line(
+            line = self.rate_fig.line(
                 x=(bins[1:]+bins[:-1])/(2*sampling_frequency),
                 y=count/bins_s,
                 color=color,
                 line_width=2,
             )
+            # self.lines.append(line)
 
-        p.y_range.start = 0
-        self.plots = [[p]]
+        # p.y_range.start = 0
+        self.rate_fig.y_range.start = 0
+        # self.plots = [[p]]
 
-        if len(self.plots) > 0:
-            grid = gridplot(self.plots, toolbar_location="right", sizing_mode="stretch_both")
-            self.layout[1] = pn.Row(
-                grid,
-                styles={'background-color': f'{_bg_color}'}
-            )
-        else:
-            self.layout[1] = self.empty_plot_pane
+        # if len(self.plots) > 0:
+        #     grid = gridplot(self.plots, toolbar_location="right", sizing_mode="stretch_both")
+        #     self.layout[1] = pn.Row(
+        #         grid,
+        #         styles={'background-color': f'{_bg_color}'}
+        #     )
+        # else:
+        #     self.layout[1] = self.empty_plot_pane
 
     def _panel_change_segment(self, event):
         self.segment_index = int(self.segment_selector.value.split()[-1])

@@ -100,9 +100,9 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    # win = test_mainwindow(start_app=True, verbose=True, curation=True)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True)
 
-    test_launcher(verbose=True)
+    # test_launcher(verbose=True)
 
 # TO RUN with panel serve:
 # win = test_mainwindow(start_app=False, verbose=True, curation=True)
