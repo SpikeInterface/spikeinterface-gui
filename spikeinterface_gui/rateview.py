@@ -2,7 +2,7 @@ from .view_base import ViewBase
 import numpy as np
 
 
-class RateView(ViewBase):
+class SpikeRateView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _settings = [
             {'name': 'bin_s', 'type': 'int', 'value' : 60 },
@@ -145,8 +145,8 @@ class RateView(ViewBase):
 
 
 
-RateView._gui_help_txt = """
-# RateView View
+SpikeRateView._gui_help_txt = """
+# SpikeRateView View
 
 This view shows firing rate for spikes per `bin_s`.
 """
