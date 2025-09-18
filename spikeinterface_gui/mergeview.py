@@ -109,7 +109,13 @@ class MergeView(ViewBase):
         return labels, rows
 
     def accept_group_merge(self, group_ids):
-        self.controller.make_manual_merge_if_possible(group_ids)
+        success = self.controller.make_manual_merge_if_possible(group_ids)
+        if not success:
+            self.warning(
+                "Merge could not be performed. Ensure unit ids are not removed "
+                "merged, or split already."
+            )
+            return
         self.notify_manual_curation_updated()
         self.refresh()
 
