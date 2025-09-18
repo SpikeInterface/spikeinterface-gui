@@ -66,6 +66,11 @@ class SpikeRateView(ViewBase):
                 pen=pg.mkPen(color, width=2)
             )
             self.plot.addItem(curve)
+
+        # Make lower y-lim 0
+        self.plot.getViewBox().autoRange()
+        current_max_y_range = self.plot.getViewBox().viewRange()[1][1]
+        self.plot.getViewBox().setYRange(0, current_max_y_range)
         
     ## panel ##
 
