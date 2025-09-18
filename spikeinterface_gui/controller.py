@@ -340,6 +340,17 @@ class Controller():
 
                 if curation_data.get("merges") is None:
                     curation_data["merges"] = []
+                else:
+                    # here we reset the merges for better formatting (str)
+                    existing_merges = curation_data["merges"]
+                    new_merges = []
+                    for m in existing_merges:
+                        if "unit_ids" not in m:
+                            continue
+                        if len(m["unit_ids"]) < 2:
+                            continue
+                        new_merges = add_merge(new_merges, m["unit_ids"])
+                    curation_data["merges"] = new_merges
                 if curation_data.get("splits") is None:
                     curation_data["splits"] = []
                 if curation_data.get("removed") is None:
