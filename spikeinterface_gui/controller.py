@@ -613,6 +613,9 @@ class Controller():
     def handle_metrics(self):
         return self.metrics is not None
 
+    def get_units_table(self):
+        return self.units_table
+
     def get_all_pcs(self):
 
         if self._pc_projections is None and self.pc_ext is not None:
