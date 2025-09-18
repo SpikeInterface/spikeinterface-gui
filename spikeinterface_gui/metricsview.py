@@ -67,7 +67,6 @@ class MetricsView(ViewBase):
         from .myqt import QT
 
         visible_metrics = [k for k, v in self.visible_metrics_dict.items() if v]
-        print(visible_metrics)
         self.grid.clear()
         n = len(visible_metrics)
         if len(visible_metrics) == 0:
