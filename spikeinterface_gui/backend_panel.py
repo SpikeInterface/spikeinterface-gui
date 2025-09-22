@@ -1,6 +1,7 @@
 import param
 import panel as pn
-
+import numpy as np
+from copy import copy
 
 from .viewlist import possible_class_views
 from .layout_presets import get_layout_description
@@ -182,7 +183,48 @@ def listen_setting_changes(view):
     for setting_data in view._settings:
         view.settings._parameterized.param.watch(view.on_settings_changed, setting_data["name"])
 
+def get_size_top_row(initial_row, initial_col, is_zone_array, original_zone_array):
+    
+    if original_zone_array[initial_row][initial_col] == False:
+        return 0,0
 
+    num_rows = is_zone_array[initial_row][initial_col]*1
+    num_cols = num_rows
+
+    num_rows += (not is_zone_array[1][initial_col])*1
+
+    if num_rows == 1:
+        for zone in is_zone_array[0,1+initial_col:]:
+            if zone == True:
+                break
+            num_cols += 1
+    elif num_rows == 2:
+        for zone1, zone2 in np.transpose(is_zone_array[:,1+initial_col:]):
+            if zone1 == True or zone2 == True:
+                break
+            num_cols += 1
+
+    is_zone_array[initial_row:initial_row+num_rows,initial_col:initial_col+num_cols] = True
+
+    return num_rows, num_cols
+
+def get_size_bottom_row(initial_row, initial_col, is_zone_array, original_zone_array):
+    
+    if original_zone_array[initial_row][initial_col] == False:
+        return 0,0
+    
+    num_rows = is_zone_array[initial_row][initial_col]*1
+    if num_rows == 0:
+        return 0, 0
+    num_cols = num_rows
+
+    for zone in is_zone_array[1,1+initial_col:]:
+        if zone == True:
+            break
+        else:
+            num_cols += 1
+
+    return num_rows, num_cols
 
 class PanelMainWindow:
 
@@ -285,52 +327,18 @@ class PanelMainWindow:
 
         all_zones = [f'zone{a}' for a in range(1,9)]
         is_zone = [(layout_zone.get(zone) is not None) and (len(layout_zone.get(zone)) > 0) for zone in all_zones]
+        is_zone_array = np.reshape(is_zone, (2,4))
+        original_zone_array = copy(is_zone_array)
 
-        # Get number of columns and rows per sub-region
-        num_cols_12 = max(is_zone[0]*1 + is_zone[1]*1, is_zone[4]*1 + is_zone[5]*1)
-        num_cols_56 = num_cols_12
-        num_cols_37 = (is_zone[2] or is_zone[6])*1 
-
-        num_rows_12 = ((is_zone[0] or is_zone[1])*1 - (is_zone[4] or is_zone[5])*1) + 1
-
-        # Do sub-regions [1,2], [4,5] [3][7] and [5][8] separately. For each, find out if
-        # both zones are present. If they are, place both in sub-region. If not, place one.
-
-        row_slice_12 = slice(0,num_rows_12)
-        if (is_zone[0] and is_zone[1]):
-            gs[row_slice_12, slice(0,1)] = layout_zone.get('zone1')
-            gs[row_slice_12, slice(1,2)] = layout_zone.get('zone2')
-        elif (is_zone[0] and not is_zone[1]):
-            gs[row_slice_12, slice(0,num_cols_12)] = layout_zone.get('zone1')
-        elif (is_zone[1] and not is_zone[0]):
-            gs[row_slice_12, slice(0,num_cols_12)] = layout_zone.get('zone2')
-
-        row_slice_56 = slice(num_rows_12, 2)
-        if (is_zone[4] and is_zone[5]):
-            gs[row_slice_56, slice(0,1)] = layout_zone.get('zone5')
-            gs[row_slice_56, slice(1,2)] = layout_zone.get('zone6')
-        elif (is_zone[4] and not is_zone[5]):
-            gs[row_slice_56, slice(0,num_cols_56)] = layout_zone.get('zone5')
-        elif (is_zone[5] and not is_zone[4]):
-            gs[row_slice_56, slice(0,num_cols_56)] = layout_zone.get('zone6')
-
-        col_slice_37 = slice(num_cols_12,num_cols_12+1)
-        if is_zone[2] and is_zone[6]:
-            gs[slice(0, 1), col_slice_37] = layout_zone.get('zone3')
-            gs[slice(1, 2), col_slice_37] = layout_zone.get('zone7')
-        elif is_zone[2] and not is_zone[6]:
-            gs[slice(0, 2), col_slice_37] = layout_zone.get('zone3')
-        elif is_zone[6] and not is_zone[2]:
-            gs[slice(0, 2), col_slice_37] = layout_zone.get('zone7')
-
-        col_slice_48 = slice(num_cols_12+num_cols_37,num_cols_12+num_cols_37+1)
-        if is_zone[3] and is_zone[7]:
-            gs[slice(0, 1), col_slice_48] = layout_zone.get('zone4')
-            gs[slice(1, 2), col_slice_48] = layout_zone.get('zone8')
-        elif is_zone[3] and not is_zone[7]:
-            gs[slice(0, 2), col_slice_48] = layout_zone.get('zone4')
-        elif is_zone[7] and not is_zone[3]:
-            gs[slice(0, 2), col_slice_48] = layout_zone.get('zone8')
+        for zone_index in range(8):
+            row = zone_index // 4
+            col = zone_index % 4
+            if row == 0:
+                num_rows, num_cols = get_size_top_row(row, col, is_zone_array, original_zone_array)
+            elif row == 1:
+                num_rows, num_cols = get_size_bottom_row(row, col, is_zone_array, original_zone_array)
+            if num_rows > 0 and num_cols > 0:
+                gs[slice(row, row + num_rows), slice(col,col+num_cols)] = layout_zone.get(f'zone{zone_index+1}')
 
         self.main_layout = gs
 
