@@ -45,6 +45,9 @@ class CurationView(ViewBase):
             split_indices = self._panel_get_split_table_row()
         if split_indices is not None:
             self.controller.make_manual_restore_split(split_indices)
+            self.controller.set_active_split_unit(None)
+            self.controller.set_indices_spike_selected([])
+            self.notify_spike_selection_changed()
             self.notify_manual_curation_updated()
             self.refresh()
 
@@ -214,6 +217,8 @@ class CurationView(ViewBase):
         if len(self.table_merge.selectedIndexes()) == 0:
             return
 
+        self._qt_clear_selection(self.table_merge)
+
         dtype = self.controller.unit_ids.dtype
         ind = self.table_merge.selectedIndexes()[0].row()
         visible_unit_ids = [m["unit_ids"] for m in self.controller.curation_data["merges"]][ind]
@@ -224,6 +229,8 @@ class CurationView(ViewBase):
     def _qt_on_item_selection_changed_split(self):
         if len(self.table_split.selectedIndexes()) == 0:
             return
+
+        self._qt_clear_selection(self.table_split)
 
         dtype = self.controller.unit_ids.dtype
         ind = self.table_split.selectedIndexes()[0].row()
@@ -236,6 +243,9 @@ class CurationView(ViewBase):
     def _qt_on_item_selection_changed_delete(self):
         if len(self.table_delete.selectedIndexes()) == 0:
             return
+
+        self._qt_clear_selection(self.table_delete)
+
         ind = self.table_delete.selectedIndexes()[0].row()
         unit_id = self.controller.curation_data["removed"][ind]
         self.controller.set_all_unit_visibility_off()
@@ -243,6 +253,12 @@ class CurationView(ViewBase):
         unit_id = self.controller.unit_ids.dtype.type(unit_id)
         self.controller.set_visible_unit_ids([unit_id])
         self.notify_unit_visibility_changed()
+
+    def _qt_clear_selection(self, active_table):
+        tables = [self.table_delete, self.table_merge, self.table_split]
+        for table in tables:
+            if table != active_table:
+                table.clearSelection()
 
     def _qt_on_restore_shortcut(self):
         sel_rows = self._qt_get_selected_rows()
@@ -521,7 +537,7 @@ class CurationView(ViewBase):
         elif event.data == "unmerge":
             self.unmerge()
         elif event.data == "unsplit":
-            pass
+            self.unsplit()
 
     def _panel_submit_to_parent(self, event):
         """Send the curation data to the parent window"""

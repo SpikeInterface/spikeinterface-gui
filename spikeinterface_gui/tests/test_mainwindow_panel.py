@@ -100,7 +100,7 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, port=5006)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True, port=0)
 
     # test_launcher(verbose=True)
 

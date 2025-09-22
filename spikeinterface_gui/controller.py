@@ -356,7 +356,6 @@ class Controller():
             if "quality" in self.curation_data["label_definitions"]:
                 curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
                 default_quality_labels = default_label_definitions["quality"]["label_options"]
-
                 if set(curation_dict_quality_labels) == set(default_quality_labels):
                     if self.verbose:
                         print('Curation quality labels are the default ones')
@@ -801,7 +800,7 @@ class Controller():
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
 
-    def make_manual_split_if_possible(self, unit_id, indices):
+    def make_manual_split_if_possible(self, unit_id):
         """
         Check if the a unit_id can be split into a new split in the curation_data.
 
@@ -823,14 +822,28 @@ class Controller():
             if split["unit_id"] == unit_id:
                 return False
 
+        # check that selected indices are not empty and from unit_id
+        visible_unit_ids = self.get_visible_unit_ids()
+        if unit_id not in visible_unit_ids:
+            return False
+        indices = self.get_indices_spike_selected()
+        if len(indices) == 0:
+            return False
+        spike_inds = self.get_spike_indices(unit_id, seg_index=None)
+        if not np.all(np.isin(indices, spike_inds)):
+            return False
+
+        # convert selected indices to indices within the spike train of the unit
+        indices = [np.where(spike_inds == ind)[0][0] for ind in indices]
+
         new_split = {
             "unit_id": unit_id,
             "mode": "indices",
-            "indices": indices
+            "indices": [indices]
         }
         self.curation_data["splits"].append(new_split)
         if self.verbose:
-            print(f"Split unit {unit_id} with {len(indices[0])} spikes")
+            print(f"Split unit {unit_id} with {len(indices)} spikes")
         return True
     
     def make_manual_restore_merge(self, merge_indices):
