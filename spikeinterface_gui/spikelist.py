@@ -376,6 +376,8 @@ class SpikeListView(ViewBase):
         self._panel_refresh_label()
 
     def _panel_on_spike_selection_changed(self):
+        if len(self.table.value) == 0:
+            return
         selected_inds = self.controller.get_indices_spike_selected()
         visible_inds = self.controller.get_indices_spike_visible()
         row_selected, = np.nonzero(np.isin(visible_inds, selected_inds))

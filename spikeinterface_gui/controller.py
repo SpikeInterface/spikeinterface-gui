@@ -554,12 +554,15 @@ class Controller():
             # select the splitted spikes in the active split
             split_unit_id = self.active_split['unit_id']
             spike_inds = self.get_spike_indices(split_unit_id, seg_index=None)
-            split_indices = self.active_split['indices']
+            split_indices = self.active_split['indices'][0]
             self._spike_selected_indices = np.array(spike_inds[split_indices], dtype='int64')
         return self._spike_selected_indices
 
     def set_indices_spike_selected(self, inds):
         self._spike_selected_indices = np.array(inds)
+        # reset active split if needed
+        if self.active_split is not None:
+            self.active_split = None
         if len(self._spike_selected_indices) == 1:
             # set time info 
             segment_index = self.spikes['segment_index'][self._spike_selected_indices[0]]
@@ -831,7 +834,11 @@ class Controller():
         # check if unit_id is already in a split
         for split in self.curation_data["splits"]:
             if split["unit_id"] == unit_id:
-                return False
+                # remove existing split and replace it
+                if self.verbose:
+                    print(f"Unit {unit_id} is already split, removing existing split and replacing it")
+                self.curation_data["splits"].remove(split)
+                break
 
         # check that selected indices are not empty and from unit_id
         visible_unit_ids = self.get_visible_unit_ids()

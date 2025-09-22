@@ -76,14 +76,8 @@ class BaseScatterView(ViewBase):
             return
         visible_unit_id = visible_unit_ids[0]
 
-        # fs = self.controller.sampling_frequency
-        # indices = []
-        # offset = 0
-        # for segment_index, vertices in self._lasso_vertices.items():
-        #     spike_inds = self.controller.get_spike_indices(visible_unit_id, seg_index=segment_index)
         indices = []
         fs = self.controller.sampling_frequency
-        offset = 0
         for segment_index, vertices in self._lasso_vertices.items():
             spike_inds = self.controller.get_spike_indices(visible_unit_id, seg_index=segment_index)
             spike_times = self.controller.spikes["sample_index"][spike_inds] / fs
@@ -99,6 +93,8 @@ class BaseScatterView(ViewBase):
                     indices_in_segment.extend(spike_inds[inside])
             indices.extend(indices_in_segment)
 
+        already_selected = self.controller.get_indices_spike_selected()
+        indices = np.unique(np.concatenate((already_selected, indices)))
         self.controller.set_indices_spike_selected(indices)
         # self.refresh()
         self.notify_spike_selection_changed()
@@ -124,6 +120,8 @@ class BaseScatterView(ViewBase):
                     self._perform_split, visible_unit_id
                 )
                 return  # Exit early - risky_action will be called if user continues
+        else:
+            self._perform_split(visible_unit_id)
 
         visible_unit_id = visible_unit_ids[0]
 
@@ -148,7 +146,13 @@ class BaseScatterView(ViewBase):
 
     def on_unit_visibility_changed(self):
         self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
-        self._current_selected = 0
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+        if len(visible_unit_ids) == 1:
+            visible_unit_id = visible_unit_ids[0]
+            if self.controller.active_split is not None:
+                split_unit_id = self.controller.active_split["unit_id"]
+                if split_unit_id == visible_unit_id:
+                    self._current_selected = self.controller.get_indices_spike_selected().size
         self.refresh()
 
     ## QT zone ##
@@ -515,23 +519,6 @@ class BaseScatterView(ViewBase):
             else:
                 self._lasso_vertices[seg_index] = [polygon]
 
-            # print(f"Lasso selection for segment {self.segment_index} has {len(self._lasso_vertices[self.segment_index])} polygons.")
-
-            # # Map back to original indices
-            # sl = self.controller.segment_slices[self.segment_index]
-            # spikes_in_seg = self.controller.spikes[sl]
-            # # Create mask for visible units
-            # visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
-            # for unit_index, unit_id in self.controller.iter_visible_units():
-            #     visible_mask |= (spikes_in_seg['unit_index'] == unit_index)
-            
-            # # Map back to original indices
-            # visible_indices = np.nonzero(visible_mask)[0]
-            # selected_indices = sl.start + visible_indices[selected]
-            # already_selected = self.controller.get_indices_spike_selected()
-            # all_selected = np.concatenate([already_selected, selected_indices])
-            # self.controller.set_indices_spike_selected(all_selected)
-            # self.notify_spike_selection_changed()
             self.select_all_spikes_from_lasso()
             self.refresh()
 

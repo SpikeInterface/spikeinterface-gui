@@ -279,7 +279,7 @@ class SelectableTabulator(pn.viewable.Viewer):
     This class extends the Tabulator class and adds functionality for keyboard shortcuts and click events:
     - Keyboard shortcuts for selecting the first, last, next, and previous rows.
     - Click events for selecting rows and cells.
-    - Double-click and ctrl-click events for selecting single rows (with callback)
+    - Double-click events for selecting single rows (with callback)
 
     Supports custom column callbacks for specific columns and conditional shortcuts.
 
@@ -326,9 +326,10 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._original_value = self.tabulator.value.copy()
         self.tabulator.formatters = self._formatters        
         self.tabulator.on_click(self._on_click)
+
         super().__init__()
+
         self.original_indices = self.value.index.values
-   
         self._parent_view = parent_view
         self._refresh_table_function = refresh_table_function
         self._on_only_function = on_only_function
@@ -389,6 +390,10 @@ class SelectableTabulator(pn.viewable.Viewer):
 
     @selection.setter
     def selection(self, val):
+        if isinstance(self.tabulator.selectable, int):
+            max_selectable = self.tabulator.selectable
+            if len(val) > max_selectable:
+                val = val[-max_selectable:]
         self.tabulator.selection = val
 
     @property
@@ -469,7 +474,7 @@ class SelectableTabulator(pn.viewable.Viewer):
                 if self._refresh_table_function is not None:
                     self._refresh_table_function()
         if not double_clicked:
-            current_selection = self.selection
+            current_selection = list(self.selection)
             if row in current_selection:
                 current_selection.remove(row)
             else:

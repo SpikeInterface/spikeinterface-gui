@@ -135,7 +135,7 @@ class CurationView(ViewBase):
         self.table_merge.clear()
         self.table_merge.setRowCount(len(merged_units))
         self.table_merge.setColumnCount(1)
-        self.table_merge.setHorizontalHeaderLabels(["Merged groups"])
+        self.table_merge.setHorizontalHeaderLabels(["Merges"])
         self.table_merge.setSortingEnabled(False)
         for ix, group in enumerate(merged_units):
             item = QT.QTableWidgetItem(str(group))
@@ -172,7 +172,7 @@ class CurationView(ViewBase):
         self.table_split.setSortingEnabled(False)
         for i, split in enumerate(splits):
             unit_id = split["unit_id"]
-            num_indices = len(split["indices"])
+            num_indices = len(split["indices"][0])
             num_spikes = self.controller.num_spikes[unit_id]
             num_splits = f"({num_indices}-{num_spikes - num_indices})"
             item = QT.QTableWidgetItem(f"{unit_id} {num_splits}")
@@ -458,7 +458,7 @@ class CurationView(ViewBase):
         num_spikes = self.controller.num_spikes
         for split in self.controller.curation_data["splits"]:
             unit_id = split["unit_id"]
-            num_indices = len(split["indices"])
+            num_indices = len(split["indices"][0])
             num_splits = f"({num_indices}-{num_spikes[unit_id] - num_indices})"
             split_units_str.append(f"{unit_id} {num_splits}")
         df = pd.DataFrame({"splits": split_units_str})
@@ -617,9 +617,9 @@ revert, and export the curation data.
 - **save in analyzer**: Save the current curation state in the analyzer.
 - **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
-- **unmerge**: Unmerge the selected merge group from the merged units table.
+- **unmerge**: Unmerge the selected merges from the merged units table.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
-- **press 'ctrl+u'**: Unmerge the selected merge groups from the merged units table.
+- **press 'ctrl+u'**: Unmerge the selected merges from the merged units table.
 - **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.
 """

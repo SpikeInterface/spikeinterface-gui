@@ -300,7 +300,7 @@ class ViewBase:
             styles={"color": "red", "font-size": "16px"},
         )
 
-        close_button = pn.widgets.Button(name="Close [X]")
+        close_button = pn.widgets.Button(name="Close", button_type="light")
         close_button.on_click(self._panel_clear_warning)
         row = pn.Column(alert_markdown, close_button, sizing_mode="stretch_width")
         self.layout.insert(0, row)
