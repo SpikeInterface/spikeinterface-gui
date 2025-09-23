@@ -136,7 +136,7 @@ def listen_setting_changes(view):
 class QtMainWindow(QT.QMainWindow):
     main_window_closed = QT.pyqtSignal(object)
 
-    def __init__(self, controller, parent=None, layout_preset=None, layout=None, screenshot_name=""):
+    def __init__(self, controller, parent=None, layout_preset=None, layout=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
@@ -152,16 +152,6 @@ class QtMainWindow(QT.QMainWindow):
             # refresh do not work because view are not yet visible at init
             view._refresh()
         self.controller.signal_handler.activate()
-
-        self.screenshot_name = screenshot_name
-        #QT.QTimer.singleShot(200, self.saveScreenshot)
-
-    def saveScreenshot(self):
-
-        screen = QT.QApplication.primaryScreen()
-        screenshot = screen.grabWindow( self.winId() )
-        screenshot.save(self.screenshot_name, 'jpg')
-
         # TODO sam : all veiws are always refreshed at the moment so this is useless.
         # uncommen this when ViewBase.is_view_visible() work correctly
         # for view_name, dock in self.docks.items():
