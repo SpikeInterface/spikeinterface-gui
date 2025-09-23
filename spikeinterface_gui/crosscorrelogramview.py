@@ -1,3 +1,5 @@
+import numpy as np
+
 from .view_base import ViewBase
 
 
@@ -6,11 +8,10 @@ class CrossCorrelogramView(ViewBase):
     _supported_backend = ['qt', 'panel']
     _depend_on = ["correlograms"]
     _settings = [
-                      {'name': 'window_ms', 'type': 'float', 'value' : 50. },
-                      {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
-                      {'name': 'display_axis', 'type': 'bool', 'value' : True },
-                      {'name': 'max_visible', 'type': 'int', 'value' : 8 },
-        ]
+        {'name': 'window_ms', 'type': 'float', 'value' : 50. },
+        {'name': 'bin_ms', 'type': 'float', 'value' : 1.0 },
+        {'name': 'display_axis', 'type': 'bool', 'value' : True },
+    ]
     _need_compute = True
 
     def __init__(self, controller=None, parent=None, backend="qt"):
@@ -25,8 +26,9 @@ class CrossCorrelogramView(ViewBase):
 
     def _compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
-                self.settings['window_ms'],  self.settings['bin_ms'])
-    
+            self.settings['window_ms'],  self.settings['bin_ms']
+        )
+
     ## Qt ##
 
     def _qt_make_layout(self):
@@ -51,18 +53,21 @@ class CrossCorrelogramView(ViewBase):
             return
         
         visible_unit_ids = self.controller.get_visible_unit_ids()
-        visible_unit_ids = visible_unit_ids[:self.settings['max_visible']]
-        
+
         n = len(visible_unit_ids)
-        
         unit_ids = list(self.controller.unit_ids)
+        colors = {
+            unit_id: self.get_unit_color(unit_id) for unit_id in visible_unit_ids
+        }
+        ccg = self.ccg
+        bins = self.bins
         
         for r in range(n):
             for c in range(r, n):
                 
                 i = unit_ids.index(visible_unit_ids[r])
                 j = unit_ids.index(visible_unit_ids[c])
-                count = self.ccg[i, j, :]
+                count = ccg[i, j, :]
                 
                 plot = pg.PlotItem()
                 if not self.settings['display_axis']:
@@ -71,16 +76,15 @@ class CrossCorrelogramView(ViewBase):
                 
                 if r==c:
                     unit_id = visible_unit_ids[r]
-                    color = self.get_unit_color(unit_id)
+                    color = colors[unit_id]
                 else:
                     color = (120,120,120,120)
                 
-                curve = pg.PlotCurveItem(self.bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
+                curve = pg.PlotCurveItem(bins, count, stepMode='center', fillLevel=0, brush=color, pen=color)
                 plot.addItem(curve)
                 self.grid.addItem(plot, row=r, col=c)
     
     ## panel ##
-
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
@@ -116,30 +120,28 @@ class CrossCorrelogramView(ViewBase):
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
 
-        # Show warning above the plot if too many visible units
-        if len(visible_unit_ids) > self.settings['max_visible']:
-            warning_msg = f"Only showing first {self.settings['max_visible']} units out of {len(visible_unit_ids)} visible units"
-            insert_warning(self, warning_msg)
-            self.is_warning_active = True
-            return
-        if self.is_warning_active:
-            clear_warning(self)
-            self.is_warning_active = False
-
-        visible_unit_ids = visible_unit_ids[:self.settings['max_visible']]
-
         n = len(visible_unit_ids)
         unit_ids = list(self.controller.unit_ids)
+        colors = {
+            unit_id: self.get_unit_color(unit_id) for unit_id in visible_unit_ids
+        }
+        ccg = self.ccg
+        bins = self.bins
+
+        first_fig = None
         for r in range(n):
             row_plots = []
             for c in range(r, n):
-                
                 i = unit_ids.index(visible_unit_ids[r])
                 j = unit_ids.index(visible_unit_ids[c])
-                count = self.ccg[i, j, :]
+                count = ccg[i, j, :]
 
                 # Create Bokeh figure
-                p = bpl.figure(
+                if first_fig is not None:
+                    extra_kwargs = dict(x_range=first_fig.x_range)
+                else:
+                    extra_kwargs = dict()
+                fig = bpl.figure(
                     width=250,
                     height=250,
                     tools="pan,wheel_zoom,reset",
@@ -148,29 +150,32 @@ class CrossCorrelogramView(ViewBase):
                     background_fill_color=_bg_color,
                     border_fill_color=_bg_color,
                     outline_line_color="white",
+                    **extra_kwargs,
                 )
-                p.toolbar.logo = None
+                fig.toolbar.logo = None
 
                 # Get color from controller
                 if r == c:
                     unit_id = visible_unit_ids[r]
-                    color = self.get_unit_color(unit_id)
+                    color = colors[unit_id]
                     fill_alpha = 0.7
                 else:
                     color = "lightgray"
                     fill_alpha = 0.4
 
-                p.quad(
+                fig.quad(
                     top=count,
                     bottom=0,
-                    left=self.bins[:-1],
-                    right=self.bins[1:],
+                    left=bins[:-1],
+                    right=bins[1:],
                     fill_color=color,
                     line_color=color,
                     alpha=fill_alpha,
                 )
+                if first_fig is None:
+                    first_fig = fig
 
-                row_plots.append(p)
+                row_plots.append(fig)
             # Fill row with None for proper spacing
             full_row = [None] * r + row_plots + [None] * (n - len(row_plots))
             self.plots.append(full_row)

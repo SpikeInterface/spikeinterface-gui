@@ -35,7 +35,6 @@ class Controller():
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
                  extra_unit_properties=None, skip_extensions=None):
-        
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
         self.skip_extensions = skip_extensions
@@ -270,13 +269,14 @@ class Controller():
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
         # this is dict of list because per segment spike_indices[segment_index][unit_id]
+        spike_indices_abs = spike_vector_to_indices(spike_vector2, unit_ids, absolute_index=True)
         spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
         # this is flatten
         spike_per_seg = [s.size for s in spike_vector2]
         # dict[unit_id] -> all indices for this unit across segments
         self._spike_index_by_units = {}
         # dict[seg_index][unit_id] -> all indices for this unit for one segment
-        self._spike_index_by_segment_and_units = spike_indices
+        self._spike_index_by_segment_and_units = spike_indices_abs
         for unit_id in unit_ids:
             inds = []
             for seg_ind in range(num_seg):
@@ -336,9 +336,27 @@ class Controller():
                     raise ValueError("Curation data format version is missing and is required in the curation data.")
                 try:
                     validate_curation_dict(curation_data)
-                    self.curation_data = curation_data
                 except Exception as e:
                     raise ValueError(f"Invalid curation data.\nError: {e}")
+
+                if curation_data.get("merges") is None:
+                    curation_data["merges"] = []
+                else:
+                    # here we reset the merges for better formatting (str)
+                    existing_merges = curation_data["merges"]
+                    new_merges = []
+                    for m in existing_merges:
+                        if "unit_ids" not in m:
+                            continue
+                        if len(m["unit_ids"]) < 2:
+                            continue
+                        new_merges = add_merge(new_merges, m["unit_ids"])
+                    curation_data["merges"] = new_merges
+                if curation_data.get("splits") is None:
+                    curation_data["splits"] = []
+                if curation_data.get("removed") is None:
+                    curation_data["removed"] = []
+                self.curation_data = curation_data
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
@@ -350,12 +368,10 @@ class Controller():
             if "quality" in self.curation_data["label_definitions"]:
                 curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
                 default_quality_labels = default_label_definitions["quality"]["label_options"]
-
                 if set(curation_dict_quality_labels) == set(default_quality_labels):
                     if self.verbose:
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
-
 
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
@@ -526,9 +542,15 @@ class Controller():
 
     def get_indices_spike_selected(self):
         return self._spike_selected_indices
-    
+
     def set_indices_spike_selected(self, inds):
         self._spike_selected_indices = np.array(inds)
+        # reset active split if needed
+        if len(self._spike_selected_indices) == 1:
+            # set time info 
+            segment_index = self.spikes['segment_index'][self._spike_selected_indices[0]]
+            sample_index = self.spikes['sample_index'][self._spike_selected_indices[0]]
+            self.set_time(time=sample_index / self.sampling_frequency, segment_index=segment_index)
 
     def get_spike_indices(self, unit_id, seg_index=None):
         if seg_index is None:
@@ -713,6 +735,11 @@ class Controller():
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
 
+    def get_split_unit_ids(self):
+        if not self.curation:
+            return []
+        return [s["unit_id"] for s in self.curation_data["splits"]]
+
     def make_manual_delete_if_possible(self, removed_unit_ids):
         """
         Check if a unit_ids can be removed.
@@ -720,18 +747,21 @@ class Controller():
         If unit are already deleted or in a merge group then the delete operation is skipped.
         """
         if not self.curation:
-            return
+            return False
 
         all_merged_units = sum([m["unit_ids"] for m in self.curation_data["merges"]], [])
+        all_split_units = [s["unit_id"] for s in self.curation_data["splits"]]
         for unit_id in removed_unit_ids:
             if unit_id in self.curation_data["removed"]:
-                continue
-            # TODO: check if unit is already in a merge group
+                return False
             if unit_id in all_merged_units:
-                continue
+                return False
+            if unit_id in all_split_units:
+                return False
             self.curation_data["removed"].append(unit_id)
             if self.verbose:
                 print(f"Unit {unit_id} is removed from the curation data")
+        return True
     
     def make_manual_restore(self, restore_unit_ids):
         """
@@ -762,8 +792,11 @@ class Controller():
         if len(merge_unit_ids) < 2:
             return False
 
+        all_split_units = [s["unit_id"] for s in self.curation_data["splits"]]
         for unit_id in merge_unit_ids:
             if unit_id in self.curation_data["removed"]:
+                return False
+            if unit_id in all_split_units:
                 return False
 
         new_merges = add_merge(self.curation_data["merges"], merge_unit_ids)
@@ -771,14 +804,66 @@ class Controller():
         if self.verbose:
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
+
+    def make_manual_split_if_possible(self, unit_id):
+        """
+        Check if the a unit_id can be split into a new split in the curation_data.
+
+        If unit_id is already in the removed list then the split is skipped.
+        If unit_id is already in some other split then the split is skipped.
+        """
+        if not self.curation:
+            return False
+
+        if unit_id in self.curation_data["removed"]:
+            return False
+
+        for merge in self.curation_data["merges"]:
+            if unit_id in merge["unit_ids"]:
+                return False
+
+        # check if unit_id is already in a split
+        for split in self.curation_data["splits"]:
+            if split["unit_id"] == unit_id:
+                # remove existing split and replace it
+                if self.verbose:
+                    print(f"Unit {unit_id} is already split, removing existing split and replacing it")
+                self.curation_data["splits"].remove(split)
+                break
+
+        # check that selected indices are not empty and from unit_id
+        visible_unit_ids = self.get_visible_unit_ids()
+        if unit_id not in visible_unit_ids:
+            return False
+        indices = self.get_indices_spike_selected()
+        if len(indices) == 0:
+            return False
+        spike_inds = self.get_spike_indices(unit_id, seg_index=None)
+        if not np.all(np.isin(indices, spike_inds)):
+            return False
+
+        # convert selected indices to indices within the spike train of the unit
+        indices = [np.where(spike_inds == ind)[0][0] for ind in indices]
+
+        new_split = {
+            "unit_id": unit_id,
+            "mode": "indices",
+            "indices": [indices]
+        }
+        self.curation_data["splits"].append(new_split)
+        if self.verbose:
+            print(f"Split unit {unit_id} with {len(indices)} spikes")
+        return True
     
-    def make_manual_restore_merge(self, merge_group_indices):
+    def make_manual_restore_merge(self, merge_indices):
         if not self.curation:
             return
-        for merge_index in merge_group_indices:
-            if self.verbose:
-                print(f"Unmerged merge group {self.curation_data['merges'][merge_index]['unit_ids']}")
-            self.curation_data["merges"].pop(merge_index)
+        self.curation_data["merges"] = [m for i, m in enumerate(self.curation_data["merges"]) if i not in merge_indices]
+
+    def make_manual_restore_split(self, split_indices):
+        if not self.curation:
+            return
+        self.curation_data["splits"] = [s for i, s in enumerate(self.curation_data["splits"]) if i not in split_indices]
 
     def get_curation_label_definitions(self):
         # give only label definition with exclusive
