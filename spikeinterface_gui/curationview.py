@@ -45,18 +45,17 @@ class CurationView(ViewBase):
             split_indices = self._panel_get_split_table_row()
         if split_indices is not None:
             self.controller.make_manual_restore_split(split_indices)
-            self.controller.set_active_split_unit(None)
             self.controller.set_indices_spike_selected([])
             self.notify_spike_selection_changed()
             self.notify_manual_curation_updated()
             self.refresh()
 
     def select_and_notify_split(self, split_unit_id):
-        self.controller.set_active_split_unit(split_unit_id)
         self.controller.set_visible_unit_ids([split_unit_id])
         self.notify_unit_visibility_changed()
         spike_inds = self.controller.get_spike_indices(split_unit_id, seg_index=None)
-        split_indices = self.controller.active_split['indices'][0]
+        active_split = [s for s in self.controller.curation_data['splits'] if s['unit_id'] == split_unit_id][0]
+        split_indices = active_split['indices'][0]
         self.controller.set_indices_spike_selected(spike_inds[split_indices])
         self.notify_spike_selection_changed()
 
@@ -496,7 +495,6 @@ class CurationView(ViewBase):
                 # self.controller.set_all_unit_visibility_off()
                 split_unit = unit_dtype.type(split_unit)
                 self.controller.set_visible_unit_ids([split_unit])
-                self.controller.set_active_split_unit(split_unit)
         self.notify_unit_visibility_changed()
 
     def _panel_restore_units(self, event):

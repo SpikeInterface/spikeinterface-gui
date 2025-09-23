@@ -29,7 +29,7 @@ class BaseScatterView(ViewBase):
         eps = (self._data_max - self._data_min) / 100.0
         self._data_max += eps
         self._max_count = None
-        self._lasso_vertices = {segment_index: [] for segment_index in range(controller.num_segments)}
+        self._lasso_vertices = {segment_index: None for segment_index in range(controller.num_segments)}
         # this is used in panel
         self._current_selected = 0
 
@@ -83,6 +83,8 @@ class BaseScatterView(ViewBase):
         indices = []
         fs = self.controller.sampling_frequency
         for segment_index, vertices in self._lasso_vertices.items():
+            if vertices is None:
+                continue
             spike_inds = self.controller.get_spike_indices(visible_unit_id, seg_index=segment_index)
             spike_times = self.controller.spikes["sample_index"][spike_inds] / fs
             spike_data = self.spike_data[spike_inds]
@@ -117,7 +119,7 @@ class BaseScatterView(ViewBase):
 
         if self.controller.num_segments > 1:
             # check that lasso vertices are defined for all segments
-            if not all(len(self._lasso_vertices[seg_index]) > 0 for seg_index in range(self.controller.num_segments)):
+            if not all(self._lasso_vertices[seg_index] is not None for seg_index in range(self.controller.num_segments)):
                 # Use the new continue_from_user pattern
                 self.continue_from_user(
                     "Not all segments have lasso selection. "
@@ -125,6 +127,8 @@ class BaseScatterView(ViewBase):
                     self._perform_split, visible_unit_id
                 )
                 return  # Exit early - risky_action will be called if user continues
+            else:
+                self._perform_split(visible_unit_id)
         else:
             self._perform_split(visible_unit_id)
 
@@ -144,20 +148,19 @@ class BaseScatterView(ViewBase):
             return
         
         # Clear the lasso vertices after splitting
-        self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
+        self._lasso_vertices = {segment_index: None for segment_index in range(self.controller.num_segments)}
         self.refresh()
         self.notify_manual_curation_updated()
         
 
     def on_unit_visibility_changed(self):
-        self._lasso_vertices = {segment_index: [] for segment_index in range(self.controller.num_segments)}
+        self._lasso_vertices = {segment_index: None for segment_index in range(self.controller.num_segments)}
         visible_unit_ids = self.controller.get_visible_unit_ids()
         if len(visible_unit_ids) == 1:
             visible_unit_id = visible_unit_ids[0]
-            if self.controller.active_split is not None:
-                split_unit_id = self.controller.active_split["unit_id"]
-                if split_unit_id == visible_unit_id:
-                    self._current_selected = self.controller.get_indices_spike_selected().size
+            split_unit_ids = self.controller.get_split_unit_ids()
+            if visible_unit_id in split_unit_ids:
+                self._current_selected = self.controller.get_indices_spike_selected().size
         self.refresh()
 
     ## QT zone ##
@@ -311,6 +314,9 @@ class BaseScatterView(ViewBase):
                 self.refresh()
                 self.notify_spike_selection_changed()
             return
+
+        if self._lasso_vertices[seg_index] is None:
+            self._lasso_vertices[seg_index] = []
 
         if shift_held:
             # If shift is held, append the vertices to the current lasso vertices
@@ -519,6 +525,8 @@ class BaseScatterView(ViewBase):
 
             # Append the current polygon to the lasso vertices if shift is held
             seg_index = self.segment_index
+            if self._lasso_vertices[seg_index] is None:
+                self._lasso_vertices[seg_index] = []
             if len(selected) > self._current_selected:
                 self._current_selected = len(selected)
                 # Store the current polygon for the current segment
