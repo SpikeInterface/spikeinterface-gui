@@ -26,38 +26,9 @@ class CrossCorrelogramView(ViewBase):
 
     def _compute(self):
         self.ccg, self.bins = self.controller.compute_correlograms(
-                self.settings['window_ms'],  self.settings['bin_ms'])
-
-    def _compute_split_ccg(self):
-        """
-        This method is used to compute the cross-correlogram for a split unit.
-        It is called when the user selects a split unit in the controller.
-        """
-        from spikeinterface import NumpySorting
-        from spikeinterface.postprocessing import compute_correlograms
-
-        if self.controller.active_split is None:
-            raise ValueError("No active split unit selected.")
-
-        split_unit_id = self.controller.active_split["unit_id"]
-        spike_inds = self.controller.get_spike_indices(split_unit_id, seg_index=None)
-        split_indices = self.controller.active_split['indices'][0]
-        spikes_split_unit = self.controller.spikes[spike_inds]
-        spikes_split_unit["unit_index"] = np.zeros(spikes_split_unit.shape, dtype=int)
-        # change unit_index for split indices
-        spikes_split_unit["unit_index"][split_indices] = 1
-        split_sorting = NumpySorting(
-            spikes=spikes_split_unit,
-            sampling_frequency=self.controller.sampling_frequency,
-            unit_ids=[f"{split_unit_id}-0", f"{split_unit_id}-1"]
+            self.settings['window_ms'],  self.settings['bin_ms']
         )
-        ccg, bins = compute_correlograms(
-            split_sorting,
-            window_ms=self.settings['window_ms'],
-            bin_ms=self.settings['bin_ms']
-        )
-        return ccg, bins
-    
+
     ## Qt ##
 
     def _qt_make_layout(self):
@@ -82,25 +53,14 @@ class CrossCorrelogramView(ViewBase):
             return
         
         visible_unit_ids = self.controller.get_visible_unit_ids()
-        if self.controller.active_split is None:
-            n = len(visible_unit_ids)
-            unit_ids = list(self.controller.unit_ids)
-            colors = {
-                unit_id: self.get_unit_color(unit_id) for unit_id in visible_unit_ids
-            }
-            ccg = self.ccg
-            bins = self.bins
-        else:
-            split_unit_id = visible_unit_ids[0]
-            n = 2
-            unit_ids = [f"{split_unit_id}-0", f"{split_unit_id}-1"]
-            visible_unit_ids = unit_ids
-            ccg, bins = self._compute_split_ccg()
-            split_unit_color = self.get_unit_color(split_unit_id)
-            colors = {
-                f"{split_unit_id}-0": split_unit_color,
-                f"{split_unit_id}-1": split_unit_color,
-            }
+
+        n = len(visible_unit_ids)
+        unit_ids = list(self.controller.unit_ids)
+        colors = {
+            unit_id: self.get_unit_color(unit_id) for unit_id in visible_unit_ids
+        }
+        ccg = self.ccg
+        bins = self.bins
         
         for r in range(n):
             for c in range(r, n):
@@ -159,25 +119,14 @@ class CrossCorrelogramView(ViewBase):
             return
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
-        if self.controller.active_split is None:
-            n = len(visible_unit_ids)
-            unit_ids = list(self.controller.unit_ids)
-            colors = {
-                unit_id: self.get_unit_color(unit_id) for unit_id in visible_unit_ids
-            }
-            ccg = self.ccg
-            bins = self.bins
-        else:
-            split_unit_id = visible_unit_ids[0]
-            n = 2
-            unit_ids = [f"{split_unit_id}-0", f"{split_unit_id}-1"]
-            visible_unit_ids = unit_ids
-            ccg, bins = self._compute_split_ccg()
-            split_unit_color = self.get_unit_color(split_unit_id)
-            colors = {
-                f"{split_unit_id}-0": split_unit_color,
-                f"{split_unit_id}-1": split_unit_color,
-            }
+
+        n = len(visible_unit_ids)
+        unit_ids = list(self.controller.unit_ids)
+        colors = {
+            unit_id: self.get_unit_color(unit_id) for unit_id in visible_unit_ids
+        }
+        ccg = self.ccg
+        bins = self.bins
 
         first_fig = None
         for r in range(n):

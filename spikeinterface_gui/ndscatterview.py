@@ -55,6 +55,7 @@ class NDScatterView(ViewBase):
         self.tour_step = 0
         self.auto_update_limit = True
         self._lasso_vertices = []
+        self._current_selected = 0
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
@@ -146,6 +147,7 @@ class NDScatterView(ViewBase):
                 projected_2d = projected[:, :2]
                 all_limits.append(float(np.percentile(np.abs(projected_2d), 95) * 2.))
             if return_spike_indices:
+                # TODO: Alessio double check this
                 spike_indices[unit_id] = self.random_spikes_indices[mask]
         if len(all_limits) > 0 and self.auto_update_limit:
             self.limit = max(all_limits)
