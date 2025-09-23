@@ -30,7 +30,6 @@ def run_mainwindow(
     panel_start_server_kwargs=None,
     panel_window_servable=True,
     verbose=False,
-    screenshot_name=""
 ):
     """
     Create the main window and start the QT app loop.
@@ -123,7 +122,7 @@ def run_mainwindow(
 
         app = mkQApp()
 
-        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout, screenshot_name=screenshot_name)
+        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'

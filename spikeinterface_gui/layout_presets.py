@@ -12,6 +12,7 @@ A preset depends on eight zones.
 +---------------+--------------+
 
 If a zone has free space below it or to the right of it, it will try to use it.
+Stretching downwards takes precedence over stretching rightwards.
 E.g. suppose your layout is only non-empty in zones 1, 4, 5, 6 and 7:
 
 +---------------+--------------+
