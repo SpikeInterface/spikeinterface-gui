@@ -18,15 +18,6 @@ class MetricsView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         units_table = controller.get_units_table()
 
-        # add quality/template metrics if present
-        if controller.has_extension('quality_metrics'):
-            qm = controller.analyzer.get_extension('quality_metrics').get_data()
-            units_table = units_table.merge(qm, how='left')
-        if controller.has_extension('template_metrics'):
-            tm = controller.analyzer.get_extension('template_metrics').get_data()
-            units_table = units_table.merge(tm, how='left')
-
-        self.units_table = units_table
         self.visible_metrics_dict = dict()
         for col in units_table.columns:
             if units_table[col].dtype.kind == "f":
@@ -100,7 +91,7 @@ class MetricsView(ViewBase):
         visible_metrics = [k for k, v in self.visible_metrics_dict.items() if v]
         n = len(visible_metrics)
 
-        units_table = self.units_table
+        units_table = self.controller.get_units_table()
         white_brush = QT.QColor('white')
         white_brush.setAlpha(200)
 
@@ -211,7 +202,7 @@ class MetricsView(ViewBase):
         if n > 0:
             # Calculate plot size based on number of metrics
             plot_size = max(200, min(400, 800 // n))
-            units_table = self.units_table
+            units_table = self.controller.get_units_table()
 
             # Create plots only for upper triangular matrix
             for r in range(n):
