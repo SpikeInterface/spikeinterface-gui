@@ -42,12 +42,12 @@ def get_layout_description(preset_name, layout=None):
 default_layout = dict(
     zone1=['curation', 'spikelist'],
     zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap',  'spikeamplitude', 'spikedepth'],
+    zone3=['trace', 'tracemap',  'spikeamplitude', 'spikedepth', 'spikerate'],
     zone4=[],
     zone5=['probe'],
     zone6=['ndscatter', 'similarity'],
     zone7=['waveform', 'waveformheatmap', ],
-    zone8=['correlogram', 'isi', 'mainsettings'],
+    zone8=['correlogram', 'isi', 'metrics', 'mainsettings'],
 )
 _presets['default'] = default_layout
 
