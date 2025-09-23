@@ -251,40 +251,33 @@ class QtMainWindow(QT.QMainWindow):
         all_zones_array = np.transpose(np.reshape(all_zones, (2,4)))
         is_zone = np.array([(widgets_zone.get(zone) is not None) and (len(widgets_zone.get(zone)) > 0) for zone in all_zones])
         is_zone_array = np.reshape(is_zone, (2,4))
-        original_zone_array = copy(is_zone_array)
-
-        first_nonzero_column = np.arange(4)[np.any(original_zone_array, axis=0)][0]
-        first_is_top = original_zone_array[:,first_nonzero_column][0]
-        if not first_is_top:
-            top_zone = f"zone{first_nonzero_column+1}"
-            bottom_zone = f"zone{first_nonzero_column+5}"
-            widgets_zone[top_zone] = widgets_zone[bottom_zone]
-            widgets_zone[bottom_zone] = []
+        
+        # If the first non-zero zero (from left to right) is on the bottom, move it up
+        for column_index, zones_in_columns in enumerate(is_zone_array):
+            if np.any(zones_in_columns):
+                first_is_top = zones_in_columns[0]
+                if not first_is_top:
+                    top_zone = f"zone{column_index+1}"
+                    bottom_zone = f"zone{column_index+5}"
+                    widgets_zone[top_zone] = widgets_zone[bottom_zone]
+                    widgets_zone[bottom_zone] = []
 
         is_zone = np.array([(widgets_zone.get(zone) is not None) and (len(widgets_zone.get(zone)) > 0) for zone in all_zones])
         is_zone_array = np.reshape(is_zone, (2,4))
         original_zone_array = copy(is_zone_array)
 
-        num_rows_1, num_cols_1 = get_size_top_row(0,0, is_zone_array, original_zone_array)
-        num_rows_2, num_cols_2 = get_size_top_row(0,1, is_zone_array, original_zone_array)
-        num_rows_3, num_cols_3 = get_size_top_row(0,2, is_zone_array, original_zone_array)
-        num_rows_4, num_cols_4 = get_size_top_row(0,3, is_zone_array, original_zone_array)
-
-        num_rows_5, num_cols_5 = get_size_bottom_row(1,0, is_zone_array, original_zone_array)
-        num_rows_6, num_cols_6 = get_size_bottom_row(1,1, is_zone_array, original_zone_array)
-        num_rows_7, num_cols_7 = get_size_bottom_row(1,2, is_zone_array, original_zone_array)
-        num_rows_8, num_cols_8 = get_size_bottom_row(1,3, is_zone_array, original_zone_array)
-
-        num_rows = np.array([num_rows_1, num_rows_2, num_rows_3, num_rows_4, num_rows_5, num_rows_6, num_rows_7, num_rows_8])
-        num_cols = np.array([num_cols_1, num_cols_2, num_cols_3, num_cols_4, num_cols_5, num_cols_6, num_cols_7, num_cols_8])
-
-        num_rows_array = np.reshape(num_rows, (2,4))
-        num_cols_array = np.reshape(num_cols, (2,4))
-
-        group = []
+        # First we split horizontally any columns which are two rows long.
+        # For later, group the zones between these splits
         all_groups = []
-        for num_row, num_col, is_a_zone, zones in zip(np.transpose(num_rows_array), np.transpose(num_cols_array), np.transpose(original_zone_array), all_zones_array):
-            if num_row[0] == 2:
+        group = []
+        for col_index, zones in enumerate(all_zones_array):
+            col = col_index % 4
+            is_a_zone = original_zone_array[:,col]            
+            num_row_0, _ = get_size_top_row(0, col, is_zone_array, original_zone_array)
+            # this function affects is_zone_array so must be run
+            _, _ = get_size_bottom_row(0, col, is_zone_array, original_zone_array)
+            
+            if num_row_0 == 2:
                 if len(group) > 0:
                     all_groups.append(group)
                 group = []
@@ -297,14 +290,7 @@ class QtMainWindow(QT.QMainWindow):
         if len(group) > 0:
             all_groups.append(group)
 
-        first_dock = None
-        print(f"{all_groups}")
         first_zone = all_groups[0][0]
-        print(f"{first_zone=}")
-        if first_zone in ['zone5', 'zone6', 'zone7', 'zone8']:
-            above_zone = f'zone{int(first_zone[-1])-4}'
-            widgets_zone[above_zone] = widgets_zone[first_zone]
-            first_zone = above_zone
         first_dock = widgets_zone[first_zone][0]
         dock = self.docks[first_dock]
         self.addDockWidget(areas['left'], dock)
@@ -315,87 +301,43 @@ class QtMainWindow(QT.QMainWindow):
             sorted_arr = np.array(group)[sorted_indices]
             view_name = widgets_zone[sorted_arr[0]][0]
             dock = self.docks[view_name]
-            print(f"Splitting {first_dock}, {view_name}")
             self.splitDockWidget(self.docks[first_dock], dock, orientations['horizontal'])
 
+        # Now take each sub-group, and split vertically if appropriate
         new_all_groups = []
         for group in all_groups:
+
             if len(group) == 1:
+                # if only one in group, not need to split
                 continue
-            else:
-                top_zones = [zone for zone in group if zone in ['zone1', 'zone2', 'zone3', 'zone4']]
-                bottom_zones = [zone for zone in group if zone in ['zone5', 'zone6', 'zone7', 'zone8']]
-                new_all_groups.append([top_zones, bottom_zones])
 
-        for top_and_bottom_groups in new_all_groups:
+            top_zones = [zone for zone in group if zone in ['zone1', 'zone2', 'zone3', 'zone4']]
+            bottom_zones = [zone for zone in group if zone in ['zone5', 'zone6', 'zone7', 'zone8']]
+            new_all_groups.append([top_zones, bottom_zones])
 
-            top_groups, bottom_groups = top_and_bottom_groups
+            if len(top_zones) > 0 and len(bottom_zones) > 0:
 
-            if len(top_groups) > 0 and len(bottom_groups) > 0:
-
-                top_view_name = widgets_zone[top_groups[0]][0]
+                top_view_name = widgets_zone[top_zones[0]][0]
                 top_dock = self.docks[top_view_name]
 
-                bottom_view_name = widgets_zone[bottom_groups[0]][0]
+                bottom_view_name = widgets_zone[bottom_zones[0]][0]
                 bottom_dock = self.docks[bottom_view_name]
 
-                print(f"Splitting {top_view_name}, {bottom_view_name}")
                 self.splitDockWidget(top_dock, bottom_dock, orientations['vertical'])
 
+        # Finally, split all the sub-sub-groups horizontally
         for top_bottom_groups in new_all_groups:
             for group in top_bottom_groups:
+
                 if len(group) <= 1:
+                    # if only one in group, no need to split
                     continue
-                else:
-                    first_zone_name = widgets_zone[group[0]][0]
-                    
-                    for zone in reversed(group[1:]):
-                        zone_name = widgets_zone[zone][0]
-                        print(f"Splitting {first_zone_name}, {zone_name}")
-                        self.splitDockWidget(self.docks[first_zone_name], self.docks[zone_name], orientations['horizontal'])
 
-        # ## Handle left
-        # first_left = None
-        # for zone in ['zone1', 'zone5', 'zone2',  'zone6']:
-        #     if len(widgets_zone[zone]) == 0:
-        #         continue
-        #     view_name = widgets_zone[zone][0]
-        #     dock = self.docks[view_name]
-        #     if len(widgets_zone[zone]) > 0 and first_left is None:
-        #         self.addDockWidget(areas['left'], dock)
-        #         first_left = view_name
-        #     elif zone == 'zone5':
-        #         self.splitDockWidget(self.docks[first_left], dock, orientations['vertical'])
-        #     elif zone == 'zone2':
-        #         self.splitDockWidget(self.docks[first_left], dock, orientations['horizontal'])
-        #     elif zone == 'zone6':
-        #         if len(widgets_zone['zone5']) > 0:
-        #             z = widgets_zone['zone5'][0]
-        #             self.splitDockWidget(self.docks[z], dock, orientations['horizontal'])
-        #         else:
-        #             self.splitDockWidget(self.docks[first_left], dock, orientations['vertical'])
+                first_zone_name = widgets_zone[group[0]][0]
+                for zone in reversed(group[1:]):
+                    zone_name = widgets_zone[zone][0]
+                    self.splitDockWidget(self.docks[first_zone_name], self.docks[zone_name], orientations['horizontal'])
 
-        # ## Handle right
-        # first_top = None
-        # for zone in ['zone3', 'zone4', 'zone7',  'zone8']:
-        #     if len(widgets_zone[zone]) == 0:
-        #         continue
-        #     view_name = widgets_zone[zone][0]
-        #     dock = self.docks[view_name]
-        #     if len(widgets_zone[zone]) > 0 and first_top is None:
-        #         self.addDockWidget(areas['right'], dock)
-        #         first_top = view_name
-        #     elif zone == 'zone4':
-        #         self.splitDockWidget(self.docks[first_top], dock, orientations['horizontal'])
-        #     elif zone == 'zone7':
-        #         self.splitDockWidget(self.docks[first_top], dock, orientations['vertical'])
-        #     elif zone == 'zone8':
-        #         if len(widgets_zone['zone4']) > 0:
-        #             z = widgets_zone['zone4'][0]
-        #             self.splitDockWidget(self.docks[z], dock, orientations['vertical'])
-        #         else:
-        #             self.splitDockWidget(self.docks[first_top], dock, orientations['horizontal'])
-        
         # make tabs
         for zone, view_names in widgets_zone.items():
             n = len(widgets_zone[zone])
