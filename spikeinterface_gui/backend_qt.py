@@ -1,7 +1,8 @@
 from .myqt import QT
 import pyqtgraph as pg
 import markdown
-
+import numpy as np
+from copy import copy
 
 import weakref
 
@@ -233,9 +234,6 @@ class QtMainWindow(QT.QMainWindow):
             # keep only instantiated views
             view_names = [view_name for view_name in view_names if view_name in self.views.keys()]
             widgets_zone[zone] = view_names
-
-        import numpy as np
-        from copy import copy
 
         all_zones = [f'zone{a}' for a in range(1,9)]
         all_zones_array = np.transpose(np.reshape(all_zones, (2,4)))

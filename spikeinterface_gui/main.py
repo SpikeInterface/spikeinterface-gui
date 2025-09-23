@@ -30,6 +30,7 @@ def run_mainwindow(
     panel_start_server_kwargs=None,
     panel_window_servable=True,
     verbose=False,
+    screenshot_name=""
 ):
     """
     Create the main window and start the QT app loop.
@@ -121,8 +122,8 @@ def run_mainwindow(
 
 
         app = mkQApp()
-        
-        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout)
+
+        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout, screenshot_name=screenshot_name)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -273,7 +274,7 @@ def run_mainwindow_cli():
         if args.verbose:
             print('Loading analyzer...')
         assert check_folder_is_analyzer(analyzer_folder), f'The folder {analyzer_folder} is not a valid SortingAnalyzer folder'
-        analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=not is_path_remote(analyzer_folder))
+        analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=False)
         if args.verbose:
             print('Analyzer loaded')
 
@@ -312,3 +313,4 @@ def run_mainwindow_cli():
             layout=args.layout_file,
             curation_dict=curation_data,
         )
+
