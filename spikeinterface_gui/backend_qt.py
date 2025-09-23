@@ -249,7 +249,7 @@ class QtMainWindow(QT.QMainWindow):
                     bottom_zone = f"zone{column_index+5}"
                     widgets_zone[top_zone] = widgets_zone[bottom_zone]
                     widgets_zone[bottom_zone] = []
-                break
+                    continue
 
         is_zone = np.array([(widgets_zone.get(zone) is not None) and (len(widgets_zone.get(zone)) > 0) for zone in all_zones])
         is_zone_array = np.reshape(is_zone, (2,4))
