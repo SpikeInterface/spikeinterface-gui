@@ -282,22 +282,28 @@ class PanelMainWindow:
             allow_drag=False,
         )
 
-        all_zones = [f'zone{a}' for a in range(1,9)]
+        gs = self.make_half_layout(gs, ['zone1', 'zone2', 'zone5', 'zone6'], layout_zone, 0)
+        gs = self.make_half_layout(gs, ['zone3', 'zone4', 'zone7', 'zone8'], layout_zone, 2)
+
+        self.main_layout = gs
+
+    def make_half_layout(self, gs, all_zones, layout_zone, shift):
+
         is_zone = [(layout_zone.get(zone) is not None) and (len(layout_zone.get(zone)) > 0) for zone in all_zones]
-        is_zone_array = np.reshape(is_zone, (2,4))
+        is_zone_array = np.reshape(is_zone, (2,2))
         original_zone_array = copy(is_zone_array)
 
-        for zone_index in range(8):
-            row = zone_index // 4
-            col = zone_index % 4
+        for zone_index, zone_name in enumerate(all_zones):
+            row = zone_index // 2
+            col = zone_index % 2
             if row == 0:
                 num_rows, num_cols = get_size_top_row(row, col, is_zone_array, original_zone_array)
             elif row == 1:
                 num_rows, num_cols = get_size_bottom_row(row, col, is_zone_array, original_zone_array)
             if num_rows > 0 and num_cols > 0:
-                gs[slice(row, row + num_rows), slice(col,col+num_cols)] = layout_zone.get(f'zone{zone_index+1}')
+                gs[slice(row, row + num_rows), slice(col+shift,col+num_cols+shift)] = layout_zone.get(zone_name)
 
-        self.main_layout = gs
+        return gs
 
     def update_visibility(self, event):
         active = event.new
