@@ -185,42 +185,6 @@ class QtMainWindow(QT.QMainWindow):
 
 
     def create_main_layout(self):
-        """
-        We rely on PyQt docks so that the user can adjust the size of each widget. These
-        are made iteratively by splitting an existing dock. The algorithm to create the 
-        splits based on our layout dict is in three steps. It is complicated, so we provide
-        an example. Let's "*" represent a zone with something in it and "o" a zone without.
-        Consider the example
-
-        1 2 3 4
-        * * o *
-        * o * *
-
-        First, we determine which columns should be two rows long. Then split the docks
-        around these. In this case, only column 2 should be long. So the split is
-
-        1   2   3 4
-        * | * | o *
-        * | o | * *
-
-        Next, for each sub-region, we split vertically. The second column cannot be split.
-
-        1   2   3 4
-        * | * | o *
-        -       - -
-        * | o | * *
-
-        Finally, in each sub-sub-region, we check how many times we need to split horizontally.
-        Here the lower 3/4 row can be split
-
-        1   2   3   4
-        * | * | o   *
-        -       -   -
-        * | o | * | *
-
-        Each final region contains exactly one zone. All of our possible layouts can be split up
-        in this way.
-        """
         import warnings
 
         warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
@@ -235,10 +199,28 @@ class QtMainWindow(QT.QMainWindow):
             view_names = [view_name for view_name in view_names if view_name in self.views.keys()]
             widgets_zone[zone] = view_names
 
-        all_zones = [f'zone{a}' for a in range(1,9)]
-        all_zones_array = np.transpose(np.reshape(all_zones, (2,4)))
+        self.make_dock(widgets_zone, ['zone1', 'zone2', 'zone5', 'zone6'], "left")
+        self.make_dock(widgets_zone, ['zone3', 'zone4', 'zone7', 'zone8'], "right")
+        
+        # make tabs
+        for zone, view_names in widgets_zone.items():
+            n = len(widgets_zone[zone])
+            if n < 2:
+                # no tab here
+                continue
+            view_name0 = widgets_zone[zone][0]
+            for i in range(1, n):
+                view_name = widgets_zone[zone][i]
+                dock = self.docks[view_name]
+                self.tabifyDockWidget(self.docks[view_name0], dock)
+            # make visible the first of each zone
+            self.docks[view_name0].raise_()
+
+    def make_dock(self, widgets_zone, all_zones, side_of_window):
+
+        all_zones_array = np.transpose(np.reshape(all_zones, (2,2)))
         is_zone = np.array([(widgets_zone.get(zone) is not None) and (len(widgets_zone.get(zone)) > 0) for zone in all_zones])
-        is_zone_array = np.reshape(is_zone, (2,4))
+        is_zone_array = np.reshape(is_zone, (2,2))
         
         # If the first non-zero zero (from left to right) is on the bottom, move it up
         for column_index, zones_in_columns in enumerate(is_zone_array):
@@ -252,7 +234,7 @@ class QtMainWindow(QT.QMainWindow):
                     continue
 
         is_zone = np.array([(widgets_zone.get(zone) is not None) and (len(widgets_zone.get(zone)) > 0) for zone in all_zones])
-        is_zone_array = np.reshape(is_zone, (2,4))
+        is_zone_array = np.reshape(is_zone, (2,2))
         original_zone_array = copy(is_zone_array)
 
         # First we split horizontally any columns which are two rows long.
@@ -260,7 +242,7 @@ class QtMainWindow(QT.QMainWindow):
         all_groups = []
         group = []
         for col_index, zones in enumerate(all_zones_array):
-            col = col_index % 4
+            col = col_index % 2
             is_a_zone = original_zone_array[:,col]            
             num_row_0, _ = get_size_top_row(0, col, is_zone_array, original_zone_array)
             # this function affects is_zone_array so must be run
@@ -282,7 +264,7 @@ class QtMainWindow(QT.QMainWindow):
         first_zone = all_groups[0][0]
         first_dock = widgets_zone[first_zone][0]
         dock = self.docks[first_dock]
-        self.addDockWidget(areas['left'], dock)
+        self.addDockWidget(areas[side_of_window], dock)
 
         for group in reversed(all_groups[1:]):             
             digits = np.array([int(s[-1]) for s in group])
@@ -327,19 +309,7 @@ class QtMainWindow(QT.QMainWindow):
                     zone_name = widgets_zone[zone][0]
                     self.splitDockWidget(self.docks[first_zone_name], self.docks[zone_name], orientations['horizontal'])
 
-        # make tabs
-        for zone, view_names in widgets_zone.items():
-            n = len(widgets_zone[zone])
-            if n < 2:
-                # no tab here
-                continue
-            view_name0 = widgets_zone[zone][0]
-            for i in range(1, n):
-                view_name = widgets_zone[zone][i]
-                dock = self.docks[view_name]
-                self.tabifyDockWidget(self.docks[view_name0], dock)
-            # make visible the first of each zone
-            self.docks[view_name0].raise_()
+
 
     # used by to tell the launcher this is closed
     def closeEvent(self, event):
