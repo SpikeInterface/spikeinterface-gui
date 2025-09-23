@@ -66,9 +66,13 @@ class BaseScatterView(ViewBase):
         return (spike_times, spike_data)
 
 
-    def select_all_spikes_from_lasso(self):
+    def select_all_spikes_from_lasso(self, keep_already_selected=False):
         """
         Select all spikes within the lasso vertices.
+
+        This method updates the selected spike indices in the controller based on the lasso vertices.
+        It only works if one unit is visible.
+        If `keep_already_selected` is True, it retains previously selected spikes.
         """
         visible_unit_ids = self.controller.get_visible_unit_ids()
         if len(visible_unit_ids) != 1:
@@ -93,8 +97,9 @@ class BaseScatterView(ViewBase):
                     indices_in_segment.extend(spike_inds[inside])
             indices.extend(indices_in_segment)
 
-        already_selected = self.controller.get_indices_spike_selected()
-        indices = np.unique(np.concatenate((already_selected, indices)))
+        if keep_already_selected:
+            already_selected = self.controller.get_indices_spike_selected()
+            indices = np.sort(np.unique(np.concatenate((already_selected, indices))))
         self.controller.set_indices_spike_selected(indices)
         # self.refresh()
         self.notify_spike_selection_changed()
@@ -310,11 +315,13 @@ class BaseScatterView(ViewBase):
         if shift_held:
             # If shift is held, append the vertices to the current lasso vertices
             self._lasso_vertices[seg_index].append(vertices)
+            keep_already_selected = True
         else:
             # If shift is not held, clear the existing lasso vertices for this segment
             self._lasso_vertices[seg_index] = [vertices]
+            keep_already_selected = False
 
-        self.select_all_spikes_from_lasso()
+        self.select_all_spikes_from_lasso(keep_already_selected=keep_already_selected)
         
         self.refresh()
 
@@ -516,10 +523,12 @@ class BaseScatterView(ViewBase):
                 self._current_selected = len(selected)
                 # Store the current polygon for the current segment
                 self._lasso_vertices[seg_index].append(polygon)
+                keep_already_selected = True
             else:
                 self._lasso_vertices[seg_index] = [polygon]
+                keep_already_selected = False
 
-            self.select_all_spikes_from_lasso()
+            self.select_all_spikes_from_lasso(keep_already_selected)
             self.refresh()
 
     def _panel_split(self, event):

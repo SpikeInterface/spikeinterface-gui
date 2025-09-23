@@ -51,6 +51,15 @@ class CurationView(ViewBase):
             self.notify_manual_curation_updated()
             self.refresh()
 
+    def select_and_notify_split(self, split_unit_id):
+        self.controller.set_active_split_unit(split_unit_id)
+        self.controller.set_visible_unit_ids([split_unit_id])
+        self.notify_unit_visibility_changed()
+        spike_inds = self.controller.get_spike_indices(split_unit_id, seg_index=None)
+        split_indices = self.controller.active_split['indices'][0]
+        self.controller.set_indices_spike_selected(spike_inds[split_indices])
+        self.notify_spike_selection_changed()
+
     ## Qt
     def _qt_make_layout(self):
         from .myqt import QT
@@ -236,9 +245,7 @@ class CurationView(ViewBase):
         ind = self.table_split.selectedIndexes()[0].row()
         split_unit_str = self.table_split.item(ind, 0).text()
         split_unit_id = dtype.type(split_unit_str.split(" ")[0])
-        self.controller.set_visible_unit_ids([split_unit_id])
-        self.controller.set_active_split_unit(split_unit_id)
-        self.notify_unit_visibility_changed()
+        self.select_and_notify_split(split_unit_id)
 
     def _qt_on_item_selection_changed_delete(self):
         if len(self.table_delete.selectedIndexes()) == 0:
@@ -254,10 +261,12 @@ class CurationView(ViewBase):
         self.controller.set_visible_unit_ids([unit_id])
         self.notify_unit_visibility_changed()
 
-    def _qt_clear_selection(self, active_table):
+    def _qt_clear_selection(self, active_table=None):
         tables = [self.table_delete, self.table_merge, self.table_split]
         for table in tables:
-            if table != active_table:
+            if active_table is None:
+                table.clearSelection()
+            elif table != active_table:
                 table.clearSelection()
 
     def _qt_on_restore_shortcut(self):
@@ -267,12 +276,12 @@ class CurationView(ViewBase):
             self.table.clearSelection()
             self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
+    def _qt_on_unit_visibility_changed(self):
+        print("CurationView: unit visibility changed")
+        self._qt_clear_selection()
 
     def on_manual_curation_updated(self):
         self.refresh()
-
-    def on_unit_visibility_changed(self):
-        pass
     
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
@@ -570,6 +579,11 @@ class CurationView(ViewBase):
         # Update the hidden div with the JavaScript code
         self.data_div.object = js_code
 
+    def _panel_on_unit_visibility_changed(self):
+        for table in [self.table_delete, self.table_merge, self.table_split]:
+            table.selection = []
+        self.active_table = None
+
     def _panel_on_deleted_col(self, row):
         self.active_table = "delete"
         self.table_merge.selection = []
@@ -584,6 +598,10 @@ class CurationView(ViewBase):
         self.active_table = "split"
         self.table_delete.selection = []
         self.table_merge.selection = []
+        # set split selection
+        split_unit_str = self.table_split.value["splits"].values[row]
+        split_unit_id = self.controller.unit_ids.dtype.type(split_unit_str.split(" ")[0])
+        self.select_and_notify_split(split_unit_id)
 
     def _conditional_refresh_merge(self):
         # Check if the view is active before refreshing

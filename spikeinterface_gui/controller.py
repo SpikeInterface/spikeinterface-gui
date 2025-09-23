@@ -550,12 +550,6 @@ class Controller():
         return self._spike_visible_indices
 
     def get_indices_spike_selected(self):
-        if self.active_split is not None:
-            # select the splitted spikes in the active split
-            split_unit_id = self.active_split['unit_id']
-            spike_inds = self.get_spike_indices(split_unit_id, seg_index=None)
-            split_indices = self.active_split['indices'][0]
-            self._spike_selected_indices = np.array(spike_inds[split_indices], dtype='int64')
         return self._spike_selected_indices
 
     def set_indices_spike_selected(self, inds):
