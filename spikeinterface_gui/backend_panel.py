@@ -4,7 +4,8 @@ import numpy as np
 from copy import copy
 
 from .viewlist import possible_class_views
-from .layout_presets import get_layout_description, get_size_bottom_row, get_size_top_row
+from .layout_presets import get_layout_description
+from .utils_global import get_size_bottom_row, get_size_top_row
 
 # Used by views to emit/trigger signals
 class SignalNotifier(param.Parameterized):

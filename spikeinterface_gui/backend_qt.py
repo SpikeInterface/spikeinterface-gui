@@ -7,7 +7,8 @@ from copy import copy
 import weakref
 
 from .viewlist import possible_class_views
-from .layout_presets import get_layout_description, get_size_bottom_row, get_size_top_row
+from .layout_presets import get_layout_description
+from .utils_global import get_size_bottom_row, get_size_top_row
 
 from .utils_qt import qt_style, add_stretch_to_qtoolbar
 
