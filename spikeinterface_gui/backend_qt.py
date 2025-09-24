@@ -200,8 +200,8 @@ class QtMainWindow(QT.QMainWindow):
             view_names = [view_name for view_name in view_names if view_name in self.views.keys()]
             widgets_zone[zone] = view_names
 
-        self.make_dock(widgets_zone, ['zone1', 'zone2', 'zone5', 'zone6'], "left")
-        self.make_dock(widgets_zone, ['zone3', 'zone4', 'zone7', 'zone8'], "right")
+        self.make_dock(widgets_zone, ['zone1', 'zone2', 'zone5', 'zone6'], "left", col_shift=0)
+        self.make_dock(widgets_zone, ['zone3', 'zone4', 'zone7', 'zone8'], "right", col_shift=2)
         
         # make tabs
         for zone, view_names in widgets_zone.items():
@@ -217,7 +217,7 @@ class QtMainWindow(QT.QMainWindow):
             # make visible the first of each zone
             self.docks[view_name0].raise_()
 
-    def make_dock(self, widgets_zone, all_zones, side_of_window):
+    def make_dock(self, widgets_zone, all_zones, side_of_window, col_shift):
 
         all_zones_array = np.transpose(np.reshape(all_zones, (2,2)))
         is_zone = np.array([(widgets_zone.get(zone) is not None) and (len(widgets_zone.get(zone)) > 0) for zone in all_zones])
@@ -228,8 +228,8 @@ class QtMainWindow(QT.QMainWindow):
             if np.any(zones_in_columns):
                 first_is_top = zones_in_columns[0]
                 if not first_is_top:
-                    top_zone = f"zone{column_index+1}"
-                    bottom_zone = f"zone{column_index+5}"
+                    top_zone = f"zone{column_index+1+col_shift}"
+                    bottom_zone = f"zone{column_index+5+col_shift}"
                     widgets_zone[top_zone] = widgets_zone[bottom_zone]
                     widgets_zone[bottom_zone] = []
                     continue
@@ -247,7 +247,7 @@ class QtMainWindow(QT.QMainWindow):
             is_a_zone = original_zone_array[:,col]            
             num_row_0, _ = get_size_top_row(0, col, is_zone_array, original_zone_array)
             # this function affects is_zone_array so must be run
-            _, _ = get_size_bottom_row(0, col, is_zone_array, original_zone_array)
+            _, _ = get_size_bottom_row(1, col, is_zone_array, original_zone_array)
             
             if num_row_0 == 2:
                 if len(group) > 0:
@@ -261,6 +261,9 @@ class QtMainWindow(QT.QMainWindow):
 
         if len(group) > 0:
             all_groups.append(group)
+
+        if len(all_groups) == 0:
+            return
 
         first_zone = all_groups[0][0]
         first_dock = widgets_zone[first_zone][0]
