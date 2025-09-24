@@ -1,15 +1,28 @@
 import json
 from spikeinterface_gui.viewlist import possible_class_views
+import numpy as np
 
 """
-A preset need 8 zones like this:
+A preset depends on eight zones, which are split into two sub-regions
 
-+-----------------+-----------------+
-| [zone1   zone2] | [zone3 | [zone4 |
-+-----------------+        |        +
-| [zone5   zone6] | zone7] | zone8] |
-+-----------------+-----------------+
++---------------+--------------+
+| zone1   zone2 | zone3  zone4 |
++               +              +
+| zone5   zone6 | zone7  zone8 |
++---------------+--------------+
 
+If a zone has free space below it or to the right of it, it will try to use it.
+Stretching downwards takes precedence over stretching rightwards.
+E.g. suppose your layout is only non-empty in zones 1, 4, 5, 6 and 7:
+
++---------------+--------------+
+| zone1         |        zone4 |
++               +              +
+| zone5   zone6 | zone7        |
++---------------+--------------+
+
+Then zone1 will stretch right-wards to make a three-zone view. Zone4 will stretch
+downwards to make a long two-zone view.
 """
 _presets = {}
 
@@ -37,7 +50,6 @@ def get_layout_description(preset_name, layout=None):
         if preset_name is None:
             preset_name = 'default'
         return _presets[preset_name]
-
 
 default_layout = dict(
     zone1=['curation', 'spikelist'],

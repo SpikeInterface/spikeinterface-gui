@@ -121,7 +121,7 @@ def run_mainwindow(
 
 
         app = mkQApp()
-        
+
         win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
@@ -273,7 +273,7 @@ def run_mainwindow_cli():
         if args.verbose:
             print('Loading analyzer...')
         assert check_folder_is_analyzer(analyzer_folder), f'The folder {analyzer_folder} is not a valid SortingAnalyzer folder'
-        analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=not is_path_remote(analyzer_folder))
+        analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=False)
         if args.verbose:
             print('Analyzer loaded')
 
@@ -312,3 +312,4 @@ def run_mainwindow_cli():
             layout=args.layout_file,
             curation_dict=curation_data,
         )
+

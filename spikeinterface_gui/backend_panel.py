@@ -1,9 +1,11 @@
 import param
 import panel as pn
-
+import numpy as np
+from copy import copy
 
 from .viewlist import possible_class_views
 from .layout_presets import get_layout_description
+from .utils_global import get_size_bottom_row, get_size_top_row
 
 # Used by views to emit/trigger signals
 class SignalNotifier(param.Parameterized):
@@ -182,8 +184,6 @@ def listen_setting_changes(view):
     for setting_data in view._settings:
         view.settings._parameterized.param.watch(view.on_settings_changed, setting_data["name"])
 
-
-
 class PanelMainWindow:
 
     def __init__(self, controller, layout_preset=None, layout=None):
@@ -283,56 +283,28 @@ class PanelMainWindow:
             allow_drag=False,
         )
 
-        all_zones = [f'zone{a}' for a in range(1,9)]
-        is_zone = [(layout_zone.get(zone) is not None) and (len(layout_zone.get(zone)) > 0) for zone in all_zones]
-
-        # Get number of columns and rows per sub-region
-        num_cols_12 = max(is_zone[0]*1 + is_zone[1]*1, is_zone[4]*1 + is_zone[5]*1)
-        num_cols_56 = num_cols_12
-        num_cols_37 = (is_zone[2] or is_zone[6])*1 
-
-        num_rows_12 = ((is_zone[0] or is_zone[1])*1 - (is_zone[4] or is_zone[5])*1) + 1
-
-        # Do sub-regions [1,2], [4,5] [3][7] and [5][8] separately. For each, find out if
-        # both zones are present. If they are, place both in sub-region. If not, place one.
-
-        row_slice_12 = slice(0,num_rows_12)
-        if (is_zone[0] and is_zone[1]):
-            gs[row_slice_12, slice(0,1)] = layout_zone.get('zone1')
-            gs[row_slice_12, slice(1,2)] = layout_zone.get('zone2')
-        elif (is_zone[0] and not is_zone[1]):
-            gs[row_slice_12, slice(0,num_cols_12)] = layout_zone.get('zone1')
-        elif (is_zone[1] and not is_zone[0]):
-            gs[row_slice_12, slice(0,num_cols_12)] = layout_zone.get('zone2')
-
-        row_slice_56 = slice(num_rows_12, 2)
-        if (is_zone[4] and is_zone[5]):
-            gs[row_slice_56, slice(0,1)] = layout_zone.get('zone5')
-            gs[row_slice_56, slice(1,2)] = layout_zone.get('zone6')
-        elif (is_zone[4] and not is_zone[5]):
-            gs[row_slice_56, slice(0,num_cols_56)] = layout_zone.get('zone5')
-        elif (is_zone[5] and not is_zone[4]):
-            gs[row_slice_56, slice(0,num_cols_56)] = layout_zone.get('zone6')
-
-        col_slice_37 = slice(num_cols_12,num_cols_12+1)
-        if is_zone[2] and is_zone[6]:
-            gs[slice(0, 1), col_slice_37] = layout_zone.get('zone3')
-            gs[slice(1, 2), col_slice_37] = layout_zone.get('zone7')
-        elif is_zone[2] and not is_zone[6]:
-            gs[slice(0, 2), col_slice_37] = layout_zone.get('zone3')
-        elif is_zone[6] and not is_zone[2]:
-            gs[slice(0, 2), col_slice_37] = layout_zone.get('zone7')
-
-        col_slice_48 = slice(num_cols_12+num_cols_37,num_cols_12+num_cols_37+1)
-        if is_zone[3] and is_zone[7]:
-            gs[slice(0, 1), col_slice_48] = layout_zone.get('zone4')
-            gs[slice(1, 2), col_slice_48] = layout_zone.get('zone8')
-        elif is_zone[3] and not is_zone[7]:
-            gs[slice(0, 2), col_slice_48] = layout_zone.get('zone4')
-        elif is_zone[7] and not is_zone[3]:
-            gs[slice(0, 2), col_slice_48] = layout_zone.get('zone8')
+        gs = self.make_half_layout(gs, ['zone1', 'zone2', 'zone5', 'zone6'], layout_zone, 0)
+        gs = self.make_half_layout(gs, ['zone3', 'zone4', 'zone7', 'zone8'], layout_zone, 2)
 
         self.main_layout = gs
+
+    def make_half_layout(self, gs, all_zones, layout_zone, shift):
+
+        is_zone = [(layout_zone.get(zone) is not None) and (len(layout_zone.get(zone)) > 0) for zone in all_zones]
+        is_zone_array = np.reshape(is_zone, (2,2))
+        original_zone_array = copy(is_zone_array)
+
+        for zone_index, zone_name in enumerate(all_zones):
+            row = zone_index // 2
+            col = zone_index % 2
+            if row == 0:
+                num_rows, num_cols = get_size_top_row(row, col, is_zone_array, original_zone_array)
+            elif row == 1:
+                num_rows, num_cols = get_size_bottom_row(row, col, is_zone_array, original_zone_array)
+            if num_rows > 0 and num_cols > 0:
+                gs[slice(row, row + num_rows), slice(col+shift,col+num_cols+shift)] = layout_zone.get(zone_name)
+
+        return gs
 
     def update_visibility(self, event):
         active = event.new

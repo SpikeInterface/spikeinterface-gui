@@ -200,22 +200,27 @@ You can create your own custom layout by specifying which views you'd like
 to see, and where they go. The basic window layout supports eight "zones",
 which are laid out as follows:
 
-```
-+-----------------+-----------------+
-| [zone1   zone2] | [zone3 | [zone4 |
-+-----------------+        |        +
-| [zone5   zone6] | zone7] | zone8] |
-+-----------------+-----------------+
-```
++---------------+--------------+
+| zone1   zone2 | zone3  zone4 |
++               +              +
+| zone5   zone6 | zone7  zone8 |
++---------------+--------------+
 
-If zones are not included, the other zones take over their space. Hence if you'd
-like to show waveforms as a long view, you can set zone3 to display waveforms
-and then set zone7 to display nothing. The waveforms in zone3 will take over the
-blank space from zone7.
+If a zone has free space below it or to the right of it, it will try to use it.
+Stretching downwards takes precedence over stretching rightwards.
+E.g. suppose your layout is only non-empty in zones 1, 4, 5, 6 and 7:
+
++---------------+--------------+
+| zone1         |        zone4 |
++               +              +
+| zone5   zone6 | zone7        |
++---------------+--------------+
+
+Then zone1 will stretch right-wards to make a three-zone view. Zone4 will stretch
+downwards to make a long two-zone view.
 
 To specify your own layout, put the specification in a `.json` file. This should
 be a list of zones, and which views should appear in which zones. An example:
-
 
 **my_layout.json**
 ```
