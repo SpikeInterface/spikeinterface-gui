@@ -1,44 +1,30 @@
 import numpy as np
 
-def get_size_top_row(initial_row, initial_col, is_zone_array, original_zone_array):
-    
-    if original_zone_array[initial_row][initial_col] == False:
-        return 0,0
+# Functions for the layout
 
-    num_rows = is_zone_array[initial_row][initial_col]*1
-    num_cols = num_rows
+def fill_unnecessary_space(layout_zone, shift):
 
-    num_rows += (not is_zone_array[1][initial_col])*1
+    # First, move the right hand column leftwards if the left-hand column is missing
+    if len(layout_zone[f'zone{1+shift}']) == 0 and len(layout_zone[f'zone{5+shift}']) == 0:
+        layout_zone[f'zone{1+shift}'] = layout_zone[f'zone{2+shift}']
+        layout_zone[f'zone{5+shift}'] = layout_zone[f'zone{6+shift}']
+        layout_zone[f'zone{2+shift}'] = []
+        layout_zone[f'zone{6+shift}'] = []
 
-    if num_rows == 1:
-        for zone in is_zone_array[0,1+initial_col:]:
-            if zone == True:
-                break
-            num_cols += 1
-    elif num_rows == 2:
-        for zone1, zone2 in np.transpose(is_zone_array[:,1+initial_col:]):
-            if zone1 == True or zone2 == True:
-                break
-            num_cols += 1
+    # And move the bottom-left zone to the top-left, if the top-left is missing
+    # These steps reduce the number of layouts we have to consider
+    if len(layout_zone[f'zone{1+shift}']) == 0:
+        layout_zone[f'zone{1+shift}'] = layout_zone[f'zone{5+shift}']
+        layout_zone[f'zone{5+shift}'] = []
 
-    is_zone_array[initial_row:initial_row+num_rows,initial_col:initial_col+num_cols] = True
+    return layout_zone
 
-    return num_rows, num_cols
 
-def get_size_bottom_row(initial_row, initial_col, is_zone_array, original_zone_array):
-    
-    if original_zone_array[initial_row][initial_col] == False:
-        return 0,0
-    
-    num_rows = is_zone_array[initial_row][initial_col]*1
-    if num_rows == 0:
-        return 0, 0
-    num_cols = num_rows
-
-    for zone in is_zone_array[1,1+initial_col:]:
-        if zone == True:
-            break
-        else:
-            num_cols += 1
-
-    return num_rows, num_cols
+def get_present_zones_in_half_of_layout(layout_zone, shift):
+    """
+    Check which zones in layout_zone are 
+    """
+    half_dict = {key: value for key, value in layout_zone.items() if key in [f'zone{1+shift}', f'zone{2+shift}', f'zone{5+shift}', f'zone{6+shift}']}
+    is_present = [views is not None and len(views) > 0 for views in half_dict.values()]
+    present_zones = set(np.array(list(half_dict.keys()))[np.array(is_present)])
+    return present_zones
