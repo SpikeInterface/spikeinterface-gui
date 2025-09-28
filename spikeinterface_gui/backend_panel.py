@@ -5,8 +5,7 @@ from copy import copy
 
 from .viewlist import possible_class_views
 from .layout_presets import get_layout_description
-from .utils_global import get_size_bottom_row, get_size_top_row
-
+from .utils_global import fill_unnecessary_space, get_present_zones_in_half_of_layout
 # Used by views to emit/trigger signals
 class SignalNotifier(param.Parameterized):
     spike_selection_changed = param.Event()
@@ -283,26 +282,60 @@ class PanelMainWindow:
             allow_drag=False,
         )
 
-        gs = self.make_half_layout(gs, ['zone1', 'zone2', 'zone5', 'zone6'], layout_zone, 0)
-        gs = self.make_half_layout(gs, ['zone3', 'zone4', 'zone7', 'zone8'], layout_zone, 2)
+        gs = self.make_half_layout(gs, layout_zone, "left")
+        gs = self.make_half_layout(gs, layout_zone, "right")
 
         self.main_layout = gs
 
-    def make_half_layout(self, gs, all_zones, layout_zone, shift):
+    def make_half_layout(self, gs, layout_zone, left_or_right):
+        """
+        Function contains the logic for the greedy layout. Given the 2x2 box of zones
 
-        is_zone = [(layout_zone.get(zone) is not None) and (len(layout_zone.get(zone)) > 0) for zone in all_zones]
-        is_zone_array = np.reshape(is_zone, (2,2))
-        original_zone_array = copy(is_zone_array)
+        1 2          3 4   
+        5 6    or    7 8
 
-        for zone_index, zone_name in enumerate(all_zones):
-            row = zone_index // 2
-            col = zone_index % 2
-            if row == 0:
-                num_rows, num_cols = get_size_top_row(row, col, is_zone_array, original_zone_array)
-            elif row == 1:
-                num_rows, num_cols = get_size_bottom_row(row, col, is_zone_array, original_zone_array)
-            if num_rows > 0 and num_cols > 0:
-                gs[slice(row, row + num_rows), slice(col+shift,col+num_cols+shift)] = layout_zone.get(zone_name)
+        Then depending on which zones are non-zero, a different layout is generated.
+
+        The second box (34,78) is equal to the first box (12,56) shifted by 2. We take advantage of this fact.
+        """
+
+        shift = 0 if left_or_right == "left" else 2
+
+        layout_zone = fill_unnecessary_space(layout_zone, shift)
+        present_zones = get_present_zones_in_half_of_layout(layout_zone, shift)
+
+        if present_zones == set([f'zone{1+shift}']):
+            gs[0,0] = layout_zone.get(f'zone{1+shift}')
+
+        if present_zones == set([f'zone{1+shift}', f'zone{2+shift}']):
+            gs[slice(0, 1), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(0, 1), slice(1+shift,2+shift)] = layout_zone.get(f'zone{2+shift}')
+        elif present_zones == set([f'zone{1+shift}', f'zone{5+shift}']):
+            gs[slice(0, 1), slice(0+shift,2+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(1, 2), slice(0+shift,2+shift)] = layout_zone.get(f'zone{5+shift}')
+        elif present_zones == set([f'zone{1+shift}', f'zone{6+shift}']):
+            gs[slice(0, 1), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(0, 1), slice(1+shift,2+shift)] = layout_zone.get(f'zone{6+shift}')
+
+        # Layouts with three non-zero zones
+        elif present_zones == set([f'zone{1+shift}', f'zone{2+shift}', f'zone{5+shift}']):
+            gs[slice(0, 1), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(0, 2), slice(1+shift,2+shift)] = layout_zone.get(f'zone{2+shift}')
+            gs[slice(1, 2), slice(0+shift,1+shift)] = layout_zone.get(f'zone{5+shift}')
+        elif present_zones == set([f'zone{1+shift}', f'zone{2+shift}', f'zone{6+shift}']):
+            gs[slice(0, 2), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(0, 1), slice(1+shift,2+shift)] = layout_zone.get(f'zone{2+shift}')
+            gs[slice(1, 2), slice(1+shift,1+shift)] = layout_zone.get(f'zone{6+shift}')
+        elif present_zones == set([f'zone{1+shift}', f'zone{5+shift}', f'zone{6+shift}']):
+            gs[slice(0, 1), slice(0+shift,2+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(1, 2), slice(0+shift,1+shift)] = layout_zone.get(f'zone{5+shift}')
+            gs[slice(1, 2), slice(1+shift,2+shift)] = layout_zone.get(f'zone{6+shift}')
+                
+        elif present_zones == set([f'zone{1+shift}', f'zone{2+shift}', f'zone{5+shift}', f'zone{6+shift}']):
+            gs[slice(0, 1), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
+            gs[slice(0, 1), slice(1+shift,2+shift)] = layout_zone.get(f'zone{2+shift}')
+            gs[slice(1, 2), slice(0+shift,1+shift)] = layout_zone.get(f'zone{5+shift}')
+            gs[slice(1, 2), slice(1+shift,2+shift)] = layout_zone.get(f'zone{6+shift}')
 
         return gs
 
