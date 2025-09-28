@@ -270,6 +270,11 @@ class QtMainWindow(QT.QMainWindow):
 
 
     def make_split(self, zone_index_1, zone_index_2, orientation, widgets_zone, shift):
+        """
+        Splits the zone at `zone_{zone_index_1+shift}` into two zones
+        (`zone_{zone_index_1+shift}` and `zone_{zone_index_2+shift}`)
+        with an `orientation` split.
+        """
         widget_1 = widgets_zone[f"zone{zone_index_1+shift}"][0]
         widget_2 = widgets_zone[f"zone{zone_index_2+shift}"][0]
         self.splitDockWidget(self.docks[widget_1], self.docks[widget_2], orientations[orientation])
