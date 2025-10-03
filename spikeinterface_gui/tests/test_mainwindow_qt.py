@@ -68,6 +68,13 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         yip=np.array([f"yip{i}" for i in range(n)]),
     )
 
+    for segment_index in range(analyzer.get_num_segments()):
+        shift = (segment_index + 1) * 100
+        analyzer.recording.set_times(
+            analyzer.recording.get_times(segment_index) + shift,
+            segment_index=segment_index
+        )
+
     win = run_mainwindow(
         analyzer,
         mode="desktop",

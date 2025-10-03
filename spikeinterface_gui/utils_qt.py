@@ -277,7 +277,8 @@ class TimeSeeker(QT.QWidget) :
         self.set_start_stop(0., 10.)
 
     def set_start_stop(self, t_start, t_stop, seek = True):
-        if np.isnan(t_start) or np.isnan(t_stop): return
+        if np.isnan(t_start) or np.isnan(t_stop):
+            return
         assert t_stop>t_start
         self.t_start = t_start
         self.t_stop = t_stop
@@ -298,7 +299,8 @@ class TimeSeeker(QT.QWidget) :
         
     def seek(self, t, set_slider = True, set_spinbox = True, emit = True):
         self.t = t
-        
+        # print(f"Seeking {t} between {self.t_start} and {self.t_stop}")
+
         if self.slider is not None and set_slider:
             self.slider.valueChanged.disconnect(self.slider_changed)
             pos = int((self.t - self.t_start)/(self.t_stop - self.t_start)*1000.)

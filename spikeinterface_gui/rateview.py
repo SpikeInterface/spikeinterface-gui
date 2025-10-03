@@ -15,6 +15,13 @@ class SpikeRateView(ViewBase):
     def _on_settings_changed(self):
         self.refresh()
 
+    def on_time_info_updated(self):
+        self.refresh()
+
+    def on_use_times_updated(self):
+        print(f"Refreshing SpikeRateView")
+        self.refresh()
+
     ## Qt ##
 
     def _qt_make_layout(self):
@@ -26,8 +33,8 @@ class SpikeRateView(ViewBase):
         tb = self.qt_widget.view_toolbar
         self.combo_seg = QT.QComboBox()
         tb.addWidget(self.combo_seg)
-        self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
-        self.combo_seg.currentIndexChanged.connect(self.refresh)
+        self.combo_seg.addItems([f'Segment {segment_index}' for segment_index in range(self.controller.num_segments) ])
+        self.combo_seg.currentIndexChanged.connect(self._qt_change_segment)
 
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
@@ -37,31 +44,41 @@ class SpikeRateView(ViewBase):
         self.graphicsview.setCentralItem(self.plot)
         self.layout.addWidget(self.graphicsview)
 
+    def _qt_change_segment(self):
+        segment_index = self.combo_seg.currentIndex()
+        self.controller.set_time(segment_index=segment_index)
+        self.refresh()
+        self.notify_time_info_updated()
+
     def _qt_refresh(self):
         import pyqtgraph as pg
 
         self.plot.clear()
 
-        seg_index =  self.combo_seg.currentIndex()
-
+        segment_index = self.controller.get_time()[1]
+        # Update combo_seg if it doesn't match the current segment index
+        if self.combo_seg.currentIndex() != segment_index:
+            self.combo_seg.setCurrentIndex(segment_index)
+        
         visible_unit_ids = self.controller.get_visible_unit_ids()
         
         sampling_frequency = self.controller.sampling_frequency
 
         total_frames = self.controller.final_spike_samples
         bins_s = self.settings['bin_s']
-        num_bins = total_frames[seg_index] // int(sampling_frequency) // bins_s
-        
+        t_start, _  = self.controller.get_t_start_t_stop()
+        num_bins = total_frames[segment_index] // int(sampling_frequency) // bins_s
+
         for r, unit_id in enumerate(visible_unit_ids):
 
-            spike_inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
+            spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
             spikes = self.controller.spikes[spike_inds]['sample_index']
 
             count, bins = np.histogram(spikes, bins=num_bins)
             
             color = self.get_unit_color(unit_id)
             curve = pg.PlotCurveItem(
-                (bins[1:]+bins[:-1])/(2*sampling_frequency), 
+                (bins[1:]+bins[:-1])/(2*sampling_frequency) + t_start, 
                 count/bins_s, 
                 pen=pg.mkPen(color, width=2)
             )
@@ -107,12 +124,10 @@ class SpikeRateView(ViewBase):
         self.is_warning_active = False
 
     def _panel_refresh(self):
-        import panel as pn
-        import bokeh.plotting as bpl
-        from bokeh.layouts import gridplot
-        from .utils_panel import _bg_color
-
-        seg_index =  self.segment_index
+        segment_index = self.controller.get_time()[1]
+        if segment_index != self.segment_index:
+            self.segment_index = segment_index
+            self.segment_selector.value = f"Segment {self.segment_index}"
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
 
@@ -120,14 +135,15 @@ class SpikeRateView(ViewBase):
 
         total_frames = self.controller.final_spike_samples
         bins_s = self.settings['bin_s']
-        num_bins = total_frames[seg_index] // int(sampling_frequency) // bins_s
+        num_bins = total_frames[segment_index] // int(sampling_frequency) // bins_s
+        t_start, _  = self.controller.get_t_start_t_stop()
 
         # clear fig
         self.rate_fig.renderers = []
-        
+
         for unit_id in visible_unit_ids:
 
-            spike_inds = self.controller.get_spike_indices(unit_id, seg_index=seg_index)
+            spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
             spikes = self.controller.spikes[spike_inds]['sample_index']
 
             count, bins = np.histogram(spikes, bins=num_bins)
@@ -136,7 +152,7 @@ class SpikeRateView(ViewBase):
             color = self.get_unit_color(unit_id)
 
             line = self.rate_fig.line(
-                x=(bins[1:]+bins[:-1])/(2*sampling_frequency),
+                x=(bins[1:]+bins[:-1])/(2*sampling_frequency) + t_start,
                 y=count/bins_s,
                 color=color,
                 line_width=2,
@@ -146,8 +162,9 @@ class SpikeRateView(ViewBase):
 
     def _panel_change_segment(self, event):
         self.segment_index = int(self.segment_selector.value.split()[-1])
+        self.controller.set_time(segment_index=self.segment_index)
         self.refresh()
-
+        self.notify_time_info_updated()
 
 
 SpikeRateView._gui_help_txt = """

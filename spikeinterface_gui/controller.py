@@ -25,6 +25,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 _default_main_settings = dict(
     max_visible_units=10,
     color_mode='color_by_unit',
+    use_times=False
 )
 
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
@@ -264,7 +265,7 @@ class Controller():
 
         # self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
-        self.segment_slices = {seg_index: slice(seg_limits[seg_index], seg_limits[seg_index + 1]) for seg_index in range(num_seg)}
+        self.segment_slices = {segment_index: slice(seg_limits[segment_index], seg_limits[segment_index + 1]) for segment_index in range(num_seg)}
         
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
@@ -275,7 +276,7 @@ class Controller():
         spike_per_seg = [s.size for s in spike_vector2]
         # dict[unit_id] -> all indices for this unit across segments
         self._spike_index_by_units = {}
-        # dict[seg_index][unit_id] -> all indices for this unit for one segment
+        # dict[segment_index][unit_id] -> all indices for this unit for one segment
         self._spike_index_by_segment_and_units = spike_indices_abs
         for unit_id in unit_ids:
             inds = []
@@ -302,10 +303,7 @@ class Controller():
         self.displayed_unit_properties = displayed_unit_properties
 
         # set default time info
-        self.time_info = dict(
-            time_by_seg=np.array([0] * self.num_segments, dtype="float64"),
-            segment_index=0
-        )
+        self.update_time_info()
 
         self.curation = curation
         # TODO: Reload the dictionary if it already exists
@@ -401,10 +399,10 @@ class Controller():
         """
         Returns selected time and segment index
         """
-        seg_index = self.time_info['segment_index']
+        segment_index = self.time_info['segment_index']
         time_by_seg = self.time_info['time_by_seg']
-        time = time_by_seg[seg_index]
-        return time, seg_index
+        time = time_by_seg[segment_index]
+        return time, segment_index
 
     def set_time(self, time=None, segment_index=None):
         """
@@ -418,7 +416,49 @@ class Controller():
             segment_index = self.time_info['segment_index']
         if time is not None:
             self.time_info['time_by_seg'][segment_index] = time
-    
+
+    def update_time_info(self):
+        # set default time info
+        if self.main_settings["use_times"] and self.analyzer.has_recording():
+            self.time_info = dict(
+                time_by_seg=np.array(
+                    [
+                        self.analyzer.recording.get_start_time(segment_index) for segment_index in range(self.num_segments)
+                    ],
+                    dtype="float64"),
+                segment_index=0
+            )
+        else:
+            self.time_info = dict(
+                time_by_seg=np.array([0] * self.num_segments, dtype="float64"),
+                segment_index=0
+            )
+
+    def get_t_start_t_stop(self):
+        segment_index = self.time_info["segment_index"]
+        if self.main_settings["use_times"] and self.analyzer.has_recording():
+            t_start = self.analyzer.recording.get_start_time(segment_index=segment_index)
+            t_stop = self.analyzer.recording.get_end_time(segment_index=segment_index)
+            return t_start, t_stop
+        else:
+            return 0, self.get_num_samples(segment_index) / self.sampling_frequency
+
+    def sample_index_to_time(self, sample_index):
+        segment_index = self.time_info["segment_index"]
+        if self.main_settings["use_times"] and self.analyzer.has_recording():
+            time = self.analyzer.recording.sample_index_to_time(sample_index, segment_index=segment_index)
+            return time
+        else:
+            return sample_index / self.sampling_frequency
+
+    def time_to_sample_index(self, time):
+        segment_index = self.time_info["segment_index"]
+        if self.main_settings["use_times"] and self.analyzer.has_recording():
+            time = self.analyzer.recording.time_to_sample_index(time, segment_index=segment_index)
+            return time
+        else:
+            return int(time * self.sampling_frequency)
+
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()
         nchan = self.analyzer.get_num_channels()
@@ -552,13 +592,13 @@ class Controller():
             sample_index = self.spikes['sample_index'][self._spike_selected_indices[0]]
             self.set_time(time=sample_index / self.sampling_frequency, segment_index=segment_index)
 
-    def get_spike_indices(self, unit_id, seg_index=None):
-        if seg_index is None:
+    def get_spike_indices(self, unit_id, segment_index=None):
+        if segment_index is None:
             # dict[unit_id] -> all indices for this unit across segments
             return self._spike_index_by_units[unit_id]
         else:
-            # dict[seg_index][unit_id] -> all indices for this unit for one segment
-            return self._spike_index_by_segment_and_units[seg_index][unit_id]
+            # dict[segment_index][unit_id] -> all indices for this unit for one segment
+            return self._spike_index_by_segment_and_units[segment_index][unit_id]
 
     def get_num_samples(self, segment_index):
         return self.analyzer.get_num_samples(segment_index=segment_index)
@@ -838,7 +878,7 @@ class Controller():
         indices = self.get_indices_spike_selected()
         if len(indices) == 0:
             return False
-        spike_inds = self.get_spike_indices(unit_id, seg_index=None)
+        spike_inds = self.get_spike_indices(unit_id, segment_index=None)
         if not np.all(np.isin(indices, spike_inds)):
             return False
 

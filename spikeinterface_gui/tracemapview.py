@@ -64,11 +64,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
 
     def get_data_in_chunk(self, t1, t2, segment_index):
-        t_start = 0.0
-        sr = self.controller.sampling_frequency
-
-        ind1 = max(0, int((t1 - t_start) * sr))
-        ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
+        ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
 
         traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
 
@@ -83,7 +79,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         if data_curves.dtype != "float32":
             data_curves = data_curves.astype("float32")
 
-        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
+        t_start, _ = self.controller.get_t_start_t_stop()
+        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency + max(t1, t_start)
 
         scatter_x = []
         scatter_y = []
@@ -192,13 +189,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
         sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
-        self.scroll_time.setValue(int(sr*t))
+        value = self.controller.time_to_sample_index(t)
+        self.scroll_time.setValue(value)
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
-        seg_index = self.controller.get_time()[1]
+        segment_index = self.controller.get_time()[1]
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
-            self.get_data_in_chunk(t1, t2, seg_index)
+            self.get_data_in_chunk(t1, t2, segment_index)
         
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
@@ -217,15 +215,21 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
-        time, seg_index = self.controller.get_time()
-
+        time, segment_index = self.controller.get_time()
+        # Block auto refresh to avoid recursive calls
         self._block_auto_refresh_and_notify = True
-        self._qt_change_segment(seg_index)
-        self.timeseeker.seek(time)
 
+        self._qt_change_segment(segment_index)
+        self.timeseeker.seek(time)
+        
         self._block_auto_refresh_and_notify = False
-        # we need a refresh in panel because changing tab triggers a refresh
+        # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
+
+    def _qt_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.timeseeker.set_start_stop(t_start, t_stop)
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -308,7 +312,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         )
 
     def _panel_refresh(self):
-        t, seg_index = self.controller.get_time()
+        t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
 
@@ -318,7 +322,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             auto_scale = False
 
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
-            self.get_data_in_chunk(t1, t2, seg_index)
+            self.get_data_in_chunk(t1, t2, segment_index)
 
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
@@ -349,8 +353,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
-        seg_index = self.controller.get_time()[1]
-        ind_spike_nearest = self.find_nearest_spike(self.controller, event.x, seg_index)
+        segment_index = self.controller.get_time()[1]
+        ind_spike_nearest = self.find_nearest_spike(self.controller, event.x, segment_index)
         if ind_spike_nearest is not None:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self._panel_seek_with_selected_spike()
@@ -376,10 +380,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
-        time, seg_index = self.controller.get_time()
+        time, segment_index = self.controller.get_time()
 
         self._block_auto_refresh_and_notify = True
-        self._panel_change_segment(seg_index)
+        self._panel_change_segment(segment_index)
 
         # Update time slider value
         self.time_slider.value = time

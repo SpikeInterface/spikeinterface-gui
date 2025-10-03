@@ -60,6 +60,9 @@ class ViewBase:
     def notify_time_info_updated(self):
         self.notifier.notify_time_info_updated()
 
+    def notify_use_times_updated(self):
+        self.notifier.notify_use_times_updated()
+
     def notify_active_view_updated(self):
         # this is used for panel
         if self.backend == "panel":
@@ -209,6 +212,12 @@ class ViewBase:
         elif self.backend == "panel":
             self._panel_on_time_info_updated()
 
+    def on_use_times_updated(self):
+        if self.backend == "qt":
+            self._qt_on_use_times_updated()
+        elif self.backend == "panel":
+            self._panel_on_use_times_updated()
+
     def on_unit_color_changed(self):
         if self.backend == "qt":
             self._qt_on_unit_color_changed()
@@ -238,6 +247,9 @@ class ViewBase:
         pass
 
     def _qt_on_time_info_updated(self):
+        pass
+
+    def _qt_on_use_times_updated(self):
         pass
 
     def _qt_on_unit_color_changed(self):
@@ -285,6 +297,9 @@ class ViewBase:
         pass
 
     def _panel_on_time_info_updated(self):
+        pass
+
+    def _panel_use_times_updated(self):
         pass
 
     def _panel_on_unit_color_changed(self):
