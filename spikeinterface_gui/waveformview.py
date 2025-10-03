@@ -459,7 +459,6 @@ class WaveformView(ViewBase):
 
     def _qt_refresh_with_spikes(self):
         from .myqt import QT
-        import pyqtgraph as pg
 
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
