@@ -1,41 +1,41 @@
 # spikeinterface-gui
 
-GUI for the `SortingAnalyser` object from spikeinterface .
+GUI for the `SortingAnalyzer` object from spikeinterface .
 
 This is a cross platform interactive viewer to inspect the final results
 and quality of any spike sorter supported by spikeinterface 
 (kilosort, spykingcircus, tridesclous, mountainssort, yass, ironclust, herdingspikes, hdsort, klusta...)
 
-This interactive GUI offer several views that dynamically refresh other views.
+This interactive GUI offers several views that dynamically refresh other views.
 This allows us to very quickly check the strengths and weaknesses of any sorter output.
 
 This can be used as a replacement of [phy](https://github.com/cortex-lab/phy).
 
 This viewer has 2 modes:
-  * **mode=desktop** : this a local desktop app using internaly Qt, fast and easy when the data is local
-  * **mode=web** : this is a web app internally using Panel, usefull when the data is remote
+  * **mode=desktop** : this is a local desktop app using internally Qt, fast and easy when the data is local
+  * **mode=web** : this is a web app internally using Panel, useful when the data is remote
 
 
-![screenshot](screenshot.png)
+![screenshot](docs/source/images/desktop.png)
 
 
 ## main usage
 
-The main idea is make visible one or several unit and visualy inspect if they should be merge or remove.
+The main idea is to make visible one or several units and visually inspect if they should be merged or removed.
 For this visibility:
-  * ctlr + double click on a unit in *probeview*
+  * ctrl + double click on a unit in *probeview*
   * check the box visible in the *unitlist* 
   * double click on one unit in *unitlist* unit visible alone
   * move one of the roi in the *probeview*
 
-Views can be reorganized by moving docks by clicking in the title bar of a docks.
+Views can be reorganized by moving docks by clicking in the title bar of a dock.
 Any dock (view) can be closed. And can be put back with right click in any title bar of any dock.
 
-Every view has a **?** button which open the contextual help. **Theses inplace docs are the most important stuff to be read**. (but the contains typos)
+Every view has a **?** button which opens the contextual help. **These inplace docs are the most important stuff to be read**. (but they contain typos)
 
-When some units are visible, the related spike list can be refresh.
-Then selecting spike per spike can also refersh some views.
-This enable a very quick and convinient spike per spike jump on traces.
+When some units are visible, the related spike list can be refreshed.
+Then selecting spike per spike can also refresh some views.
+This enables a very quick and convenient spike per spike jump on traces.
 
 Channel visibility can be handled with one of the roi in the probeview.
 
@@ -43,10 +43,10 @@ Shortcuts: many shortcuts are available, please read the **?** button in each vi
 
 ## curation mode
 
-By default this tools is a viewer only. But you can turn it into a tools for manual curation using,
+By default this tool is a viewer only. But you can turn it into a tool for manual curation using
 the `curation=True` option.
-This tools supoort the [curation format from spikeinterface](https://spikeinterface.readthedocs.io/en/latest/modules/curation.html#manual-curation).
-This format enbale to:
+This tool supports the [curation format from spikeinterface](https://spikeinterface.readthedocs.io/en/latest/modules/curation.html#manual-curation).
+This format enables to:
   1. remove units
   2. merge units
   3. create manual labels
@@ -62,14 +62,14 @@ In order to use this viewer you will need to know a bit of [spikeinterface](http
 
 ### Step 1 : create and compute SortingAnalyzer
 
-You first need to is to get a `SortingAnalyzer` object with spikeinterface.
+You first need to get a `SortingAnalyzer` object with spikeinterface.
 
 See help [here](https://spikeinterface.readthedocs.io)
 
 Note that:
   * some extensions are mandatory (unit_location, templates, )
-  * some extension are optional
-  * the more extensions are computed the more view are displayed
+  * some extensions are optional
+  * the more extensions are computed the more views are displayed
 
 
 Example:
@@ -132,7 +132,7 @@ sigui /path/for/my/sorting_analyzer
 ```
 
 
-The command line support some otions like *--notraces* or *--curation* or *--mode*
+The command line supports some options like *--notraces* or *--curation* or *--mode*
 ```bash
 sigui --mode=web --no-traces --curation /path/for/my/sorting_analyzer
 ```
@@ -257,12 +257,12 @@ This work is a port of the old `tridesclous.gui` submodule on top of
 Main authors and maintainers:
 
  * qt side : Samuel Garcia, CNRS, Lyon, France
- * web side : Alessio Paolo Buccino, Allen Institute for Neural Dynamics, Seattle, USA did
+ * web side : Alessio Paolo Buccino, Allen Institute for Neural Dynamics, Seattle, USA
 
 
 ## Message from dictator
 
-Contrary, to the spikeinterface package, for the developement of this viewer 
-all good practices of coding are deliberately put aside  : no test, no CI, no auto formating, no doc, ... 
-Feel free to contribute, it is an open wild zone. Code anarchist are very welcome.
-So in this mess, persona non grata : pre-commit, black, pytest fixture, ...
+Contrary to the spikeinterface package, for the development of this viewer 
+all good practices of coding are deliberately put aside: no test, no CI, no auto formatting, no doc, ... 
+Feel free to contribute, it is an open wild zone. Code anarchists are very welcome.
+So in this mess, persona non grata: pre-commit, black, pytest fixture, ...

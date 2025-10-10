@@ -113,6 +113,7 @@ class SpikeRateView(ViewBase):
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
+            sizing_mode="stretch_both"
         )
         self.rate_fig.toolbar.logo = None
         self.rate_fig.grid.visible = False
@@ -168,7 +169,7 @@ class SpikeRateView(ViewBase):
 
 
 SpikeRateView._gui_help_txt = """
-# SpikeRateView View
+## SpikeRateView View
 
 This view shows firing rate for spikes per `bin_s`.
 """
