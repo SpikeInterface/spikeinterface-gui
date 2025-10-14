@@ -138,14 +138,15 @@ def listen_setting_changes(view):
 class QtMainWindow(QT.QMainWindow):
     main_window_closed = QT.pyqtSignal(object)
 
-    def __init__(self, controller, parent=None, layout_preset=None, layout=None):
+    def __init__(self, controller, parent=None, layout_preset=None, layout=None, user_settings=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_preset = layout_preset
         self.layout = layout
-        self.make_views()
+        
+        self.make_views(user_settings)
         self.create_main_layout()
 
         # refresh all views wihtout notiying
@@ -159,7 +160,7 @@ class QtMainWindow(QT.QMainWindow):
         # for view_name, dock in self.docks.items():
         #     dock.visibilityChanged.connect(self.views[view_name].refresh)
 
-    def make_views(self):
+    def make_views(self, user_settings):
         self.views = {}
         self.docks = {}
         for view_name, view_class in possible_class_views.items():
@@ -176,6 +177,15 @@ class QtMainWindow(QT.QMainWindow):
 
             widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
+
+            if user_settings is not None and user_settings.get(view_class.__name__) is not None:
+                for user_setting in user_settings.get(view_class.__name__):
+                    if user_setting.get("name") is None:
+                        raise KeyError(f"No 'name' key found in setting dict {user_setting}")
+                    elif user_setting.get("value") is None:
+                        raise KeyError(f"No 'value' key found in setting dict {user_setting}")
+                    view.settings[user_setting["name"]] = user_setting["value"]
+
             widget.set_view(view)
             dock = QT.QDockWidget(view_name)
             dock.setWidget(widget)

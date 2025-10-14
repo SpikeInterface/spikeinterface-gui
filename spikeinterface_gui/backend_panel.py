@@ -186,13 +186,13 @@ def listen_setting_changes(view):
 
 class PanelMainWindow:
 
-    def __init__(self, controller, layout_preset=None, layout=None):
+    def __init__(self, controller, layout_preset=None, layout=None, user_settings=None):
         self.controller = controller
         self.layout_preset = layout_preset
         self.layout = layout
         self.verbose = controller.verbose
 
-        self.make_views()
+        self.make_views(user_settings)
         self.create_main_layout()
         
         # refresh all views wihtout notiying
@@ -203,7 +203,7 @@ class PanelMainWindow:
             if view.is_view_visible():
                 view.refresh()
 
-    def make_views(self):
+    def make_views(self, user_settings):
         self.views = {}
         # this contains view layout + settings + compute
         self.view_layouts = {}
@@ -227,6 +227,14 @@ class PanelMainWindow:
                 scroll=True,
                 sizing_mode="stretch_both"
             )
+
+            if user_settings is not None and user_settings.get(view_class.__name__) is not None:
+                for user_setting in user_settings.get(view_class.__name__):
+                    if user_setting.get("name") is None:
+                        raise KeyError(f"No 'name' key found in setting dict {user_setting}")
+                    elif user_setting.get("value") is None:
+                        raise KeyError(f"No 'value' key found in setting dict {user_setting}")
+                    view.settings[user_setting["name"]] = user_setting["value"]
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:

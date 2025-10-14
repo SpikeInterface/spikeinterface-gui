@@ -30,6 +30,7 @@ def run_mainwindow(
     panel_start_server_kwargs=None,
     panel_window_servable=True,
     verbose=False,
+    user_settings=None,
 ):
     """
     Create the main window and start the QT app loop.
@@ -82,6 +83,8 @@ def run_mainwindow(
         the `panel_window_servable` should be set to False.
     verbose: bool, default: False
         If True, print some information in the console
+    user_settings: dict, default: None
+        A dictionary of user settings for each view, which overwrite the default settings.
     """
 
     if mode == "desktop":
@@ -122,7 +125,7 @@ def run_mainwindow(
 
         app = mkQApp()
 
-        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout)
+        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -134,7 +137,7 @@ def run_mainwindow(
     
     elif backend == "panel":
         from .backend_panel import PanelMainWindow, start_server
-        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout)
+        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
 
         if start_app or panel_window_servable:
             win.main_layout.servable(title='SpikeInterface GUI')
@@ -261,6 +264,7 @@ def run_mainwindow_cli():
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
     parser.add_argument('--curation-file', help='Path to json file defining a curation', default=None)
+    parser.add_argument('--settings-file', help='Path to json file specifying the settings of each view', default=None)
 
     args = parser.parse_args(argv)
 
@@ -302,6 +306,12 @@ def run_mainwindow_cli():
         else:
             curation_data = None
 
+        if args.settings_file is not None:
+            with open(args.settings_file, "r") as f:
+                user_settings = json.load(f)
+        else:
+            user_settings = None
+
         run_mainwindow(
             analyzer,
             mode=args.mode,
@@ -311,5 +321,6 @@ def run_mainwindow_cli():
             verbose=args.verbose,
             layout=args.layout_file,
             curation_dict=curation_data,
+            user_settings=user_settings,
         )
 
