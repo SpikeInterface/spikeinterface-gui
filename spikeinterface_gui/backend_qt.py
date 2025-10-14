@@ -226,7 +226,8 @@ class QtMainWindow(QT.QMainWindow):
 
         Then depending on which zones are non-zero, a different layout is generated using splits.
 
-        The second box (34,78) is equal to the first box (12,56) shifted by 2. We take advantage of this fact.
+        The zone indices in the second box (34,78) are equal to the zone indices first box (12,56) 
+        shifted by 2. We take advantage of this fact.
         """
 
         shift = 0 if left_or_right == "left" else 2
@@ -242,7 +243,9 @@ class QtMainWindow(QT.QMainWindow):
         dock = self.docks[view_name]
         self.addDockWidget(areas[left_or_right], dock)
 
-        # The main logic: apply splittings depending on which zones are present
+        # The main logic: apply splittings between different zones and in
+        # different orders, depending on which zones are present.
+
         # Layouts with two non-zero zones
         if present_zones == set([f'zone{1+shift}', f'zone{2+shift}']):
             self.make_split(1,2,"horizontal", widgets_zone, shift)

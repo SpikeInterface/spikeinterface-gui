@@ -294,9 +294,10 @@ class PanelMainWindow:
         1 2          3 4   
         5 6    or    7 8
 
-        Then depending on which zones are non-zero, a different layout is generated.
+        Then depending on which zones are non-zero, a different layout is generated using splits.
 
-        The second box (34,78) is equal to the first box (12,56) shifted by 2. We take advantage of this fact.
+        The zone indices in the second box (34,78) are equal to the zone indices first box (12,56) 
+        shifted by 2. We take advantage of this fact.
         """
 
         shift = 0 if left_or_right == "left" else 2
@@ -304,9 +305,11 @@ class PanelMainWindow:
         layout_zone = fill_unnecessary_space(layout_zone, shift)
         present_zones = get_present_zones_in_half_of_layout(layout_zone, shift)
 
+        # `fill_unnecessary_space` ensures that zone{1+shift} always exists
         if present_zones == set([f'zone{1+shift}']):
             gs[0,0] = layout_zone.get(f'zone{1+shift}')
 
+        # Layouts with two non-zero zones
         if present_zones == set([f'zone{1+shift}', f'zone{2+shift}']):
             gs[slice(0, 1), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
             gs[slice(0, 1), slice(1+shift,2+shift)] = layout_zone.get(f'zone{2+shift}')
@@ -330,7 +333,8 @@ class PanelMainWindow:
             gs[slice(0, 1), slice(0+shift,2+shift)] = layout_zone.get(f'zone{1+shift}')
             gs[slice(1, 2), slice(0+shift,1+shift)] = layout_zone.get(f'zone{5+shift}')
             gs[slice(1, 2), slice(1+shift,2+shift)] = layout_zone.get(f'zone{6+shift}')
-                
+
+        # Layouts with four non-zero zones   
         elif present_zones == set([f'zone{1+shift}', f'zone{2+shift}', f'zone{5+shift}', f'zone{6+shift}']):
             gs[slice(0, 1), slice(0+shift,1+shift)] = layout_zone.get(f'zone{1+shift}')
             gs[slice(0, 1), slice(1+shift,2+shift)] = layout_zone.get(f'zone{2+shift}')
