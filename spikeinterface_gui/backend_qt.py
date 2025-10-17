@@ -5,6 +5,7 @@ import numpy as np
 from copy import copy
 
 import weakref
+import json
 
 from .viewlist import possible_class_views
 from .layout_presets import get_layout_description
@@ -148,6 +149,7 @@ class QtMainWindow(QT.QMainWindow):
         
         self.make_views(user_settings)
         self.create_main_layout()
+        self.create_menu_bar()
 
         # refresh all views wihtout notiying
         self.controller.signal_handler.deactivate()
@@ -323,6 +325,32 @@ class QtMainWindow(QT.QMainWindow):
                     self.splitDockWidget(self.docks[first_zone_name], self.docks[zone_name], orientations['horizontal'])
 
 
+    def create_menu_bar(self):
+
+        menu_bar = self.menuBar()
+        settings_menu = menu_bar.addMenu("Settings")
+        
+        save_settings_action = QT.QAction("Save current settings as default", self)
+        settings_menu.addAction(save_settings_action)
+        save_settings_action.triggered.connect(self.save_current_settings)
+
+    def save_current_settings(self):
+        settings_dict = {}
+        for view_name, view in self.views.items():
+
+            settings_dict[view_name] = {}
+            
+            try:
+                current_settings_dict = view.settings.getValues()
+            except:
+                continue
+            for setting_name, (setting_value, _) in current_settings_dict.items():
+                settings_dict[view_name][setting_name] = setting_value
+
+        with open('default_settings.json', 'w') as f:
+            json.dump(settings_dict, f)
+
+    
 
     # used by to tell the launcher this is closed
     def closeEvent(self, event):
