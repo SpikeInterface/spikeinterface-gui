@@ -178,13 +178,12 @@ class QtMainWindow(QT.QMainWindow):
             widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
 
-            if user_settings is not None and user_settings.get(view_class.__name__) is not None:
-                for user_setting in user_settings.get(view_class.__name__):
-                    if user_setting.get("name") is None:
-                        raise KeyError(f"No 'name' key found in setting dict {user_setting}")
-                    elif user_setting.get("value") is None:
-                        raise KeyError(f"No 'value' key found in setting dict {user_setting}")
-                    view.settings[user_setting["name"]] = user_setting["value"]
+            if user_settings is not None and user_settings.get(view_name) is not None:
+                for setting_name, user_setting in user_settings.get(view_name).items():
+                    if setting_name not in view.settings.keys().keys():
+                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
+                    view.settings[setting_name] = user_setting
+
 
             widget.set_view(view)
             dock = QT.QDockWidget(view_name)
