@@ -1,5 +1,5 @@
 import time
-
+from contextlib import contextmanager
 
 class ViewBase:
     _supported_backend = []
@@ -27,12 +27,14 @@ class ViewBase:
             self.notifier = SignalNotifier(parent=self.qt_widget, view=self)
 
         elif self.backend == "panel":
+            import panel as pn
             from .backend_panel import SignalNotifier, create_settings, listen_setting_changes
 
             make_layout = self._panel_make_layout
             if self._settings is not None:
                 create_settings(self)
             self.notifier = SignalNotifier(view=self)
+            self.busy = pn.indicators.LoadingSpinner(value=True, size=20, name='busy...')
 
         make_layout()
         if self._settings is not None:
@@ -105,7 +107,8 @@ class ViewBase:
             print(f"Refresh {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
 
     def compute(self, event=None):
-        self._compute()
+        with self.busy_cursor():
+            self._compute()
         self.refresh()
 
     def _compute(self):
@@ -122,6 +125,8 @@ class ViewBase:
             self._qt_insert_warning(warning_msg)
         elif self.backend == "panel":
             self._panel_insert_warning(warning_msg)
+
+
 
     def continue_from_user(self, warning_msg, action, *args):
         """Display a warning and execute risky action only if user continues.
@@ -215,6 +220,14 @@ class ViewBase:
         elif self.backend == "panel":
             self._panel_on_unit_color_changed()
 
+    def busy_cursor(self):
+        if self.backend == "qt":
+            return self._qt_busy_cursor()
+        elif self.backend == "panel":
+            return self._panel_busy_cursor()
+        else:
+            raise ValueError(f"Unknown backend: {self.backend}")
+
     ## Zone to be done per layout ##
 
     ## QT ##
@@ -263,6 +276,16 @@ class ViewBase:
 
         result = alert.exec_()
         return result == QT.QMessageBox.Yes
+
+    @contextmanager
+    def _qt_busy_cursor(self):
+        from .myqt import QT, QtWidgets
+        QtWidgets.QApplication.setOverrideCursor(QT.WaitCursor)
+        try:
+            yield
+        finally:
+            QtWidgets.QApplication.restoreOverrideCursor()
+
 
     ## PANEL ##
     def _panel_make_layout(self):
@@ -363,3 +386,11 @@ class ViewBase:
 
     def _panel_clear_warning(self, event):
         self.layout.pop(0)
+
+    @contextmanager
+    def _panel_busy_cursor(self):
+        self.layout.insert(0, self.busy)
+        try:
+            yield
+        finally:
+            self.layout.pop(0)

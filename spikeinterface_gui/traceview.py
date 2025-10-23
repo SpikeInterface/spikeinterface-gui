@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from contextlib import nullcontext
 
 from .view_base import ViewBase
 
@@ -13,6 +14,94 @@ from .view_base import ViewBase
 #   * 
 
 class MixinViewTrace:
+
+    MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR = 0.5  # seconds
+
+    def get_data_in_chunk(self, t1, t2, segment_index):
+        with self.trace_context():
+            if not self._retrieve_traces_time_checked:
+                t_traces_start = time.perf_counter()
+            t_start = 0.0
+            sr = self.controller.sampling_frequency
+
+            ind1 = max(0, int((t1 - t_start) * sr))
+            ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
+
+            traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
+
+            sl = self.controller.segment_slices[segment_index]
+            spikes_seg = self.controller.spikes[sl]
+            i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
+            spikes_chunk = spikes_seg[i1:i2].copy()
+            spikes_chunk["sample_index"] -= ind1
+
+            visible_channel_inds = self.get_visible_channel_inds()
+
+            data_curves = traces_chunk[:, visible_channel_inds].T.copy()
+
+            if data_curves.dtype != "float32":
+                data_curves = data_curves.astype("float32")
+
+            if self.factor is not None:
+                n = visible_channel_inds.size
+                gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
+                offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
+
+                data_curves *= gains[:, None]
+                data_curves += offsets[:, None]
+
+            times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency+max(t1, 0)
+
+            scatter_x = []
+            scatter_y = []
+            scatter_colors = []
+            scatter_unit_ids = []
+
+            global_to_local_chan_inds = np.zeros(self.controller.channel_ids.size, dtype='int64')
+            global_to_local_chan_inds[visible_channel_inds] = np.arange(visible_channel_inds.size, dtype='int64')
+
+            for unit_index, unit_id in self.controller.iter_visible_units():
+
+                inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
+                if inds.size == 0:
+                    continue
+
+                # Get spikes for this unit
+                unit_spikes = spikes_chunk[inds]
+                channel_inds = unit_spikes["channel_index"]
+                sample_inds = unit_spikes["sample_index"]
+
+                chan_mask = np.isin(channel_inds, visible_channel_inds)
+                if not np.any(chan_mask):
+                    continue
+
+                sample_inds = sample_inds[chan_mask]
+                channel_inds = channel_inds[chan_mask]
+                # Map channel indices to their positions in visible_channel_inds
+                local_channel_inds = global_to_local_chan_inds[channel_inds]
+
+
+                # Calculate y values using signal values
+                x = times_chunk[sample_inds]
+                y = data_curves[local_channel_inds, sample_inds]
+
+                # This should both for qt (QTColor) and panel (html color)
+                color = self.get_unit_color(unit_id)
+
+                scatter_x.extend(x)
+                scatter_y.extend(y)
+                scatter_colors.extend([color] * len(x))
+                scatter_unit_ids.extend([str(unit_id)] * len(x))
+            if not self._retrieve_traces_time_checked:
+                t_traces_end = time.perf_counter()
+                elapsed = t_traces_end - t_traces_start
+                if elapsed > self.MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR:
+                    print(f"Trace retrieval took {elapsed:.3f} seconds. Enabling busy cursor.")
+                    self.trace_context = self.busy_cursor
+                self._retrieve_traces_time_checked = True
+
+        return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids
+
     ## Qt ##
     def _qt_create_toolbar(self):
         from .myqt import QT
@@ -284,6 +373,8 @@ class TraceView(ViewBase, MixinViewTrace):
         self.factor = 15.0
         self.xsize = 0.5
         self._block_auto_refresh_and_notify = False
+        self._retrieve_traces_time_checked = False
+        self.trace_context = nullcontext
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
@@ -307,82 +398,6 @@ class TraceView(ViewBase, MixinViewTrace):
     def apply_gain_zoom(self, factor_ratio):
         self.factor *= factor_ratio
         self.refresh()
-
-    def get_data_in_chunk(self, t1, t2, segment_index):
-        t_start = 0.0
-        sr = self.controller.sampling_frequency
-
-        ind1 = max(0, int((t1 - t_start) * sr))
-        ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
-
-        traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
-
-        sl = self.controller.segment_slices[segment_index]
-        spikes_seg = self.controller.spikes[sl]
-        i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
-        spikes_chunk = spikes_seg[i1:i2].copy()
-        spikes_chunk["sample_index"] -= ind1
-
-        visible_channel_inds = self.get_visible_channel_inds()
-        
-        data_curves = traces_chunk[:, visible_channel_inds].T.copy()
-
-        if data_curves.dtype != "float32":
-            data_curves = data_curves.astype("float32")
-        
-        n = visible_channel_inds.size
-        gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
-        offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
-        
-        data_curves *= gains[:, None]
-        data_curves += offsets[:, None]
-
-        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64')/self.controller.sampling_frequency+max(t1, 0)
-
-        scatter_x = []
-        scatter_y = []
-        scatter_colors = []
-        scatter_unit_ids = []
-
-        global_to_local_chan_inds = np.zeros(self.controller.channel_ids.size, dtype='int64')
-        global_to_local_chan_inds[visible_channel_inds] = np.arange(visible_channel_inds.size, dtype='int64')
-        
-
-        for unit_index, unit_id in self.controller.iter_visible_units():
-
-            inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
-            if inds.size == 0:
-                continue
-
-            # Get spikes for this unit
-            unit_spikes = spikes_chunk[inds]
-            channel_inds = unit_spikes["channel_index"]
-            sample_inds = unit_spikes["sample_index"]
-
-            
-            chan_mask = np.isin(channel_inds, visible_channel_inds)
-            if not np.any(chan_mask):
-                continue
-
-            sample_inds = sample_inds[chan_mask]
-            channel_inds = channel_inds[chan_mask]
-            # Map channel indices to their positions in visible_channel_inds
-            local_channel_inds = global_to_local_chan_inds[channel_inds]
-
-
-            # Calculate y values using signal values
-            x = times_chunk[sample_inds]
-            y = data_curves[local_channel_inds, sample_inds]
-
-            # This should both for qt (QTColor) and panel (html color)
-            color = self.get_unit_color(unit_id)
-
-            scatter_x.extend(x)
-            scatter_y.extend(y)
-            scatter_colors.extend([color] * len(x))
-            scatter_unit_ids.extend([str(unit_id)] * len(x))
-
-        return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids
 
     ## qt ##
     def _qt_make_layout(self):
