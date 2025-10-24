@@ -269,3 +269,9 @@ class MetricsView(ViewBase):
                 )
         else:
             self.layout[1] = self.empty_plot_pane
+
+MetricsView._gui_help_txt = """
+## Metrics View
+
+View and explore unit metrics in a customizable grid of plots.
+"""
