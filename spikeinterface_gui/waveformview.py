@@ -57,7 +57,6 @@ class WaveformView(ViewBase):
             self.delta_y = 40.0  # um
         self.gain_y = 0.02
         self.factor_x = 1.0
-        self.factor_y = 1.0
         espx = self.delta_x / 2.5
         for chan_ind, chan_id in enumerate(self.controller.channel_ids):
             x, y = self.contact_location[chan_ind, :]
@@ -241,9 +240,24 @@ class WaveformView(ViewBase):
             self._qt_refresh(keep_range=True)
 
     def _qt_heighten_shorten(self, factor_ratio):
-        if self.mode == "geometry":
-            self.factor_y *= factor_ratio
-            self._qt_refresh(keep_range=True)
+            import pyqtgraph as pg
+            if self.mode == "geometry":
+                vb = self.plot1.getViewBox()
+
+                # Disable auto-range properly (must be on ViewBox!)
+                vb.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=False)
+                vb.setAspectLocked(False)
+
+                # Get current ranges
+                _, (ymin, ymax) = vb.viewRange()
+
+                # Scale Y only
+                yrange = ymax - ymin
+                ymid = (ymin + ymax) / 2.0
+                new_yrange = yrange * factor_ratio
+                ymin = ymid - new_yrange / 2.0
+                ymax = ymid + new_yrange / 2.0
+                vb.setYRange(ymin, ymax, padding=0.0)
 
     def _qt_gain_zoom(self, factor_ratio):
         if self.mode == "geometry":
@@ -441,7 +455,7 @@ class WaveformView(ViewBase):
             ypos = self.contact_location[common_channel_indexes, 1]
 
             wf = template_avg
-            wf = wf * self.gain_y * self.delta_y + self.factor_y * ypos[None, :]
+            wf = wf * self.gain_y * self.delta_y + ypos[None, :]
 
             connect = np.ones(wf.shape, dtype="bool")
             connect[0, :] = 0
@@ -584,7 +598,7 @@ class WaveformView(ViewBase):
                 self.curve_waveforms.setData(xvect, wf_flat)
             elif self.mode == "geometry":
                 ypos = self.contact_location[common_channel_indexes, 1]
-                wf_plot = wf * self.gain_y * self.delta_y + self.factor_y * ypos[None, :]
+                wf_plot = wf * self.gain_y * self.delta_y + ypos[None, :]
 
                 connect = np.ones(wf_plot.shape, dtype="bool")
                 connect[0, :] = 0
@@ -708,7 +722,7 @@ class WaveformView(ViewBase):
 
             for i in range(n_waveforms):
                 wf_single = waveforms[i]  # (width, n_channels)
-                wf_plot = wf_single * self.gain_y * self.delta_y + self.factor_y * ypos[None, :]
+                wf_plot = wf_single * self.gain_y * self.delta_y + ypos[None, :]
 
                 connect = np.ones(wf_plot.shape, dtype="bool")
                 connect[0, :] = 0
@@ -849,7 +863,6 @@ class WaveformView(ViewBase):
             # zoom factor is reset
             if self.settings["auto_zoom_on_unit_selection"]:
                 self.factor_x = 1.0
-                self.factor_y = 1.0
                 self.gain_y = 0.02
             self._panel_refresh_mode_geometry(dict_visible_units, keep_range=keep_range)
         elif self.mode == "flatten":
@@ -963,10 +976,17 @@ class WaveformView(ViewBase):
             if modifiers["shift"] and modifiers["alt"]:
                 self.figure_geom.toolbar.active_scroll = None
                 if self.mode == "geometry":
-                    factor = 1.3 if event.delta > 0 else 1 / 1.3
-                    self.factor_y *= factor
-                    self._panel_refresh_mode_geometry(keep_range=True)
-                    self._panel_refresh_waveforms_samples()
+                    factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
+                    # adjust y range and keep center
+                    ymin = self.figure_geom.y_range.start
+                    ymax = self.figure_geom.y_range.end
+                    yrange = ymax - ymin
+                    ymid = 0.5 * (ymin + ymax)
+                    new_yrange = yrange * factor_ratio
+                    ymin = ymid - new_yrange / 2.
+                    ymax = ymid + new_yrange / 2.
+                    self.figure_geom.y_range.start = ymin
+                    self.figure_geom.y_range.end = ymax
             elif modifiers["shift"]:
                 self.figure_geom.toolbar.active_scroll = self.zoom_tool
             elif modifiers["alt"]:
@@ -1022,7 +1042,7 @@ class WaveformView(ViewBase):
             ypos = self.contact_location[common_channel_indexes, 1]
 
             wf = template_avg
-            wf = wf * self.gain_y * self.delta_y + self.factor_y * ypos[None, :]
+            wf = wf * self.gain_y * self.delta_y + ypos[None, :]
             # this disconnects each channel
             wf[0, :] = np.nan
             wf[-1, :] = np.nan
@@ -1261,7 +1281,7 @@ class WaveformView(ViewBase):
 
             for i in range(n_waveforms):
                 wf_single = waveforms[i]  # (width, n_channels)
-                wf_plot = wf_single * self.gain_y * self.delta_y + self.factor_y * ypos[None, :]
+                wf_plot = wf_single * self.gain_y * self.delta_y + ypos[None, :]
 
                 # Disconnect channels (first sample of each channel is NaN)
                 wf_plot[0, :] = np.nan
