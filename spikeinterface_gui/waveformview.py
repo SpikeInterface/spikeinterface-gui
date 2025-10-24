@@ -21,6 +21,7 @@ class WaveformView(ViewBase):
             "value": False,
         },  # true here can be very slow because it loads traces
         {"name": "plot_waveforms_samples", "type": "bool", "value": False},
+        {"name": "waveforms_alpha", "type": "float", "value": 0.3},
         {"name": "num_waveforms", "type": "int", "value": 20},
         {"name": "auto_zoom_on_unit_selection", "type": "bool", "value": False},
         {"name": "auto_move_on_unit_selection", "type": "bool", "value": True},
@@ -566,7 +567,8 @@ class WaveformView(ViewBase):
             for i, (unit_id, waveforms) in enumerate(unit_waveforms_data):
                 color = self.get_unit_color(unit_id)
                 color_with_alpha = QT.QColor(color)
-                color_with_alpha.setAlpha(int(0.3 * 255))  # 30% alpha
+                alpha = self.settings["waveforms_alpha"]
+                color_with_alpha.setAlpha(int(alpha * 255))  # 30% alpha
 
                 # Get the x-vector for this specific unit (handles overlap setting)
                 unit_xvect = xvects[i]
@@ -736,7 +738,8 @@ class WaveformView(ViewBase):
             all_y = np.array(all_y)
             all_connect = np.array(all_connect, dtype="bool")
 
-            curve = pg.PlotCurveItem(all_x, all_y, pen=pg.mkPen(color, width=1), connect=all_connect)
+            alpha = self.settings["waveforms_alpha"]
+            curve = pg.PlotCurveItem(all_x, all_y, pen=pg.mkPen(color, width=1, alpha=int(alpha * 255)), connect=all_connect)
             self.plot1.addItem(curve)
             self.curve_waveforms_samples.append(curve)
 
@@ -1255,6 +1258,8 @@ class WaveformView(ViewBase):
         if n_waveforms == 0:
             return
 
+        alpha = self.settings["waveforms_alpha"]
+
         if self.mode == "flatten":
             # For flatten mode, plot all waveforms as continuous lines
             all_x = []
@@ -1269,7 +1274,7 @@ class WaveformView(ViewBase):
                 all_y.append(None)
 
             line = self.figure_avg.line(
-                "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=0.7
+                "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=alpha
             )
             self.lines_waveforms_samples.append(line)
 
@@ -1291,7 +1296,7 @@ class WaveformView(ViewBase):
                 all_y.extend(wf_plot.T.flatten().tolist())
 
             line = self.figure_geom.line(
-                "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=0.7
+                "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=alpha
             )
             self.lines_waveforms_samples.append(line)
 
