@@ -2,7 +2,7 @@ Installation
 ============
 
 For beginners users, please see our `installation tips <https://github.com/SpikeInterface/spikeinterface/tree/main/installation_tips>`_
-where we provide a yaml for Mac/Windows/Linux to help properly install `spikeinterface` and `spikeinterface-gui` for you in a dedicated
+where we provide a yaml for Mac/Windows/Linux to help properly install ``spikeinterface`` and ``spikeinterface-gui`` for you in a dedicated
 ``uv`` environment.
 
 In your environment, if you wish to use the Desktop version of the GUI, you can do:

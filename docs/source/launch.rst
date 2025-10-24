@@ -1,10 +1,12 @@
+.. _launching:
+
 Launching the GUI
 =================
 
 In order to use this viewer you will need to know a bit of `spikeinterface documentation <https://spikeinterface.readthedocs.io/>`_
 
 Step 1: create and compute ``SortingAnalyzer``
-----------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You first need to get a ``SortingAnalyzer`` object with spikeinterface.
 
@@ -46,7 +48,7 @@ Example:
 
 
 Step 2: open the GUI for one analyzer
--------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With python:
 
@@ -56,9 +58,9 @@ With python:
    # reload the SortingAnalyzer
    sorting_analyzer = si.load_sorting_analyzer("/my_sorting_analyzer")
    # open and run the Qt app
-   run_mainwindow(sorting_analyzer, mode="desktop")
-   # open and run the Web app
-   run_mainwindow(sorting_analyzer, mode="web")
+   run_mainwindow(sorting_analyzer, mode="desktop", curation=False)
+   # open and run the Web app with curation activated
+   run_mainwindow(sorting_analyzer, mode="web", curation=True)
 
 Or from spikeinterface:
 
@@ -76,17 +78,11 @@ With the command line
    sigui /path/for/my/sorting_analyzer
 
 
-The command line supports some options like *--notraces* or *--curation* or *--mode*
+The command line supports some options like *--no-traces* or *--curation* or *--mode*
 
 .. code-block:: bash
 
    sigui --mode=web --no-traces --curation /path/for/my/sorting_analyzer
-
-
-Open the GUI launcher
----------------------
-
-TODO
 
 
 Running with curation mode
@@ -94,7 +90,6 @@ Running with curation mode
 
 
 To open the viewer with curation mode use ``curation=True``.
-
 
 .. code-block:: python
 
@@ -104,8 +99,42 @@ To open the viewer with curation mode use ``curation=True``.
 
 .. code-block:: python
 
-   from spikeinterface.widgets import plot_sorting_summary
+   import spikeinterface.widgets as sw
    sw.plot_sorting_summary(sorting_analyzer, curation=True, backend="spikeinterface_gui")
 
 The `curation_dict` can be saved inside the folder of the analyzer (for "binary_folder" or "zarr" format).
 Then it is auto-reloaded when the gui is re-opened.
+
+
+Open the GUI launcher
+---------------------
+
+If you have multiple analyzer folders in the same root folder (or in subfolders), 
+you can use the GUI launcher to select which one to open.
+
+.. code-block:: python
+
+   from spikeinterface_gui import run_launcher
+
+   run_launcher(root_folder="path-to-my-analyzers", mode="desktop")
+
+
+You can also use the command line and just specify the ``--root-folder``:
+
+.. code-block:: bash
+
+   sigui --mode=desktop --root-folder path-to-my-analyzers
+
+.. image:: images/launcher_desktop.png
+   :alt: launcher
+   :width: 600px
+   :align: center
+
+.. code-block:: bash
+
+   sigui --mode=web --root-folder path-to-my-analyzers
+
+.. image:: images/launcher_web.png
+   :alt: launcher
+   :width: 600px
+   :align: center

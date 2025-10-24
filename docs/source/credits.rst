@@ -1,7 +1,7 @@
 Credits
 =======
 
-Original author : Samuel Garcia, CNRS, Lyon, France
+Original author: Samuel Garcia, CNRS, Lyon, France
 
 This work is a port of the old `tridesclous.gui` submodule on top of
 `spikeinterface <https://github.com/SpikeInterface/spikeinterface>`_.

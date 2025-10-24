@@ -26,7 +26,7 @@ Curation mode
 -------------
 
 By default this tool is a viewer only. But you can turn it into a tool for manual curation using
-the `curation=True` option.
+the ``curation=True`` option.
 This tool supports the `curation format from spikeinterface <https://spikeinterface.readthedocs.io/en/latest/modules/curation.html#manual-curation>`_.
 This format enables to:
 
