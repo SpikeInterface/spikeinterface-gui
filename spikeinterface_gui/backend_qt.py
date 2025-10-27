@@ -152,7 +152,6 @@ class QtMainWindow(QT.QMainWindow):
         
         self.make_views(user_settings)
         self.create_main_layout()
-        self.create_menu_bar()
 
         # refresh all views wihtout notiying
         self.controller.signal_handler.deactivate()
@@ -328,16 +327,6 @@ class QtMainWindow(QT.QMainWindow):
                 for zone in reversed(group[1:]):
                     zone_name = widgets_zone[zone][0]
                     self.splitDockWidget(self.docks[first_zone_name], self.docks[zone_name], orientations['horizontal'])
-
-
-    def create_menu_bar(self):
-
-        menu_bar = self.menuBar()
-        settings_menu = menu_bar.addMenu("Settings")
-        
-        save_settings_action = QT.QAction("Save current settings as default", self)
-        settings_menu.addAction(save_settings_action)
-        save_settings_action.triggered.connect(self.save_current_settings)
 
     def save_current_settings(self):
         settings_dict = {}

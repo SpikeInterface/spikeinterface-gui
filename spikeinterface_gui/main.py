@@ -7,6 +7,7 @@ import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
+from .utils_global import get_config_folder
 
 from spikeinterface_gui.controller import Controller
 
@@ -94,6 +95,16 @@ def run_mainwindow(
     else:
         raise ValueError(f"spikeinterface-gui wrong mode {mode}")
 
+    if user_settings is None:
+        config_folder = get_config_folder()
+        settings_file = config_folder / "settings.json"
+        if settings_file.is_file():
+            try:
+                with open(settings_file) as f:
+                    user_settings = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"Config file at {settings_file} is not decodable. Error: {e}")
+                print("Using default settings.")
 
     if recording is not None:
         analyzer.set_temporary_recording(recording)

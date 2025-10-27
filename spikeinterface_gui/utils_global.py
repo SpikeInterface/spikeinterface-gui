@@ -1,4 +1,6 @@
 import numpy as np
+from pathlib import Path
+import os
 
 def get_size_top_row(initial_row, initial_col, is_zone_array, original_zone_array):
     
@@ -42,3 +44,14 @@ def get_size_bottom_row(initial_row, initial_col, is_zone_array, original_zone_a
             num_cols += 1
 
     return num_rows, num_cols
+
+
+def get_config_folder() -> Path:
+    """Get the config folder for spikeinterface-gui settings files.
+
+    Returns
+    -------
+    cache_folder : Path
+        The path to the cache folder.
+    """
+    return Path(os.path.expanduser("~")) / ".config" / "spikeinterface_gui"
