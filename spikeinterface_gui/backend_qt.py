@@ -5,7 +5,6 @@ import numpy as np
 from copy import copy
 
 import weakref
-import json
 
 from .viewlist import possible_class_views
 from .layout_presets import get_layout_description

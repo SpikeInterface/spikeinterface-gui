@@ -51,7 +51,7 @@ class MainSettingsView(ViewBase):
                 continue
 
             view_class_name = view.__class__.__name__
-            view_name = view_class_name[:-4].lower()
+            view_name = view_class_name.replace("View", "").lower()
 
             settings_dict[view_name] = {}
 
