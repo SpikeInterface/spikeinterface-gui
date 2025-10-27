@@ -135,6 +135,9 @@ def create_settings(view, parent):
 def listen_setting_changes(view):
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
+def stop_listen_setting_changes(view):
+    view.settings.sigTreeStateChanged.disconnect(view.on_settings_changed)
+
 
 class QtMainWindow(QT.QMainWindow):
     main_window_closed = QT.pyqtSignal(object)
@@ -184,7 +187,9 @@ class QtMainWindow(QT.QMainWindow):
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     if setting_name not in view.settings.keys().keys():
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
+                    stop_listen_setting_changes(view)
                     view.settings[setting_name] = user_setting
+                    listen_setting_changes(view)
 
 
             widget.set_view(view)

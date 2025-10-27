@@ -232,7 +232,8 @@ class PanelMainWindow:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     if setting_name not in view.settings.keys():
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    view.settings[setting_name] = user_setting
+                    with param.parameterized.discard_events(view.settings._parameterized):
+                        view.settings[setting_name] = user_setting
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
