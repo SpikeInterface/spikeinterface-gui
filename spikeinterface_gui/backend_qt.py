@@ -286,23 +286,6 @@ class QtMainWindow(QT.QMainWindow):
             self.make_split(1,2,"horizontal", widgets_zone, shift)
             self.make_split(5,6,"horizontal", widgets_zone, shift)
 
-
-    def save_current_settings(self):
-        settings_dict = {}
-        for view_name, view in self.views.items():
-
-            settings_dict[view_name] = {}
-            
-            try:
-                current_settings_dict = view.settings.getValues()
-            except:
-                continue
-            for setting_name, (setting_value, _) in current_settings_dict.items():
-                settings_dict[view_name][setting_name] = setting_value
-
-        with open('default_settings.json', 'w') as f:
-            json.dump(settings_dict, f)
-
             
     def make_split(self, zone_index_1, zone_index_2, orientation, widgets_zone, shift):
         """
