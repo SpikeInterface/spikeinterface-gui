@@ -47,6 +47,7 @@ class MainSettingsView(ViewBase):
         settings_dict = {}
         for view in self.controller.views:
 
+            # If view does not have any settings (e.g. MergeView) then skip
             if view._settings is None:
                 continue
 
@@ -98,6 +99,7 @@ class MainSettingsView(ViewBase):
         self.main_settings.param('color_mode').sigValueChanged.connect(self.on_change_color_mode)
 
     def qt_make_settings_dict(self, view):
+        """For a given view, return the current settings in a dict"""
 
         current_settings_dict_from_view = view.settings.getValues()
         
@@ -129,9 +131,12 @@ class MainSettingsView(ViewBase):
         self.layout = pn.Column(self.save_setting_button, self.main_settings_layout, sizing_mode="stretch_both")
 
     def panel_make_settings_dict(self, view):
+        """For a given view, return the current settings in a dict"""
+
         current_settings_dict_from_param = view.settings._parameterized.param.values()
         current_settings_dict = {}
         for setting_name, setting_value in current_settings_dict_from_param.items():
+            # The param also saves the name of the view - we don't want to propagate this
             if setting_name != "name":           
                 current_settings_dict[setting_name] = setting_value
         return current_settings_dict
@@ -149,5 +154,6 @@ class MainSettingsView(ViewBase):
 MainSettingsView._gui_help_txt = """
 ## Main settings
 
-Overview and main controls 
+Overview and main controls.
+Can save current settings for entire GUI as the default user settings using the "Save as default settings" button.
 """

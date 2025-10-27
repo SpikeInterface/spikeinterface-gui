@@ -285,7 +285,7 @@ class QtMainWindow(QT.QMainWindow):
             self.make_split(1,2,"horizontal", widgets_zone, shift)
             self.make_split(5,6,"horizontal", widgets_zone, shift)
 
-            
+
     def make_split(self, zone_index_1, zone_index_2, orientation, widgets_zone, shift):
         """
         Splits the zone at `zone_{zone_index_1+shift}` into two zones

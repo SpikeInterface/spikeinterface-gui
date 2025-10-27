@@ -95,6 +95,10 @@ def run_mainwindow(
     else:
         raise ValueError(f"spikeinterface-gui wrong mode {mode}")
 
+    # Order of preference for settings is set here:
+    #   1) User specified settings
+    #   2) Settings in the config folder
+    #   3) Default settings of each view 
     if user_settings is None:
         config_folder = get_config_folder()
         settings_file = config_folder / "settings.json"
