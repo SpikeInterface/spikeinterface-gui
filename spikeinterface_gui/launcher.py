@@ -364,7 +364,6 @@ class Launcher:
         else:
             value = self.analyzer_folders[0] if isinstance(self.analyzer_folders, list) \
                 else list(self.analyzer_folders.values())[0]
-            print(value)
             analyzer_loader = pn.widgets.Select(
                 name="Analyzer folder",
                 options=self.analyzer_folders,
