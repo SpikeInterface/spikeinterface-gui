@@ -34,11 +34,12 @@ class Controller():
     def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None):
+                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
         self.skip_extensions = skip_extensions
         self.backend = backend
+        self.disable_save_settings_button = disable_save_settings_button
         if self.backend == "qt":
             from .backend_qt import SignalHandler
             self.signal_handler = SignalHandler(self, parent=parent)

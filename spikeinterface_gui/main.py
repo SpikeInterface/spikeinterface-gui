@@ -32,6 +32,7 @@ def run_mainwindow(
     panel_window_servable=True,
     verbose=False,
     user_settings=None,
+    disable_save_settings_button=False,
 ):
     """
     Create the main window and start the QT app loop.
@@ -86,6 +87,8 @@ def run_mainwindow(
         If True, print some information in the console
     user_settings: dict, default: None
         A dictionary of user settings for each view, which overwrite the default settings.
+    disable_save_settings_button: bool, default: False
+        If True, disables the "save default settings" button, so that user cannot do this.
     """
 
     if mode == "desktop":
@@ -124,6 +127,7 @@ def run_mainwindow(
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
+        disable_save_settings_button=disable_save_settings_button
     )
     if verbose:
         t1 = time.perf_counter()

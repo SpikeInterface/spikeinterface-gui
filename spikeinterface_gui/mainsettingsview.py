@@ -82,9 +82,10 @@ class MainSettingsView(ViewBase):
         self.info_label = QT.QLabel(txt)
         self.layout.addWidget(self.info_label)
 
-        but = QT.QPushButton('Save as default settings')
-        but.clicked.connect(self.save_current_settings)
-        self.layout.addWidget(but)
+        if not self.controller.disable_save_settings_button:
+            but = QT.QPushButton('Save as default settings')
+            but.clicked.connect(self.save_current_settings)
+            self.layout.addWidget(but)
 
         self.main_settings = pg.parametertree.Parameter.create(name="main settings", type='group', children=main_settings)
         
@@ -119,8 +120,11 @@ class MainSettingsView(ViewBase):
         import panel as pn
         from .backend_panel import create_dynamic_parameterized, SettingsProxy
 
-        self.save_setting_button = pn.widgets.Button(name="Save as default settings", button_type="primary", sizing_mode="stretch_width")
-        self.save_setting_button.on_click(self.save_current_settings)
+        if self.controller.disable_save_settings_button:
+            self.save_setting_button = None
+        else:
+            self.save_setting_button = pn.widgets.Button(name="Save as default settings", button_type="primary", sizing_mode="stretch_width")
+            self.save_setting_button.on_click(self.save_current_settings)
 
         # Create method and arguments layout
         self.main_settings = SettingsProxy(create_dynamic_parameterized(main_settings))
