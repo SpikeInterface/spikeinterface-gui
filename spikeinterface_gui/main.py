@@ -284,6 +284,7 @@ def run_mainwindow_cli():
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
     parser.add_argument('--curation-file', help='Path to json file defining a curation', default=None)
     parser.add_argument('--settings-file', help='Path to json file specifying the settings of each view', default=None)
+    parser.add_argument('--disable_save_settings_button', help='Disables button allowing for user to save default settings', action='store_true', default=False)
 
     args = parser.parse_args(argv)
 
@@ -331,6 +332,8 @@ def run_mainwindow_cli():
         else:
             user_settings = None
 
+        disable_save_settings_button = args.disable_save_settings_button
+
         run_mainwindow(
             analyzer,
             mode=args.mode,
@@ -341,5 +344,6 @@ def run_mainwindow_cli():
             layout=args.layout_file,
             curation_dict=curation_data,
             user_settings=user_settings,
+            disable_save_settings_button=disable_save_settings_button,
         )
 
