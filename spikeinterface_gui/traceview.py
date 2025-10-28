@@ -321,6 +321,9 @@ class TraceView(ViewBase, MixinViewTrace):
 
     def get_data_in_chunk(self, t1, t2, segment_index):
         ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
+        # handle blank spots
+        if ind1 == ind2:
+            return np.array([]), np.array([[]]), [], [], [], []
 
         traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
 
@@ -345,7 +348,11 @@ class TraceView(ViewBase, MixinViewTrace):
         data_curves += offsets[:, None]
 
         t_start, _ = self.controller.get_t_start_t_stop()
-        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency + max(t1, t_start)
+        if self.controller.main_settings["use_times"]:
+            recording = self.controller.analyzer.recording
+            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+        else:
+            times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency + max(t1, t_start)
 
         scatter_x = []
         scatter_y = []
@@ -355,7 +362,6 @@ class TraceView(ViewBase, MixinViewTrace):
         global_to_local_chan_inds = np.zeros(self.controller.channel_ids.size, dtype='int64')
         global_to_local_chan_inds[visible_channel_inds] = np.arange(visible_channel_inds.size, dtype='int64')
         
-
         for unit_index, unit_id in self.controller.iter_visible_units():
 
             inds = np.flatnonzero(spikes_chunk["unit_index"] == unit_index)
@@ -482,6 +488,12 @@ class TraceView(ViewBase, MixinViewTrace):
 
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
             self.get_data_in_chunk(t1, t2,  self.controller.get_time()[1])
+
+        if times_chunk.size == 0:
+            self.signals_curve.setData([], [])
+            self.scatter.setData(x=[], y=[], brush=[])
+            return
+
         connect = np.ones(data_curves.shape, dtype='bool')
         connect[:, -1] = 0
 

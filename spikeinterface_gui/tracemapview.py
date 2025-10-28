@@ -80,7 +80,11 @@ class TraceMapView(ViewBase, MixinViewTrace):
             data_curves = data_curves.astype("float32")
 
         t_start, _ = self.controller.get_t_start_t_stop()
-        times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency + max(t1, t_start)
+        if self.controller.main_settings["use_times"]:
+            recording = self.controller.analyzer.recording
+            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+        else:
+            times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency + max(t1, t_start)
 
         scatter_x = []
         scatter_y = []
@@ -197,6 +201,11 @@ class TraceMapView(ViewBase, MixinViewTrace):
         segment_index = self.controller.get_time()[1]
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
             self.get_data_in_chunk(t1, t2, segment_index)
+
+        if times_chunk.size == 0:
+            self.image.hide()
+            self.scatter.clear()
+            return
         
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
