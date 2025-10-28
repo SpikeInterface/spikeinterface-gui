@@ -50,7 +50,7 @@ This is a web app internally using Panel, useful when the data is remote
    installation
    launch
    usage
-   custom_layout
+   custom_layout_settings
    deployments
    views
    developers
