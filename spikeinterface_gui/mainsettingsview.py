@@ -69,7 +69,7 @@ class MainSettingsView(ViewBase):
         settings_dict["_metadata"]["sigui_version"] = spikeinterface_gui.__version__
 
         with open(config_folder / 'settings.json', 'w') as f:
-            json.dump(settings_dict, f)
+            json.dump(settings_dict, f, indent=4)
 
     ## QT zone
     def _qt_make_layout(self):
