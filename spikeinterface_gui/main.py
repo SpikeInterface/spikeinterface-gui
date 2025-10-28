@@ -9,6 +9,7 @@ from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
 from .utils_global import get_config_folder
 
+import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
 
 
@@ -103,8 +104,9 @@ def run_mainwindow(
     #   2) Settings in the config folder
     #   3) Default settings of each view 
     if user_settings is None:
-        config_folder = get_config_folder()
-        settings_file = config_folder / "settings.json"
+        sigui_version = spikeinterface_gui.__version__
+        config_version_folder = get_config_folder() / sigui_version
+        settings_file = config_version_folder / "settings.json"
         if settings_file.is_file():
             try:
                 with open(settings_file) as f:
