@@ -35,12 +35,15 @@ class MixinViewTrace:
             spikes_chunk = spikes_seg[i1:i2].copy()
             spikes_chunk["sample_index"] -= ind1
 
+            # for trace map view, this returns the channels ordered by depth
             visible_channel_inds = self.get_visible_channel_inds()
 
-            data_curves = traces_chunk[:, visible_channel_inds].T.copy()
+            data_curves = traces_chunk[:, visible_channel_inds].copy()
+            data_curves = data_curves.T  # channels x time
 
             if data_curves.dtype != "float32":
                 data_curves = data_curves.astype("float32")
+            self.last_data_curves = data_curves.copy()
 
             if self.factor is not None:
                 n = visible_channel_inds.size
@@ -51,11 +54,13 @@ class MixinViewTrace:
                 data_curves += offsets[:, None]
 
             times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency+max(t1, 0)
+            self.last_times_chunk = times_chunk
 
             scatter_x = []
             scatter_y = []
             scatter_colors = []
-            scatter_unit_ids = []
+            sample_indices = []
+            local_channel_indices = []
 
             global_to_local_chan_inds = np.zeros(self.controller.channel_ids.size, dtype='int64')
             global_to_local_chan_inds[visible_channel_inds] = np.arange(visible_channel_inds.size, dtype='int64')
@@ -80,10 +85,13 @@ class MixinViewTrace:
                 # Map channel indices to their positions in visible_channel_inds
                 local_channel_inds = global_to_local_chan_inds[channel_inds]
 
-
                 # Calculate y values using signal values
                 x = times_chunk[sample_inds]
-                y = data_curves[local_channel_inds, sample_inds]
+                # Handle depth ordering for TraceMapView
+                if self.channel_order_reverse is not None:
+                    y = self.channel_order_reverse[channel_inds] + 0.5
+                else:
+                    y = data_curves[local_channel_inds, sample_inds]
 
                 # This should both for qt (QTColor) and panel (html color)
                 color = self.get_unit_color(unit_id)
@@ -91,7 +99,16 @@ class MixinViewTrace:
                 scatter_x.extend(x)
                 scatter_y.extend(y)
                 scatter_colors.extend([color] * len(x))
-                scatter_unit_ids.extend([str(unit_id)] * len(x))
+                sample_indices.extend(sample_inds.tolist())
+                local_channel_indices.extend(local_channel_inds.tolist())
+
+            self.last_scatter = dict(
+                times=scatter_x,
+                sample_indices=sample_indices,
+                local_channel_indices=local_channel_indices,
+                colors=scatter_colors,
+            )
+
             if not self._retrieve_traces_time_checked:
                 t_traces_end = time.perf_counter()
                 elapsed = t_traces_end - t_traces_start
@@ -100,7 +117,7 @@ class MixinViewTrace:
                     self.trace_context = self.busy_cursor
                 self._retrieve_traces_time_checked = True
 
-        return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids
+        return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors
 
     ## Qt ##
     def _qt_create_toolbar(self):
@@ -133,7 +150,7 @@ class MixinViewTrace:
         self.spinbox_xsize.sigValueChanged.connect(self.refresh)
         
         but = QT.QPushButton('auto scale')
-        but.clicked.connect(self.auto_scale)
+        but.clicked.connect(self._qt_auto_scale)
 
         tb.addWidget(but)
         
@@ -151,7 +168,7 @@ class MixinViewTrace:
         
         self.viewBox.doubleclicked.connect(self._qt_scatter_item_clicked)
         
-        self.viewBox.gain_zoom.connect(self.apply_gain_zoom)
+        self.viewBox.gain_zoom.connect(self._qt_gain_zoom)
         self.viewBox.xsize_zoom.connect(self._qt_xsize_zoom)
         
         self.signals_curve = pg.PlotCurveItem(pen='#7FFF00', connect='finite')
@@ -171,6 +188,11 @@ class MixinViewTrace:
         
         self.gains = None
         self.offsets = None
+
+    def _qt_auto_scale(self):
+        # to be defined in the child class
+        pass
+
 
     def _qt_update_scroll_limits(self):
         seg_index = self.controller.get_time()[1]
@@ -287,7 +309,8 @@ class MixinViewTrace:
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
     def _panel_auto_scale(self, event):
-        self.auto_scale()
+        # to be defined in the child class
+        pass
 
     def _panel_on_segment_changed(self, event):
         seg_index = int(event.new.split()[-1])
@@ -376,6 +399,9 @@ class TraceView(ViewBase, MixinViewTrace):
         self._retrieve_traces_time_checked = False
         self.trace_context = nullcontext
 
+        self.channel_order, self.channel_order_reverse = None, None
+        self.last_data_curves, self.last_scatter = None, None
+
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         MixinViewTrace.__init__(self)
 
@@ -390,16 +416,40 @@ class TraceView(ViewBase, MixinViewTrace):
         if inds.size > n_max:
             inds = inds[:n_max]
         return inds
-    
-    def auto_scale(self):
-        self.factor = 15.
-        self.refresh()
-
-    def apply_gain_zoom(self, factor_ratio):
-        self.factor *= factor_ratio
-        self.refresh()
 
     ## qt ##
+    def _qt_gain_zoom(self, factor_ratio):
+        self.factor *= factor_ratio
+        visible_channel_inds = self.get_visible_channel_inds()
+        if len(visible_channel_inds) == 0:
+            return
+        data_curves = self.last_data_curves.copy()
+
+        if self.factor is not None:
+            n = visible_channel_inds.size
+            gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
+            offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
+
+            data_curves *= gains[:, None]
+            data_curves += offsets[:, None]
+        connect = np.ones(data_curves.shape, dtype='bool')
+        connect[:, -1] = 0
+        times_chunk_tile = np.tile(self.last_times_chunk, visible_channel_inds.size)
+        self.signals_curve.setData(times_chunk_tile, data_curves.flatten(), connect=connect.flatten())
+
+        if self.last_scatter is not None:
+            scatter_x = self.last_scatter['times']
+            if len(scatter_x) > 0:
+                local_channel_inds = self.last_scatter['local_channel_indices']
+                sample_inds = self.last_scatter['sample_indices']
+                scatter_y = data_curves[local_channel_inds, sample_inds]
+                scatter_colors = self.last_scatter['colors']
+                self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors)
+
+    def _qt_auto_scale(self):
+        self.factor = 15.
+        self._qt_gain_zoom(1.0)
+
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -427,7 +477,6 @@ class TraceView(ViewBase, MixinViewTrace):
         
 
         self._qt_update_scroll_limits()
-
 
     def _qt_on_settings_changed(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
@@ -463,7 +512,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.notify_spike_selection_changed()
         self.refresh()
 
-
     def _qt_refresh(self):
         t, _ = self.controller.get_time()
         self._qt_seek(t)
@@ -485,12 +533,17 @@ class TraceView(ViewBase, MixinViewTrace):
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
         visible_channel_inds = self.get_visible_channel_inds()
+        if len(visible_channel_inds) == 0:
+            self.signals_curve.setData([], [])
+            self.scatter.setData(x=[], y=[], brush=[])
+            for chan_ind, chan_id in enumerate(self.controller.channel_ids):
+                self.channel_labels[chan_ind].hide()
+            return
 
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2,  self.controller.get_time()[1])
         connect = np.ones(data_curves.shape, dtype='bool')
         connect[:, -1] = 0
-
 
         times_chunk_tile = np.tile(times_chunk, visible_channel_inds.size)
         self.signals_curve.setData(times_chunk_tile, data_curves.flatten(), connect=connect.flatten())
@@ -499,7 +552,7 @@ class TraceView(ViewBase, MixinViewTrace):
 
         # TODO sam : scatter selection
         
-        #channel labels
+        # channel labels
         for chan_ind, chan_id in enumerate(self.controller.channel_ids):
             self.channel_labels[chan_ind].hide()
         
@@ -507,9 +560,9 @@ class TraceView(ViewBase, MixinViewTrace):
             self.channel_labels[chan_ind].setPos(t1, visible_channel_inds.size - 1 - i)
             self.channel_labels[chan_ind].show()
 
-        #ranges
-        self.plot.setXRange( t1, t2, padding = 0.0)
-        self.plot.setYRange(-.5, visible_channel_inds.size-.5, padding = 0.0)
+        # ranges
+        self.plot.setXRange(t1, t2, padding=0.0)
+        self.plot.setYRange(-.5, visible_channel_inds.size - .5, padding=0.0)
 
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
@@ -559,7 +612,7 @@ class TraceView(ViewBase, MixinViewTrace):
         # Add data sources
         self.signal_source = ColumnDataSource({"xs": [], "ys": [], "channel_id": []})
 
-        self.spike_source = ColumnDataSource({"x": [], "y": [], "color": [], "unit_id": []})
+        self.spike_source = ColumnDataSource({"x": [], "y": [], "color": []})
 
         # Plot signals
         self.signal_renderer = self.figure.multi_line(
@@ -602,26 +655,28 @@ class TraceView(ViewBase, MixinViewTrace):
                 "x": [],
                 "y": [],
                 "color": [],
-                "unit_id": [],
             })
             self.figure.x_range.start = t1
             self.figure.x_range.end = t2
         else:
-            times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+            times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
                 self.get_data_in_chunk(t1, t2, seg_index)
 
-            self.signal_source.data.update({
-                "xs": [times_chunk]*n,
-                "ys": [data_curves[i, :] for i in range(n)],
-                "channel_id": self.get_visible_channel_inds(),
-            })
+            self.signal_source.data.update(
+                {
+                    "xs": [times_chunk]*n,
+                    "ys": [data_curves[i, :] for i in range(n)],
+                    "channel_id": self.get_visible_channel_inds(),
+                }
+            )
 
-            self.spike_source.data.update({
-                "x": scatter_x,
-                "y": scatter_y,
-                "color": scatter_colors,
-                "unit_id": scatter_unit_ids,
-            })
+            self.spike_source.data.update(
+                {
+                    "x": scatter_x,
+                    "y": scatter_y,
+                    "color": scatter_colors,
+                }
+            )
 
             # Update plot ranges for x-axis too
             self.figure.x_range.start = t1
@@ -640,8 +695,44 @@ class TraceView(ViewBase, MixinViewTrace):
         self._panel_seek_with_selected_spike()
 
     def _panel_gain_zoom(self, event):
-        factor = 1.3 if event.delta > 0 else 1 / 1.3
-        self.apply_gain_zoom(factor)
+        if event is not None:
+            factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
+        else:
+            factor_ratio = 1.0
+        self.factor *= factor_ratio
+        visible_channel_inds = self.get_visible_channel_inds()
+        data_curves = self.last_data_curves.copy()
+        if len(visible_channel_inds) == 0:
+            return
+        if self.factor is not None:
+            n = visible_channel_inds.size
+            gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
+            offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
+
+            data_curves *= gains[:, None]
+            data_curves += offsets[:, None]
+
+        self.signal_source.data.update(
+            {
+                "ys": [data_curves[i, :] for i in range(n)],
+            }
+        )
+
+        if self.last_scatter is not None:
+            scatter_x = self.last_scatter['times']
+            if len(scatter_x) > 0:
+                local_channel_inds = self.last_scatter['local_channel_indices']
+                sample_inds = self.last_scatter['sample_indices']
+                scatter_y = data_curves[local_channel_inds, sample_inds]
+                self.spike_source.data.update(
+                    {
+                        "y": scatter_y,
+                    }
+                )
+
+    def _panel_auto_scale(self, event):
+        self.factor = 15.0
+        self._panel_gain_zoom(None)
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
