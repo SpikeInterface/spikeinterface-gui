@@ -64,12 +64,8 @@ class MainSettingsView(ViewBase):
         sigui_version = spikeinterface_gui.__version__
 
         config_folder = get_config_folder()
-        if not config_folder.is_dir():
-            config_folder.mkdir(exist_ok=True)
-
         config_version_folder = config_folder / sigui_version
-        if not config_version_folder.is_dir():
-            config_version_folder.mkdir(exist_ok=True)
+        config_version_folder.mkdir(parents=True, exist_ok=True)
 
         with open(config_version_folder / 'settings.json', 'w') as f:
             json.dump(settings_dict, f, indent=4)
