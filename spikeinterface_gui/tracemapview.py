@@ -40,18 +40,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.make_color_lut()
 
-        
-    def apply_gain_zoom(self, factor_ratio):
-        if self.color_limit is None:
-            return
-        self.color_limit = self.color_limit * factor_ratio
-        self.refresh()
-
-    def auto_scale(self):
-        if self.last_data_curves is not None:
-            self.color_limit = np.max(np.abs(self.last_data_curves))
-        self.refresh()
-
     def make_color_lut(self):
         N = 512
         cmap_name = self.settings['colormap']
@@ -65,8 +53,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             self.lut = self.lut[::-1]
 
     def get_visible_channel_inds(self):
-        return np.arange(self.controller.analyzer.get_num_channels())
-
+        return self.channel_order
 
     ## Qt ##
     def _qt_make_layout(self, **kargs):
@@ -99,7 +86,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # self.on_params_changed(do_refresh=False)
         #this do refresh
         self._qt_change_segment(0)
-        
+
+    def _qt_gain_zoom(self, factor_ratio):
+        if self.color_limit is None:
+            return
+        self.color_limit = self.color_limit * factor_ratio
+        self.image.setLevels([-self.color_limit, self.color_limit])
+
+    def _qt_auto_scale(self):
+        if self.last_data_curves is not None:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+        self._qt_gain_zoom(1.0)
 
     def _qt_on_settings_changed(self, do_refresh=True):
 
@@ -147,10 +144,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
         seg_index = self.controller.get_time()[1]
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2, seg_index)
-        self.last_data_curves = data_curves
-        
+        data_curves = data_curves.T
+
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
 
@@ -163,8 +160,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # self.scatter.clear()
         self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors)
 
-        self.plot.setXRange( t1, t2, padding = 0.0)
-        self.plot.setYRange(0, num_chans, padding = 0.0)
+        self.plot.setXRange(t1, t2, padding=0.0)
+        self.plot.setYRange(0, num_chans, padding=0.0)
 
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
@@ -226,7 +223,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # Add data sources
         self.image_source = ColumnDataSource({"image": [], "x": [], "y": [], "dw": [], "dh": []})
 
-        self.spike_source = ColumnDataSource({"x": [], "y": [], "color": [], "unit_id": []})
+        self.spike_source = ColumnDataSource({"x": [], "y": [], "color": []})
 
         # Create color mapper
         self.color_mapper = LinearColorMapper(palette="Greys256", low=-1, high=1)
@@ -268,8 +265,9 @@ class TraceMapView(ViewBase, MixinViewTrace):
         else:
             auto_scale = False
 
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2, seg_index)
+        data_curves = data_curves.T
 
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
@@ -286,7 +284,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
             "x": scatter_x,
             "y": scatter_y,
             "color": scatter_colors,
-            "unit_id": scatter_unit_ids,
         })
 
         if auto_scale:
@@ -301,7 +298,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
         seg_index = self.controller.get_time()[1]
-        ind_spike_nearest = self.find_nearest_spike(self.controller, event.x, seg_index)
+        ind_spike_nearest = find_nearest_spike(self.controller, event.x, seg_index)
         if ind_spike_nearest is not None:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self._panel_seek_with_selected_spike()
@@ -315,15 +312,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._panel_seek_with_selected_spike()
 
     def _panel_gain_zoom(self, event):
-        factor = 1.3 if event.delta > 0 else 1 / 1.3
-        self.color_mapper.high = self.color_mapper.high * factor
+        if event is None:
+            factor_ratio = 1.0
+        else:
+            factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
+        self.color_mapper.high = self.color_mapper.high * factor_ratio
         self.color_mapper.low = -self.color_mapper.high
 
     def _panel_auto_scale(self, event):
-        if self.last_data_curves is not None:
-            self.color_limit = np.max(np.abs(self.last_data_curves))
-            self.color_mapper.high = self.color_limit
-            self.color_mapper.low = -self.color_limit
+        self._panel_gain_zoom(None)
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range

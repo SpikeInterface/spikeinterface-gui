@@ -1,5 +1,5 @@
-from .unitlist import UnitListView
-from .spikelist import SpikeListView
+from .unitlistview import UnitListView
+from .spikelistview import SpikeListView
 from .mergeview import MergeView
 from .traceview import TraceView
 from .waveformview import WaveformView
@@ -15,13 +15,13 @@ from .tracemapview import TraceMapView
 from .curationview import CurationView
 from .mainsettingsview import MainSettingsView
 from .metricsview import MetricsView
-from .rateview import SpikeRateView
+from .spikerateview import SpikeRateView
 
 possible_class_views = dict(
     probe = ProbeView, # probe view is first, since it updates channels upon unit changes
     unitlist = UnitListView,
     spikelist = SpikeListView,
-    mergelist = MergeView,
+    merge = MergeView,
     trace = TraceView,
     waveform = WaveformView,
     waveformheatmap = WaveformHeatMapView,
@@ -33,7 +33,7 @@ possible_class_views = dict(
     spikedepth = SpikeDepthView,
     tracemap = TraceMapView,
     curation = CurationView,
-    mainsettings=MainSettingsView,
-    metrics = MetricsView,
-    spikerate=SpikeRateView,
+    spikerate = SpikeRateView,
+    metrics = MetricsView,    
+    mainsettings = MainSettingsView,
 )

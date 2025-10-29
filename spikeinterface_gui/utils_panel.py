@@ -392,8 +392,9 @@ class SelectableTabulator(pn.viewable.Viewer):
     def selection(self, val):
         if isinstance(self.tabulator.selectable, int):
             max_selectable = self.tabulator.selectable
-            if len(val) > max_selectable:
-                val = val[-max_selectable:]
+            if not isinstance(max_selectable, bool):
+                if len(val) > max_selectable:
+                    val = val[-max_selectable:]
         self.tabulator.selection = val
 
     @property
