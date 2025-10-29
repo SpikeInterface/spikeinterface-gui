@@ -55,6 +55,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def get_visible_channel_inds(self):
         return self.channel_order
 
+    def apply_gain_zoom(self, factor_ratio):
+        if self.color_limit is None:
+            return
+        self.color_limit = self.color_limit * factor_ratio
+        self.refresh()
+
+    def auto_scale(self):
+        if self.last_data_curves is not None:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+        self.refresh()
+
     ## Qt ##
     def _qt_make_layout(self, **kargs):
         from .myqt import QT
@@ -86,17 +97,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # self.on_params_changed(do_refresh=False)
         #this do refresh
         self._qt_change_segment(0)
-
-    def _qt_gain_zoom(self, factor_ratio):
-        if self.color_limit is None:
-            return
-        self.color_limit = self.color_limit * factor_ratio
-        self.image.setLevels([-self.color_limit, self.color_limit])
-
-    def _qt_auto_scale(self):
-        if self.last_data_curves is not None:
-            self.color_limit = np.max(np.abs(self.last_data_curves))
-        self._qt_gain_zoom(1.0)
 
     def _qt_on_settings_changed(self, do_refresh=True):
 
@@ -312,15 +312,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._panel_seek_with_selected_spike()
 
     def _panel_gain_zoom(self, event):
-        if event is None:
-            factor_ratio = 1.0
-        else:
-            factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
+        factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
         self.color_mapper.high = self.color_mapper.high * factor_ratio
         self.color_mapper.low = -self.color_mapper.high
 
     def _panel_auto_scale(self, event):
-        self._panel_gain_zoom(None)
+        if self.last_data_curves is not None:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+            self.color_mapper.high = self.color_limit
+            self.color_mapper.low = -self.color_limit
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range

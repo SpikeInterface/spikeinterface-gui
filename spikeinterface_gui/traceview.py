@@ -59,8 +59,6 @@ class MixinViewTrace:
             scatter_x = []
             scatter_y = []
             scatter_colors = []
-            sample_indices = []
-            local_channel_indices = []
 
             global_to_local_chan_inds = np.zeros(self.controller.channel_ids.size, dtype='int64')
             global_to_local_chan_inds[visible_channel_inds] = np.arange(visible_channel_inds.size, dtype='int64')
@@ -99,15 +97,6 @@ class MixinViewTrace:
                 scatter_x.extend(x)
                 scatter_y.extend(y)
                 scatter_colors.extend([color] * len(x))
-                sample_indices.extend(sample_inds.tolist())
-                local_channel_indices.extend(local_channel_inds.tolist())
-
-            self.last_scatter = dict(
-                times=scatter_x,
-                sample_indices=sample_indices,
-                local_channel_indices=local_channel_indices,
-                colors=scatter_colors,
-            )
 
             if not self._retrieve_traces_time_checked:
                 t_traces_end = time.perf_counter()
@@ -150,7 +139,7 @@ class MixinViewTrace:
         self.spinbox_xsize.sigValueChanged.connect(self.refresh)
         
         but = QT.QPushButton('auto scale')
-        but.clicked.connect(self._qt_auto_scale)
+        but.clicked.connect(self.auto_scale)
 
         tb.addWidget(but)
         
@@ -168,7 +157,7 @@ class MixinViewTrace:
         
         self.viewBox.doubleclicked.connect(self._qt_scatter_item_clicked)
         
-        self.viewBox.gain_zoom.connect(self._qt_gain_zoom)
+        self.viewBox.gain_zoom.connect(self.apply_gain_zoom)
         self.viewBox.xsize_zoom.connect(self._qt_xsize_zoom)
         
         self.signals_curve = pg.PlotCurveItem(pen='#7FFF00', connect='finite')
@@ -188,11 +177,6 @@ class MixinViewTrace:
         
         self.gains = None
         self.offsets = None
-
-    def _qt_auto_scale(self):
-        # to be defined in the child class
-        pass
-
 
     def _qt_update_scroll_limits(self):
         seg_index = self.controller.get_time()[1]
@@ -228,6 +212,8 @@ class MixinViewTrace:
     
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
+        # Reset trace retrieval check: might require more or less time now!
+        # self._retrieve_traces_time_checked = False
         self.xsize = xsize
         if not self._block_auto_refresh_and_notify:
             self.refresh()
@@ -308,10 +294,6 @@ class MixinViewTrace:
                                                   value_throttled=0, sizing_mode="stretch_width")
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
-    def _panel_auto_scale(self, event):
-        # to be defined in the child class
-        pass
-
     def _panel_on_segment_changed(self, event):
         seg_index = int(event.new.split()[-1])
         self._panel_change_segment(seg_index)
@@ -331,6 +313,8 @@ class MixinViewTrace:
 
     def _panel_on_xsize_changed(self, event):
         self.xsize = event.new
+        # Reset trace retrieval check: might require more or less time now!
+        # self._retrieve_traces_time_checked = False
         if not self._block_auto_refresh_and_notify:
             self.refresh()
             self.notify_time_info_updated()
@@ -372,6 +356,25 @@ class MixinViewTrace:
             self._block_auto_refresh_and_notify = False
             self.refresh()
             self.notify_time_info_updated()
+
+    # TODO: pan behavior like Qt?
+    # def _panel_on_pan_start(self, event):
+    #     self.drag_state["x_start"] = event.x
+
+    # def _panel_on_pan(self, event):
+    #     print("Panning...")
+    #     if self.drag_state["x_start"] is None:
+    #         return
+    #     delta = event.x - self.drag_state["x_start"]
+    #     print(f"Delta: {delta}")
+    #     factor = 1.0 - (delta * 10)  # adjust sensitivity
+    #     factor = max(0.5, min(factor, 2.0))  # limit zoom factor
+    #     print(f"Change xsize by factor: {factor}. From {self.xsize} to {self.xsize * factor}")
+
+    #     self.xsize_spinner.value = self.xsize * factor
+
+    # def _panel_on_pan_end(self, event):
+    #     self.drag_state["x_start"] = None
 
 
 class TraceView(ViewBase, MixinViewTrace):
@@ -417,39 +420,21 @@ class TraceView(ViewBase, MixinViewTrace):
             inds = inds[:n_max]
         return inds
 
-    ## qt ##
-    def _qt_gain_zoom(self, factor_ratio):
-        self.factor *= factor_ratio
-        visible_channel_inds = self.get_visible_channel_inds()
-        if len(visible_channel_inds) == 0:
-            return
-        data_curves = self.last_data_curves.copy()
-
-        if self.factor is not None:
-            n = visible_channel_inds.size
-            gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
-            offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
-
-            data_curves *= gains[:, None]
-            data_curves += offsets[:, None]
-        connect = np.ones(data_curves.shape, dtype='bool')
-        connect[:, -1] = 0
-        times_chunk_tile = np.tile(self.last_times_chunk, visible_channel_inds.size)
-        self.signals_curve.setData(times_chunk_tile, data_curves.flatten(), connect=connect.flatten())
-
-        if self.last_scatter is not None:
-            scatter_x = self.last_scatter['times']
-            if len(scatter_x) > 0:
-                local_channel_inds = self.last_scatter['local_channel_indices']
-                sample_inds = self.last_scatter['sample_indices']
-                scatter_y = data_curves[local_channel_inds, sample_inds]
-                scatter_colors = self.last_scatter['colors']
-                self.scatter.setData(x=scatter_x, y=scatter_y, brush=scatter_colors)
-
-    def _qt_auto_scale(self):
+    def auto_scale(self):
         self.factor = 15.
-        self._qt_gain_zoom(1.0)
+        trace_context = self.trace_context
+        self.trace_context = nullcontext
+        self.refresh()
+        self.trace_context = trace_context
 
+    def apply_gain_zoom(self, factor_ratio):
+        self.factor *= factor_ratio
+        trace_context = self.trace_context
+        self.trace_context = nullcontext
+        self.refresh()
+        self.trace_context = trace_context
+
+    ## qt ##
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -583,12 +568,12 @@ class TraceView(ViewBase, MixinViewTrace):
         import panel as pn
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
-        from bokeh.models import ColumnDataSource, Range1d, HoverTool
+        from bokeh.models import ColumnDataSource, Range1d
         from bokeh.events import Tap, MouseWheel
 
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
-            tools="box_zoom,reset",
+            tools="reset",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
@@ -699,40 +684,11 @@ class TraceView(ViewBase, MixinViewTrace):
             factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
         else:
             factor_ratio = 1.0
-        self.factor *= factor_ratio
-        visible_channel_inds = self.get_visible_channel_inds()
-        data_curves = self.last_data_curves.copy()
-        if len(visible_channel_inds) == 0:
-            return
-        if self.factor is not None:
-            n = visible_channel_inds.size
-            gains = np.ones(n, dtype=float) * 1.0 / (self.factor * max(self.mad[visible_channel_inds]))
-            offsets = np.arange(n)[::-1] - self.med[visible_channel_inds] * gains
-
-            data_curves *= gains[:, None]
-            data_curves += offsets[:, None]
-
-        self.signal_source.data.update(
-            {
-                "ys": [data_curves[i, :] for i in range(n)],
-            }
-        )
-
-        if self.last_scatter is not None:
-            scatter_x = self.last_scatter['times']
-            if len(scatter_x) > 0:
-                local_channel_inds = self.last_scatter['local_channel_indices']
-                sample_inds = self.last_scatter['sample_indices']
-                scatter_y = data_curves[local_channel_inds, sample_inds]
-                self.spike_source.data.update(
-                    {
-                        "y": scatter_y,
-                    }
-                )
+        factor = 1.3 if event.delta > 0 else 1 / 1.3
+        self.apply_gain_zoom(factor)
 
     def _panel_auto_scale(self, event):
-        self.factor = 15.0
-        self._panel_gain_zoom(None)
+        self.auto_scale()
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
