@@ -40,6 +40,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.make_color_lut()
 
+    def apply_gain_zoom(self, factor_ratio):
+        if self.color_limit is None:
+            return
+        self.color_limit = self.color_limit * factor_ratio
+        self.refresh()
+
+    def auto_scale(self):
+        if self.last_data_curves is not None:
+            self.color_limit = np.max(np.abs(self.last_data_curves))
+        self.refresh()
+
     def make_color_lut(self):
         N = 512
         cmap_name = self.settings['colormap']
@@ -54,17 +65,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def get_visible_channel_inds(self):
         return self.channel_order
-
-    def apply_gain_zoom(self, factor_ratio):
-        if self.color_limit is None:
-            return
-        self.color_limit = self.color_limit * factor_ratio
-        self.refresh()
-
-    def auto_scale(self):
-        if self.last_data_curves is not None:
-            self.color_limit = np.max(np.abs(self.last_data_curves))
-        self.refresh()
 
     ## Qt ##
     def _qt_make_layout(self, **kargs):

@@ -213,7 +213,8 @@ class MixinViewTrace:
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
         # Reset trace retrieval check: might require more or less time now!
-        # self._retrieve_traces_time_checked = False
+        if xsize > self.xsize:
+            self._retrieve_traces_time_checked = False
         self.xsize = xsize
         if not self._block_auto_refresh_and_notify:
             self.refresh()
@@ -312,9 +313,10 @@ class MixinViewTrace:
             self.notify_time_info_updated()
 
     def _panel_on_xsize_changed(self, event):
-        self.xsize = event.new
         # Reset trace retrieval check: might require more or less time now!
-        # self._retrieve_traces_time_checked = False
+        if event.new > self.xsize:
+            self._retrieve_traces_time_checked = False
+        self.xsize = event.new
         if not self._block_auto_refresh_and_notify:
             self.refresh()
             self.notify_time_info_updated()
