@@ -8,6 +8,7 @@ import warnings
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
 from .utils_global import get_config_folder
+from spikeinterface_gui.layout_presets import get_layout_description
 
 import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
@@ -122,7 +123,9 @@ def run_mainwindow(
         import time
         t0 = time.perf_counter()
 
-    skip_extensions = find_skippable_extensions(layout_preset=layout_preset, layout=layout)
+    layout_dict = get_layout_description(layout_preset, layout)
+    if skip_extensions is None:
+        skip_extensions = find_skippable_extensions(layout_dict)
 
     controller = Controller(
         analyzer, backend=backend, verbose=verbose,
@@ -149,7 +152,7 @@ def run_mainwindow(
 
         app = mkQApp()
 
-        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
+        win = QtMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -161,7 +164,7 @@ def run_mainwindow(
     
     elif backend == "panel":
         from .backend_panel import PanelMainWindow, start_server
-        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
+        win = PanelMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
 
         if start_app or panel_window_servable:
             win.main_layout.servable(title='SpikeInterface GUI')
@@ -352,10 +355,8 @@ def run_mainwindow_cli():
             disable_save_settings_button=disable_save_settings_button,
         )
 
-def find_skippable_extensions(layout_preset, layout=None):
+def find_skippable_extensions(layout_dict):
     
-    from spikeinterface_gui.layout_presets import get_layout_description
-    layout_dict = get_layout_description(layout_preset, layout)
     view_per_zone = list(layout_dict.values())
     list_of_views = [view for zone_views in view_per_zone for view in zone_views]
 
@@ -368,5 +369,9 @@ def find_skippable_extensions(layout_preset, layout=None):
         skippable_extensions.append('waveforms')
     if 'ndscatter' not in list_of_views:
         skippable_extensions.append('principal_components')
+    if 'isi' not in list_of_views:
+        skippable_extensions.append('isi_histograms')
+    if 'correlogram' not in list_of_views:
+        skippable_extensions.append('correlograms')
 
     return skippable_extensions

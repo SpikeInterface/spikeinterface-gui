@@ -185,10 +185,9 @@ def listen_setting_changes(view):
 
 class PanelMainWindow:
 
-    def __init__(self, controller, layout_preset=None, layout=None, user_settings=None):
+    def __init__(self, controller, layout_dict=None, user_settings=None):
         self.controller = controller
-        self.layout_preset = layout_preset
-        self.layout = layout
+        self.layout_dict = layout_dict
         self.verbose = controller.verbose
 
         self.make_views(user_settings)
@@ -258,7 +257,7 @@ class PanelMainWindow:
 
         pn.extension("gridstack")
 
-        preset = get_layout_description(self.layout_preset, self.layout)
+        preset = self.layout_dict
 
         layout_zone = {}
         for zone, view_names in preset.items():

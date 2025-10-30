@@ -141,13 +141,12 @@ def stop_listen_setting_changes(view):
 class QtMainWindow(QT.QMainWindow):
     main_window_closed = QT.pyqtSignal(object)
 
-    def __init__(self, controller, parent=None, layout_preset=None, layout=None, user_settings=None):
+    def __init__(self, controller, parent=None, layout_dict=None, user_settings=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
-        self.layout_preset = layout_preset
-        self.layout = layout
+        self.layout_dict = layout_dict
         
         self.make_views(user_settings)
         self.create_main_layout()
@@ -206,7 +205,7 @@ class QtMainWindow(QT.QMainWindow):
 
         self.setDockNestingEnabled(True)
 
-        preset = get_layout_description(self.layout_preset, self.layout)
+        preset = self.layout_dict
 
         widgets_zone = {}
         for zone, view_names in preset.items():
