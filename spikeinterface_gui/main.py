@@ -121,6 +121,9 @@ def run_mainwindow(
     if verbose:
         import time
         t0 = time.perf_counter()
+
+    skip_extensions = find_skippable_extensions(layout_preset=layout_preset, layout=layout)
+
     controller = Controller(
         analyzer, backend=backend, verbose=verbose,
         curation=curation, curation_data=curation_dict,
@@ -349,3 +352,21 @@ def run_mainwindow_cli():
             disable_save_settings_button=disable_save_settings_button,
         )
 
+def find_skippable_extensions(layout_preset, layout=None):
+    
+    from spikeinterface_gui.layout_presets import get_layout_description
+    layout_dict = get_layout_description(layout_preset, layout)
+    view_per_zone = list(layout_dict.values())
+    list_of_views = [view for zone_views in view_per_zone for view in zone_views]
+
+    skippable_extensions = []
+    if 'spikeamplitude' not in list_of_views:
+        skippable_extensions.append('spike_amplitudes')
+    if 'spikedepth' not in list_of_views:
+        skippable_extensions.append('spike_locations')
+    if 'waveform' not in list_of_views and 'waveformheatmap' not in list_of_views:
+        skippable_extensions.append('waveforms')
+    if 'ndscatter' not in list_of_views:
+        skippable_extensions.append('principal_components')
+
+    return skippable_extensions
