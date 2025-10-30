@@ -11,12 +11,16 @@ class SpikeRateView(ViewBase):
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        self._block_auto_refresh_and_notify = False
     
     def _on_settings_changed(self):
         self.refresh()
 
-    def on_time_info_updated(self):
-        self.refresh()
+    def _qt_on_time_info_updated(self):
+        if self.combo_seg.currentIndex() != self.controller.get_time()[1]:
+            self._block_auto_refresh_and_notify = True
+            self.refresh()
+            self._block_auto_refresh_and_notify = False
 
     def on_use_times_updated(self):
         self.refresh()
@@ -46,8 +50,9 @@ class SpikeRateView(ViewBase):
     def _qt_change_segment(self):
         segment_index = self.combo_seg.currentIndex()
         self.controller.set_time(segment_index=segment_index)
-        self.refresh()
-        self.notify_time_info_updated()
+        if not self._block_auto_refresh_and_notify:
+            self.refresh()
+            self.notify_time_info_updated()
 
     def _qt_refresh(self):
         import pyqtgraph as pg
