@@ -322,7 +322,7 @@ class ViewBase:
     def _panel_on_time_info_updated(self):
         pass
 
-    def _panel_use_times_updated(self):
+    def _panel_on_use_times_updated(self):
         pass
 
     def _panel_on_unit_color_changed(self):

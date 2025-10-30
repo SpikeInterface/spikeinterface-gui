@@ -181,11 +181,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
 
-    def _qt_on_use_times_updated(self):
-        # Update time seeker
-        t_start, t_stop = self.controller.get_t_start_t_stop()
-        self.timeseeker.set_start_stop(t_start, t_stop)
-
     ## Panel ##
     def _panel_make_layout(self):
         import panel as pn

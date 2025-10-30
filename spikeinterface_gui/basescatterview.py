@@ -396,8 +396,8 @@ class BaseScatterView(ViewBase):
         self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = self.y_label
-        t_start, t_end = self.controller.get_t_start_t_end()
-        self.scatter_fig.x_range = Range1d(t_start, t_end)
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.scatter_fig.x_range = Range1d(t_start, t_stop)
 
         # Add SelectionGeometry event handler to capture lasso vertices
         self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)

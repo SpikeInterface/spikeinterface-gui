@@ -239,6 +239,11 @@ class MixinViewTrace:
             self.controller.set_time(time=peak_time)
             self.notify_time_info_updated()
         self.refresh()
+
+    def _qt_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.timeseeker.set_start_stop(t_start, t_stop)
     
     ## panel ##
     def _panel_create_toolbar(self):
@@ -340,6 +345,16 @@ class MixinViewTrace:
             self._block_auto_refresh_and_notify = False
             self.refresh()
             self.notify_time_info_updated()
+
+    def _panel_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.time_slider.start = t_start
+        self.time_slider.end = t_stop
+
+        # Optionally clamp the current value if out of range
+        self.time_slider.value = max(t_start, min(self.time_slider.value, t_stop))
+        self.refresh()
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -552,10 +567,10 @@ class TraceView(ViewBase, MixinViewTrace):
         # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
 
-    def _qt_on_use_times_updated(self):
-        # Update time seeker
-        t_start, t_stop = self.controller.get_t_start_t_stop()
-        self.timeseeker.set_start_stop(t_start, t_stop)
+    # def _qt_on_use_times_updated(self):
+    #     # Update time seeker
+    #     t_start, t_stop = self.controller.get_t_start_t_stop()
+    #     self.timeseeker.set_start_stop(t_start, t_stop)
 
     ## panel ##
     def _panel_make_layout(self):
