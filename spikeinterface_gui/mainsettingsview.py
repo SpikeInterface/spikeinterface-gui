@@ -54,6 +54,9 @@ class MainSettingsView(ViewBase):
             view_class_name = view.__class__.__name__
             view_name = view_class_name.replace("View", "").lower()
 
+            if view_name == "unitlist":
+                continue
+
             settings_dict[view_name] = {}
 
             if backend == "panel":
