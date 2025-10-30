@@ -41,7 +41,6 @@ class MainSettingsView(ViewBase):
 
     def on_use_times(self):
         self.controller.main_settings['use_times'] = self.main_settings['use_times']
-        print("Use times changed:", self.main_settings['use_times'])
         self.controller.update_time_info()
         self.notify_use_times_updated()
         # for view in self.controller.views:

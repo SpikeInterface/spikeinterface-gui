@@ -19,7 +19,6 @@ class SpikeRateView(ViewBase):
         self.refresh()
 
     def on_use_times_updated(self):
-        print(f"Refreshing SpikeRateView")
         self.refresh()
 
     ## Qt ##
@@ -105,25 +104,26 @@ class SpikeRateView(ViewBase):
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
         self.rate_fig = bpl.figure(
-            width=250,
-            height=250,
             tools="pan,wheel_zoom,reset",
             active_drag="pan",
             active_scroll="wheel_zoom",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             outline_line_color="white",
+            sizing_mode="stretch_both",
         )
         self.rate_fig.toolbar.logo = None
         self.rate_fig.grid.visible = False
 
         self.layout = pn.Column(
             pn.Row(self.segment_selector, sizing_mode="stretch_width"),
-            pn.Row(self.rate_fig,sizing_mode="stretch_both"),
+            pn.Row(self.rate_fig, sizing_mode="stretch_both"),
         )
         self.is_warning_active = False
 
     def _panel_refresh(self):
+        from bokeh.models import Range1d
+
         segment_index = self.controller.get_time()[1]
         if segment_index != self.segment_index:
             self.segment_index = segment_index
@@ -136,11 +136,12 @@ class SpikeRateView(ViewBase):
         total_frames = self.controller.final_spike_samples
         bins_s = self.settings['bin_s']
         num_bins = total_frames[segment_index] // int(sampling_frequency) // bins_s
-        t_start, _  = self.controller.get_t_start_t_stop()
+        t_start, t_stop  = self.controller.get_t_start_t_stop()
 
         # clear fig
         self.rate_fig.renderers = []
 
+        max_count = 0
         for unit_id in visible_unit_ids:
 
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
@@ -152,13 +153,15 @@ class SpikeRateView(ViewBase):
             color = self.get_unit_color(unit_id)
 
             line = self.rate_fig.line(
-                x=(bins[1:]+bins[:-1])/(2*sampling_frequency) + t_start,
-                y=count/bins_s,
+                x=(bins[1:]+bins[:-1]) / (2*sampling_frequency) + t_start,
+                y=count / bins_s,
                 color=color,
                 line_width=2,
             )
+            max_count = max(max_count, np.max(count/bins_s))
 
-        self.rate_fig.y_range.start = 0
+        self.rate_fig.x_range = Range1d(start=t_start, end=t_stop)
+        self.rate_fig.y_range = Range1d(start=0, end=max_count*1.2)
 
     def _panel_change_segment(self, event):
         self.segment_index = int(self.segment_selector.value.split()[-1])

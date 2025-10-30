@@ -461,6 +461,9 @@ class BaseScatterView(ViewBase):
         colors = []
 
         segment_index = self.controller.get_time()[1]
+        if segment_index != self.segment_index:
+            self.segment_index = segment_index
+            self.segment_selector.value = f"Segment {self.segment_index}"
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
         for unit_id in visible_unit_ids:
@@ -487,6 +490,9 @@ class BaseScatterView(ViewBase):
                 line_width=2,
             )
             self.hist_lines.append(hist_lines)
+        t_start, t_end = self.controller.get_t_start_t_stop()
+        self.scatter_fig.x_range.start = t_start
+        self.scatter_fig.x_range.end = t_end
 
         self._max_count = max_count
 
@@ -522,7 +528,7 @@ class BaseScatterView(ViewBase):
         self._current_selected = 0
         self.segment_index = int(self.segment_selector.value.split()[-1])
         self.controller.set_time(segment_index=self.segment_index)
-        t_start, t_end = self.controller.get_t_start_t_end()
+        t_start, t_end = self.controller.get_t_start_t_stop()
         self.scatter_fig.x_range.start = t_start
         self.scatter_fig.x_range.end = t_end
         self.refresh()

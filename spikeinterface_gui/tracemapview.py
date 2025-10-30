@@ -115,11 +115,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def _qt_on_spike_selection_changed(self):
         self._qt_seek_with_selected_spike()
 
-
-    def _qt_scatter_item_clicked(self, x, y):
-        # useless but needed for the MixinViewTrace
-        pass
-
     def _qt_refresh(self):
         t, _ = self.controller.get_time()
         self._qt_seek(t)
@@ -180,6 +175,12 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._block_auto_refresh_and_notify = False
         # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
+
+    def _qt_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.timeseeker.set_start_stop(t_start, t_stop)
+        self.timeseeker.seek(self.controller.get_time()[0])
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -272,7 +273,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             auto_scale = False
 
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
-            self.get_data_in_chunk(t1, t2, seg_index)
+            self.get_data_in_chunk(t1, t2, segment_index)
         data_curves = data_curves.T
 
         if self.color_limit is None:
@@ -304,7 +305,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
         seg_index = self.controller.get_time()[1]
-        ind_spike_nearest = find_nearest_spike(self.controller, event.x, seg_index)
+        time = event.x
+        ind_spike_nearest = find_nearest_spike(self.controller, time, seg_index)
         if ind_spike_nearest is not None:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self._panel_seek_with_selected_spike()
@@ -340,6 +342,17 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self._block_auto_refresh_and_notify = False
         # we don't need a refresh in panel because changing tab triggers a refresh
+
+    def _panel_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.time_slider.start = t_start
+        self.time_slider.end = t_stop
+
+        # Optionally clamp the current value if out of range
+        self.time_slider.value = self.controller.get_time()[0]
+
+        self.refresh()
 
 
 TraceMapView._gui_help_txt = """

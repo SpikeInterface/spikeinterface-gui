@@ -614,7 +614,7 @@ class Controller():
             # set time info 
             segment_index = self.spikes['segment_index'][self._spike_selected_indices[0]]
             sample_index = self.spikes['sample_index'][self._spike_selected_indices[0]]
-            self.set_time(time=sample_index / self.sampling_frequency, segment_index=segment_index)
+            self.set_time(time=self.sample_index_to_time(sample_index), segment_index=segment_index)
 
     def get_spike_indices(self, unit_id, segment_index=None):
         if segment_index is None:
