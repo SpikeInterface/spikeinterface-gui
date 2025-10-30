@@ -7,12 +7,13 @@ import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
+from spikeinterface.core.sortinganalyzer import get_available_analyzer_extensions
 from .utils_global import get_config_folder
 from spikeinterface_gui.layout_presets import get_layout_description
 
 import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
-
+from spikeinterface_gui.viewlist import possible_class_views
 
 def run_mainwindow(
     analyzer,
@@ -356,22 +357,24 @@ def run_mainwindow_cli():
         )
 
 def find_skippable_extensions(layout_dict):
+    """
+    Returns the extensions which don't need to be loaded, depending on which views the user
+    wants to load. Does this by taking all possible extensions, then removing any which are
+    needed by a view.
+    """
     
+    all_extensions = set(get_available_analyzer_extensions())
+
     view_per_zone = list(layout_dict.values())
     list_of_views = [view for zone_views in view_per_zone for view in zone_views]
 
-    skippable_extensions = []
-    if 'spikeamplitude' not in list_of_views:
-        skippable_extensions.append('spike_amplitudes')
-    if 'spikedepth' not in list_of_views:
-        skippable_extensions.append('spike_locations')
-    if 'waveform' not in list_of_views and 'waveformheatmap' not in list_of_views:
-        skippable_extensions.append('waveforms')
-    if 'ndscatter' not in list_of_views:
-        skippable_extensions.append('principal_components')
-    if 'isi' not in list_of_views:
-        skippable_extensions.append('isi_histograms')
-    if 'correlogram' not in list_of_views:
-        skippable_extensions.append('correlograms')
+    needed_extensions = ['unit_locations']
+
+    for view in list_of_views:
+        extensions_view_depend_on = possible_class_views[view]._depend_on
+        if extensions_view_depend_on is not None:
+            needed_extensions += extensions_view_depend_on
+
+    skippable_extensions = list(all_extensions.difference(set(needed_extensions)))
 
     return skippable_extensions
