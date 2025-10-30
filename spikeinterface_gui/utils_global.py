@@ -1,4 +1,16 @@
 import numpy as np
+from pathlib import Path
+import os
+
+def get_config_folder() -> Path:
+    """Get the config folder for spikeinterface-gui settings files.
+
+    Returns
+    -------
+    cache_folder : Path
+        The path to the cache folder.
+    """
+    return Path(os.path.expanduser("~")) / ".config" / "spikeinterface_gui"
 
 # Functions for the layout
 

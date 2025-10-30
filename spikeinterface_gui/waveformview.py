@@ -35,11 +35,20 @@ class WaveformView(ViewBase):
         self.contact_location = self.controller.get_contact_location().copy()
         xpos = self.contact_location[:,0]
         ypos = self.contact_location[:,1]
-        unique_x = np.sort(np.unique(np.round(xpos)))
-        if unique_x.size>1:
-            self.delta_x = np.min(np.diff(unique_x))
+
+        # copied directly from spikeinterface.widgets.unit_waveform
+        manh = np.abs(
+            self.contact_location[None, :] - self.contact_location[:, None]
+        )  # vertical and horizontal distances between each channel
+        eucl = np.linalg.norm(manh, axis=2)  # Euclidean distance matrix
+        np.fill_diagonal(eucl, np.inf)  # the distance of a channel to itself is not considered
+        gaus = np.exp(-0.5 * (eucl / eucl.min()) ** 2)  # sigma uses the min distance between channels
+        weight = manh[..., 0] / eucl * gaus
+        if weight.sum() == 0:
+            self.delta_x = 10
         else:
-            self.delta_x = 40. # um
+            self.delta_x = (manh[..., 0] * weight).sum() / weight.sum()
+
         unique_y = np.sort(np.unique(np.round(ypos)))
         if unique_y.size>1:
             self.delta_y = np.min(np.diff(unique_y))

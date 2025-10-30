@@ -35,11 +35,12 @@ class Controller():
     def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
                  curation=False, curation_data=None, label_definitions=None, with_traces=True,
                  displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None):
+                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
         self.skip_extensions = skip_extensions
         self.backend = backend
+        self.disable_save_settings_button = disable_save_settings_button
         if self.backend == "qt":
             from .backend_qt import SignalHandler
             self.signal_handler = SignalHandler(self, parent=parent)
@@ -443,6 +444,29 @@ class Controller():
         else:
             return 0, self.get_num_samples(segment_index) / self.sampling_frequency
 
+    def get_times_chunk(self, segment_index, t1, t2):
+        ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
+        if self.main_settings["use_times"]:
+            recording = self.analyzer.recording
+            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+        else:
+            times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.controller.sampling_frequency + max(t1, 0)
+        return times_chunk
+
+    def get_chunk_indices(self, t1, t2, segment_index):
+        if self.main_settings["use_times"]:
+            recording = self.analyzer.recording
+            ind1, ind2 = recording.time_to_sample_index([t1, t2], segment_index=segment_index)
+        else:
+            t_start = 0.0
+            sr = self.sampling_frequency
+            ind1 = int((t1 - t_start) * sr)
+            ind2 = int((t2 - t_start) * sr)
+
+        ind1 = max(0, ind1)
+        ind2 = min(self.get_num_samples(segment_index), ind2)
+        return ind1, ind2
+
     def sample_index_to_time(self, sample_index):
         segment_index = self.time_info["segment_index"]
         if self.main_settings["use_times"] and self.analyzer.has_recording():
@@ -610,6 +634,25 @@ class Controller():
         cache_key = (kargs.get("segment_index", None), kargs.get("start_frame", None), kargs.get("end_frame", None))
         if cache_key in self._traces_cached:
             return self._traces_cached[cache_key]
+        else:
+            # check if start_frame and end_frame are a subset interval of a cached one
+            for cached_key in self._traces_cached.keys():
+                cached_seg = cached_key[0]
+                cached_start = cached_key[1]
+                cached_end = cached_key[2]
+                req_seg = kargs.get("segment_index", None)
+                req_start = kargs.get("start_frame", None)
+                req_end = kargs.get("end_frame", None)
+                if cached_seg is not None and req_seg is not None:
+                    if cached_seg != req_seg:
+                        continue
+                if cached_start is not None and cached_end is not None and req_start is not None and req_end is not None:
+                    if req_start >= cached_start and req_end <= cached_end:
+                        # subset found
+                        traces = self._traces_cached[cached_key]
+                        start_offset = req_start - cached_start
+                        end_offset = req_end - cached_start
+                        return traces[start_offset:end_offset, :]
         
         if len(self._traces_cached) > 4:
             self._traces_cached.pop(list(self._traces_cached.keys())[0])
@@ -617,7 +660,7 @@ class Controller():
         if trace_source == 'preprocessed':
             rec = self.analyzer.recording
         elif trace_source == 'raw':
-            raise NotImplemented
+            raise NotImplementedError("Raw traces not implemented yet")
             # TODO get with parent recording the non process recording
         kargs['return_in_uV'] = self.return_in_uV
         traces = rec.get_traces(**kargs)

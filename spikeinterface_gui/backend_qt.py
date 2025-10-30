@@ -148,18 +148,22 @@ def create_settings(view, parent):
 def listen_setting_changes(view):
     view.settings.sigTreeStateChanged.connect(view.on_settings_changed)
 
+def stop_listen_setting_changes(view):
+    view.settings.sigTreeStateChanged.disconnect(view.on_settings_changed)
+
 
 class QtMainWindow(QT.QMainWindow):
     main_window_closed = QT.pyqtSignal(object)
 
-    def __init__(self, controller, parent=None, layout_preset=None, layout=None):
+    def __init__(self, controller, parent=None, layout_preset=None, layout=None, user_settings=None):
         QT.QMainWindow.__init__(self, parent)
         
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_preset = layout_preset
         self.layout = layout
-        self.make_views()
+        
+        self.make_views(user_settings)
         self.create_main_layout()
 
         # refresh all views wihtout notiying
@@ -173,7 +177,7 @@ class QtMainWindow(QT.QMainWindow):
         # for view_name, dock in self.docks.items():
         #     dock.visibilityChanged.connect(self.views[view_name].refresh)
 
-    def make_views(self):
+    def make_views(self, user_settings):
         self.views = {}
         self.docks = {}
         for view_name, view_class in possible_class_views.items():
@@ -190,6 +194,16 @@ class QtMainWindow(QT.QMainWindow):
 
             widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
+
+            if user_settings is not None and user_settings.get(view_name) is not None:
+                for setting_name, user_setting in user_settings.get(view_name).items():
+                    if setting_name not in view.settings.keys().keys():
+                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
+                    stop_listen_setting_changes(view)
+                    view.settings[setting_name] = user_setting
+                    listen_setting_changes(view)
+
+
             widget.set_view(view)
             dock = QT.QDockWidget(view_name)
             dock.setWidget(widget)

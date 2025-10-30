@@ -7,7 +7,9 @@ import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
+from .utils_global import get_config_folder
 
+import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
 
 
@@ -30,6 +32,8 @@ def run_mainwindow(
     panel_start_server_kwargs=None,
     panel_window_servable=True,
     verbose=False,
+    user_settings=None,
+    disable_save_settings_button=False,
 ):
     """
     Create the main window and start the QT app loop.
@@ -82,6 +86,10 @@ def run_mainwindow(
         the `panel_window_servable` should be set to False.
     verbose: bool, default: False
         If True, print some information in the console
+    user_settings: dict, default: None
+        A dictionary of user settings for each view, which overwrite the default settings.
+    disable_save_settings_button: bool, default: False
+        If True, disables the "save default settings" button, so that user cannot do this.
     """
 
     if mode == "desktop":
@@ -91,6 +99,21 @@ def run_mainwindow(
     else:
         raise ValueError(f"spikeinterface-gui wrong mode {mode}")
 
+    # Order of preference for settings is set here:
+    #   1) User specified settings
+    #   2) Settings in the config folder
+    #   3) Default settings of each view 
+    if user_settings is None:
+        sigui_version = spikeinterface_gui.__version__
+        config_version_folder = get_config_folder() / sigui_version
+        settings_file = config_version_folder / "settings.json"
+        if settings_file.is_file():
+            try:
+                with open(settings_file) as f:
+                    user_settings = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"Config file at {settings_file} is not decodable. Error: {e}")
+                print("Using default settings.")
 
     if recording is not None:
         analyzer.set_temporary_recording(recording)
@@ -106,6 +129,7 @@ def run_mainwindow(
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
+        disable_save_settings_button=disable_save_settings_button
     )
     if verbose:
         t1 = time.perf_counter()
@@ -122,7 +146,7 @@ def run_mainwindow(
 
         app = mkQApp()
 
-        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout)
+        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -134,7 +158,7 @@ def run_mainwindow(
     
     elif backend == "panel":
         from .backend_panel import PanelMainWindow, start_server
-        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout)
+        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
 
         if start_app or panel_window_servable:
             win.main_layout.servable(title='SpikeInterface GUI')
@@ -261,6 +285,8 @@ def run_mainwindow_cli():
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
     parser.add_argument('--curation-file', help='Path to json file defining a curation', default=None)
+    parser.add_argument('--settings-file', help='Path to json file specifying the settings of each view', default=None)
+    parser.add_argument('--disable_save_settings_button', help='Disables button allowing for user to save default settings', action='store_true', default=False)
 
     args = parser.parse_args(argv)
 
@@ -302,6 +328,14 @@ def run_mainwindow_cli():
         else:
             curation_data = None
 
+        if args.settings_file is not None:
+            with open(args.settings_file, "r") as f:
+                user_settings = json.load(f)
+        else:
+            user_settings = None
+
+        disable_save_settings_button = args.disable_save_settings_button
+
         run_mainwindow(
             analyzer,
             mode=args.mode,
@@ -311,5 +345,7 @@ def run_mainwindow_cli():
             verbose=args.verbose,
             layout=args.layout_file,
             curation_dict=curation_data,
+            user_settings=user_settings,
+            disable_save_settings_button=disable_save_settings_button,
         )
 

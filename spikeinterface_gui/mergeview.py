@@ -198,7 +198,7 @@ class MergeView(ViewBase):
         row_layout = QT.QHBoxLayout()
 
         but = QT.QPushButton('Calculate merges')
-        but.clicked.connect(self._qt_calculate_potential_automerge)
+        but.clicked.connect(self._compute_merges)
         row_layout.addWidget(but)
 
         if self.controller.curation:
@@ -269,8 +269,11 @@ class MergeView(ViewBase):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
 
-    def _qt_calculate_potential_automerge(self):
-        self.get_potential_merges()
+    def _compute_merges(self):
+        with self.busy_cursor():
+            self.get_potential_merges()
+        if len(self.proposed_merge_unit_groups) == 0:
+            self.warning(f"No potential merges found with method {self.method}")
         self.refresh()
 
     def _qt_on_spike_selection_changed(self):
@@ -318,7 +321,7 @@ class MergeView(ViewBase):
         self.table_area = pn.pane.Placeholder("No merges computed yet.", height=400)
 
         self.caluculate_merges_button = pn.widgets.Button(name="Calculate merges", button_type="primary", sizing_mode="stretch_width")
-        self.caluculate_merges_button.on_click(self._panel_calculate_merges)
+        self.caluculate_merges_button.on_click(self._panel_compute_merges)
 
         calculate_list = [self.caluculate_merges_button]
 
@@ -378,11 +381,8 @@ class MergeView(ViewBase):
         self.table.on_click(self._panel_on_click)
         self.table_area.update(self.table)
 
-    def _panel_calculate_merges(self, event):
-        import panel as pn
-        self.table_area.update(pn.indicators.LoadingSpinner(size=50, value=True))
-        self.get_potential_merges()
-        self.refresh()
+    def _panel_compute_merges(self, event):
+        self._compute_merges()
 
     def _panel_on_method_change(self, event):
         self.method = event.new
