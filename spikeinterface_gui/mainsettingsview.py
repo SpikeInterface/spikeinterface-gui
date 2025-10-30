@@ -1,5 +1,7 @@
 from .view_base import ViewBase
-
+from .utils_global import get_config_folder
+import json
+import spikeinterface_gui
 
 # this control controller.main_settings
 main_settings = [
@@ -38,6 +40,36 @@ class MainSettingsView(ViewBase):
         # for view in self.controller.views:
         #     view.refresh()
 
+    def save_current_settings(self, event=None):
+        
+        backend = self.controller.backend
+
+        settings_dict = {}
+        for view in self.controller.views:
+
+            # If view does not have any settings (e.g. MergeView) then skip
+            if view._settings is None:
+                continue
+
+            view_class_name = view.__class__.__name__
+            view_name = view_class_name.replace("View", "").lower()
+
+            settings_dict[view_name] = {}
+
+            if backend == "panel":
+                settings_dict[view_name] = self.panel_make_settings_dict(view)
+            elif backend == "qt":
+                settings_dict[view_name] = self.qt_make_settings_dict(view)
+            
+        sigui_version = spikeinterface_gui.__version__
+
+        config_folder = get_config_folder()
+        config_version_folder = config_folder / sigui_version
+        config_version_folder.mkdir(parents=True, exist_ok=True)
+
+        with open(config_version_folder / 'settings.json', 'w') as f:
+            json.dump(settings_dict, f, indent=4)
+
     ## QT zone
     def _qt_make_layout(self):
         from .myqt import QT
@@ -48,6 +80,11 @@ class MainSettingsView(ViewBase):
         txt = self.controller.get_information_txt()
         self.info_label = QT.QLabel(txt)
         self.layout.addWidget(self.info_label)
+
+        if not self.controller.disable_save_settings_button:
+            but = QT.QPushButton('Save as default settings')
+            but.clicked.connect(self.save_current_settings)
+            self.layout.addWidget(but)
 
         self.main_settings = pg.parametertree.Parameter.create(name="main settings", type='group', children=main_settings)
         
@@ -61,6 +98,17 @@ class MainSettingsView(ViewBase):
         self.main_settings.param('max_visible_units').sigValueChanged.connect(self.on_max_visible_units_changed)
         self.main_settings.param('color_mode').sigValueChanged.connect(self.on_change_color_mode)
 
+    def qt_make_settings_dict(self, view):
+        """For a given view, return the current settings in a dict"""
+
+        current_settings_dict_from_view = view.settings.getValues()
+        
+        current_settings_dict = {}    
+        for setting_name, (setting_value, _) in current_settings_dict_from_view.items():           
+            current_settings_dict[setting_name] = setting_value
+        
+        return current_settings_dict
+        
 
     def _qt_refresh(self):
         pass
@@ -71,13 +119,30 @@ class MainSettingsView(ViewBase):
         import panel as pn
         from .backend_panel import create_dynamic_parameterized, SettingsProxy
 
+        if self.controller.disable_save_settings_button:
+            self.save_setting_button = None
+        else:
+            self.save_setting_button = pn.widgets.Button(name="Save as default settings", button_type="primary", sizing_mode="stretch_width")
+            self.save_setting_button.on_click(self.save_current_settings)
+
         # Create method and arguments layout
         self.main_settings = SettingsProxy(create_dynamic_parameterized(main_settings))
         self.main_settings_layout = pn.Param(self.main_settings._parameterized, sizing_mode="stretch_both", 
                                              name=f"Main settings")
         self.main_settings._parameterized.param.watch(self._panel_on_max_visible_units_changed, 'max_visible_units')
         self.main_settings._parameterized.param.watch(self._panel_on_change_color_mode, 'color_mode')
-        self.layout = pn.Column(self.main_settings_layout, sizing_mode="stretch_both")
+        self.layout = pn.Column(self.save_setting_button, self.main_settings_layout, sizing_mode="stretch_both")
+
+    def panel_make_settings_dict(self, view):
+        """For a given view, return the current settings in a dict"""
+
+        current_settings_dict_from_param = view.settings._parameterized.param.values()
+        current_settings_dict = {}
+        for setting_name, setting_value in current_settings_dict_from_param.items():
+            # The param also saves the name of the view - we don't want to propagate this
+            if setting_name != "name":           
+                current_settings_dict[setting_name] = setting_value
+        return current_settings_dict
 
     def _panel_on_max_visible_units_changed(self, event):
         self.on_max_visible_units_changed()
@@ -92,5 +157,6 @@ class MainSettingsView(ViewBase):
 MainSettingsView._gui_help_txt = """
 ## Main settings
 
-Overview and main controls 
+Overview and main controls.
+Can save current settings for entire GUI as the default user settings using the "Save as default settings" button.
 """

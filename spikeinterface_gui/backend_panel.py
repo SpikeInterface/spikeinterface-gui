@@ -185,13 +185,13 @@ def listen_setting_changes(view):
 
 class PanelMainWindow:
 
-    def __init__(self, controller, layout_preset=None, layout=None):
+    def __init__(self, controller, layout_preset=None, layout=None, user_settings=None):
         self.controller = controller
         self.layout_preset = layout_preset
         self.layout = layout
         self.verbose = controller.verbose
 
-        self.make_views()
+        self.make_views(user_settings)
         self.create_main_layout()
         
         # refresh all views wihtout notiying
@@ -202,7 +202,7 @@ class PanelMainWindow:
             if view.is_view_visible():
                 view.refresh()
 
-    def make_views(self):
+    def make_views(self, user_settings):
         self.views = {}
         # this contains view layout + settings + compute
         self.view_layouts = {}
@@ -226,6 +226,13 @@ class PanelMainWindow:
                 scroll=True,
                 sizing_mode="stretch_both"
             )
+
+            if user_settings is not None and user_settings.get(view_name) is not None:
+                for setting_name, user_setting in user_settings.get(view_name).items():
+                    if setting_name not in view.settings.keys():
+                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
+                    with param.parameterized.discard_events(view.settings._parameterized):
+                        view.settings[setting_name] = user_setting
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
