@@ -180,6 +180,7 @@ class ProbeView(ViewBase):
             for label in self.channel_labels:
                 label.hide()
             
+        self._qt_on_unit_visibility_changed()
     
     def _qt_update_channel_visibility_from_roi(self, emit_signals=False):
         r, x, y = circle_from_roi(self.roi_channel)
