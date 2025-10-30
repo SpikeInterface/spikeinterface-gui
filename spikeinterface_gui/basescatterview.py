@@ -62,7 +62,7 @@ class BaseScatterView(ViewBase):
             selected_indices = np.intersect1d(selected_indices, visible_inds)
         mask = np.isin(sl.start + np.arange(len(spikes_in_seg)), selected_indices)
         selected_spikes = spikes_in_seg[mask]
-        spike_times = selected_spikes['sample_index'] / self.controller.sampling_frequency
+        spike_times = self.controller.sample_index_to_time(selected_spikes['sample_index'])
         spike_data = self.spike_data[sl][mask]
         return (spike_times, spike_data)
 
@@ -87,7 +87,7 @@ class BaseScatterView(ViewBase):
             if vertices is None:
                 continue
             spike_inds = self.controller.get_spike_indices(visible_unit_id, segment_index=segment_index)
-            spike_times = self.controller.spikes["sample_index"][spike_inds] / fs
+            spike_times = self.controller.sample_index_to_time(self.controller.spikes["sample_index"][spike_inds])
             spike_data = self.spike_data[spike_inds]
 
             points = np.column_stack((spike_times, spike_data))
@@ -191,9 +191,6 @@ class BaseScatterView(ViewBase):
             self.split_but = QT.QPushButton("split")
             tb.addWidget(self.split_but)
             self.split_but.clicked.connect(self.split)
-            shortcut_split = QT.QShortcut(self.qt_widget)
-            shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
-            shortcut_split.activated.connect(self.split)
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
         
@@ -399,8 +396,8 @@ class BaseScatterView(ViewBase):
         self.scatter_fig.toolbar.active_drag = None
         self.scatter_fig.xaxis.axis_label = "Time (s)"
         self.scatter_fig.yaxis.axis_label = self.y_label
-        time_max = self.controller.get_num_samples(self.segment_index) / self.controller.sampling_frequency
-        self.scatter_fig.x_range = Range1d(0., time_max)
+        t_start, t_end = self.controller.get_t_start_t_end()
+        self.scatter_fig.x_range = Range1d(t_start, t_end)
 
         # Add SelectionGeometry event handler to capture lasso vertices
         self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)

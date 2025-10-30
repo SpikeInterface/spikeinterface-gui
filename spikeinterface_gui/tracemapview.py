@@ -143,23 +143,16 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
-<<<<<<< HEAD
         segment_index = self.controller.get_time()[1]
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
+        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2, segment_index)
+        data_curves = data_curves.T
 
         if times_chunk.size == 0:
             self.image.hide()
             self.scatter.clear()
             return
-        
-=======
-        seg_index = self.controller.get_time()[1]
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
-            self.get_data_in_chunk(t1, t2, seg_index)
-        data_curves = data_curves.T
 
->>>>>>> 4d644768f573b50e1ce051e7bc234fc21bc5ab93
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
 
@@ -283,14 +276,9 @@ class TraceMapView(ViewBase, MixinViewTrace):
         else:
             auto_scale = False
 
-<<<<<<< HEAD
-        times_chunk, data_curves, scatter_x, scatter_y, scatter_colors, scatter_unit_ids = \
-            self.get_data_in_chunk(t1, t2, segment_index)
-=======
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2, seg_index)
         data_curves = data_curves.T
->>>>>>> 4d644768f573b50e1ce051e7bc234fc21bc5ab93
 
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
@@ -320,13 +308,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     # TODO: if from a different unit, change unit visibility
     def _panel_on_tap(self, event):
-<<<<<<< HEAD
-        segment_index = self.controller.get_time()[1]
-        ind_spike_nearest = self.find_nearest_spike(self.controller, event.x, segment_index)
-=======
         seg_index = self.controller.get_time()[1]
         ind_spike_nearest = find_nearest_spike(self.controller, event.x, seg_index)
->>>>>>> 4d644768f573b50e1ce051e7bc234fc21bc5ab93
         if ind_spike_nearest is not None:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self._panel_seek_with_selected_spike()

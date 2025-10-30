@@ -398,7 +398,6 @@ class ViewWidget(QT.QWidget):
     def refresh(self):
         view = self._view()
         view.refresh()
-        
 
 areas = {
     'right' : QT.Qt.RightDockWidgetArea,

@@ -64,10 +64,8 @@ class CurationView(ViewBase):
         from .myqt import QT
         import pyqtgraph as pg
 
-
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
-
 
         tb = self.qt_widget.view_toolbar
         if self.controller.curation_can_be_saved():
@@ -91,8 +89,6 @@ class CurationView(ViewBase):
         self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
         self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
-
-
 
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')

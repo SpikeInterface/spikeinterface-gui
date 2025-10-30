@@ -450,7 +450,7 @@ class Controller():
             recording = self.analyzer.recording
             times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
         else:
-            times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.controller.sampling_frequency + max(t1, 0)
+            times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.sampling_frequency + max(t1, 0)
         return times_chunk
 
     def get_chunk_indices(self, t1, t2, segment_index):

@@ -5,7 +5,6 @@ see
 http://mikeboers.com/blog/2015/07/04/static-libraries-in-a-dynamic-world#the-fold
 """
 
-
 class ModuleProxy(object):
 
     def __init__(self, prefixes, modules):
