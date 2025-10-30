@@ -32,7 +32,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.xsize = 0.5
         self._block_auto_refresh_and_notify = False
-        self._retrieve_traces_time_checked = None
         self.trace_context = nullcontext
 
         ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)

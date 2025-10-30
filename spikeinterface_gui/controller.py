@@ -596,7 +596,7 @@ class Controller():
         if trace_source == 'preprocessed':
             rec = self.analyzer.recording
         elif trace_source == 'raw':
-            raise NotImplemented
+            raise NotImplementedError("Raw traces not implemented yet")
             # TODO get with parent recording the non process recording
         kargs['return_in_uV'] = self.return_in_uV
         traces = rec.get_traces(**kargs)

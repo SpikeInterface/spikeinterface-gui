@@ -19,15 +19,20 @@ class MixinViewTrace:
 
     def get_data_in_chunk(self, t1, t2, segment_index):
         with self.trace_context():
-            if not self._retrieve_traces_time_checked:
-                t_traces_start = time.perf_counter()
             t_start = 0.0
             sr = self.controller.sampling_frequency
 
             ind1 = max(0, int((t1 - t_start) * sr))
             ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
 
+            t_traces_start = time.perf_counter()
             traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
+            t_traces_end = time.perf_counter()
+            elapsed = t_traces_end - t_traces_start
+            if elapsed > self.MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR:
+                self.trace_context = self.busy_cursor
+            else:
+                self.trace_context = nullcontext
 
             sl = self.controller.segment_slices[segment_index]
             spikes_seg = self.controller.spikes[sl]
@@ -97,14 +102,6 @@ class MixinViewTrace:
                 scatter_x.extend(x)
                 scatter_y.extend(y)
                 scatter_colors.extend([color] * len(x))
-
-            if not self._retrieve_traces_time_checked:
-                t_traces_end = time.perf_counter()
-                elapsed = t_traces_end - t_traces_start
-                if elapsed > self.MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR:
-                    print(f"Trace retrieval took {elapsed:.3f} seconds. Enabling busy cursor.")
-                    self.trace_context = self.busy_cursor
-                self._retrieve_traces_time_checked = True
 
         return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors
 
@@ -212,9 +209,6 @@ class MixinViewTrace:
     
     def _qt_on_xsize_changed(self):
         xsize = self.spinbox_xsize.value()
-        # Reset trace retrieval check: might require more or less time now!
-        if xsize > self.xsize:
-            self._retrieve_traces_time_checked = False
         self.xsize = xsize
         if not self._block_auto_refresh_and_notify:
             self.refresh()
@@ -313,9 +307,6 @@ class MixinViewTrace:
             self.notify_time_info_updated()
 
     def _panel_on_xsize_changed(self, event):
-        # Reset trace retrieval check: might require more or less time now!
-        if event.new > self.xsize:
-            self._retrieve_traces_time_checked = False
         self.xsize = event.new
         if not self._block_auto_refresh_and_notify:
             self.refresh()
@@ -401,7 +392,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.factor = 15.0
         self.xsize = 0.5
         self._block_auto_refresh_and_notify = False
-        self._retrieve_traces_time_checked = False
         self.trace_context = nullcontext
 
         self.channel_order, self.channel_order_reverse = None, None
