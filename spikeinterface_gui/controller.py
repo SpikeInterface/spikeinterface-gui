@@ -570,6 +570,25 @@ class Controller():
         cache_key = (kargs.get("segment_index", None), kargs.get("start_frame", None), kargs.get("end_frame", None))
         if cache_key in self._traces_cached:
             return self._traces_cached[cache_key]
+        else:
+            # check if start_frame and end_frame are a subset interval of a cached one
+            for cached_key in self._traces_cached.keys():
+                cached_seg = cached_key[0]
+                cached_start = cached_key[1]
+                cached_end = cached_key[2]
+                req_seg = kargs.get("segment_index", None)
+                req_start = kargs.get("start_frame", None)
+                req_end = kargs.get("end_frame", None)
+                if cached_seg is not None and req_seg is not None:
+                    if cached_seg != req_seg:
+                        continue
+                if cached_start is not None and cached_end is not None and req_start is not None and req_end is not None:
+                    if req_start >= cached_start and req_end <= cached_end:
+                        # subset found
+                        traces = self._traces_cached[cached_key]
+                        start_offset = req_start - cached_start
+                        end_offset = req_end - cached_start
+                        return traces[start_offset:end_offset, :]
         
         if len(self._traces_cached) > 4:
             self._traces_cached.pop(list(self._traces_cached.keys())[0])
@@ -577,7 +596,7 @@ class Controller():
         if trace_source == 'preprocessed':
             rec = self.analyzer.recording
         elif trace_source == 'raw':
-            raise NotImplemented
+            raise NotImplementedError("Raw traces not implemented yet")
             # TODO get with parent recording the non process recording
         kargs['return_in_uV'] = self.return_in_uV
         traces = rec.get_traces(**kargs)
