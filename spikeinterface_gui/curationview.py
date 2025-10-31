@@ -53,7 +53,7 @@ class CurationView(ViewBase):
     def select_and_notify_split(self, split_unit_id):
         self.controller.set_visible_unit_ids([split_unit_id])
         self.notify_unit_visibility_changed()
-        spike_inds = self.controller.get_spike_indices(split_unit_id, seg_index=None)
+        spike_inds = self.controller.get_spike_indices(split_unit_id, segment_index=None)
         active_split = [s for s in self.controller.curation_data['splits'] if s['unit_id'] == split_unit_id][0]
         split_indices = active_split['indices'][0]
         self.controller.set_indices_spike_selected(spike_inds[split_indices])
@@ -64,10 +64,8 @@ class CurationView(ViewBase):
         from .myqt import QT
         import pyqtgraph as pg
 
-
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
-
 
         tb = self.qt_widget.view_toolbar
         if self.controller.curation_can_be_saved():
@@ -91,8 +89,6 @@ class CurationView(ViewBase):
         self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
         self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
-
-
 
         self.delete_menu = QT.QMenu()
         act = self.delete_menu.addAction('Restore')

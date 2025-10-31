@@ -61,6 +61,18 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     )
     win = None
 
+    for segment_index in range(analyzer.get_num_segments()):
+        shift = (segment_index + 1) * 100
+        # add a gap to times
+        gap = 5
+        times = analyzer.recording.get_times(segment_index)
+        times = times + shift
+        times[len(times)//2:] += gap  # add a gap in the middle
+        analyzer.recording.set_times(
+            times,
+            segment_index=segment_index
+        )
+
     win = run_mainwindow(
         analyzer,
         mode="web",

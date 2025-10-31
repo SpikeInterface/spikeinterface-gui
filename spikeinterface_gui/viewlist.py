@@ -17,8 +17,10 @@ from .mainsettingsview import MainSettingsView
 from .metricsview import MetricsView
 from .spikerateview import SpikeRateView
 
+# probe and mainsettings view are first, since they affect other views (e.g., time info)
 possible_class_views = dict(
-    probe = ProbeView, # probe view is first, since it updates channels upon unit changes
+    probe = ProbeView,
+    mainsettings = MainSettingsView,
     unitlist = UnitListView,
     spikelist = SpikeListView,
     merge = MergeView,
@@ -35,5 +37,4 @@ possible_class_views = dict(
     curation = CurationView,
     spikerate = SpikeRateView,
     metrics = MetricsView,    
-    mainsettings = MainSettingsView,
 )

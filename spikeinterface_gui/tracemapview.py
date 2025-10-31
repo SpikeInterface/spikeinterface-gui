@@ -115,11 +115,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def _qt_on_spike_selection_changed(self):
         self._qt_seek_with_selected_spike()
 
-
-    def _qt_scatter_item_clicked(self, x, y):
-        # useless but needed for the MixinViewTrace
-        pass
-
     def _qt_refresh(self):
         t, _ = self.controller.get_time()
         self._qt_seek(t)
@@ -138,14 +133,20 @@ class TraceMapView(ViewBase, MixinViewTrace):
         sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
-        self.scroll_time.setValue(int(sr*t))
+        value = self.controller.time_to_sample_index(t)
+        self.scroll_time.setValue(value)
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
-        seg_index = self.controller.get_time()[1]
+        segment_index = self.controller.get_time()[1]
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
-            self.get_data_in_chunk(t1, t2, seg_index)
+            self.get_data_in_chunk(t1, t2, segment_index)
         data_curves = data_curves.T
+
+        if times_chunk.size == 0:
+            self.image.hide()
+            self.scatter.clear()
+            return
 
         if self.color_limit is None:
             self.color_limit = np.max(np.abs(data_curves))
@@ -164,15 +165,22 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
-        time, seg_index = self.controller.get_time()
-
+        time, segment_index = self.controller.get_time()
+        # Block auto refresh to avoid recursive calls
         self._block_auto_refresh_and_notify = True
-        self._qt_change_segment(seg_index)
+        self._qt_change_segment(segment_index)
         self.timeseeker.seek(time)
-
-        self._block_auto_refresh_and_notify = False
-        # we need a refresh in panel because changing tab triggers a refresh
         self.refresh()
+        self._block_auto_refresh_and_notify = False
+
+    def _qt_on_use_times_updated(self):
+        # Block auto refresh to avoid recursive calls
+        self._block_auto_refresh_and_notify = True
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.timeseeker.set_start_stop(t_start, t_stop)
+        self.timeseeker.seek(self.controller.get_time()[0])
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -180,7 +188,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, LinearColorMapper, Range1d
-        from bokeh.events import MouseWheel, Tap
+        from bokeh.events import MouseWheel, DoubleTap
 
 
         # Create figure
@@ -195,7 +203,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.toolbar.logo = None
 
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
-        self.figure.on_event(Tap, self._panel_on_tap)
+        self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         # Add selection line
         self.selection_line = self.figure.line(
@@ -255,7 +263,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         )
 
     def _panel_refresh(self):
-        t, seg_index = self.controller.get_time()
+        t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
 
@@ -265,7 +273,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
             auto_scale = False
 
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
-            self.get_data_in_chunk(t1, t2, seg_index)
+            self.get_data_in_chunk(t1, t2, segment_index)
         data_curves = data_curves.T
 
         if self.color_limit is None:
@@ -294,15 +302,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.x_range.end = t2
         self.figure.y_range.end = data_curves.shape[1]
 
-    # TODO: if from a different unit, change unit visibility
-    def _panel_on_tap(self, event):
-        seg_index = self.controller.get_time()[1]
-        ind_spike_nearest = find_nearest_spike(self.controller, event.x, seg_index)
-        if ind_spike_nearest is not None:
-            self.controller.set_indices_spike_selected([ind_spike_nearest])
-            self._panel_seek_with_selected_spike()
-            self.notify_spike_selection_changed()
-
     def _panel_on_settings_changed(self):
         self.make_color_lut()
         self.refresh()
@@ -323,16 +322,27 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
-        time, seg_index = self.controller.get_time()
+        time, segment_index = self.controller.get_time()
 
         self._block_auto_refresh_and_notify = True
-        self._panel_change_segment(seg_index)
+        self._panel_change_segment(segment_index)
 
         # Update time slider value
         self.time_slider.value = time
 
         self._block_auto_refresh_and_notify = False
         # we don't need a refresh in panel because changing tab triggers a refresh
+
+    def _panel_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.time_slider.start = t_start
+        self.time_slider.end = t_stop
+
+        # Optionally clamp the current value if out of range
+        self.time_slider.value = self.controller.get_time()[0]
+
+        self.refresh()
 
 
 TraceMapView._gui_help_txt = """
@@ -345,4 +355,5 @@ This view shows the trace map of all the channels.
 * **auto scale**: Automatically adjust the scale of the traces.
 * **time (s)**: Set the time point to display traces.
 * **mouse wheel**: change the scale of the traces.
+* **double click**: select the nearest spike and center the view on it.
 """

@@ -25,4 +25,5 @@ Check deppth of spikes across the recording time or in a histogram.
 
 ### Controls
 - **select** : activate lasso selection to select individual spikes
+- **split** or **ctrl+s** : split the selected spikes into a new unit (only if one unit is visible)
 """

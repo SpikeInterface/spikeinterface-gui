@@ -13,6 +13,7 @@ class SignalNotifier(param.Parameterized):
     channel_visibility_changed = param.Event()
     manual_curation_updated = param.Event()
     time_info_updated = param.Event()
+    use_times_updated = param.Event()
     active_view_updated = param.Event()
     unit_color_changed = param.Event()
 
@@ -34,6 +35,9 @@ class SignalNotifier(param.Parameterized):
 
     def notify_time_info_updated(self):
         self.param.trigger("time_info_updated")
+
+    def notify_use_times_updated(self):
+        self.param.trigger("use_times_updated")
 
     def notify_active_view_updated(self):
         # this is used to keep an "active view" in the main window
@@ -65,6 +69,7 @@ class SignalHandler(param.Parameterized):
         view.notifier.param.watch(self.on_channel_visibility_changed, "channel_visibility_changed")
         view.notifier.param.watch(self.on_manual_curation_updated, "manual_curation_updated")
         view.notifier.param.watch(self.on_time_info_updated, "time_info_updated")
+        view.notifier.param.watch(self.on_use_times_updated, "use_times_updated")
         view.notifier.param.watch(self.on_active_view_updated, "active_view_updated")
         view.notifier.param.watch(self.on_unit_color_changed, "unit_color_changed")
 
@@ -109,6 +114,15 @@ class SignalHandler(param.Parameterized):
             if param.obj.view == view:
                 continue
             view.on_time_info_updated()
+
+    def on_use_times_updated(self, param):
+        # use times is updated also when a view is not active
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if param.obj.view == view:
+                continue
+            view.on_use_times_updated()
 
     def on_active_view_updated(self, param):
         if not self._active:
