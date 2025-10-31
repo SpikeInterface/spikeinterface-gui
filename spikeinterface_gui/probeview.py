@@ -180,7 +180,7 @@ class ProbeView(ViewBase):
             for label in self.channel_labels:
                 label.hide()
             
-        self._qt_on_unit_visibility_changed()
+        self._qt_highlight_visible_units()
     
     def _qt_update_channel_visibility_from_roi(self, emit_signals=False):
         r, x, y = circle_from_roi(self.roi_channel)
@@ -225,6 +225,9 @@ class ProbeView(ViewBase):
         self._qt_on_roi_channel_changed(emit_signals=False)
             
     def _qt_on_unit_visibility_changed(self, auto_zoom=None):
+        self._qt_highlight_visible_units(auto_zoom=auto_zoom)
+
+    def _qt_highlight_visible_units(self, auto_zoom=None):
         import pyqtgraph as pg
 
         # this change the ROI and so change also channel_visibility
