@@ -193,12 +193,16 @@ class ViewBoxHandlingDoubleclickAndGain(pg.ViewBox):
     doubleclicked = QT.pyqtSignal()
     gain_zoom = QT.pyqtSignal(float)
     widen_narrow = QT.pyqtSignal(float)
+    heighten_shorten = QT.pyqtSignal(float)
     limit_zoom = QT.pyqtSignal(float)
     def mouseDoubleClickEvent(self, ev):
         self.doubleclicked.emit()
         ev.accept()
     def wheelEvent(self, ev, axis=None):
-        if ev.modifiers() == QT.Qt.AltModifier:
+        if (ev.modifiers() & QT.Qt.AltModifier) and (ev.modifiers() & QT.Qt.ShiftModifier):
+            z = 1.3 if ev.delta()>0 else 1/1.3
+            self.heighten_shorten.emit(z)
+        elif ev.modifiers() == QT.Qt.AltModifier:
             z = 1.3 if ev.delta()>0 else 1/1.3
             self.widen_narrow.emit(z)
         elif ev.modifiers() == QT.Qt.ShiftModifier:
@@ -241,11 +245,6 @@ class ViewBoxForTrace(pg.ViewBox):
     def mouseDragEvent(self, ev):
         ev.accept()
         self.xsize_zoom.emit((ev.pos()-ev.lastPos()).x())
-
-
-
-
-
 
 
 class TimeSeeker(QT.QWidget) :
