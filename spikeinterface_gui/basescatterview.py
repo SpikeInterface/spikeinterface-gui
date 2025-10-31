@@ -361,11 +361,11 @@ class BaseScatterView(ViewBase):
 
         self.lasso_tool = LassoSelectTool()
 
-        self.segment_index = 0
+        segment_index = self.controller.get_time()[1]
         self.segment_selector = pn.widgets.Select(
             name="",
             options=[f"Segment {i}" for i in range(self.controller.num_segments)],
-            value=f"Segment {self.segment_index}",
+            value=f"Segment {segment_index}",
         )
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
@@ -466,9 +466,10 @@ class BaseScatterView(ViewBase):
         colors = []
 
         segment_index = self.controller.get_time()[1]
-        if segment_index != self.segment_index:
-            self.segment_index = segment_index
-            self.segment_selector.value = f"Segment {self.segment_index}"
+        # get view segment index from segment selector
+        segment_index_from_selector = self.segment_selector.options.index(self.segment_selector.value)
+        if segment_index != segment_index_from_selector:
+            self.segment_selector.value = f"Segment {segment_index}"
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
         for unit_id in visible_unit_ids:
@@ -531,8 +532,8 @@ class BaseScatterView(ViewBase):
 
     def _panel_change_segment(self, event):
         self._current_selected = 0
-        self.segment_index = int(self.segment_selector.value.split()[-1])
-        self.controller.set_time(segment_index=self.segment_index)
+        segment_index = int(self.segment_selector.value.split()[-1])
+        self.controller.set_time(segment_index=segment_index)
         t_start, t_end = self.controller.get_t_start_t_stop()
         self.scatter_fig.x_range.start = t_start
         self.scatter_fig.x_range.end = t_end
@@ -555,7 +556,7 @@ class BaseScatterView(ViewBase):
                 return
 
             # Append the current polygon to the lasso vertices if shift is held
-            segment_index = self.segment_index
+            segment_index = self.controller.get_time()[1]
             if self._lasso_vertices[segment_index] is None:
                 self._lasso_vertices[segment_index] = []
             if len(selected) > self._current_selected:
@@ -582,7 +583,8 @@ class BaseScatterView(ViewBase):
         selected_spike_indices = np.intersect1d(selected_spike_indices, self.plotted_inds)
         if len(selected_spike_indices) > 0:
             # map absolute indices to visible spikes
-            sl = self.controller.segment_slices[self.segment_index]
+            segment_index = self.controller.get_time()[1]
+            sl = self.controller.segment_slices[segment_index]
             spikes_in_seg = self.controller.spikes[sl]
             visible_mask = np.zeros(len(spikes_in_seg), dtype=bool)
             for unit_index, unit_id in self.controller.iter_visible_units():
@@ -604,7 +606,8 @@ class BaseScatterView(ViewBase):
             return
         elif len(selected_indices) == 1:
             selected_segment = self.controller.spikes[selected_indices[0]]['segment_index']
-            if selected_segment != self.segment_index:
+            segment_index = self.controller.get_time()[1]
+            if selected_segment != segment_index:
                 self.segment_selector.value = f"Segment {selected_segment}"
                 self._panel_change_segment(None)
         # update selected spikes

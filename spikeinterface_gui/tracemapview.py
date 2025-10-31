@@ -168,19 +168,19 @@ class TraceMapView(ViewBase, MixinViewTrace):
         time, segment_index = self.controller.get_time()
         # Block auto refresh to avoid recursive calls
         self._block_auto_refresh_and_notify = True
-
         self._qt_change_segment(segment_index)
         self.timeseeker.seek(time)
-        
-        self._block_auto_refresh_and_notify = False
-        # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     def _qt_on_use_times_updated(self):
-        # Update time seeker
+        # Block auto refresh to avoid recursive calls
+        self._block_auto_refresh_and_notify = True
         t_start, t_stop = self.controller.get_t_start_t_stop()
         self.timeseeker.set_start_stop(t_start, t_stop)
         self.timeseeker.seek(self.controller.get_time()[0])
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     ## Panel ##
     def _panel_make_layout(self):
@@ -188,7 +188,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, LinearColorMapper, Range1d
-        from bokeh.events import MouseWheel, Tap
+        from bokeh.events import MouseWheel, DoubleTap
 
 
         # Create figure
@@ -203,7 +203,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.toolbar.logo = None
 
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
-        self.figure.on_event(Tap, self._panel_on_tap)
+        self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         # Add selection line
         self.selection_line = self.figure.line(
@@ -302,16 +302,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.x_range.end = t2
         self.figure.y_range.end = data_curves.shape[1]
 
-    # TODO: if from a different unit, change unit visibility
-    def _panel_on_tap(self, event):
-        seg_index = self.controller.get_time()[1]
-        time = event.x
-        ind_spike_nearest = find_nearest_spike(self.controller, time, seg_index)
-        if ind_spike_nearest is not None:
-            self.controller.set_indices_spike_selected([ind_spike_nearest])
-            self._panel_seek_with_selected_spike()
-            self.notify_spike_selection_changed()
-
     def _panel_on_settings_changed(self):
         self.make_color_lut()
         self.refresh()
@@ -365,4 +355,5 @@ This view shows the trace map of all the channels.
 * **auto scale**: Automatically adjust the scale of the traces.
 * **time (s)**: Set the time point to display traces.
 * **mouse wheel**: change the scale of the traces.
+* **double click**: select the nearest spike and center the view on it.
 """

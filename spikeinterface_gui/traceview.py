@@ -210,7 +210,7 @@ class MixinViewTrace:
         factor = xmove/100.
         newsize = self.xsize*(factor+1.)
         limits = self.spinbox_xsize.opts['bounds']
-        if newsize>0. and newsize<limits[1]:
+        if newsize > 0. and newsize < limits[1]:
             self.spinbox_xsize.setValue(newsize)
 
     def _qt_on_scroll_time(self, val):
@@ -347,6 +347,14 @@ class MixinViewTrace:
             self._block_auto_refresh_and_notify = False
             self.refresh()
             self.notify_time_info_updated()
+
+    def _panel_on_double_tap(self, event):
+        time = event.x
+        ind_spike_nearest = find_nearest_spike(self.controller, time, self.controller.get_time()[1])
+        if ind_spike_nearest is not None:
+            self.controller.set_indices_spike_selected([ind_spike_nearest])
+            self._panel_seek_with_selected_spike()
+            self.notify_spike_selection_changed()
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -535,16 +543,17 @@ class TraceView(ViewBase, MixinViewTrace):
 
         self._qt_change_segment(segment_index)
         self.timeseeker.seek(time)
-        
-        self._block_auto_refresh_and_notify = False
-        # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     def _qt_on_use_times_updated(self):
         # Update time seeker
+        self._block_auto_refresh_and_notify = True
         t_start, t_stop = self.controller.get_t_start_t_stop()
         self.timeseeker.set_start_stop(t_start, t_stop)
         self.timeseeker.seek(self.controller.get_time()[0])
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     ## panel ##
     def _panel_make_layout(self):
@@ -552,7 +561,7 @@ class TraceView(ViewBase, MixinViewTrace):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, Range1d
-        from bokeh.events import Tap, MouseWheel
+        from bokeh.events import DoubleTap, MouseWheel
 
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
@@ -592,7 +601,7 @@ class TraceView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
-        self.figure.on_event(Tap, self._panel_on_tap)
+        self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         self._panel_create_toolbar()
         
@@ -652,13 +661,6 @@ class TraceView(ViewBase, MixinViewTrace):
             self.figure.y_range.end = n - 0.5
 
     # TODO: if from a different unit, change unit visibility
-    def _panel_on_tap(self, event):
-        time = event.x
-        ind_spike_nearest = find_nearest_spike(self.controller, time, self.controller.get_time()[1])
-        if ind_spike_nearest is not None:
-            self.controller.set_indices_spike_selected([ind_spike_nearest])
-            self._panel_seek_with_selected_spike()
-            self.notify_spike_selection_changed()
 
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()
@@ -676,22 +678,22 @@ class TraceView(ViewBase, MixinViewTrace):
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
         time, segment_index = self.controller.get_time()
-        self._block_auto_refresh = True
+        self._block_auto_refresh_and_notify = True
         self._panel_change_segment(segment_index)
         # Update time slider value
         self.time_slider.value = time
-        self._block_auto_refresh = False
-        # we don't need a refresh in panel because changing tab triggers a refresh
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     def _panel_on_use_times_updated(self):
         # Update time seeker
         t_start, t_stop = self.controller.get_t_start_t_stop()
+        self._block_auto_refresh_and_notify = True
         self.time_slider.start = t_start
         self.time_slider.end = t_stop
-
-        # Optionally clamp the current value if out of range
         self.time_slider.value = self.controller.get_time()[0]
         self.refresh()
+        self._block_auto_refresh_and_notify = False
 
 
 
@@ -725,4 +727,5 @@ This view shows the traces of the selected visible channels from the Probe View.
 * **auto scale**: Automatically adjust the scale of the traces.
 * **time (s)**: Set the time point to display traces.
 * **mouse wheel**: change the scale of the traces.
+* **double click**: select the nearest spike and center the view on it.
 """

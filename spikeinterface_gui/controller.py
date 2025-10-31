@@ -60,10 +60,7 @@ class Controller():
         self.verbose = verbose
         t0 = time.perf_counter()
 
-
         self.main_settings = _default_main_settings.copy()
-
-
 
         self.num_channels = self.analyzer.get_num_channels()
         # this now private and shoudl be acess using function
@@ -421,19 +418,21 @@ class Controller():
     def update_time_info(self):
         # set default time info
         if self.main_settings["use_times"] and self.analyzer.has_recording():
+            time_by_seg=np.array(
+                [
+                    self.analyzer.recording.get_start_time(segment_index) for segment_index in range(self.num_segments)
+                ],
+                dtype="float64"
+            )
+        else:
+            time_by_seg=np.array([0] * self.num_segments, dtype="float64")
+        if not hasattr(self, 'time_info'):
             self.time_info = dict(
-                time_by_seg=np.array(
-                    [
-                        self.analyzer.recording.get_start_time(segment_index) for segment_index in range(self.num_segments)
-                    ],
-                    dtype="float64"),
+                time_by_seg=time_by_seg,
                 segment_index=0
             )
         else:
-            self.time_info = dict(
-                time_by_seg=np.array([0] * self.num_segments, dtype="float64"),
-                segment_index=0
-            )
+            self.time_info['time_by_seg'] = time_by_seg
 
     def get_t_start_t_stop(self):
         segment_index = self.time_info["segment_index"]

@@ -100,11 +100,11 @@ class SpikeRateView(ViewBase):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
 
-        self.segment_index = 0
+        segment_index = self.controller.get_time()[1]
         self.segment_selector = pn.widgets.Select(
             name="",
             options=[f"Segment {i}" for i in range(self.controller.num_segments)],
-            value=f"Segment {self.segment_index}",
+            value=f"Segment {segment_index}",
         )
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
@@ -130,9 +130,9 @@ class SpikeRateView(ViewBase):
         from bokeh.models import Range1d
 
         segment_index = self.controller.get_time()[1]
-        if segment_index != self.segment_index:
-            self.segment_index = segment_index
-            self.segment_selector.value = f"Segment {self.segment_index}"
+        segment_index_from_selector = self.segment_selector.options.index(self.segment_selector.value)
+        if segment_index != segment_index_from_selector:
+            self.segment_selector.value = f"Segment {segment_index}"
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
 
@@ -169,8 +169,8 @@ class SpikeRateView(ViewBase):
         self.rate_fig.y_range = Range1d(start=0, end=max_count*1.2)
 
     def _panel_change_segment(self, event):
-        self.segment_index = int(self.segment_selector.value.split()[-1])
-        self.controller.set_time(segment_index=self.segment_index)
+        segment_index = int(self.segment_selector.value.split()[-1])
+        self.controller.set_time(segment_index=segment_index)
         self.refresh()
         self.notify_time_info_updated()
 
