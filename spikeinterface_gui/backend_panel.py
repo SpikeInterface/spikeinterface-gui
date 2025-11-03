@@ -282,23 +282,6 @@ class PanelMainWindow:
                     cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
                 ))
 
-                # Attach an exit listener to the "curtion" zone 
-                if 'curation' in view_names:                
-                    js_code = """
-                    <script>
-                    window.addEventListener('beforeunload', function (e) {
-                        e.preventDefault(); 
-                        e.returnValue = ''; 
-                    });
-                    </script>
-                    """
-                    on_close_prompt = pn.pane.HTML(js_code, width=0, height=0, margin=0)
-
-                    layout_zone[zone] = pn.Column(
-                        layout_zone[zone],      # Your tabs display first
-                        on_close_prompt   # Your invisible script loads right after
-                    )
-
         # Create GridStack layout with resizable regions
         gs = pn.GridStack(
             sizing_mode='stretch_both',

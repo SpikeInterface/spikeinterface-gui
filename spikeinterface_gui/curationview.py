@@ -420,6 +420,17 @@ class CurationView(ViewBase):
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
+        # Add a listener which will warn the user when the browser tab is closed
+        js_code = """
+        <script>
+        window.addEventListener('beforeunload', function (e) {
+            e.preventDefault(); 
+            e.returnValue = ''; 
+        });
+        </script>
+        """
+        on_close_prompt = pn.pane.HTML(js_code, width=0, height=0, margin=0)
+
         # Create main layout with proper sizing
         sections = pn.Row(self.table_delete, self.table_merge, self.table_split,
                           sizing_mode="stretch_width")
@@ -428,6 +439,7 @@ class CurationView(ViewBase):
             buttons_curate,
             sections,
             shortcuts_component,
+            on_close_prompt,
             scroll=True,
             sizing_mode="stretch_both"
         )
