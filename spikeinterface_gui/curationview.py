@@ -296,6 +296,7 @@ class CurationView(ViewBase):
             with json_file.open("w") as f:
                 curation_dict = check_json(self.controller.construct_final_curation())
                 json.dump(curation_dict, f, indent=4)
+            self.controller.current_curation_saved = True
 
     # PANEL
     def _panel_make_layout(self):

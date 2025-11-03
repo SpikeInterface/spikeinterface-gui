@@ -37,9 +37,12 @@ class Controller():
                  extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
+        
         self.skip_extensions = skip_extensions
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
+        self.current_curation_saved = True
+
         if self.backend == "qt":
             from .backend_qt import SignalHandler
             self.signal_handler = SignalHandler(self, parent=parent)
@@ -740,6 +743,7 @@ class Controller():
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
+            print("Analyzer is an in-memory object. Cannot save curation file in it.")
             pass
         elif self.analyzer.format == "binary_folder":
             folder = self.analyzer.folder / "spikeinterface_gui"
@@ -747,6 +751,7 @@ class Controller():
             json_file = folder / f"curation_data.json"
             with json_file.open("w") as f:
                 json.dump(check_json(self.construct_final_curation()), f, indent=4)
+            self.current_curation_saved = True
         elif self.analyzer.format == "zarr":
             import zarr
             zarr_root = zarr.open(self.analyzer.folder, mode='r+')
@@ -754,6 +759,7 @@ class Controller():
                 sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
             sigui_group = zarr_root["spikeinterface_gui"]
             sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
+            self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:

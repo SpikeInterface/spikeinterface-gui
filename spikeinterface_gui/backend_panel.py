@@ -312,6 +312,28 @@ class PanelMainWindow:
         layout_zone = fill_unnecessary_space(layout_zone, shift)
         present_zones = get_present_zones_in_half_of_layout(layout_zone, shift)
 
+        # Find a non-zero layout, and add a hidden pane to it which will launch a pop-up
+        # if the user tries to close the page.
+        for key, layout in layout_zone.items():
+
+            if layout is not None:
+                js_code = """
+                <script>
+                window.addEventListener('beforeunload', function (e) {
+                    e.preventDefault(); 
+                    e.returnValue = ''; 
+                });
+                </script>
+                """
+                on_close_prompt = pn.pane.HTML(js_code, width=0, height=0, margin=0)
+
+                layout_zone[key] = pn.Column(
+                    layout,      # Your tabs display first
+                    on_close_prompt   # Your invisible script loads right after
+                )
+
+                continue
+
         # `fill_unnecessary_space` ensures that zone{1+shift} always exists
         if present_zones == set([f'zone{1+shift}']):
             gs[0,0] = layout_zone.get(f'zone{1+shift}')
