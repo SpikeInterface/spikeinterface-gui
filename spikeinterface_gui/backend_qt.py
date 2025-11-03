@@ -301,7 +301,7 @@ class QtMainWindow(QT.QMainWindow):
 
         if not self.controller.current_curation_saved: 
             reply = QT.QMessageBox.question(self, 'Confirmation',
-                "Your curation has not been saved. You can save it at the top of the 'CurationView'.\nDo you still want to quit?", QT.QMessageBox.Yes |
+                "You are deaydreaming : your curation has not been saved. You can save it at the top of the 'CurationView'.\nDo you still want to quit?", QT.QMessageBox.Yes |
                 QT.QMessageBox.No, QT.QMessageBox.No)
             if reply == QT.QMessageBox.Yes:
                 # 2. Accept the event to allow closing
