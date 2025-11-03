@@ -19,14 +19,11 @@ class MixinViewTrace:
 
     def get_data_in_chunk(self, t1, t2, segment_index):
         with self.trace_context():
-            t_start = 0.0
-            sr = self.controller.sampling_frequency
-
-            ind1 = max(0, int((t1 - t_start) * sr))
-            ind2 = min(self.controller.get_num_samples(segment_index), int((t2 - t_start) * sr))
+            ind1, ind2 = self.controller.get_chunk_indices(t1, t2, segment_index)
 
             t_traces_start = time.perf_counter()
             traces_chunk = self.controller.get_traces(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
+            times_chunk = self.controller.get_times_chunk(segment_index=segment_index, t1=t1, t2=t2)
             t_traces_end = time.perf_counter()
             elapsed = t_traces_end - t_traces_start
             if elapsed > self.MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR:
@@ -57,9 +54,6 @@ class MixinViewTrace:
 
                 data_curves *= gains[:, None]
                 data_curves += offsets[:, None]
-
-            times_chunk = np.arange(traces_chunk.shape[0], dtype='float64') / self.controller.sampling_frequency+max(t1, 0)
-            self.last_times_chunk = times_chunk
 
             scatter_x = []
             scatter_y = []
@@ -116,7 +110,7 @@ class MixinViewTrace:
         #Segment selection
         self.combo_seg = QT.QComboBox()
         tb.addWidget(self.combo_seg)
-        self.combo_seg.addItems([ f'Segment {seg_index}' for seg_index in range(self.controller.num_segments) ])
+        self.combo_seg.addItems([ f'Segment {segment_index}' for segment_index in range(self.controller.num_segments) ])
         self.combo_seg.currentIndexChanged.connect(self._qt_on_combo_seg_changed)
         add_stretch_to_qtoolbar(tb)
         
@@ -151,7 +145,6 @@ class MixinViewTrace:
         self.graphicsview.setCentralItem(self.plot)
         self.plot.hideButtons()
         self.plot.showAxis('left', False)
-        
         self.viewBox.doubleclicked.connect(self._qt_scatter_item_clicked)
         
         self.viewBox.gain_zoom.connect(self.apply_gain_zoom)
@@ -176,20 +169,19 @@ class MixinViewTrace:
         self.offsets = None
 
     def _qt_update_scroll_limits(self):
-        seg_index = self.controller.get_time()[1]
-        length = self.controller.get_num_samples(seg_index)
-        t_start = 0.
-        t_stop = length/self.controller.sampling_frequency
+        segment_index = self.controller.get_time()[1]
+        length = self.controller.get_num_samples(segment_index)
+        t_start, t_stop = self.controller.get_t_start_t_stop()
         self.timeseeker.set_start_stop(t_start, t_stop, seek=False)
         self.scroll_time.setMinimum(0)
-        self.scroll_time.setMaximum(length)
+        self.scroll_time.setMaximum(length - 1)
 
-    def _qt_change_segment(self, seg_index):
-        #TODO: dirty because now seg_pos IS seg_index
-        self.controller.set_time(segment_index=seg_index)
+    def _qt_change_segment(self, segment_index):
+        #TODO: dirty because now seg_pos IS segment_index
+        self.controller.set_time(segment_index=segment_index)
 
-        if seg_index != self.combo_seg.currentIndex():
-            self.combo_seg.setCurrentIndex(seg_index)
+        if segment_index != self.combo_seg.currentIndex():
+            self.combo_seg.setCurrentIndex(segment_index)
 
         self._qt_update_scroll_limits()
         if not self._block_auto_refresh_and_notify:
@@ -218,12 +210,12 @@ class MixinViewTrace:
         factor = xmove/100.
         newsize = self.xsize*(factor+1.)
         limits = self.spinbox_xsize.opts['bounds']
-        if newsize>0. and newsize<limits[1]:
+        if newsize > 0. and newsize < limits[1]:
             self.spinbox_xsize.setValue(newsize)
 
     def _qt_on_scroll_time(self, val):
-        sr = self.controller.sampling_frequency
-        self.timeseeker.seek(val/sr)
+        time = self.controller.sample_index_to_time(val)
+        self.timeseeker.seek(time)
 
     def _qt_seek_with_selected_spike(self):
         ind_selected = self.controller.get_indices_spike_selected()
@@ -232,11 +224,11 @@ class MixinViewTrace:
         if self.settings['auto_zoom_on_select'] and n_selected == 1:
             ind = ind_selected[0]
             peak_ind = self.controller.spikes[ind]['sample_index']
-            seg_index = self.controller.spikes[ind]['segment_index']
-            peak_time = peak_ind / self.controller.sampling_frequency
+            segment_index = self.controller.spikes[ind]['segment_index']
+            peak_time = self.controller.sample_index_to_time(peak_ind)
 
-            if seg_index != self.controller.get_time()[1]:
-                self._qt_change_segment(seg_index)
+            if segment_index != self.controller.get_time()[1]:
+                self._qt_change_segment(segment_index)
 
             self.spinbox_xsize.sigValueChanged.disconnect(self._qt_on_xsize_changed)
             self.xsize = self.settings['spike_selection_xsize']
@@ -244,18 +236,25 @@ class MixinViewTrace:
             self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
 
             self.controller.set_time(time=peak_time)
-            self.notify_time_info_updated()
         self.refresh()
-    
+
+    def _qt_scatter_item_clicked(self, x, y):
+        ind_spike_nearest = find_nearest_spike(self.controller, x, segment_index=self.controller.get_time()[1])
+        if ind_spike_nearest is not None:
+            self.controller.set_indices_spike_selected([ind_spike_nearest])
+
+            self.notify_spike_selection_changed()
+            self._qt_seek_with_selected_spike()
+
     ## panel ##
     def _panel_create_toolbar(self):
         import panel as pn
 
-        seg_index = self.controller.get_time()[1]
+        segment_index = self.controller.get_time()[1]
         self.segment_selector = pn.widgets.Select(
             name="",
             options=[f"Segment {i}" for i in range(self.controller.num_segments)],
-            value=f"Segment {seg_index}",
+            value=f"Segment {segment_index}",
         )
 
         # Window size control
@@ -281,27 +280,25 @@ class MixinViewTrace:
         )
 
         # Time slider
-        seg_index = self.controller.get_time()[1]
-        length = self.controller.get_num_samples(seg_index)
-        t_start = 0
-        t_stop = length / self.controller.sampling_frequency
+        segment_index = self.controller.get_time()[1]
+        # update with controller.get_t_start/get_t_end
+        t_start, t_stop = self.controller.get_t_start_t_stop()
         self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
                                                   value_throttled=0, sizing_mode="stretch_width")
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
     def _panel_on_segment_changed(self, event):
-        seg_index = int(event.new.split()[-1])
-        self._panel_change_segment(seg_index)
+        segment_index = int(event.new.split()[-1])
+        self._panel_change_segment(segment_index)
 
-    def _panel_change_segment(self, seg_index):
-        self.segment_selector.value = f"Segment {seg_index}"
+    def _panel_change_segment(self, segment_index):
+        self.segment_selector.value = f"Segment {segment_index}"
 
         # Update time slider range
-        length = self.controller.get_num_samples(seg_index)
-        t_stop = length / self.controller.sampling_frequency
-        self.time_slider.start = 0
+        self.controller.set_time(segment_index=segment_index)
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.time_slider.start = t_start
         self.time_slider.end = t_stop
-        self.controller.set_time(segment_index=seg_index)
         if not self._block_auto_refresh_and_notify:
             self.refresh()
             self.notify_time_info_updated()
@@ -325,11 +322,11 @@ class MixinViewTrace:
         if self.settings['auto_zoom_on_select'] and n_selected == 1:
             ind = ind_selected[0]
             peak_ind = self.controller.spikes[ind]["sample_index"]
-            seg_index = self.controller.spikes[ind]["segment_index"]
-            peak_time = peak_ind / self.controller.sampling_frequency
+            segment_index = self.controller.spikes[ind]["segment_index"]
+            peak_time = self.controller.sample_index_to_time(peak_ind)
 
-            if seg_index != self.controller.get_time()[1]:
-                self._panel_change_segment(seg_index)
+            if segment_index != self.controller.get_time()[1]:
+                self._panel_change_segment(segment_index)
 
             # block callbacks
             self._block_auto_refresh_and_notify = True
@@ -349,6 +346,14 @@ class MixinViewTrace:
             self._block_auto_refresh_and_notify = False
             self.refresh()
             self.notify_time_info_updated()
+
+    def _panel_on_double_tap(self, event):
+        time = event.x
+        ind_spike_nearest = find_nearest_spike(self.controller, time, self.controller.get_time()[1])
+        if ind_spike_nearest is not None:
+            self.controller.set_indices_spike_selected([ind_spike_nearest])
+            self._panel_seek_with_selected_spike()
+            self.notify_spike_selection_changed()
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -470,25 +475,6 @@ class TraceView(ViewBase, MixinViewTrace):
     def _qt_on_spike_selection_changed(self):
         MixinViewTrace._qt_seek_with_selected_spike(self)
 
-    def _qt_scatter_item_clicked(self, x, y):
-        # TODO sam : make it faster without boolean mask
-        ind_click = int(x*self.controller.sampling_frequency )
-        in_seg, = np.nonzero(self.controller.spikes['segment_index'] == self.controller.get_time()[1])
-        nearest = np.argmin(np.abs(self.controller.spikes[in_seg]['sample_index'] - ind_click))
-        
-        ind_spike_nearest = in_seg[nearest]
-        sample_index = self.controller.spikes[ind_spike_nearest]['sample_index']
-        
-        if np.abs(ind_click - sample_index) > (self.controller.sampling_frequency // 30):
-            return
-        
-        #~ self.controller.spikes['selected'][:] = False
-        #~ self.controller.spikes['selected'][ind_spike_nearest] = True
-        self.controller.set_indices_spike_selected([ind_spike_nearest])
-        
-        self.notify_spike_selection_changed()
-        self.refresh()
-
     def _qt_refresh(self):
         t, _ = self.controller.get_time()
         self._qt_seek(t)
@@ -505,7 +491,8 @@ class TraceView(ViewBase, MixinViewTrace):
         sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
-        self.scroll_time.setValue(int(sr*t))
+        value = self.controller.time_to_sample_index(t)
+        self.scroll_time.setValue(value)
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
@@ -519,6 +506,12 @@ class TraceView(ViewBase, MixinViewTrace):
 
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2,  self.controller.get_time()[1])
+
+        if times_chunk.size == 0:
+            self.signals_curve.setData([], [])
+            self.scatter.setData(x=[], y=[], brush=[])
+            return
+
         connect = np.ones(data_curves.shape, dtype='bool')
         connect[:, -1] = 0
 
@@ -543,17 +536,23 @@ class TraceView(ViewBase, MixinViewTrace):
 
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
-        time, seg_index = self.controller.get_time()
+        time, segment_index = self.controller.get_time()
         # Block auto refresh to avoid recursive calls
         self._block_auto_refresh_and_notify = True
 
-        self._qt_change_segment(seg_index)
+        self._qt_change_segment(segment_index)
         self.timeseeker.seek(time)
-        
-        self._block_auto_refresh_and_notify = False
-        # we need refresh in QT because changing tab/docking/undocking doesn't trigger a refresh
         self.refresh()
+        self._block_auto_refresh_and_notify = False
 
+    def _qt_on_use_times_updated(self):
+        # Update time seeker
+        self._block_auto_refresh_and_notify = True
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self.timeseeker.set_start_stop(t_start, t_stop)
+        self.timeseeker.seek(self.controller.get_time()[0])
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
 
     ## panel ##
     def _panel_make_layout(self):
@@ -561,7 +560,7 @@ class TraceView(ViewBase, MixinViewTrace):
         import bokeh.plotting as bpl
         from .utils_panel import _bg_color
         from bokeh.models import ColumnDataSource, Range1d
-        from bokeh.events import Tap, MouseWheel
+        from bokeh.events import DoubleTap, MouseWheel
 
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
@@ -601,7 +600,7 @@ class TraceView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
-        self.figure.on_event(Tap, self._panel_on_tap)
+        self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         self._panel_create_toolbar()
         
@@ -615,7 +614,7 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
-        t, seg_index = self.controller.get_time()
+        t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
 
@@ -637,7 +636,7 @@ class TraceView(ViewBase, MixinViewTrace):
             self.figure.x_range.end = t2
         else:
             times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
-                self.get_data_in_chunk(t1, t2, seg_index)
+                self.get_data_in_chunk(t1, t2, segment_index)
 
             self.signal_source.data.update(
                 {
@@ -661,12 +660,6 @@ class TraceView(ViewBase, MixinViewTrace):
             self.figure.y_range.end = n - 0.5
 
     # TODO: if from a different unit, change unit visibility
-    def _panel_on_tap(self, event):
-        ind_spike_nearest = find_nearest_spike(self.controller, event.x, self.controller.get_time()[1])
-        if ind_spike_nearest is not None:
-            self.controller.set_indices_spike_selected([ind_spike_nearest])
-            self._panel_seek_with_selected_spike()
-            self.notify_spike_selection_changed()
 
     def _panel_on_spike_selection_changed(self):
         self._panel_seek_with_selected_spike()
@@ -676,30 +669,38 @@ class TraceView(ViewBase, MixinViewTrace):
             factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
         else:
             factor_ratio = 1.0
-        factor = 1.3 if event.delta > 0 else 1 / 1.3
-        self.apply_gain_zoom(factor)
+        self.apply_gain_zoom(factor_ratio)
 
     def _panel_auto_scale(self, event):
         self.auto_scale()
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
-        time, seg_index = self.controller.get_time()
-        self._block_auto_refresh = True
-        self._panel_change_segment(seg_index)
+        time, segment_index = self.controller.get_time()
+        self._block_auto_refresh_and_notify = True
+        self._panel_change_segment(segment_index)
         # Update time slider value
         self.time_slider.value = time
-        self._block_auto_refresh = False
-        # we don't need a refresh in panel because changing tab triggers a refresh
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
+
+    def _panel_on_use_times_updated(self):
+        # Update time seeker
+        t_start, t_stop = self.controller.get_t_start_t_stop()
+        self._block_auto_refresh_and_notify = True
+        self.time_slider.start = t_start
+        self.time_slider.end = t_stop
+        self.time_slider.value = self.controller.get_time()[0]
+        self.refresh()
+        self._block_auto_refresh_and_notify = False
 
 
 
-# TODO sam refactor Qt and this
 def find_nearest_spike(controller, x, segment_index, max_distance_samples=None):
     if max_distance_samples is None:
         max_distance_samples = controller.sampling_frequency // 30
 
-    ind_click = int(x * controller.sampling_frequency)
+    ind_click = controller.time_to_sample_index(x)
     (in_seg,) = np.nonzero(controller.spikes["segment_index"] == segment_index)
 
     if len(in_seg) == 0:
@@ -725,4 +726,5 @@ This view shows the traces of the selected visible channels from the Probe View.
 * **auto scale**: Automatically adjust the scale of the traces.
 * **time (s)**: Set the time point to display traces.
 * **mouse wheel**: change the scale of the traces.
+* **double click**: select the nearest spike and center the view on it.
 """

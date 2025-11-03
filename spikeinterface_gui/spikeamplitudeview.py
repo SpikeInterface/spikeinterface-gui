@@ -28,10 +28,15 @@ class SpikeAmplitudeView(BaseScatterView):
         )
 
     def _qt_make_layout(self):
+        from .myqt import QT
         super()._qt_make_layout()
         self.noise_harea = []
         if self.settings["noise_level"]:
             self._qt_add_noise_area()
+        # add split shortcut, so that it's not duplicated
+        shortcut_split = QT.QShortcut(self.qt_widget)
+        shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
+        shortcut_split.activated.connect(self.split)
 
     def _qt_refresh(self):
         super()._qt_refresh()
@@ -95,4 +100,5 @@ comparing the distribution of ampltidues to the noise levels.
 
 ### Controls
 - **select** : activate lasso selection to select individual spikes
+- **split** or **ctrl+s** : split the selected spikes into a new unit (only if one unit is visible)
 """

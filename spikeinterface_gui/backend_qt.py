@@ -19,6 +19,7 @@ class SignalNotifier(QT.QObject):
     channel_visibility_changed = QT.pyqtSignal()
     manual_curation_updated = QT.pyqtSignal()
     time_info_updated = QT.pyqtSignal()
+    use_times_updated = QT.pyqtSignal()
     unit_color_changed = QT.pyqtSignal()
 
     def __init__(self, parent=None, view=None):
@@ -39,6 +40,9 @@ class SignalNotifier(QT.QObject):
 
     def notify_time_info_updated(self):
         self.time_info_updated.emit()
+
+    def notify_use_times_updated(self):
+        self.use_times_updated.emit()
 
     def notify_unit_color_changed(self):
         self.unit_color_changed.emit()
@@ -63,6 +67,7 @@ class SignalHandler(QT.QObject):
         view.notifier.channel_visibility_changed.connect(self.on_channel_visibility_changed)
         view.notifier.manual_curation_updated.connect(self.on_manual_curation_updated)
         view.notifier.time_info_updated.connect(self.on_time_info_updated)
+        view.notifier.use_times_updated.connect(self.on_use_times_updated)
         view.notifier.unit_color_changed.connect(self.on_unit_color_changed)
 
     def on_spike_selection_changed(self):
@@ -110,7 +115,16 @@ class SignalHandler(QT.QObject):
                 # do not refresh it self
                 continue
             view.on_time_info_updated()
-    
+
+    def on_use_times_updated(self):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if view.qt_widget == self.sender().parent():
+                # do not refresh it self
+                continue
+            view.on_use_times_updated()
+
     def on_unit_color_changed(self):
         if not self._active:
             return
@@ -383,7 +397,6 @@ class ViewWidget(QT.QWidget):
     def refresh(self):
         view = self._view()
         view.refresh()
-        
 
 areas = {
     'right' : QT.Qt.RightDockWidgetArea,
