@@ -7,11 +7,13 @@ import warnings
 
 from spikeinterface import load_sorting_analyzer, load
 from spikeinterface.core.core_tools import is_path_remote
+from spikeinterface.core.sortinganalyzer import get_available_analyzer_extensions
 from .utils_global import get_config_folder
+from spikeinterface_gui.layout_presets import get_layout_description
 
 import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
-
+from spikeinterface_gui.viewlist import possible_class_views
 
 def run_mainwindow(
     analyzer,
@@ -121,6 +123,11 @@ def run_mainwindow(
     if verbose:
         import time
         t0 = time.perf_counter()
+
+    layout_dict = get_layout_description(layout_preset, layout)
+    if skip_extensions is None:
+        skip_extensions = find_skippable_extensions(layout_dict)
+
     controller = Controller(
         analyzer, backend=backend, verbose=verbose,
         curation=curation, curation_data=curation_dict,
@@ -146,7 +153,7 @@ def run_mainwindow(
 
         app = mkQApp()
 
-        win = QtMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
+        win = QtMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
         win.setWindowTitle('SpikeInterface GUI')
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -158,7 +165,7 @@ def run_mainwindow(
     
     elif backend == "panel":
         from .backend_panel import PanelMainWindow, start_server
-        win = PanelMainWindow(controller, layout_preset=layout_preset, layout=layout, user_settings=user_settings)
+        win = PanelMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
 
         if start_app or panel_window_servable:
             win.main_layout.servable(title='SpikeInterface GUI')
@@ -349,3 +356,25 @@ def run_mainwindow_cli():
             disable_save_settings_button=disable_save_settings_button,
         )
 
+def find_skippable_extensions(layout_dict):
+    """
+    Returns the extensions which don't need to be loaded, depending on which views the user
+    wants to load. Does this by taking all possible extensions, then removing any which are
+    needed by a view.
+    """
+    
+    all_extensions = set(get_available_analyzer_extensions())
+
+    view_per_zone = list(layout_dict.values())
+    list_of_views = [view for zone_views in view_per_zone for view in zone_views]
+
+    needed_extensions = ['unit_locations']
+
+    for view in list_of_views:
+        extensions_view_depend_on = possible_class_views[view]._depend_on
+        if extensions_view_depend_on is not None:
+            needed_extensions += extensions_view_depend_on
+
+    skippable_extensions = list(all_extensions.difference(set(needed_extensions)))
+
+    return skippable_extensions

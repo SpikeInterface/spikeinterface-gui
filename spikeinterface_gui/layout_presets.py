@@ -34,7 +34,7 @@ def _check_valid_layout_dict(layout_dict):
             list_of_possible_class_views = list(possible_class_views.keys())
             if class_view not in list_of_possible_class_views:
                 raise KeyError(f"View '{class_view}' in layout dictionary not equal to a valid View. "\
-                                "Valid views are {list_of_possible_class_views}")
+                                f"Valid views are {list_of_possible_class_views}")
 
 def get_layout_description(preset_name, layout=None):
     if isinstance(layout, dict):
