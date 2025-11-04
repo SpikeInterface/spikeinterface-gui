@@ -26,6 +26,7 @@ class CurationView(ViewBase):
             unit_ids = [self.controller.unit_ids.dtype.type(unit_id) for unit_id in unit_ids]
             self.controller.make_manual_restore(unit_ids)
             self.notify_manual_curation_updated()
+            self.on_manual_curation_updated()
             self.refresh()
 
     def unmerge(self):
@@ -36,6 +37,7 @@ class CurationView(ViewBase):
         if merge_indices is not None:
             self.controller.make_manual_restore_merge(merge_indices)
             self.notify_manual_curation_updated()
+            self.on_manual_curation_updated()
             self.refresh()
 
     def unsplit(self):
@@ -48,6 +50,7 @@ class CurationView(ViewBase):
             self.controller.set_indices_spike_selected([])
             self.notify_spike_selection_changed()
             self.notify_manual_curation_updated()
+            self.on_manual_curation_updated()
             self.refresh()
 
     def select_and_notify_split(self, split_unit_id):
@@ -280,10 +283,14 @@ class CurationView(ViewBase):
         self._qt_clear_selection()
 
     def on_manual_curation_updated(self):
+        if self.backend == "panel":
+            self._panel_on_manual_curation_updated()
         self.refresh()
     
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
+        if self.backend == "panel":
+            self._panel_clear_warning(None)
 
     def _qt_export_json(self):
         from .myqt import QT
@@ -420,17 +427,6 @@ class CurationView(ViewBase):
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
-        # Add a listener which will warn the user when the browser tab is closed
-        js_code = """
-        <script>
-        window.addEventListener('beforeunload', function (e) {
-            e.preventDefault(); 
-            e.returnValue = ''; 
-        });
-        </script>
-        """
-        on_close_prompt = pn.pane.HTML(js_code, width=0, height=0, margin=0)
-
         # Create main layout with proper sizing
         sections = pn.Row(self.table_delete, self.table_merge, self.table_split,
                           sizing_mode="stretch_width")
@@ -439,7 +435,6 @@ class CurationView(ViewBase):
             buttons_curate,
             sections,
             shortcuts_component,
-            on_close_prompt,
             scroll=True,
             sizing_mode="stretch_both"
         )
@@ -510,6 +505,9 @@ class CurationView(ViewBase):
                 self.controller.set_visible_unit_ids([split_unit])
         self.notify_unit_visibility_changed()
 
+    def _panel_on_manual_curation_updated(self):
+        self.warning("Your current curation is not saved.")
+
     def _panel_restore_units(self, event):
         self.restore_units()
 
@@ -527,6 +525,8 @@ class CurationView(ViewBase):
 
         with open(export_path, "w") as f:
             json.dump(curation_dict, f, indent=4)
+
+        self._panel_clear_warning(None)
 
         return export_path
 
