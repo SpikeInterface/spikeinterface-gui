@@ -825,9 +825,6 @@ class WaveformView(ViewBase):
         )
         self.figure_avg.toolbar.logo = None
         self.figure_avg.grid.visible = False
-        self.lines_avg = {}
-        self.scalebar_lines = []
-        self.scalebar_labels = []
 
         self.figure_std = bpl.figure(
             sizing_mode="stretch_both",
@@ -842,12 +839,40 @@ class WaveformView(ViewBase):
         self.figure_std.toolbar.logo = None
         self.figure_std.grid.visible = False
         self.figure_std.toolbar.active_scroll = None
-        self.lines_std = {}
 
-        self.lines_wfs = []
-        self.lines_waveforms_samples = []  # List to hold waveform sample lines
+        self.lines_data_source_avg = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_flatten_avg = self.figure_avg.multi_line('xs', 'ys', source=self.lines_data_source_avg,
+                                                            line_color='colors', line_width=2)
+        self.lines_data_source_std = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_flatten_std = self.figure_std.multi_line('xs', 'ys', source=self.lines_data_source_std,
+                                                            line_color='colors', line_width=2)
+        self.vlines_data_source_avg = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.vlines_flatten_avg = self.figure_avg.multi_line('xs', 'ys', source=self.vlines_data_source_avg,
+                                                             line_color='colors', line_width=1, line_dash='dashed')
+        self.vlines_data_source_std = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.vlines_flatten_std = self.figure_std.multi_line('xs', 'ys', source=self.vlines_data_source_std,
+                                                             line_color='colors', line_width=1, line_dash='dashed')
 
-        self.figure_pane = pn.Column(self.figure_geom)
+        self.scalebar_lines = []
+        self.scalebar_labels = []
+
+        # instantiate sources and lines for waveforms samples
+        self.lines_data_source_wfs_flatten = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_data_source_wfs_geom = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+
+        waveforms_alpha = self.settings["waveforms_alpha"]
+        self.lines_waveforms_samples_flatten = self.figure_avg.multi_line('xs', 'ys', source=self.lines_data_source_wfs_flatten,
+                                                                          line_color='colors', line_width=1, line_alpha=waveforms_alpha)
+        self.lines_waveforms_samples_geom = self.figure_geom.multi_line('xs', 'ys', source=self.lines_data_source_wfs_geom,
+                                                                        line_color='colors', line_width=1, line_alpha=waveforms_alpha)
+
+        self.geom_pane = pn.Column(
+            self.figure_geom,  # Start with geometry
+            sizing_mode="stretch_both"
+        )
+        self.flatten_pane = pn.Column(self.figure_avg, self.figure_std, sizing_mode="stretch_both")
+        # Start with flatten hidden
+        self.flatten_pane.visible = False
 
         # overlap shortcut
         shortcuts = [
@@ -859,7 +884,8 @@ class WaveformView(ViewBase):
 
         self.layout = pn.Column(
             pn.Row(self.mode_selector),
-            self.figure_pane,
+            self.geom_pane,
+            self.flatten_pane,
             shortcuts_component,
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both",
@@ -981,7 +1007,13 @@ class WaveformView(ViewBase):
         import panel as pn
 
         self.mode = self.mode_selector.value
-        self.layout[1] = self.figure_geom if self.mode == "geometry" else pn.Column(self.figure_avg, self.figure_std)
+        # Toggle visibility instead of swapping objects
+        if self.mode == "flatten":
+            self.geom_pane.visible = False
+            self.flatten_pane.visible = True
+        else:
+            self.geom_pane.visible = True
+            self.flatten_pane.visible = False
         self.refresh()
 
     def _panel_gain_zoom(self, event):
@@ -1029,8 +1061,10 @@ class WaveformView(ViewBase):
         self.last_wheel_event_time = current_time
 
     def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
-        # this clear the figure
         self._panel_clear_scalebars()
+        if not self.settings["plot_selected_spike"] and not self.settings["plot_waveforms_samples"]:
+            # clear waveforms samples when refreshing
+            self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
 
         # Clear waveform samples when refreshing
         dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
@@ -1103,21 +1137,19 @@ class WaveformView(ViewBase):
         self._panel_add_scalebars()
 
     def _panel_refresh_mode_flatten(self, dict_visible_units=None, keep_range=False):
-        from bokeh.models import Span
+        if not self.settings["plot_selected_spike"] and not self.settings["plot_waveforms_samples"]:
+            self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
 
-        # this clear the figure
-        self.figure_avg.renderers = []
-        self.figure_std.renderers = []
-        self.lines_avg = {}
-        self.lines_std = {}
-        # Clear waveform samples when refreshing
-        self.lines_waveforms_samples.clear()
         dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
             return
 
+        xs = []
+        y_avgs = []
+        y_stds = []
+        colors = []
         for unit_index, (unit_id, visible) in enumerate(dict_visible_units.items()):
             if not visible:
                 continue
@@ -1130,25 +1162,36 @@ class WaveformView(ViewBase):
             x = np.arange(y_avg.size)
 
             color = self.get_unit_color(unit_id)
-            self.lines_avg[unit_id] = self.figure_avg.line(
-                "x", "y", source=dict(x=x, y=y_avg), line_color=color, line_width=2
-            )
-            self.lines_std[unit_id] = self.figure_std.line(
-                "x", "y", source=dict(x=x, y=y_std), line_color=color, line_width=2
-            )
+            xs.append(x)
+            y_avgs.append(y_avg)
+            y_stds.append(y_std)
+            colors.append(color)
 
-            # add dashed vertical lines corresponding to the channels
-            for ch in range(nchannels - 1):
-                # Add vertical line at x=5
-                vline = Span(
-                    location=(ch + 1) * nsamples,
-                    dimension="height",
-                    line_color="grey",
-                    line_width=1,
-                    line_dash="dashed",
-                )
-                self.figure_avg.add_layout(vline)
-                self.figure_std.add_layout(vline)
+        self.lines_data_source_avg.data = dict(xs=xs, ys=y_avgs, colors=colors)
+        self.lines_data_source_std.data = dict(xs=xs, ys=y_stds, colors=colors)
+
+        # add dashed vertical lines corresponding to the channels
+        xs, ys_avg, ys_std, colors = [], [], [], []
+        start = self.figure_avg.y_range.start
+        if np.isnan(start):
+            # estimate from the data
+            start_avg = np.min(y_avgs) - 0.1 * np.ptp(y_avgs)
+            end_avg = np.max(y_avgs) + 0.1 * np.ptp(y_avgs)
+            start_std = 0
+            end_std = np.max(y_stds) + 0.1 * np.ptp(y_stds)
+        else:
+            start_avg = self.figure_avg.y_range.start
+            end_avg = self.figure_avg.y_range.end
+            start_std = self.figure_std.y_range.start
+            end_std = self.figure_std.y_range.end
+        for ch in range(nchannels - 1):
+            xline = (ch + 1) * nsamples
+            xs.append([xline, xline])
+            ys_avg.append([start_avg, end_avg])
+            ys_std.append([start_std, end_std])
+            colors.append("grey")
+        self.vlines_data_source_avg.data = dict(xs=xs, ys=ys_avg, colors=colors)
+        self.vlines_data_source_std.data = dict(xs=xs, ys=ys_std, colors=colors)
 
         if self.settings["plot_selected_spike"]:
             self._panel_refresh_one_spike()
@@ -1160,12 +1203,6 @@ class WaveformView(ViewBase):
     def _panel_refresh_one_spike(self):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
-        # clean existing lines
-        for line in self.lines_wfs:
-            if line in self.figure_geom.renderers:
-                self.figure_geom.renderers.remove(line)
-            if line in self.figure_avg.renderers:
-                self.figure_avg.renderers.remove(line)
 
         if n_selected == 1 and self.settings["overlap"]:
             ind = selected_inds[0]
@@ -1180,8 +1217,10 @@ class WaveformView(ViewBase):
                     x = np.arange(wf.size)
 
                     color = "white"
-                    line = self.figure_avg.line("x", "y", source=dict(x=x, y=wf), line_color=color, line_width=0.5)
-                    self.lines_wfs.append(line)
+                    source = self.lines_data_source_wfs_flatten
+                    xs = [x]
+                    ys = [wf]
+                    colors = [color]
                 elif self.mode == "geometry":
                     ypos = self.contact_location[common_channel_indexes, 1]
 
@@ -1192,25 +1231,21 @@ class WaveformView(ViewBase):
                     xvect = self.xvect[common_channel_indexes, :] * self.factor_x
 
                     color = "white"
-
-                    source = {"x": xvect.ravel(), "y": wf.T.ravel()}
-                    line = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=0.5)
-                    self.lines_wfs.append(line)
-
-    def _panel_clear_waveforms_samples(self):
-        """Clear all waveform sample lines from the panel plot"""
-        for line in self.lines_waveforms_samples:
-            if line in self.figure_geom.renderers:
-                self.figure_geom.renderers.remove(line)
-            if line in self.figure_avg.renderers:
-                self.figure_avg.renderers.remove(line)
-        self.lines_waveforms_samples.clear()
+                    xs = [xvect.ravel()]
+                    ys = [wf.T.ravel()]
+                    colors = [color]
+                    source = self.lines_data_source_wfs_geom
+                source.data = dict(xs=xs, ys=ys, colors=colors)
+        else:
+            # clean existing lines
+            if self.mode == "flatten":
+                source = self.lines_data_source_wfs_flatten
+            else:
+                source = self.lines_data_source_wfs_geom
+            source.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_refresh_waveforms_samples(self):
         """Handle waveform samples plotting for panel backend"""
-        # Clear previous waveform samples
-        self._panel_clear_waveforms_samples()
-
         if not self.settings["plot_waveforms_samples"]:
             return
 
@@ -1278,6 +1313,9 @@ class WaveformView(ViewBase):
         alpha = self.settings["waveforms_alpha"]
 
         if self.mode == "flatten":
+            current_alpha = self.lines_waveforms_samples_flatten.glyph.line_alpha
+            if current_alpha != alpha:
+                self.lines_waveforms_samples_flatten.glyph.line_alpha = alpha
             # For flatten mode, plot all waveforms as continuous lines
             all_x = []
             all_y = []
@@ -1290,12 +1328,12 @@ class WaveformView(ViewBase):
                 all_y.extend(wf_flat.tolist())
                 all_y.append(None)
 
-            line = self.figure_avg.line(
-                "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=alpha
-            )
-            self.lines_waveforms_samples.append(line)
+            source = self.lines_data_source_wfs_flatten
 
         elif self.mode == "geometry":
+            current_alpha = self.lines_waveforms_samples_geom.glyph.line_alpha
+            if current_alpha != alpha:
+                self.lines_waveforms_samples_geom.glyph.line_alpha = alpha
             ypos = self.contact_location[common_channel_indexes, 1]
 
             all_x = []
@@ -1312,24 +1350,14 @@ class WaveformView(ViewBase):
                 all_x.extend(unit_xvect.ravel().tolist())
                 all_y.extend(wf_plot.T.ravel().tolist())
 
-            line = self.figure_geom.line(
-                "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=alpha
-            )
-            self.lines_waveforms_samples.append(line)
+            source = self.lines_data_source_wfs_geom
+        source.data = dict(xs=[all_x], ys=[all_y], colors=[color])
 
     def _panel_on_spike_selection_changed(self):
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         if n_selected == 1 and self.settings["plot_selected_spike"]:
             self._panel_refresh(keep_range=True)
-        else:
-            # remove the line
-            for line in self.lines_wfs:
-                if line in self.figure_geom.renderers:
-                    self.figure_geom.renderers.remove(line)
-                if line in self.figure_avg.renderers:
-                    self.figure_avg.renderers.remove(line)
-            self._panel_clear_waveforms_samples()
 
     def _panel_on_channel_visibility_changed(self):
         keep_range = not self.settings["auto_move_on_unit_selection"]
