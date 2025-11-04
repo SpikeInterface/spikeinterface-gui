@@ -236,7 +236,6 @@ class MixinViewTrace:
             self.spinbox_xsize.sigValueChanged.connect(self._qt_on_xsize_changed)
 
             self.controller.set_time(time=peak_time)
-            self.notify_time_info_updated()
         self.refresh()
 
     def _qt_scatter_item_clicked(self, x, y):
