@@ -379,6 +379,9 @@ class SelectableTabulator(pn.viewable.Viewer):
         else:
             components = [self.shortcuts_component, self.tabulator]
 
+        # trigger a first refresh to ensure correct formatters/editors/frozen_columns
+        self.refresh_tabulator_settings()
+
         self._layout = pn.Column(
             *components,
             sizing_mode="stretch_width"
@@ -414,14 +417,32 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.tabulator.sorters = []
         return self.tabulator.value
 
-
     @value.setter
     def value(self, val):
+        self.refresh_tabulator_settings()
+        self.tabulator.value = val
+
+    def patch_column(self, column, column_values, idxs=None):
+        self.refresh_tabulator_settings()
+        if idxs is None:
+            # Update all rows
+            self.tabulator.value[column] = column_values
+        else:
+            # Update specific rows using loc (works with both positional indices and index labels)
+            self.tabulator.value.loc[self.tabulator.value.index[idxs], column] = column_values
+
+    def refresh_tabulator_settings(self):
         self.tabulator.formatters = self._formatters
         self.tabulator.editors = self._editors
         self.tabulator.frozen_columns = self._frozen_columns
         self.tabulator.sorters = []
-        self.tabulator.value = val
+
+    def refresh(self):
+        """
+        Refresh the tabulator to reflect any changes in the data.
+        """
+        self.refresh_tabulator_settings()
+        self.tabulator.param.trigger("value")
 
     def __panel__(self):
         return self._layout

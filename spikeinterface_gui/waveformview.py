@@ -384,15 +384,15 @@ class WaveformView(ViewBase):
             template_std = self.controller.templates_std[unit_index, :, :][:, common_channel_indexes]
 
             color = self.get_unit_color(unit_id)
-            curve = pg.PlotCurveItem(xvect, template_avg.T.flatten(), pen=pg.mkPen(color, width=2))
+            curve = pg.PlotCurveItem(xvect, template_avg.T.ravel(), pen=pg.mkPen(color, width=2))
             self.plot1.addItem(curve)
 
             # Don't plot std when waveform samples are being plotted (to avoid clutter)
             if self.settings["plot_std"] and not self.settings["plot_waveforms_samples"]:
                 color2 = QT.QColor(color)
                 color2.setAlpha(self.alpha)
-                curve1 = pg.PlotCurveItem(xvect, template_avg.T.flatten() + template_std.T.flatten(), pen=color2)
-                curve2 = pg.PlotCurveItem(xvect, template_avg.T.flatten() - template_std.T.flatten(), pen=color2)
+                curve1 = pg.PlotCurveItem(xvect, template_avg.T.ravel() + template_std.T.ravel(), pen=color2)
+                curve2 = pg.PlotCurveItem(xvect, template_avg.T.ravel() - template_std.T.ravel(), pen=color2)
                 self.plot1.addItem(curve1)
                 self.plot1.addItem(curve2)
 
@@ -400,7 +400,7 @@ class WaveformView(ViewBase):
                 self.plot1.addItem(fill)
 
             if template_std is not None:
-                template_std_flatten = template_std.T.flatten()
+                template_std_flatten = template_std.T.ravel()
                 curve = pg.PlotCurveItem(xvect, template_std_flatten, pen=color)
                 self.plot2.addItem(curve)
                 min_std = min(min_std, template_std_flatten.min())
@@ -475,7 +475,7 @@ class WaveformView(ViewBase):
             color = self.get_unit_color(unit_id)
 
             curve = pg.PlotCurveItem(
-                xvect.flatten(), wf.T.flatten(), pen=pg.mkPen(color, width=2), connect=connect.T.flatten()
+                xvect.ravel(), wf.T.ravel(), pen=pg.mkPen(color, width=2), connect=connect.T.ravel()
             )
 
             # Don't plot std when waveform samples are being plotted (to avoid clutter)
@@ -486,8 +486,8 @@ class WaveformView(ViewBase):
                 wf_std_p = wf + wv_std * self.gain_y * self.delta_y
                 wf_std_m = wf - wv_std * self.gain_y * self.delta_y
 
-                curve_p = pg.PlotCurveItem(xvect.flatten(), wf_std_p.T.flatten(), connect=connect.T.flatten())
-                curve_m = pg.PlotCurveItem(xvect.flatten(), wf_std_m.T.flatten(), connect=connect.T.flatten())
+                curve_p = pg.PlotCurveItem(xvect.ravel(), wf_std_p.T.ravel(), connect=connect.T.ravel())
+                curve_m = pg.PlotCurveItem(xvect.ravel(), wf_std_m.T.ravel(), connect=connect.T.ravel())
 
                 color2 = QT.QColor(color)
                 color2.setAlpha(80)
@@ -604,7 +604,7 @@ class WaveformView(ViewBase):
                 return
 
             if self.mode == "flatten":
-                wf_flat = wf.T.flatten()
+                wf_flat = wf.T.ravel()
                 xvect = np.arange(wf_flat.size)
                 self.curve_waveforms.setData(xvect, wf_flat)
             elif self.mode == "geometry":
@@ -616,7 +616,7 @@ class WaveformView(ViewBase):
                 connect[-1, :] = 0
                 xvect = self.xvect[common_channel_indexes, :] * self.factor_x
 
-                self.curve_waveforms.setData(xvect.flatten(), wf_plot.T.flatten(), connect=connect.T.flatten())
+                self.curve_waveforms.setData(xvect.ravel(), wf_plot.T.ravel(), connect=connect.T.ravel())
 
     def _qt_add_scalebars(self):
         """Add scale bars to the plot based on current settings"""
@@ -713,7 +713,7 @@ class WaveformView(ViewBase):
             all_y = []
             for i in range(n_waveforms):
                 wf_single = waveforms[i]  # (width, n_channels)
-                wf_flat = wf_single.T.flatten()
+                wf_flat = wf_single.T.ravel()
                 xvect = np.arange(len(wf_flat))
                 all_x.extend(xvect)
                 all_x.append(np.nan)  # Disconnect between waveforms
@@ -739,9 +739,9 @@ class WaveformView(ViewBase):
                 connect[0, :] = 0
                 connect[-1, :] = 0
 
-                all_x.extend(unit_xvect.flatten())
-                all_y.extend(wf_plot.T.flatten())
-                all_connect.extend(connect.T.flatten())
+                all_x.extend(unit_xvect.ravel())
+                all_y.extend(wf_plot.T.ravel())
+                all_connect.extend(connect.T.ravel())
 
             all_x = np.array(all_x)
             all_y = np.array(all_y)
@@ -770,7 +770,7 @@ class WaveformView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import WheelZoomTool, Range1d
+        from bokeh.models import WheelZoomTool, Range1d, ColumnDataSource
         from bokeh.events import MouseWheel
 
         from .utils_panel import _bg_color, KeyboardShortcut, KeyboardShortcuts
@@ -800,7 +800,15 @@ class WaveformView(ViewBase):
         self.figure_geom.x_range = Range1d(np.min(x) - 50, np.max(x) + 50)
         self.figure_geom.y_range = Range1d(np.min(y) - 50, np.max(y) + 50)
 
-        self.lines_geom = None
+        self.lines_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_geom = self.figure_geom.multi_line('xs', 'ys', source=self.lines_data_source,
+                                                      line_color='colors', line_width=2)
+        self.patch_ys_lower_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.patch_ys_upper_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_ys_lower = self.figure_geom.multi_line('xs', 'ys', source=self.patch_ys_lower_data_source,
+                                                         line_color='colors', line_width=1, line_alpha=0.3)
+        self.lines_ys_upper = self.figure_geom.multi_line('xs', 'ys', source=self.patch_ys_upper_data_source,
+                                                         line_color='colors', line_width=1, line_alpha=0.3)
 
         # figures for flatten
         self.shared_x_range = Range1d(start=0, end=1500)
@@ -1023,8 +1031,7 @@ class WaveformView(ViewBase):
     def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
         # this clear the figure
         self._panel_clear_scalebars()
-        self.figure_geom.renderers = []
-        self.lines_geom = None
+
         # Clear waveform samples when refreshing
         dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
 
@@ -1061,8 +1068,8 @@ class WaveformView(ViewBase):
 
             color = self.get_unit_color(unit_id)
 
-            xs.append(xvect.flatten())
-            ys.append(wf.T.flatten())
+            xs.append(xvect.ravel())
+            ys.append(wf.T.ravel())
             colors.append(color)
 
             # Don't plot std when waveform samples are being plotted (to avoid clutter)
@@ -1073,15 +1080,16 @@ class WaveformView(ViewBase):
                 wv_lower = wf - wv_std * self.gain_y * self.delta_y
                 wv_higher = wf + wv_std * self.gain_y * self.delta_y
 
-                patch_ys_lower.append(wv_lower.T.flatten())
-                patch_ys_higher.append(wv_higher.T.flatten())
+                patch_ys_lower.append(wv_lower.T.ravel())
+                patch_ys_higher.append(wv_higher.T.ravel())
 
-        self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
+        # self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
+        self.lines_data_source.data = dict(xs=xs, ys=ys, colors=colors)
 
         # # plot the mean plus/minus the std as semi-transparent lines
         if len(patch_ys_lower) > 0:
-            self.figure_geom.multi_line(xs, patch_ys_higher, alpha=0.6, line_color=colors)
-            self.figure_geom.multi_line(xs, patch_ys_lower, alpha=0.6, line_color=colors)
+            self.patch_ys_lower_data_source.data = dict(xs=xs, ys=patch_ys_lower, colors=colors)
+            self.patch_ys_upper_data_source.data = dict(xs=xs, ys=patch_ys_higher, colors=colors)
 
         if self.settings["plot_selected_spike"]:
             self._panel_refresh_one_spike()
@@ -1117,8 +1125,8 @@ class WaveformView(ViewBase):
             template_std = self.controller.templates_std[unit_index, :, :][:, common_channel_indexes]
             nsamples, nchannels = template_avg.shape
 
-            y_avg = template_avg.T.flatten()
-            y_std = template_std.T.flatten()
+            y_avg = template_avg.T.ravel()
+            y_std = template_std.T.ravel()
             x = np.arange(y_avg.size)
 
             color = self.get_unit_color(unit_id)
@@ -1168,7 +1176,7 @@ class WaveformView(ViewBase):
             if wf.shape[0] == width:
                 # this avoid border bugs
                 if self.mode == "flatten":
-                    wf = wf.T.flatten()
+                    wf = wf.T.ravel()
                     x = np.arange(wf.size)
 
                     color = "white"
@@ -1185,7 +1193,7 @@ class WaveformView(ViewBase):
 
                     color = "white"
 
-                    source = {"x": xvect.flatten(), "y": wf.T.flatten()}
+                    source = {"x": xvect.ravel(), "y": wf.T.ravel()}
                     line = self.figure_geom.line("x", "y", source=source, line_color=color, line_width=0.5)
                     self.lines_wfs.append(line)
 
@@ -1275,7 +1283,7 @@ class WaveformView(ViewBase):
             all_y = []
             for i in range(n_waveforms):
                 wf_single = waveforms[i]  # (width, n_channels)
-                wf_flat = wf_single.T.flatten()
+                wf_flat = wf_single.T.ravel()
                 xvect = np.arange(len(wf_flat))
                 all_x.extend(xvect.tolist())
                 all_x.append(None)  # Bokeh uses None for disconnection
@@ -1301,8 +1309,8 @@ class WaveformView(ViewBase):
                 wf_plot[0, :] = np.nan
                 wf_plot[-1, :] = np.nan
 
-                all_x.extend(unit_xvect.flatten().tolist())
-                all_y.extend(wf_plot.T.flatten().tolist())
+                all_x.extend(unit_xvect.ravel().tolist())
+                all_y.extend(wf_plot.T.ravel().tolist())
 
             line = self.figure_geom.line(
                 "x", "y", source=dict(x=all_x, y=all_y), line_color=color, line_width=1, alpha=alpha
