@@ -761,16 +761,19 @@ class UnitListView(ViewBase):
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "good")
                 self.table.value.loc[selected_unit_ids, "quality"] = "good"
+                self.notify_manual_curation_updated()
                 self.refresh()
             elif event.data == "mua":
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "MUA")
                 self.table.value.loc[selected_unit_ids, "quality"] = "MUA"
+                self.notify_manual_curation_updated()
                 self.refresh()
             elif event.data == "noise":
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "noise")
                 self.table.value.loc[selected_unit_ids, "quality"] = "noise"
+                self.notify_manual_curation_updated()
                 self.refresh()
 
 

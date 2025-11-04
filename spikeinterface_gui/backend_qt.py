@@ -35,7 +35,6 @@ class SignalNotifier(QT.QObject):
         self.channel_visibility_changed.emit()
 
     def notify_manual_curation_updated(self):
-        print("about to emit a manual_curation_updated.emit()")
         self.manual_curation_updated.emit()
 
     def notify_time_info_updated(self):

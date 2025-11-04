@@ -30,7 +30,6 @@ class SignalNotifier(param.Parameterized):
         self.param.trigger("channel_visibility_changed")
 
     def notify_manual_curation_updated(self):
-        print("About to trigger a manual_curation_updated")
         self.param.trigger("manual_curation_updated")
 
     def notify_time_info_updated(self):

@@ -506,7 +506,11 @@ class CurationView(ViewBase):
         self.notify_unit_visibility_changed()
 
     def _panel_on_manual_curation_updated(self):
-        self.warning("Your current curation is not saved.")
+        import panel as pn
+        if type(self.layout[0].objects[0]) == pn.pane.markup.Markdown:
+            return
+        else:
+            self.warning("Your current curation is not saved.")
 
     def _panel_restore_units(self, event):
         self.restore_units()
