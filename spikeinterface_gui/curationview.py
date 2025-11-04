@@ -82,7 +82,6 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        v.addWidget(QT.QLabel("<b>Deleted</b>"))
         self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         v.addWidget(self.table_delete)
@@ -99,7 +98,6 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        v.addWidget(QT.QLabel("<b>Merges</b>"))
         self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         # self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
@@ -118,7 +116,6 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        v.addWidget(QT.QLabel("<b>Splits</b>"))
         self.table_split = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
                                      selectionBehavior=QT.QAbstractItemView.SelectRows)
         v.addWidget(self.table_split)
@@ -139,7 +136,7 @@ class CurationView(ViewBase):
         self.table_merge.clear()
         self.table_merge.setRowCount(len(merged_units))
         self.table_merge.setColumnCount(1)
-        self.table_merge.setHorizontalHeaderLabels(["Merges"])
+        self.table_merge.setHorizontalHeaderLabels(["merges"])
         self.table_merge.setSortingEnabled(False)
         for ix, group in enumerate(merged_units):
             item = QT.QTableWidgetItem(str(group))
@@ -153,7 +150,7 @@ class CurationView(ViewBase):
         self.table_delete.clear()
         self.table_delete.setRowCount(len(removed_units))
         self.table_delete.setColumnCount(1)
-        self.table_delete.setHorizontalHeaderLabels(["unit_id"])
+        self.table_delete.setHorizontalHeaderLabels(["removed"])
         self.table_delete.setSortingEnabled(False)
         for i, unit_id in enumerate(removed_units):
             color = self.get_unit_color(unit_id)
@@ -172,7 +169,7 @@ class CurationView(ViewBase):
         self.table_split.clear()
         self.table_split.setRowCount(len(splits))
         self.table_split.setColumnCount(1)
-        self.table_split.setHorizontalHeaderLabels(["Split units"])
+        self.table_split.setHorizontalHeaderLabels(["splits"])
         self.table_split.setSortingEnabled(False)
         for i, split in enumerate(splits):
             unit_id = split["unit_id"]
