@@ -7,17 +7,17 @@ from .basescatterview import BaseScatterView
 class SpikeAmplitudeView(BaseScatterView):
     _depend_on = ["spike_amplitudes"]
     _settings = BaseScatterView._settings + [
-        {'name': 'noise_level', 'type': 'bool', 'value' : True },
-        {'name': 'noise_factor', 'type': 'int', 'value' : 5 },
+        {"name": "noise_level", "type": "bool", "value": True},
+        {"name": "noise_factor", "type": "int", "value": 5},
     ]
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         y_label = "Amplitude (uV)"
         spike_data = controller.spike_amplitudes
         # set noise level to False by default in panel
-        if backend == 'panel' or controller.noise_levels is None:
+        if backend == "panel" or controller.noise_levels is None:
             noise_level_settings_index = [s["name"] for s in SpikeAmplitudeView._settings].index("noise_level")
-            SpikeAmplitudeView._settings[noise_level_settings_index]['value'] = False        
+            SpikeAmplitudeView._settings[noise_level_settings_index]["value"] = False
         BaseScatterView.__init__(
             self,
             controller=controller,
@@ -29,6 +29,7 @@ class SpikeAmplitudeView(BaseScatterView):
 
     def _qt_make_layout(self):
         from .myqt import QT
+
         super()._qt_make_layout()
         self.noise_harea = []
         if self.settings["noise_level"]:
@@ -57,39 +58,102 @@ class SpikeAmplitudeView(BaseScatterView):
         alpha_factor = 50 / n
         for i in range(1, n + 1):
             n = self.plot2.addItem(
-                pg.LinearRegionItem(values=(-i * noise, i * noise), orientation="horizontal",
-                                    brush=(255, 255, 255, int(i * alpha_factor)), pen=(0, 0, 0, 0))
+                pg.LinearRegionItem(
+                    values=(-i * noise, i * noise),
+                    orientation="horizontal",
+                    brush=(255, 255, 255, int(i * alpha_factor)),
+                    pen=(0, 0, 0, 0),
+                )
             )
             self.noise_harea.append(n)
 
-    def _panel_refresh(self):
-        super()._panel_refresh()
-        # update noise area
-        self.noise_harea = []
-        if self.settings['noise_level'] and len(self.noise_harea) == 0:
-            self._panel_add_noise_area()
-        else:
-            self.noise_harea = []
+    def _panel_make_layout(self):
+        self.noise_sources = []
+        self.noise_hareas = []
+        layout = super()._panel_make_layout()
 
-    def _panel_add_noise_area(self):
-        self.noise_harea = []
+        return layout
+
+    def _panel_create_noise_areas(self):
+        """Create noise area glyphs based on current noise_factor."""
+        from bokeh.models import ColumnDataSource
+
+        if self.controller.noise_levels is None:
+            return
+
         noise = np.mean(self.controller.noise_levels)
-        n = self.settings['noise_factor']
+        n = self.settings["noise_factor"]
         alpha_factor = 50 / n
+
+        self.noise_sources = []
+        self.noise_hareas = []
+
         for i in range(1, n + 1):
+            alpha = int(i * alpha_factor) / 255
+            source = ColumnDataSource(data=dict(y=[-i * noise, i * noise], x1=[0, 0], x2=[10_000, 10_000]))
+            self.noise_sources.append(source)
+
             h = self.hist_fig.harea(
                 y="y",
                 x1="x1",
                 x2="x2",
-                source={
-                    "y": [-i * noise, i * noise],
-                    "x1": [0, 0],
-                    "x2": [10_000, 10_000],
-                },
-                alpha=int(i * alpha_factor) / 255,  # Match Qt alpha scaling
+                source=source,
+                alpha=alpha,
                 color="lightgray",
+                visible=self.settings["noise_level"],
             )
-            self.noise_harea.append(h)
+            self.noise_hareas.append(h)
+
+    def _panel_remove_noise_areas(self):
+        """Remove all noise area glyphs from the figure."""
+        for harea in self.noise_hareas:
+            if harea in self.hist_fig.renderers:
+                self.hist_fig.renderers.remove(harea)
+
+        self.noise_sources = []
+        self.noise_hareas = []
+
+    def _panel_refresh(self):
+        # Toggle visibility and update data if needed
+        if self.settings["noise_level"]:
+            if len(self.noise_hareas) != self.settings["noise_factor"]:
+                # Remove old areas
+                self._panel_remove_noise_areas()
+                # Create new areas
+                self._panel_create_noise_areas()
+            else:
+                self._panel_update_noise_areas()
+            # Make visible
+            for harea in self.noise_hareas:
+                harea.visible = True
+        elif len(self.noise_hareas) > 0:
+            # Hide areas
+            for harea in self.noise_hareas:
+                harea.visible = False
+
+        super()._panel_refresh()
+
+    def _panel_update_noise_areas(self):
+        if self.controller.noise_levels is None or len(self.noise_hareas) == 0:
+            return
+
+        noise = np.mean(self.controller.noise_levels)
+        n = self.settings["noise_factor"]
+        alpha_factor = 50 / n
+
+        x_min = self.hist_fig.x_range.start if not np.isnan(self.hist_fig.x_range.start) else 0
+        x_max = self.hist_fig.x_range.end if not np.isnan(self.hist_fig.x_range.end) else 10_000
+
+        for i in range(n):
+            alpha = int(i * alpha_factor) / 255
+            noise_harea = self.noise_hareas[i]
+            if noise_harea.glyph.fill_alpha != alpha:
+                noise_harea.glyph.fill_alpha = alpha
+            self.noise_sources[i].data = dict(
+                y=[-(i + 1) * noise, (i + 1) * noise],
+                x1=[x_min, x_min],
+                x2=[x_max, x_max],
+            )
 
 
 SpikeAmplitudeView._gui_help_txt = """
