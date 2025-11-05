@@ -19,6 +19,11 @@ class MergeView(ViewBase):
     ]
 
     _method_params = {}
+    _method_params["similarity"] = [
+            {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
+            {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
+    ]
+
     for method_name, method_params in _compute_merge_presets.items():
         _method_params[method_name] = []
         for method_param in method_params:
@@ -31,10 +36,7 @@ class MergeView(ViewBase):
                     }
                 )
 
-    _method_params["similarity"] = [
-            {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
-            {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
-    ]
+
 
     _need_compute = False
 
@@ -65,7 +67,7 @@ class MergeView(ViewBase):
             method_params = self.method_params[method]
 
             steps_params = {}
-            for name in method_params.names:
+            for name in method_params.keys():
                 step_name, step_param = name.split("/")
                 if steps_params.get(step_name) is None:
                     steps_params[step_name] = {}
