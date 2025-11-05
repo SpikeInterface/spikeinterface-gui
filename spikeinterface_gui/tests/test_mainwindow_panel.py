@@ -1,10 +1,9 @@
+from argparse import ArgumentParser
 from spikeinterface_gui import run_mainwindow, run_launcher
 
 from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folder, make_curation_dict
 
 from spikeinterface import load_sorting_analyzer
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
 
 
 from pathlib import Path
@@ -19,8 +18,8 @@ import numpy as np
 # logging.basicConfig(level=logging.DEBUG)
 
 
-test_folder = Path(__file__).parent / 'my_dataset_small'
-# test_folder = Path(__file__).parent / 'my_dataset_big'
+# test_folder = Path(__file__).parent / 'my_dataset_small'
+test_folder = Path(__file__).parent / 'my_dataset_big'
 # test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 
@@ -108,7 +107,22 @@ def test_launcher(verbose=True):
     win = run_launcher(mode="web", analyzer_folders=analyzer_folders, verbose=verbose)
 
 
+
+
+parser = ArgumentParser()
+parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
+
 if __name__ == '__main__':
+    args = parser.parse_args()
+    dataset = args.dataset
+    if dataset == "small":
+        test_folder = Path(__file__).parent / 'my_dataset_small'
+    elif dataset == "big":
+        test_folder = Path(__file__).parent / 'my_dataset_big'
+    elif dataset == "multiprobe":
+        test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
+    else:
+        test_folder = Path(dataset)
     if not test_folder.is_dir():
         setup_module()
 

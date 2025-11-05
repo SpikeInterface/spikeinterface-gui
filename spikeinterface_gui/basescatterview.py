@@ -9,10 +9,10 @@ class BaseScatterView(ViewBase):
     _depend_on = None
     _settings = [
             {'name': "auto_decimate", 'type': 'bool', 'value' : True },
-            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 10_000 },
+            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 5_000 },
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
             {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5 },
-            {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
+            {'name': 'num_bins', 'type': 'int', 'value' : 100, 'step': 1 },
         ]
     _need_compute = False
     
@@ -407,6 +407,8 @@ class BaseScatterView(ViewBase):
         # Add SelectionGeometry event handler to capture lasso vertices
         self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)
 
+        self.hist_source = ColumnDataSource(data={"x": [], "y": []})
+        self.hist_data_source = ColumnDataSource(data=dict(x=[], y=[], color=[]))
         self.hist_fig = bpl.figure(
             tools="reset,wheel_zoom",
             sizing_mode="stretch_both",
@@ -416,6 +418,8 @@ class BaseScatterView(ViewBase):
             y_range=self.y_range,
             styles={"flex": "1"}  # Make histogram narrower than scatter plot
         )
+        self.lines_hist = self.hist_fig.multi_line('x', 'y', source=self.hist_data_source,
+                                                   line_color='color', line_width=2)
         self.hist_fig.toolbar.logo = None
         self.hist_fig.yaxis.axis_label = self.y_label
         self.hist_fig.xaxis.axis_label = "Count"
@@ -447,17 +451,13 @@ class BaseScatterView(ViewBase):
                 ),
             )
         )
-        self.hist_lines = []
+        # self.hist_lines = []
         self.noise_harea = []
         self.plotted_inds = []
 
     def _panel_refresh(self):
         from bokeh.models import ColumnDataSource, Range1d
 
-        # clear figures
-        for renderer in self.hist_lines:
-            self.hist_fig.renderers.remove(renderer)
-        self.hist_lines = []
         self.plotted_inds = []
 
         max_count = 1
@@ -465,6 +465,9 @@ class BaseScatterView(ViewBase):
         ys = []
         colors = []
 
+        xh = []
+        yh = []
+        colors_h = []
         segment_index = self.controller.get_time()[1]
         # get view segment index from segment selector
         segment_index_from_selector = self.segment_selector.options.index(self.segment_selector.value)
@@ -484,18 +487,11 @@ class BaseScatterView(ViewBase):
             max_count = max(max_count, np.max(hist_count))
             self.plotted_inds.extend(inds)
 
-            hist_lines = self.hist_fig.line(
-                "x",
-                "y",
-                source=ColumnDataSource(
-                    {"x":hist_count,
-                     "y":hist_bins[:-1],
-                     }
-                ),
-                line_color=color,
-                line_width=2,
-            )
-            self.hist_lines.append(hist_lines)
+            # Prepare data for multi_line
+            xh.append(hist_count)
+            yh.append(hist_bins[:-1])
+            colors_h.append(color)
+
         t_start, t_end = self.controller.get_t_start_t_stop()
         self.scatter_fig.x_range.start = t_start
         self.scatter_fig.x_range.end = t_end
@@ -503,13 +499,20 @@ class BaseScatterView(ViewBase):
         self._max_count = max_count
 
         # Add scatter plot with correct alpha parameter
-        self.scatter_source.data = {
-            "x": xs,
-            "y": ys,
-            "color": colors
-        }
+        self.scatter_source.data = dict(
+            x=xs,
+            y=ys,
+            color=colors
+        )
         self.scatter.glyph.size = self.settings['scatter_size']
         self.scatter.glyph.fill_alpha = self.settings['alpha']
+
+        # Update histogram multi_line data
+        self.hist_data_source.data = dict(
+            x=xh,
+            y=yh,
+            color=colors_h
+        )
 
         # handle selected spikes
         self._panel_update_selected_spikes()
@@ -528,7 +531,6 @@ class BaseScatterView(ViewBase):
         else:
             self.scatter_fig.toolbar.active_drag = None
             self.scatter_source.selected.indices = []
-
 
     def _panel_change_segment(self, event):
         self._current_selected = 0

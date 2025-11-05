@@ -281,7 +281,6 @@ class WaveformHeatMapView(ViewBase):
         self.figure.y_range.start = 0
         self.figure.y_range.end = hist2d.shape[1]
 
-
     def _panel_gain_zoom(self, event):
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.color_mapper.high = self.color_mapper.high * factor

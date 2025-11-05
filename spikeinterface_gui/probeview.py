@@ -22,8 +22,8 @@ class ProbeView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         self.contact_positions = controller.get_contact_location()
         self.probes = controller.get_probegroup().probes
+        self._unit_positions = controller.unit_positions
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
-        self._unit_positions = self.controller.unit_positions
 
     def get_probe_vertices(self):
         all_vertices = []
@@ -322,11 +322,19 @@ class ProbeView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool
+        from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool, Range1d
         from bokeh.events import Tap, PanStart, PanEnd
         from .utils_panel import CustomCircle, _bg_color
 
         # Plot probe shape
+        visible_mask = self.controller.get_units_visibility_mask()
+        if sum(visible_mask) > 0:
+            visible_pos = self.controller.unit_positions[visible_mask, :]
+            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+            margin = 50
+        self.x_range = Range1d(x_min - margin, x_max + margin)
+        self.y_range = Range1d(y_min - margin, y_max + margin)
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
             tools="wheel_zoom,reset",
@@ -334,6 +342,8 @@ class ProbeView(ViewBase):
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             match_aspect=True,
+            x_range=self.x_range,
+            y_range=self.y_range,
             outline_line_color="white",
             styles={"flex": "1"}
         )
@@ -475,17 +485,24 @@ class ProbeView(ViewBase):
         )
 
     def _panel_refresh(self):
-        from bokeh.models import Range1d
+        # Only update unit positions if they actually changed
+        current_unit_positions = self.controller.unit_positions
+        if not np.array_equal(current_unit_positions, self._unit_positions):
+            self._unit_positions = current_unit_positions
+            # Update positions in data source
+            self.unit_glyphs.data_source.patch({
+                'x': [(i, pos[0]) for i, pos in enumerate(current_unit_positions)],
+                'y': [(i, pos[1]) for i, pos in enumerate(current_unit_positions)]
+            })
 
         # Update unit positions
         self._panel_update_unit_glyphs()
 
-        # chennel labels
+        # channel labels
         for label in self.channel_labels:
             label.visible = self.settings['show_channel_id']
 
         # Update selection circles if only one unit is visible
-
         selected_unit_indices = self.controller.get_visible_unit_indices()
         if len(selected_unit_indices) == 1:
             unit_index = selected_unit_indices[0]
@@ -506,36 +523,50 @@ class ProbeView(ViewBase):
                 x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
                 y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
                 margin = 50
-                self.figure.x_range = Range1d(x_min - margin, x_max + margin)
-                self.figure.y_range = Range1d(y_min - margin, y_max + margin)
+                self.x_range.start = x_min - margin
+                self.x_range.end = x_max + margin
+                self.y_range.start = y_min - margin
+                self.y_range.end = y_max + margin
 
     def _panel_update_unit_glyphs(self):
-        # Prepare unit appearance data
-        unit_positions = self.controller.unit_positions
-        colors = []
-        border_colors = []
-        alphas = []
-        sizes = []
+        # Get current data from source
+        current_alphas = self.unit_glyphs.data_source.data['alpha']
+        current_sizes = self.unit_glyphs.data_source.data['size']
+        current_line_colors = self.unit_glyphs.data_source.data['line_color']
 
-        for unit_id in self.controller.unit_ids:
+        # Prepare patches (only for changed values)
+        alpha_patches = []
+        size_patches = []
+        line_color_patches = []
+
+        for idx, unit_id in enumerate(self.controller.unit_ids):
             color = self.get_unit_color(unit_id)
             is_visible = self.controller.get_unit_visibility(unit_id)
-            colors.append(color)
-            alphas.append(self.alpha_selected if is_visible else self.alpha_unselected)
-            sizes.append(self.unit_marker_size_selected if is_visible else self.unit_marker_size_unselected)
-            border_colors.append("black" if is_visible else color)
 
-        # Create new glyph with all required data
-        data_source = {
-            "x": unit_positions[:, 0].tolist(),
-            "y": unit_positions[:, 1].tolist(),
-            "color": colors,
-            "line_color": border_colors,
-            "alpha": alphas,
-            "size": sizes,
-            "unit_id": [str(u) for u in self.controller.unit_ids],
-        }
-        self.unit_glyphs.data_source.data.update(data_source)
+            # Compute new values
+            new_alpha = self.alpha_selected if is_visible else self.alpha_unselected
+            new_size = self.unit_marker_size_selected if is_visible else self.unit_marker_size_unselected
+            new_line_color = "black" if is_visible else color
+
+            # Only patch if changed
+            if current_alphas[idx] != new_alpha:
+                alpha_patches.append((idx, new_alpha))
+            if current_sizes[idx] != new_size:
+                size_patches.append((idx, new_size))
+            if current_line_colors[idx] != new_line_color:
+                line_color_patches.append((idx, new_line_color))
+
+        # Apply patches if any changes detected
+        if len(alpha_patches) > 0 or len(size_patches) > 0 or len(line_color_patches) > 0:
+            patch_dict = {}
+            if alpha_patches:
+                patch_dict['alpha'] = alpha_patches
+            if size_patches:
+                patch_dict['size'] = size_patches
+            if line_color_patches:
+                patch_dict['line_color'] = line_color_patches
+
+            self.unit_glyphs.data_source.patch(patch_dict)
             
     def _panel_on_pan_start(self, event):
         self.figure.toolbar.active_drag = None
@@ -645,12 +676,13 @@ class ProbeView(ViewBase):
                 # Update visibility - make only this unit visible
                 self.controller.set_all_unit_visibility_off()
                 self.controller.set_unit_visibility(unit_id, True)
-
             else:
                 self.controller.set_unit_visibility(unit_id, not self.controller.get_unit_visibility(unit_id))
                 # Update circles position if this is the only visible unit
                 if len(self.controller.get_visible_unit_ids()) == 1:
                     select_only = True
+
+            self._panel_update_unit_glyphs()
 
             
             if select_only:
@@ -663,7 +695,6 @@ class ProbeView(ViewBase):
                 self.controller.set_channel_visibility(visible_channel_inds)
                 self.notify_channel_visibility_changed
             self.notify_unit_visibility_changed()
-            self._panel_update_unit_glyphs()
 
 
 def circle_from_roi(roi):

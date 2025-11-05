@@ -1,4 +1,4 @@
-import warnings
+import time
 import numpy as np
 
 from .view_base import ViewBase
@@ -76,7 +76,7 @@ class UnitListView(ViewBase):
         self.table.cellDoubleClicked.connect(self._qt_on_double_clicked)
         self.shortcut_visible = QT.QShortcut(self.qt_widget)
         self.shortcut_visible.setKey(QT.QKeySequence(QT.Key_Space))
-        self.shortcut_visible.activated.connect(self.on_visible_shortcut)
+        self.shortcut_visible.activated.connect(self._qt_on_visible_shortcut)
         
         # Enable column dragging
         header = self.table.horizontalHeader()
@@ -366,7 +366,7 @@ class UnitListView(ViewBase):
             unit_ids.append(item.unit_id)
         return unit_ids
 
-    def on_visible_shortcut(self):
+    def _qt_on_visible_shortcut(self):
         rows = self._qt_get_selected_rows()
 
         self.controller.set_visible_unit_ids(self.get_selected_unit_ids())
@@ -611,27 +611,42 @@ class UnitListView(ViewBase):
 
     def _panel_refresh(self):
         df = self.table.value
-        visible = []
         dict_unit_visible = self.controller.get_dict_unit_visible()
+
+        # only patch changed visible values
+        indices_changed = []
+        visible_values_changed = []
         for unit_id in df.index.values:
-            visible.append(dict_unit_visible[unit_id])
-        df.loc[:, "visible"] = visible
+            if dict_unit_visible[unit_id] != df["visible"].loc[unit_id]:
+                indices_changed.append(unit_id)
+                visible_values_changed.append(dict_unit_visible[unit_id])
 
         if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
             # in the mode color change dynamically but without notify to avoid double refresh
             self._panel_refresh_colors()
 
-        table_columns = self.table.value.columns
+        table_columns = list(self.table.value.columns)
+        columns_to_drop = [
+            col for col in table_columns
+            if col not in self.main_cols + self.controller.displayed_unit_properties
+        ]
+        columns_to_add = [
+            col for col in self.controller.displayed_unit_properties if col not in table_columns
+        ]
 
-        for table_col in table_columns:
-            if table_col not in self.main_cols + self.controller.displayed_unit_properties:
-                df.drop(columns=[table_col], inplace=True)
-
-        for col in self.controller.displayed_unit_properties:
-            if col not in table_columns:
+        # Only do full refresh if columns changed (rare case)
+        if columns_to_drop or columns_to_add:
+            df = self.table.value.copy()
+            for col in columns_to_drop:
+                df.drop(columns=[col], inplace=True)
+            for col in columns_to_add:
+                df[col] = self.controller.units_table[col]
                 self.table.hidden_columns.append(col)
 
-        self.table.value = df
+        # refresh visible column
+        self.table.patch_column("visible", visible_values_changed, indices_changed)
+
+        # refresh header
         self._panel_refresh_header()
 
     def _panel_refresh_header(self):

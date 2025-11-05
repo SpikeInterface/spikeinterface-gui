@@ -98,6 +98,7 @@ class SpikeRateView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
+        from bokeh.models import Range1d, ColumnDataSource
         from .utils_panel import _bg_color
 
         segment_index = self.controller.get_time()[1]
@@ -108,17 +109,26 @@ class SpikeRateView(ViewBase):
         )
         self.segment_selector.param.watch(self._panel_change_segment, 'value')
 
+        t_start, t_stop  = self.controller.get_t_start_t_stop()
+        self.x_range = Range1d(start=t_start, end=t_stop)
+        self.y_range = Range1d(start=0, end=100)
         self.rate_fig = bpl.figure(
             tools="pan,wheel_zoom,reset",
             active_drag="pan",
             active_scroll="wheel_zoom",
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
+            x_range=self.x_range,
+            y_range=self.y_range,
             outline_line_color="white",
             sizing_mode="stretch_both",
         )
         self.rate_fig.toolbar.logo = None
         self.rate_fig.grid.visible = False
+
+        self.spike_rate_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_spike_rate = self.rate_fig.multi_line('xs', 'ys', source=self.spike_rate_data_source,
+                                                         line_color='colors', line_width=2)
 
         self.layout = pn.Column(
             pn.Row(self.segment_selector, sizing_mode="stretch_width"),
@@ -143,10 +153,10 @@ class SpikeRateView(ViewBase):
         num_bins = total_frames[segment_index] // int(sampling_frequency) // bins_s
         t_start, t_stop  = self.controller.get_t_start_t_stop()
 
-        # clear fig
-        self.rate_fig.renderers = []
-
         max_count = 0
+        xs = []
+        ys = []
+        colors = []
         for unit_id in visible_unit_ids:
 
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
@@ -156,17 +166,17 @@ class SpikeRateView(ViewBase):
             
             # Get color from controller
             color = self.get_unit_color(unit_id)
-
-            line = self.rate_fig.line(
-                x=(bins[1:]+bins[:-1]) / (2*sampling_frequency) + t_start,
-                y=count / bins_s,
-                color=color,
-                line_width=2,
-            )
+            xs.append((bins[1:]+bins[:-1]) / (2*sampling_frequency) + t_start)
+            ys.append(count / bins_s)
+            colors.append(color)
             max_count = max(max_count, np.max(count/bins_s))
 
-        self.rate_fig.x_range = Range1d(start=t_start, end=t_stop)
-        self.rate_fig.y_range = Range1d(start=0, end=max_count*1.2)
+        self.spike_rate_data_source.data = dict(xs=xs, ys=ys, colors=colors)
+
+        self.x_range.start = t_start
+        self.x_range.end = t_stop
+        self.y_range.start = 0
+        self.y_range.end = max_count*1.2
 
     def _panel_change_segment(self, event):
         segment_index = int(self.segment_selector.value.split()[-1])
