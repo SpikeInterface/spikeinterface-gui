@@ -916,7 +916,7 @@ class WaveformView(ViewBase):
 
         if self.settings["plot_selected_spike"] and self.settings["overlap"]:
             self._panel_refresh_one_spike()
-        elif self.settings["plot_waveforms_samples"]:
+        else:
             self._panel_refresh_waveforms_samples()
 
     def _panel_clear_scalebars(self):

@@ -14,10 +14,7 @@ class SpikeAmplitudeView(BaseScatterView):
     def __init__(self, controller=None, parent=None, backend="qt"):
         y_label = "Amplitude (uV)"
         spike_data = controller.spike_amplitudes
-        # set noise level to False by default in panel
-        if backend == "panel" or controller.noise_levels is None:
-            noise_level_settings_index = [s["name"] for s in SpikeAmplitudeView._settings].index("noise_level")
-            SpikeAmplitudeView._settings[noise_level_settings_index]["value"] = False
+
         BaseScatterView.__init__(
             self,
             controller=controller,
@@ -141,9 +138,6 @@ class SpikeAmplitudeView(BaseScatterView):
         n = self.settings["noise_factor"]
         alpha_factor = 50 / n
 
-        x_min = self.hist_fig.x_range.start if not np.isnan(self.hist_fig.x_range.start) else 0
-        x_max = self.hist_fig.x_range.end if not np.isnan(self.hist_fig.x_range.end) else 10_000
-
         for i in range(n):
             alpha = int(i * alpha_factor) / 255
             noise_harea = self.noise_hareas[i]
@@ -151,8 +145,8 @@ class SpikeAmplitudeView(BaseScatterView):
                 noise_harea.glyph.fill_alpha = alpha
             self.noise_sources[i].data = dict(
                 y=[-(i + 1) * noise, (i + 1) * noise],
-                x1=[x_min, x_min],
-                x2=[x_max, x_max],
+                x1=[0, 0],
+                x2=[10_000, 10_000],
             )
 
 
