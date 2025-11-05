@@ -292,6 +292,7 @@ class CurationView(ViewBase):
             with json_file.open("w") as f:
                 curation_dict = check_json(self.controller.construct_final_curation())
                 json.dump(curation_dict, f, indent=4)
+            self.controller.current_curation_saved = True
 
     # PANEL
     def _panel_make_layout(self):
@@ -469,6 +470,31 @@ class CurationView(ViewBase):
         self.table_split.value = df
         self.table_split.selection = []
 
+        if not self.controller.current_curation_saved:
+            self.ensure_save_warning_message()
+        else:
+            self.ensure_no_message()
+
+    def ensure_save_warning_message(self):
+
+        if self.layout[0].name == 'curation_save_warning':
+            return
+
+        import panel as pn
+
+        alert_markdown = pn.pane.Markdown(
+            f"""⚠️⚠️⚠️ Your curation is not saved""",
+            hard_line_break=True,
+            styles={"color": "red", "font-size": "16px"},
+            name="curation_save_warning"
+        )
+
+        self.layout.insert(0, alert_markdown)
+
+    def ensure_no_message(self):
+        if self.layout[0].name == 'curation_save_warning':
+            self.layout.pop(0)
+
     def _panel_update_unit_visibility(self, event):
         unit_dtype = self.controller.unit_ids.dtype
         if self.active_table == "delete":
@@ -501,6 +527,7 @@ class CurationView(ViewBase):
 
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()
+        self.refresh()
 
     def _panel_generate_json(self):
         # Get the path from the text input
@@ -511,36 +538,11 @@ class CurationView(ViewBase):
         with open(export_path, "w") as f:
             json.dump(curation_dict, f, indent=4)
 
+        self.controller.current_curation_saved = True
+
+        self.refresh()
+
         return export_path
-
-    def _panel_get_delete_table_selection(self):
-        selected_items = self.table_delete.selection
-        if len(selected_items) == 0:
-            return None
-        else:
-            return self.table_delete.value["removed"].values[selected_items].tolist()
-
-    def _panel_get_merge_table_row(self):
-        selected_items = self.table_merge.selection
-        if len(selected_items) == 0:
-            return None
-        else:
-            return selected_items
-
-    def _panel_get_split_table_row(self):
-        selected_items = self.table_split.selection
-        if len(selected_items) == 0:
-            return None
-        else:
-            return selected_items
-
-    def _panel_handle_shortcut(self, event):
-        if event.data == "restore":
-            self.restore_units()
-        elif event.data == "unmerge":
-            self.unmerge()
-        elif event.data == "unsplit":
-            self.unsplit()
 
     def _panel_submit_to_parent(self, event):
         """Send the curation data to the parent window"""
@@ -572,6 +574,38 @@ class CurationView(ViewBase):
 
         # Update the hidden div with the JavaScript code
         self.data_div.object = js_code
+        # Submitting to parent is a way to "save" the curation (the parent can handle it)
+        self.controller.current_curation_saved = True
+        self.refresh()
+
+    def _panel_get_delete_table_selection(self):
+        selected_items = self.table_delete.selection
+        if len(selected_items) == 0:
+            return None
+        else:
+            return self.table_delete.value["removed"].values[selected_items].tolist()
+
+    def _panel_get_merge_table_row(self):
+        selected_items = self.table_merge.selection
+        if len(selected_items) == 0:
+            return None
+        else:
+            return selected_items
+
+    def _panel_get_split_table_row(self):
+        selected_items = self.table_split.selection
+        if len(selected_items) == 0:
+            return None
+        else:
+            return selected_items
+
+    def _panel_handle_shortcut(self, event):
+        if event.data == "restore":
+            self.restore_units()
+        elif event.data == "unmerge":
+            self.unmerge()
+        elif event.data == "unsplit":
+            self.unsplit()
 
     def _panel_on_unit_visibility_changed(self):
         for table in [self.table_delete, self.table_merge, self.table_split]:

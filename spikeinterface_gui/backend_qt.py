@@ -311,6 +311,19 @@ class QtMainWindow(QT.QMainWindow):
 
     # used by to tell the launcher this is closed
     def closeEvent(self, event):
+
+        if not self.controller.current_curation_saved: 
+            reply = QT.QMessageBox.question(self, 'Confirmation',
+                "You are daydreaming: your curation has not been saved. You can save it at the top of the 'CurationView'.\nDo you still want to quit?", QT.QMessageBox.Yes |
+                QT.QMessageBox.No, QT.QMessageBox.No)
+            if reply == QT.QMessageBox.Yes:
+                # 2. Accept the event to allow closing
+                pass
+            else:
+                # 3. Ignore the event to prevent closing
+                event.ignore()
+                return
+
         self.main_window_closed.emit(self)
         event.accept()
 
