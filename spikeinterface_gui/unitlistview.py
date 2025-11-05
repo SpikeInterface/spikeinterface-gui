@@ -608,13 +608,16 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_refresh(self):
-        t_start = time.perf_counter()
         df = self.table.value
         dict_unit_visible = self.controller.get_dict_unit_visible()
-        visible = []
+
+        # only patch changed visible values
+        indices_changed = []
+        visible_values_changed = []
         for unit_id in df.index.values:
-            visible.append(dict_unit_visible[unit_id])
-        df.loc[:, "visible"] = visible
+            if dict_unit_visible[unit_id] != df["visible"].loc[unit_id]:
+                indices_changed.append(unit_id)
+                visible_values_changed.append(dict_unit_visible[unit_id])
 
         if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
             # in the mode color change dynamically but without notify to avoid double refresh
@@ -637,18 +640,12 @@ class UnitListView(ViewBase):
             for col in columns_to_add:
                 df[col] = self.controller.units_table[col]
                 self.table.hidden_columns.append(col)
-        t_end = time.perf_counter()
-        print(f"unit list view prepare data time: {t_end - t_start:0.3f} s")
 
-        t_start = time.perf_counter()
-        self.table.refresh()
-        t_end = time.perf_counter()
-        print(f"unit list view table refresh time: {t_end - t_start:0.3f} s")
+        # refresh visible column
+        self.table.patch_column("visible", visible_values_changed, indices_changed)
 
-        t_start = time.perf_counter()
+        # refresh header
         self._panel_refresh_header()
-        t_end = time.perf_counter()
-        print(f"unit list view header refresh time: {t_end - t_start:0.3f} s")
 
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids

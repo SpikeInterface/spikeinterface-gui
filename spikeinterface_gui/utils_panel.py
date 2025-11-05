@@ -422,14 +422,15 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.refresh_tabulator_settings()
         self.tabulator.value = val
 
-    def patch_column(self, column, column_values, idxs=None):
-        self.refresh_tabulator_settings()
-        if idxs is None:
+    def patch_column(self, column, column_values, indices=None):
+        if indices is None:
             # Update all rows
             self.tabulator.value[column] = column_values
         else:
             # Update specific rows using loc (works with both positional indices and index labels)
-            self.tabulator.value.loc[self.tabulator.value.index[idxs], column] = column_values
+            self.tabulator.value.loc[indices, column] = column_values
+        # trigger a refresh
+        self.tabulator.param.trigger("value")
 
     def refresh_tabulator_settings(self):
         self.tabulator.formatters = self._formatters
