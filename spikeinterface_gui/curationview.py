@@ -26,7 +26,6 @@ class CurationView(ViewBase):
             unit_ids = [self.controller.unit_ids.dtype.type(unit_id) for unit_id in unit_ids]
             self.controller.make_manual_restore(unit_ids)
             self.notify_manual_curation_updated()
-            self.on_manual_curation_updated()
             self.refresh()
 
     def unmerge(self):
@@ -37,7 +36,6 @@ class CurationView(ViewBase):
         if merge_indices is not None:
             self.controller.make_manual_restore_merge(merge_indices)
             self.notify_manual_curation_updated()
-            self.on_manual_curation_updated()
             self.refresh()
 
     def unsplit(self):
@@ -50,7 +48,6 @@ class CurationView(ViewBase):
             self.controller.set_indices_spike_selected([])
             self.notify_spike_selection_changed()
             self.notify_manual_curation_updated()
-            self.on_manual_curation_updated()
             self.refresh()
 
     def select_and_notify_split(self, split_unit_id):
@@ -283,14 +280,10 @@ class CurationView(ViewBase):
         self._qt_clear_selection()
 
     def on_manual_curation_updated(self):
-        if self.backend == "panel":
-            self._panel_on_manual_curation_updated()
         self.refresh()
     
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
-        if self.backend == "panel":
-            self._panel_clear_warning(None)
 
     def _qt_export_json(self):
         from .myqt import QT
@@ -481,6 +474,31 @@ class CurationView(ViewBase):
         self.table_split.value = df
         self.table_split.selection = []
 
+        if not self.controller.current_curation_saved:
+            self.ensure_save_warning_message()
+        else:
+            self.ensure_no_message()
+
+    def ensure_save_warning_message(self):
+
+        if self.layout[0].name == 'curation_save_warning':
+            return
+
+        import panel as pn
+
+        alert_markdown = pn.pane.Markdown(
+            f"""⚠️⚠️⚠️ Your curation is not saved""",
+            hard_line_break=True,
+            styles={"color": "red", "font-size": "16px"},
+            name="curation_save_warning"
+        )
+
+        self.layout.insert(0, alert_markdown)
+
+    def ensure_no_message(self):
+        if self.layout[0].name == 'curation_save_warning':
+            self.layout.pop(0)
+
     def _panel_update_unit_visibility(self, event):
         unit_dtype = self.controller.unit_ids.dtype
         if self.active_table == "delete":
@@ -505,13 +523,6 @@ class CurationView(ViewBase):
                 self.controller.set_visible_unit_ids([split_unit])
         self.notify_unit_visibility_changed()
 
-    def _panel_on_manual_curation_updated(self):
-        import panel as pn
-        if type(self.layout[0].objects[0]) == pn.pane.markup.Markdown:
-            return
-        else:
-            self.warning("Your current curation is not saved.")
-
     def _panel_restore_units(self, event):
         self.restore_units()
 
@@ -520,6 +531,7 @@ class CurationView(ViewBase):
 
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()
+        self.refresh()
 
     def _panel_generate_json(self):
         # Get the path from the text input
@@ -530,7 +542,9 @@ class CurationView(ViewBase):
         with open(export_path, "w") as f:
             json.dump(curation_dict, f, indent=4)
 
-        self._panel_clear_warning(None)
+        self.controller.current_curation_saved = True
+
+        self.refresh()
 
         return export_path
 
