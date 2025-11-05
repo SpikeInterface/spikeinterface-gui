@@ -1,4 +1,4 @@
-import warnings
+import time
 import numpy as np
 
 from .view_base import ViewBase
@@ -608,6 +608,7 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_refresh(self):
+        t_start = time.perf_counter()
         df = self.table.value
         dict_unit_visible = self.controller.get_dict_unit_visible()
         visible = []
@@ -636,9 +637,18 @@ class UnitListView(ViewBase):
             for col in columns_to_add:
                 df[col] = self.controller.units_table[col]
                 self.table.hidden_columns.append(col)
+        t_end = time.perf_counter()
+        print(f"unit list view prepare data time: {t_end - t_start:0.3f} s")
 
+        t_start = time.perf_counter()
         self.table.refresh()
+        t_end = time.perf_counter()
+        print(f"unit list view table refresh time: {t_end - t_start:0.3f} s")
+
+        t_start = time.perf_counter()
         self._panel_refresh_header()
+        t_end = time.perf_counter()
+        print(f"unit list view header refresh time: {t_end - t_start:0.3f} s")
 
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids
