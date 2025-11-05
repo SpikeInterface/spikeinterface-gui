@@ -9,10 +9,10 @@ class BaseScatterView(ViewBase):
     _depend_on = None
     _settings = [
             {'name': "auto_decimate", 'type': 'bool', 'value' : True },
-            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 10_000 },
+            {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 5_000 },
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05 },
             {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5 },
-            {'name': 'num_bins', 'type': 'int', 'value' : 400, 'step': 1 },
+            {'name': 'num_bins', 'type': 'int', 'value' : 100, 'step': 1 },
         ]
     _need_compute = False
     

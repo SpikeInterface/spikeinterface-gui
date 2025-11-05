@@ -800,8 +800,8 @@ class WaveformView(ViewBase):
         self.figure_geom.x_range = Range1d(np.min(x) - 50, np.max(x) + 50)
         self.figure_geom.y_range = Range1d(np.min(y) - 50, np.max(y) + 50)
 
-        self.lines_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
-        self.lines_geom = self.figure_geom.multi_line('xs', 'ys', source=self.lines_data_source,
+        self.lines_data_source_geom = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.lines_geom = self.figure_geom.multi_line('xs', 'ys', source=self.lines_data_source_geom,
                                                       line_color='colors', line_width=2)
         self.patch_ys_lower_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
         self.patch_ys_upper_data_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
@@ -1062,21 +1062,18 @@ class WaveformView(ViewBase):
 
     def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
         self._panel_clear_scalebars()
-        if not self.settings["plot_selected_spike"] and not self.settings["plot_waveforms_samples"]:
-            # clear waveforms samples when refreshing
-            self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
 
-        # Clear waveform samples when refreshing
         dict_visible_units = dict_visible_units or self.controller.get_dict_unit_visible()
-
-        common_channel_indexes = self.get_common_channels()
-        if common_channel_indexes is None:
-            return
-
         visible_unit_ids = self.controller.get_visible_unit_ids()
         visible_unit_indices = self.controller.get_visible_unit_indices()
 
         if len(visible_unit_ids) == 0:
+            self._panel_clear_data_sources()
+            return
+
+        common_channel_indexes = self.get_common_channels()
+        if common_channel_indexes is None:
+            self._panel_clear_data_sources()
             return
 
         xvectors = self.xvect[common_channel_indexes, :] * self.factor_x
@@ -1118,7 +1115,7 @@ class WaveformView(ViewBase):
                 patch_ys_higher.append(wv_higher.T.ravel())
 
         # self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
-        self.lines_data_source.data = dict(xs=xs, ys=ys, colors=colors)
+        self.lines_data_source_geom.data = dict(xs=xs, ys=ys, colors=colors)
 
         # # plot the mean plus/minus the std as semi-transparent lines
         if len(patch_ys_lower) > 0:
@@ -1144,6 +1141,10 @@ class WaveformView(ViewBase):
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
+            self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+
+        if len(self.controller.get_visible_unit_ids()) == 0:
+            self._panel_clear_data_sources()
             return
 
         xs = []
@@ -1244,20 +1245,42 @@ class WaveformView(ViewBase):
                 source = self.lines_data_source_wfs_geom
             source.data = dict(xs=[], ys=[], colors=[])
 
+    def _panel_clear_data_sources(self):
+        """Clear all data sources related to waveform samples in panel backend"""
+        # geometry mode
+        self.lines_data_source_geom.data = dict(xs=[], ys=[], colors=[])
+        self.patch_ys_lower_data_source.data = dict(xs=[], ys=[], colors=[])
+        self.patch_ys_upper_data_source.data = dict(xs=[], ys=[], colors=[])
+        self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
+        # flatten mode
+        self.lines_data_source_avg.data = dict(xs=[], ys=[], colors=[])
+        self.lines_data_source_std.data = dict(xs=[], ys=[], colors=[])
+        self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+        self.vlines_data_source_avg.data = dict(xs=[], ys=[], colors=[])
+        self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
+
     def _panel_refresh_waveforms_samples(self):
         """Handle waveform samples plotting for panel backend"""
         if not self.settings["plot_waveforms_samples"]:
+            self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+            self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
             return
 
         if not self.controller.has_extension("waveforms"):
+            self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+            self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
             return
 
         num_waveforms = self.settings["num_waveforms"]
         if num_waveforms <= 0:
+            self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+            self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
             return
 
         common_channel_indexes = self.get_common_channels()
         if common_channel_indexes is None:
+            self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+            self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
             return
 
         wf_ext = self.controller.analyzer.get_extension("waveforms")
