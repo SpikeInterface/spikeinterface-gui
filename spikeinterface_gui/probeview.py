@@ -322,11 +322,19 @@ class ProbeView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool
+        from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool, Range1d
         from bokeh.events import Tap, PanStart, PanEnd
         from .utils_panel import CustomCircle, _bg_color
 
         # Plot probe shape
+        visible_mask = self.controller.get_units_visibility_mask()
+        if sum(visible_mask) > 0:
+            visible_pos = self.controller.unit_positions[visible_mask, :]
+            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+            margin = 50
+        self.x_range = Range1d(x_min - margin, x_max + margin)
+        self.y_range = Range1d(y_min - margin, y_max + margin)
         self.figure = bpl.figure(
             sizing_mode="stretch_both",
             tools="wheel_zoom,reset",
@@ -334,6 +342,8 @@ class ProbeView(ViewBase):
             background_fill_color=_bg_color,
             border_fill_color=_bg_color,
             match_aspect=True,
+            x_range=self.x_range,
+            y_range=self.y_range,
             outline_line_color="white",
             styles={"flex": "1"}
         )
@@ -475,8 +485,6 @@ class ProbeView(ViewBase):
         )
 
     def _panel_refresh(self):
-        from bokeh.models import Range1d
-
         # Only update unit positions if they actually changed
         current_unit_positions = self.controller.unit_positions
         if not np.array_equal(current_unit_positions, self._unit_positions):
@@ -495,7 +503,6 @@ class ProbeView(ViewBase):
             label.visible = self.settings['show_channel_id']
 
         # Update selection circles if only one unit is visible
-
         selected_unit_indices = self.controller.get_visible_unit_indices()
         if len(selected_unit_indices) == 1:
             unit_index = selected_unit_indices[0]
@@ -516,8 +523,10 @@ class ProbeView(ViewBase):
                 x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
                 y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
                 margin = 50
-                self.figure.x_range = Range1d(x_min - margin, x_max + margin)
-                self.figure.y_range = Range1d(y_min - margin, y_max + margin)
+                self.x_range.start = x_min - margin
+                self.x_range.end = x_max + margin
+                self.y_range.start = y_min - margin
+                self.y_range.end = y_max + margin
 
     def _panel_update_unit_glyphs(self):
         # Get current data from source
