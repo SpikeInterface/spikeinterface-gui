@@ -705,6 +705,7 @@ class UnitListView(ViewBase):
             if new_label == "":
                 new_label = None
             self.controller.set_label_to_unit(unit_id, column, new_label)
+            self.notify_manual_curation_updated()
         self.notifier.notify_active_view_updated()
 
     def _panel_on_only_selection(self):
