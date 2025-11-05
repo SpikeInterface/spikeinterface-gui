@@ -3,28 +3,38 @@ import itertools
 
 from .view_base import ViewBase
 
+from spikeinterface.curation.auto_merge import _compute_merge_presets, _default_step_params
 
 class MergeView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = None
 
-    _methods = [{"name": "method", "type": "list", "limits": ["similarity", "automerge"]}]
+    _methods = [
+        {
+            "name": "method",
+            "type": "list",
+            "limits": ["similarity"] + list(_compute_merge_presets.keys()),
+        }
+    ]
 
-    _method_params = {
-        "similarity": [
+    _method_params = {}
+    for method_name, method_params in _compute_merge_presets.items():
+        _method_params[method_name] = []
+        for method_param in method_params:
+            for name, value in _default_step_params[method_param].items():
+                _method_params[method_name].append(
+                    {
+                        "name": method_param + "/" + name,
+                        "value": value,
+                        "type": type(value).__name__,
+                    }
+                )
+
+    _method_params["similarity"] = [
             {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
             {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
-        ],
-        "automerge": [
-            {"name": "automerge_preset", "type": "list", "limits": [
-                'similarity_correlograms',
-                'temporal_splits',
-                'x_contaminations',
-                'feature_neighbors'
-            ]}
-        ]
-    }
+    ]
 
     _need_compute = False
 
@@ -48,14 +58,22 @@ class MergeView(ViewBase):
             unit_ids = self.controller.unit_ids
             self.proposed_merge_unit_groups = [[unit_ids[i], unit_ids[j]] for i, j in zip(*np.nonzero(th_sim)) if i < j]
             self.merge_info = {'similarity': similarity}
-        elif method == 'automerge':
-            automerge_params = self.method_params['automerge']
-            params = {
-                'preset': automerge_params['automerge_preset']
-            }
-            self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params)
         else:
-            raise ValueError(f"Unknown method: {method}")
+            params_dict = {}
+            params_dict["preset"] = method
+
+            method_params = self.method_params[method]
+
+            steps_params = {}
+            for name in method_params.names:
+                step_name, step_param = name.split("/")
+                if steps_params.get(step_name) is None:
+                    steps_params[step_name] = {}
+                steps_params[step_name][step_param] = method_params[name]
+            params_dict["steps_params"] = steps_params
+
+            self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params_dict)
+
         if self.controller.verbose:
             print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
 

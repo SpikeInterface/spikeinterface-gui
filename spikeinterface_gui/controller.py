@@ -788,7 +788,8 @@ class Controller():
             self.analyzer,
             preset=params['preset'],
             extra_outputs=True,
-            resolve_graph=False
+            resolve_graph=False,
+            steps_params=params['steps_params'],
         )
 
         return merge_unit_groups, extra
