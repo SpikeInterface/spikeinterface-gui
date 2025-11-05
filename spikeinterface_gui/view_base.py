@@ -57,6 +57,7 @@ class ViewBase:
         self.notifier.notify_channel_visibility_changed()
 
     def notify_manual_curation_updated(self):
+        self.controller.current_curation_saved = False
         self.notifier.notify_manual_curation_updated()
 
     def notify_time_info_updated(self):

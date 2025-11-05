@@ -193,6 +193,8 @@ class UnitListView(ViewBase):
         for unit_id in selected_unit_ids:
             self.controller.set_label_to_unit(unit_id, "quality", label)
 
+        self.notify_manual_curation_updated()
+
         selected_rows = self._qt_get_selected_rows()
         for row in selected_rows:
             curation_label = self.table.item(row, self.label_columns[0])
@@ -718,6 +720,7 @@ class UnitListView(ViewBase):
             if new_label == "":
                 new_label = None
             self.controller.set_label_to_unit(unit_id, column, new_label)
+            self.notify_manual_curation_updated()
         self.notifier.notify_active_view_updated()
 
     def _panel_on_only_selection(self):
@@ -774,16 +777,19 @@ class UnitListView(ViewBase):
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "good")
                 self.table.value.loc[selected_unit_ids, "quality"] = "good"
+                self.notify_manual_curation_updated()
                 self.refresh()
             elif event.data == "mua":
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "MUA")
                 self.table.value.loc[selected_unit_ids, "quality"] = "MUA"
+                self.notify_manual_curation_updated()
                 self.refresh()
             elif event.data == "noise":
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "noise")
                 self.table.value.loc[selected_unit_ids, "quality"] = "noise"
+                self.notify_manual_curation_updated()
                 self.refresh()
 
 
