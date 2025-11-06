@@ -586,7 +586,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self.figure.yaxis.visible = False
 
         # Add data sources
-        self.signal_source = ColumnDataSource({"xs": [], "ys": [], "channel_id": []})
+        self.signal_source = ColumnDataSource({"xs": [], "ys": []})
 
         self.spike_source = ColumnDataSource({"x": [], "y": [], "color": []})
 
@@ -625,7 +625,6 @@ class TraceView(ViewBase, MixinViewTrace):
             self.signal_source.data.update({
                 "xs": [[]],
                 "ys": [[]],
-                "channel_id": [],
             })
             self.spike_source.data.update({
                 "x": [],
@@ -642,7 +641,6 @@ class TraceView(ViewBase, MixinViewTrace):
                 {
                     "xs": [times_chunk]*n,
                     "ys": [data_curves[i, :] for i in range(n)],
-                    "channel_id": self.get_visible_channel_inds(),
                 }
             )
 

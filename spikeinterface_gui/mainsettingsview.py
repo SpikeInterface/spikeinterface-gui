@@ -43,8 +43,6 @@ class MainSettingsView(ViewBase):
         self.controller.main_settings['use_times'] = self.main_settings['use_times']
         self.controller.update_time_info()
         self.notify_use_times_updated()
-        # for view in self.controller.views:
-        #     view.refresh()
 
     def save_current_settings(self, event=None):
         
