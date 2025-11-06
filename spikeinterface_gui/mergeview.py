@@ -5,6 +5,18 @@ from .view_base import ViewBase
 
 from spikeinterface.curation.auto_merge import _compute_merge_presets, _default_step_params
 
+
+similarity_preset = {
+    "template_similarity",
+}
+similarity_params = {
+    "template_diff_thresh": 0.25
+}
+
+default_preset_list = list(_compute_merge_presets.keys())
+_compute_merge_presets["similarity"] = similarity_preset
+
+
 class MergeView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
@@ -12,18 +24,14 @@ class MergeView(ViewBase):
 
     _methods = [
         {
-            "name": "method",
+            "name": "preset",
             "type": "list",
-            "limits": ["similarity"] + list(_compute_merge_presets.keys()),
+            # set similarity to default
+            "limits": ["similarity"] + default_preset_list
         }
     ]
 
     _method_params = {}
-    _method_params["similarity"] = [
-            {"name": "similarity_threshold", "type": "float", "value": .9, "step": 0.01},
-            {"name": "similarity_method", "type": "list", "limits": ["l1", "l2", "cosine"]},
-    ]
-
     for method_name, method_params in _compute_merge_presets.items():
         _method_params[method_name] = []
         for method_param in method_params:
@@ -36,45 +44,29 @@ class MergeView(ViewBase):
                     }
                 )
 
-
-
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
-        if controller.has_extension("template_similarity"):
-            similarity_ext = controller.analyzer.get_extension("template_similarity")
-            similarity_method = similarity_ext.params["method"]
-            self._method_params["similarity"][1]["value"] = similarity_method
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
     def get_potential_merges(self):
         method = self.method
         if self.controller.verbose:
             print(f"Computing potential merges using {method} method")
-        if method == 'similarity':
-            similarity_params = self.method_params['similarity']
-            similarity = self.controller.get_similarity(similarity_params['similarity_method'])
-            if similarity is None:
-                similarity = self.controller.compute_similarity(similarity_params['similarity_method'])
-            th_sim = similarity > similarity_params['similarity_threshold']
-            unit_ids = self.controller.unit_ids
-            self.proposed_merge_unit_groups = [[unit_ids[i], unit_ids[j]] for i, j in zip(*np.nonzero(th_sim)) if i < j]
-            self.merge_info = {'similarity': similarity}
-        else:
-            params_dict = {}
-            params_dict["preset"] = method
+        params_dict = {}
+        params_dict["preset"] = method
 
-            method_params = self.method_params[method]
+        method_params = self.method_params[method]
 
-            steps_params = {}
-            for name in method_params.keys():
-                step_name, step_param = name.split("/")
-                if steps_params.get(step_name) is None:
-                    steps_params[step_name] = {}
-                steps_params[step_name][step_param] = method_params[name]
-            params_dict["steps_params"] = steps_params
+        steps_params = {}
+        for name in method_params.keys():
+            step_name, step_param = name.split("/")
+            if steps_params.get(step_name) is None:
+                steps_params[step_name] = {}
+            steps_params[step_name][step_param] = method_params[name]
+        params_dict["steps_params"] = steps_params
 
-            self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params_dict)
+        self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params_dict)
 
         if self.controller.verbose:
             print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
@@ -85,14 +77,12 @@ class MergeView(ViewBase):
             return [], []
 
         max_group_size = max(len(g) for g in self.proposed_merge_unit_groups)
-        potential_labels = {"similarity", "correlogram_diff", "templates_diff"}
         more_labels = []
         for lbl in self.merge_info.keys():
-            if lbl in potential_labels:
-                if max_group_size == 2:
-                    more_labels.append(lbl)
-                else:
-                    more_labels.append([lbl + "_min", lbl + "_max"])
+            if max_group_size == 2:
+                more_labels.append(lbl)
+            else:
+                more_labels.append([lbl + "_min", lbl + "_max"])
 
         labels = [f"unit_id{i}" for i in range(max_group_size)] + more_labels + ["group_ids"]
 
@@ -176,7 +166,7 @@ class MergeView(ViewBase):
         self.accept_group_merge(item.group_ids)
 
     def _qt_on_method_change(self):
-        self.method = self.method_selector['method']
+        self.method = self.method_selector['preset']
         for method in self.method_params_selectors:
             self.method_params_selectors[method].setVisible(method == self.method)
         
@@ -212,7 +202,7 @@ class MergeView(ViewBase):
             self.method_params_selectors[method] = method_tree_settings
             self.method_params[method] = method_params
             self.layout.addWidget(method_tree_settings)
-        self.method = self.method_selector['method']
+        self.method = "similarity"
         self._qt_on_method_change()
 
         row_layout = QT.QHBoxLayout()
@@ -325,7 +315,7 @@ class MergeView(ViewBase):
             self.method_params[method] = method_params
             self.method_params_selectors[method] = pn.Param(method_params._parameterized, sizing_mode="stretch_width",
                                                             name=f"{method.capitalize()} parameters")
-        self.method = list(self.method_params.keys())[0]
+        self.method = "similarity"
 
         # shortcuts
         shortcuts = [
