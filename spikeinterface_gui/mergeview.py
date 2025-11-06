@@ -6,70 +6,71 @@ from .view_base import ViewBase
 from spikeinterface.curation.auto_merge import _compute_merge_presets, _default_step_params
 
 
-similarity_preset = {
-    "template_similarity",
-}
-similarity_params = {
-    "template_diff_thresh": 0.25
-}
+default_preset_list = ["similarity"] + list(_compute_merge_presets.keys())
 
-default_preset_list = list(_compute_merge_presets.keys())
-_compute_merge_presets["similarity"] = similarity_preset
-
+all_presets = _compute_merge_presets.copy()
+all_presets["similarity"] = ["template_similarity"]
 
 class MergeView(ViewBase):
     _supported_backend = ['qt', 'panel']
 
     _settings = None
 
-    _methods = [
+    _presets = [
         {
             "name": "preset",
             "type": "list",
             # set similarity to default
-            "limits": ["similarity"] + default_preset_list
+            "limits": default_preset_list
         }
     ]
 
-    _method_params = {}
-    for method_name, method_params in _compute_merge_presets.items():
-        _method_params[method_name] = []
-        for method_param in method_params:
-            for name, value in _default_step_params[method_param].items():
-                _method_params[method_name].append(
-                    {
-                        "name": method_param + "/" + name,
-                        "value": value,
-                        "type": type(value).__name__,
-                    }
-                )
-
+    _preset_params = {}
+    # add similarity preset parameters
+    for preset_name, preset_params in all_presets.items():
+        _preset_params[preset_name] = []
+        for step_name in preset_params:
+            for step_parameter_name, step_parameter_ in _default_step_params[step_name].items():
+                parameter_dict = {
+                    "name": step_name + "/" + step_parameter_name,
+                    "value": step_parameter_,
+                }
+                if step_parameter_name == "similarity_method":
+                    parameter_dict["type"] = "list"
+                    parameter_dict["limits"] = ["l1", "l2", "cosine"]
+                else:
+                    parameter_dict["type"] = type(step_parameter_).__name__
+                _preset_params[preset_name].append(parameter_dict)
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
     def get_potential_merges(self):
-        method = self.method
+        preset = self.preset
         if self.controller.verbose:
-            print(f"Computing potential merges using {method} method")
+            print(f"Computing potential merges using {preset} method")
         params_dict = {}
-        params_dict["preset"] = method
+        params_dict["preset"] = preset
 
-        method_params = self.method_params[method]
+        preset_params = self.preset_params[preset]
 
         steps_params = {}
-        for name in method_params.keys():
+        for name in preset_params.keys():
             step_name, step_param = name.split("/")
             if steps_params.get(step_name) is None:
                 steps_params[step_name] = {}
-            steps_params[step_name][step_param] = method_params[name]
+            steps_params[step_name][step_param] = preset_params[name]
         params_dict["steps_params"] = steps_params
 
+        # define steps for similarity preset
+        if preset == "similarity":
+            params_dict["preset"] = None
+            params_dict["steps"] = all_presets["similarity"]
         self.proposed_merge_unit_groups, self.merge_info = self.controller.compute_auto_merge(**params_dict)
 
         if self.controller.verbose:
-            print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {method} method")
+            print(f"Found {len(self.proposed_merge_unit_groups)} merge groups using {preset} preset")
 
     def get_table_data(self, include_deleted=False):
         """Get data for displaying in table"""
@@ -165,10 +166,10 @@ class MergeView(ViewBase):
     def _qt_on_double_click(self, item):
         self.accept_group_merge(item.group_ids)
 
-    def _qt_on_method_change(self):
-        self.method = self.method_selector['preset']
-        for method in self.method_params_selectors:
-            self.method_params_selectors[method].setVisible(method == self.method)
+    def _qt_on_preset_change(self):
+        self.preset = self.preset_selector['preset']
+        for preset in self.preset_params_selectors:
+            self.preset_params_selectors[preset].setVisible(preset == self.preset)
         
 
     def _qt_make_layout(self):
@@ -177,33 +178,33 @@ class MergeView(ViewBase):
 
         self.proposed_merge_unit_groups = []
 
-        # create method and arguments layout
-        self.method_selector = pg.parametertree.Parameter.create(name="method", type='group', children=self._methods)
-        method_select = pg.parametertree.ParameterTree(parent=None)
-        method_select.header().hide()
-        method_select.setParameters(self.method_selector, showTop=True)
-        method_select.setWindowTitle(u'View options')
-        method_select.setFixedHeight(50)
-        self.method_selector.sigTreeStateChanged.connect(self._qt_on_method_change)
+        # create presets and arguments layout
+        self.preset_selector = pg.parametertree.Parameter.create(name="preset", type='group', children=self._presets)
+        preset_select = pg.parametertree.ParameterTree(parent=None)
+        preset_select.header().hide()
+        preset_select.setParameters(self.preset_selector, showTop=True)
+        preset_select.setWindowTitle(u'View options')
+        preset_select.setFixedHeight(50)
+        self.preset_selector.sigTreeStateChanged.connect(self._qt_on_preset_change)
 
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
-        self.layout.addWidget(method_select)
+        self.layout.addWidget(preset_select)
 
-        self.method_params_selectors = {}
-        self.method_params = {}
-        for method, params in self._method_params.items():
-            method_params = pg.parametertree.Parameter.create(name="params", type='group', children=params)
-            method_tree_settings = pg.parametertree.ParameterTree(parent=None)
-            method_tree_settings.header().hide()
-            method_tree_settings.setParameters(method_params, showTop=True)
-            method_tree_settings.setWindowTitle(u'View options')
-            method_tree_settings.setFixedHeight(100)
-            self.method_params_selectors[method] = method_tree_settings
-            self.method_params[method] = method_params
-            self.layout.addWidget(method_tree_settings)
-        self.method = "similarity"
-        self._qt_on_method_change()
+        self.preset_params_selectors = {}
+        self.preset_params = {}
+        for preset, params in self._preset_params.items():
+            preset_params = pg.parametertree.Parameter.create(name="params", type='group', children=params)
+            preset_tree_settings = pg.parametertree.ParameterTree(parent=None)
+            preset_tree_settings.header().hide()
+            preset_tree_settings.setParameters(preset_params, showTop=True)
+            preset_tree_settings.setWindowTitle(u'View options')
+            preset_tree_settings.setFixedHeight(100)
+            self.preset_params_selectors[preset] = preset_tree_settings
+            self.preset_params[preset] = preset_params
+            self.layout.addWidget(preset_tree_settings)
+        self.preset = self.preset_selector['preset']
+        self._qt_on_preset_change()
 
         row_layout = QT.QHBoxLayout()
 
@@ -283,7 +284,7 @@ class MergeView(ViewBase):
         with self.busy_cursor():
             self.get_potential_merges()
         if len(self.proposed_merge_unit_groups) == 0:
-            self.warning(f"No potential merges found with method {self.method}")
+            self.warning(f"No potential merges found with preset {self.preset}")
         self.refresh()
 
     def _qt_on_spike_selection_changed(self):
@@ -302,20 +303,20 @@ class MergeView(ViewBase):
 
         self.proposed_merge_unit_groups = []
 
-        # Create method and arguments layout
-        method_settings = SettingsProxy(create_dynamic_parameterized(self._methods))
-        self.method_selector = pn.Param(method_settings._parameterized, sizing_mode="stretch_width", name="Method")
-        for setting_data in self._methods:
-            method_settings._parameterized.param.watch(self._panel_on_method_change, setting_data["name"])
+        # Create presets and arguments layout
+        preset_settings = SettingsProxy(create_dynamic_parameterized(self._presets))
+        self.preset_selector = pn.Param(preset_settings._parameterized, sizing_mode="stretch_width", name="Preset")
+        for setting_data in self._presets:
+            preset_settings._parameterized.param.watch(self._panel_on_preset_change, setting_data["name"])
 
-        self.method_params = {}
-        self.method_params_selectors = {}
-        for method, params in self._method_params.items():
-            method_params = SettingsProxy(create_dynamic_parameterized(params))
-            self.method_params[method] = method_params
-            self.method_params_selectors[method] = pn.Param(method_params._parameterized, sizing_mode="stretch_width",
-                                                            name=f"{method.capitalize()} parameters")
-        self.method = "similarity"
+        self.preset_params = {}
+        self.preset_params_selectors = {}
+        for preset, params in self._preset_params.items():
+            preset_params = SettingsProxy(create_dynamic_parameterized(params))
+            self.preset_params[preset] = preset_params
+            self.preset_params_selectors[preset] = pn.Param(preset_params._parameterized, sizing_mode="stretch_width",
+                                                            name=f"{preset.capitalize()} parameters")
+        self.preset = list(self.preset_params.keys())[0]
 
         # shortcuts
         shortcuts = [
@@ -342,8 +343,8 @@ class MergeView(ViewBase):
 
         self.layout = pn.Column(
             # add params
-            self.method_selector, 
-            self.method_params_selectors[self.method],
+            self.preset_selector, 
+            self.preset_params_selectors[self.preset],
             calculate_row,
             self.table_area,
             shortcuts_component,
@@ -394,9 +395,9 @@ class MergeView(ViewBase):
     def _panel_compute_merges(self, event):
         self._compute_merges()
 
-    def _panel_on_method_change(self, event):
-        self.method = event.new
-        self.layout[1] = self.method_params_selectors[self.method]
+    def _panel_on_preset_change(self, event):
+        self.preset = event.new
+        self.layout[1] = self.preset_params_selectors[self.preset]
 
     def _panel_on_click(self, event):
         # set unit visibility
@@ -442,10 +443,8 @@ MergeView._gui_help_txt = """
 ## Merge View
 
 This view allows you to compute potential merges between units based on their similarity or using the auto merge function.
-Select the method to use for merging units.
-The available methods are:
-- similarity: Computes the similarity between units based on their features.
-- automerge: uses the auto merge function in SpikeInterface to find potential merges.
+Select the preset to use for merging units.
+The available presets are inherited from spikeinterface.
 
 Click "Calculate merges" to compute the potential merges. When finished, the table will be populated 
 with the potential merges.
