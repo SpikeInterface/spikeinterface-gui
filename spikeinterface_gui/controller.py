@@ -420,7 +420,7 @@ class Controller():
 
     def update_time_info(self):
         # set default time info
-        if self.main_settings["use_times"] and self.analyzer.has_recording():
+        if self.main_settings["use_times"] and self.has_extension("recording"):
             time_by_seg=np.array(
                 [
                     self.analyzer.recording.get_start_time(segment_index) for segment_index in range(self.num_segments)
@@ -439,7 +439,7 @@ class Controller():
 
     def get_t_start_t_stop(self):
         segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.analyzer.has_recording():
+        if self.main_settings["use_times"] and self.has_extension("recording"):
             t_start = self.analyzer.recording.get_start_time(segment_index=segment_index)
             t_stop = self.analyzer.recording.get_end_time(segment_index=segment_index)
             return t_start, t_stop
@@ -471,7 +471,7 @@ class Controller():
 
     def sample_index_to_time(self, sample_index):
         segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.analyzer.has_recording():
+        if self.main_settings["use_times"] and self.has_extension("recording"):
             time = self.analyzer.recording.sample_index_to_time(sample_index, segment_index=segment_index)
             return time
         else:
@@ -479,7 +479,7 @@ class Controller():
 
     def time_to_sample_index(self, time):
         segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.analyzer.has_recording():
+        if self.main_settings["use_times"] and self.has_extension("recording"):
             time = self.analyzer.recording.time_to_sample_index(time, segment_index=segment_index)
             return time
         else:
