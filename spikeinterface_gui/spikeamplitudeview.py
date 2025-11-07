@@ -55,7 +55,7 @@ class SpikeAmplitudeView(BaseScatterView):
         alpha_factor = 50 / n
         self.noise_harea=[]
         for i in range(1, n + 1):
-            self.plot2.addItem(
+            noise_bar = self.plot2.addItem(
                 pg.LinearRegionItem(
                     values=(-i * noise, i * noise),
                     orientation="horizontal",
@@ -63,7 +63,7 @@ class SpikeAmplitudeView(BaseScatterView):
                     pen=(0, 0, 0, 0),
                 )
             )
-            self.noise_harea.append(i)
+            self.noise_harea.append(noise_bar)
 
     def _panel_make_layout(self):
         self.noise_sources = []
