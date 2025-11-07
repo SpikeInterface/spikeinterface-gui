@@ -12,9 +12,6 @@ import numpy as np
 import sys
 
 
-test_folder = Path(__file__).parent / 'my_dataset_small'
-# test_folder = Path(__file__).parent / 'my_dataset_big'
-# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
 
 # yep is for testing
 yep_layout = dict(
@@ -30,6 +27,7 @@ yep_layout = dict(
 
 
 def setup_module():
+    global test_folder
     case = test_folder.stem.split('_')[-1]
     make_analyzer_folder(test_folder, case=case)
 
@@ -123,14 +121,9 @@ parser.add_argument('--dataset', default="small", help='Path to the dataset fold
 if __name__ == '__main__':
     args = parser.parse_args()
     dataset = args.dataset
-    if dataset == "small":
-        test_folder = Path(__file__).parent / 'my_dataset_small'
-    elif dataset == "big":
-        test_folder = Path(__file__).parent / 'my_dataset_big'
-    elif dataset == "multiprobe":
-        test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
-    else:
-        test_folder = Path(dataset)
+    global test_folder
+    if dataset is not None:
+        test_folder = Path(dataset).parent / f"my_dataset_{dataset}"
     if not test_folder.is_dir():
         setup_module()
 

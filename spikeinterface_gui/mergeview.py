@@ -102,20 +102,29 @@ class MergeView(ViewBase):
                 # row[f"unit_id{i}_color"] = self.controller.get_unit_color(unit_id)
                 row["group_ids"] = group_ids
 
-            # Add metrics information
+            # Add pairwise metric information
             for info_name in more_labels:
                 values = []
-                for unit_id1, unit_id2 in itertools.combinations(group_ids, 2):
-                    unit_ind1 = unit_ids.index(unit_id1)
-                    unit_ind2 = unit_ids.index(unit_id2)
-                    values.append(self.merge_info[info_name][unit_ind1][unit_ind2])
+                merge_info = self.merge_info[info_name]
+                if isinstance(merge_info, np.ndarray) and \
+                    merge_info.shape == (len(unit_ids), len(unit_ids)):
+                        for unit_id1, unit_id2 in itertools.combinations(group_ids, 2):
+                            unit_ind1 = unit_ids.index(unit_id1)
+                            unit_ind2 = unit_ids.index(unit_id2)
+                            values.append(merge_info[unit_ind1][unit_ind2])
 
-                if max_group_size == 2:
-                    row[info_name] = f"{values[0]:.2f}"
+                        if max_group_size == 2:
+                            row[info_name] = f"{values[0]:.2f}"
+                        else:
+                            min_, max_ = min(values), max(values)
+                            row[f"{info_name}_min"] = f"{min_:.2f}"
+                            row[f"{info_name}_max"] = f"{max_:.2f}"
                 else:
-                    min_, max_ = min(values), max(values)
-                    row[f"{info_name}_min"] = f"{min_:.2f}"
-                    row[f"{info_name}_max"] = f"{max_:.2f}"
+                    if info_name in labels:
+                        labels.remove(info_name)
+                    elif f"{info_name}_min" in labels:
+                        labels.remove(f"{info_name}_min")
+                        labels.remove(f"{info_name}_max")
             rows.append(row)
         return labels, rows
 
@@ -271,7 +280,7 @@ class MergeView(ViewBase):
                     self.table.setItem(r, c, item)
                     item.setIcon(icon)
                     item.group_ids = row.get("group_ids", [])
-                elif "_color" not in label:
+                elif "_color" not in label and label in row:
                     value = row[label]
                     item = CustomItem(value)
                     self.table.setItem(r, c, item)
