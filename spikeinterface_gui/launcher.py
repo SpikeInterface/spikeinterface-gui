@@ -183,7 +183,7 @@ class Launcher:
         # Set window icon
         icon_file = Path(__file__).absolute().parent / "img" / "si.png"
         if icon_file.exists():
-            self.window.setWindowIcon(QT.QIcon(str(icon_file)))
+            app.setWindowIcon(QT.QIcon(str(icon_file)))
 
         self.window.show()
 
