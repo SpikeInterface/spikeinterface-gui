@@ -158,7 +158,7 @@ def run_mainwindow(
         # Set window icon
         icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
         if icon_file.exists():
-            win.setWindowIcon(QT.QIcon(str(icon_file)))
+            app.setWindowIcon(QT.QIcon(str(icon_file)))
         win.show()
         if start_app:
             app.exec()
