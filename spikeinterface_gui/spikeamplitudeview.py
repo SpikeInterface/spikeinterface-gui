@@ -29,7 +29,7 @@ class SpikeAmplitudeView(BaseScatterView):
 
         super()._qt_make_layout()
         self.noise_harea = []
-        if self.settings["noise_level"]:
+        if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             self._qt_add_noise_area()
         # add split shortcut, so that it's not duplicated
         shortcut_split = QT.QShortcut(self.qt_widget)
@@ -39,7 +39,7 @@ class SpikeAmplitudeView(BaseScatterView):
     def _qt_refresh(self):
         super()._qt_refresh()
         # average noise across channels
-        if self.settings["noise_level"] and len(self.noise_harea) == 0:
+        if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             self._qt_add_noise_area()
         # remove noise area if not selected
         elif not self.settings["noise_level"] and len(self.noise_harea) > 0:
@@ -53,8 +53,9 @@ class SpikeAmplitudeView(BaseScatterView):
         n = self.settings["noise_factor"]
         noise = np.mean(self.controller.noise_levels)
         alpha_factor = 50 / n
+        self.noise_harea=[]
         for i in range(1, n + 1):
-            n = self.plot2.addItem(
+            noise_bar = self.plot2.addItem(
                 pg.LinearRegionItem(
                     values=(-i * noise, i * noise),
                     orientation="horizontal",
@@ -62,7 +63,7 @@ class SpikeAmplitudeView(BaseScatterView):
                     pen=(0, 0, 0, 0),
                 )
             )
-            self.noise_harea.append(n)
+            self.noise_harea.append(noise_bar)
 
     def _panel_make_layout(self):
         self.noise_sources = []
@@ -75,7 +76,7 @@ class SpikeAmplitudeView(BaseScatterView):
         """Create noise area glyphs based on current noise_factor."""
         from bokeh.models import ColumnDataSource
 
-        if self.controller.noise_levels is None:
+        if not self.controller.has_extension("noise_levels"):
             return
 
         noise = np.mean(self.controller.noise_levels)
