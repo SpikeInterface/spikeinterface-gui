@@ -286,7 +286,7 @@ class PanelMainWindow:
             view_names = [view_name for view_name in view_names if view_name in self.view_layouts.keys()]
 
             if len(view_names) == 0:
-                layout_zone[zone] = None
+                layout_zone[zone] = []
             else:
                 layout_zone[zone] = pn.Tabs(
                     *((view_name, self.view_layouts[view_name]) for view_name in view_names if view_name in self.view_layouts),
@@ -298,9 +298,11 @@ class PanelMainWindow:
                 tabs = layout_zone[zone]
                 tabs.param.watch(self.update_visibility, "active")
                 # Simulate an event
-                self.update_visibility(param.parameterized.Event(
-                    cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
-                ))
+                self.update_visibility(
+                    param.parameterized.Event(
+                        cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
+                    )
+                )
 
         # Create GridStack layout with resizable regions
         gs = pn.GridStack(
