@@ -224,7 +224,6 @@ class PanelMainWindow:
             requested_views.extend(view_names)
         requested_views = set(requested_views)
         for view_name, view_class in possible_class_views.items():
-            view_class = possible_class_views[view_name]
             if 'panel' not in view_class._supported_backend:
                 continue
             if not self.controller.check_is_view_possible(view_name):
