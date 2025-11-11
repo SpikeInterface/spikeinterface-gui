@@ -15,6 +15,7 @@ class ViewBase:
         # this is used for panel
         self._panel_view_is_visible = True
         self._panel_view_is_active = False
+        self._panel_warning_active = False
 
         if self.backend == "qt":
             # For QT the parent is the **widget**
@@ -342,7 +343,11 @@ class ViewBase:
         close_button = pn.widgets.Button(name="Close", button_type="light")
         close_button.on_click(self._panel_clear_warning)
         row = pn.Column(alert_markdown, close_button, sizing_mode="stretch_width")
-        self.layout.insert(0, row)
+        if not self._panel_warning_active:
+            self.layout.insert(0, row)
+        else:
+            self.layout[0] = row
+        self._panel_warning_active = True
 
     def _panel_insert_warning_with_choice(self, warning_msg, continue_callback, *args):
         """Callback-based approach for Panel (recommended)"""
@@ -402,6 +407,7 @@ class ViewBase:
 
     def _panel_clear_warning(self, event):
         self.layout.pop(0)
+        self._panel_warning_active = False
 
     @contextmanager
     def _panel_busy_cursor(self):
