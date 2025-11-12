@@ -971,10 +971,10 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
-        if 'labels' in lbl: 
-            if category in lbl['labels']:
-                labels = lbl['labels'][category]
-                return labels[0]
+        if category in lbl:
+            labels = lbl[category]
+            return labels[0]
+            
 
     def set_label_to_unit(self, unit_id, category, label):
         if label is None:
