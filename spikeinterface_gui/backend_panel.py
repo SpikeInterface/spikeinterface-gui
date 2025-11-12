@@ -219,10 +219,16 @@ class PanelMainWindow:
         self.views = {}
         # this contains view layout + settings + compute
         self.view_layouts = {}
+        requested_views = []
+        for _, view_names in self.layout_dict.items():
+            requested_views.extend(view_names)
+        requested_views = set(requested_views)
         for view_name, view_class in possible_class_views.items():
             if 'panel' not in view_class._supported_backend:
                 continue
             if not self.controller.check_is_view_possible(view_name):
+                continue
+            if view_name not in requested_views:
                 continue
 
             if view_name == 'curation' and not self.controller.curation:
@@ -279,7 +285,7 @@ class PanelMainWindow:
             view_names = [view_name for view_name in view_names if view_name in self.view_layouts.keys()]
 
             if len(view_names) == 0:
-                layout_zone[zone] = None
+                layout_zone[zone] = []
             else:
                 layout_zone[zone] = pn.Tabs(
                     *((view_name, self.view_layouts[view_name]) for view_name in view_names if view_name in self.view_layouts),
@@ -291,9 +297,11 @@ class PanelMainWindow:
                 tabs = layout_zone[zone]
                 tabs.param.watch(self.update_visibility, "active")
                 # Simulate an event
-                self.update_visibility(param.parameterized.Event(
-                    cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
-                ))
+                self.update_visibility(
+                    param.parameterized.Event(
+                        cls=None, what="value", type="changed", old=0, new=0, obj=tabs, name="active",
+                    )
+                )
 
         # Create GridStack layout with resizable regions
         gs = pn.GridStack(
