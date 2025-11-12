@@ -269,7 +269,6 @@ class CurationView(ViewBase):
             self.table.setCurrentCell(min(sel_rows[-1] + 1, self.table.rowCount() - 1), 0)
 
     def _qt_on_unit_visibility_changed(self):
-        print("CurationView: unit visibility changed")
         self._qt_clear_selection()
 
     def on_manual_curation_updated(self):
