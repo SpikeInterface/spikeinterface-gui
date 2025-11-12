@@ -310,24 +310,11 @@ class Controller():
         # TODO: Reload the dictionary if it already exists
         if self.curation:
             # rules:
-            #  * if curation_data already exists in folder, then it is reloaded and has precedance
-            #  * if not, then use curation_data argument input
+            #  * if user sends curation_data, then it is used
+            #  * otherwise, if curation_data already exists in folder it is used
             #  * otherwise create an empty one
 
-            if self.analyzer.format == "binary_folder":
-                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
-                if json_file.exists():
-                    with open(json_file, "r") as f:
-                        curation_data = json.load(f)
-            elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
-                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
-                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
-
-            if curation_data is None:
-                self.curation_data = empty_curation_data.copy()
-            else:
+            if curation_data is not None:
                 # validate the curation data
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
@@ -355,7 +342,23 @@ class Controller():
                     curation_data["splits"] = []
                 if curation_data.get("removed") is None:
                     curation_data["removed"] = []
-                self.curation_data = curation_data
+
+            elif self.analyzer.format == "binary_folder":
+                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
+                if json_file.exists():
+                    with open(json_file, "r") as f:
+                        curation_data = json.load(f)
+
+            elif self.analyzer.format == "zarr":
+                import zarr
+                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
+                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
+
+            if curation_data is None:
+                curation_data = empty_curation_data.copy()
+
+            self.curation_data = curation_data
 
             self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
