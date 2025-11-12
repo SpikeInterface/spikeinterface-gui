@@ -372,7 +372,6 @@ class Controller():
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
-
     def check_is_view_possible(self, view_name):
         from .viewlist import possible_class_views
         view_class = possible_class_views[view_name]
@@ -988,7 +987,7 @@ class Controller():
             if category in lbl:
                 lbl[category] = [label]
             else:
-                lbl[category] = [label]            
+                lbl[category] = [label]
         else:
             lbl = {"unit_id": unit_id, category:[label]}
             self.curation_data["manual_labels"].append(lbl)
