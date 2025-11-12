@@ -8,8 +8,9 @@ from spikeinterface.curation.auto_merge import _compute_merge_presets, _default_
 
 default_preset_list = ["similarity"] + list(_compute_merge_presets.keys())
 
-all_presets = _compute_merge_presets.copy()
+all_presets = {}
 all_presets["similarity"] = ["unit_locations", "template_similarity"]
+all_presets.update(_compute_merge_presets)
 
 class MergeView(ViewBase):
     _supported_backend = ['qt', 'panel']
