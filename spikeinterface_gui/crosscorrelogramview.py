@@ -30,6 +30,8 @@ class CrossCorrelogramView(ViewBase):
         self.ccg, self.bins = self.controller.compute_correlograms(
             self.settings['window_ms'],  self.settings['bin_ms']
         )
+        # clear cache
+        self.figure_cache = {}
 
     ## Qt ##
 

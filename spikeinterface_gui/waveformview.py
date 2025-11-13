@@ -914,10 +914,7 @@ class WaveformView(ViewBase):
         elif self.mode == "flatten":
             self._panel_refresh_mode_flatten(dict_visible_units, keep_range=keep_range)
 
-        if self.settings["plot_selected_spike"] and self.settings["overlap"]:
-            self._panel_refresh_one_spike()
-        else:
-            self._panel_refresh_waveforms_samples()
+        self._panel_refresh_spikes()
 
     def _panel_clear_scalebars(self):
         for line in self.scalebar_lines:
@@ -1047,14 +1044,14 @@ class WaveformView(ViewBase):
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.factor_x *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
-                    self._panel_refresh_waveforms_samples()
+                    self._panel_refresh_spikes()
             elif not modifiers["ctrl"]:
                 self.figure_geom.toolbar.active_scroll = None
                 if self.mode == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.gain_y *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
-                    self._panel_refresh_waveforms_samples()
+                    self._panel_refresh_spikes()
         else:
             # Ignore the event if it occurs too quickly
             self.figure_geom.toolbar.active_scroll = None
@@ -1083,8 +1080,10 @@ class WaveformView(ViewBase):
         ys = []
         colors = []
 
+        patch_xs = []
         patch_ys_lower = []
         patch_ys_higher = []
+        patch_colors = []
         for xvect, unit_index, unit_id in zip(xvects, visible_unit_indices, visible_unit_ids):
             template_avg = self.controller.templates_average[unit_index, :, :][:, common_channel_indexes]
             template_std = self.controller.templates_std
@@ -1111,19 +1110,17 @@ class WaveformView(ViewBase):
                 wv_lower = wf - wv_std * self.gain_y * self.delta_y
                 wv_higher = wf + wv_std * self.gain_y * self.delta_y
 
+                patch_xs.append(xvect.ravel())
                 patch_ys_lower.append(wv_lower.T.ravel())
                 patch_ys_higher.append(wv_higher.T.ravel())
+                patch_colors.append(color)
 
         # self.lines_geom = self.figure_geom.multi_line(xs, ys, line_color=colors, line_width=2)
         self.lines_data_source_geom.data = dict(xs=xs, ys=ys, colors=colors)
 
         # # plot the mean plus/minus the std as semi-transparent lines
-        if len(patch_ys_lower) > 0:
-            self.patch_ys_lower_data_source.data = dict(xs=xs, ys=patch_ys_lower, colors=colors)
-            self.patch_ys_upper_data_source.data = dict(xs=xs, ys=patch_ys_higher, colors=colors)
-
-        if self.settings["plot_selected_spike"]:
-            self._panel_refresh_one_spike()
+        self.patch_ys_lower_data_source.data = dict(xs=patch_xs, ys=patch_ys_lower, colors=patch_colors)
+        self.patch_ys_upper_data_source.data = dict(xs=patch_xs, ys=patch_ys_higher, colors=patch_colors)
 
         if not keep_range:
             self.figure_geom.x_range.start = np.min(xvects) - 50
@@ -1194,9 +1191,6 @@ class WaveformView(ViewBase):
         self.vlines_data_source_avg.data = dict(xs=xs, ys=ys_avg, colors=colors)
         self.vlines_data_source_std.data = dict(xs=xs, ys=ys_std, colors=colors)
 
-        if self.settings["plot_selected_spike"]:
-            self._panel_refresh_one_spike()
-
         self.shared_x_range.end = x[-1]
         self.figure_avg.x_range = self.shared_x_range
         self.figure_std.x_range = self.shared_x_range
@@ -1245,19 +1239,12 @@ class WaveformView(ViewBase):
                 source = self.lines_data_source_wfs_geom
             source.data = dict(xs=[], ys=[], colors=[])
 
-    def _panel_clear_data_sources(self):
-        """Clear all data sources related to waveform samples in panel backend"""
-        # geometry mode
-        self.lines_data_source_geom.data = dict(xs=[], ys=[], colors=[])
-        self.patch_ys_lower_data_source.data = dict(xs=[], ys=[], colors=[])
-        self.patch_ys_upper_data_source.data = dict(xs=[], ys=[], colors=[])
-        self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
-        # flatten mode
-        self.lines_data_source_avg.data = dict(xs=[], ys=[], colors=[])
-        self.lines_data_source_std.data = dict(xs=[], ys=[], colors=[])
-        self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
-        self.vlines_data_source_avg.data = dict(xs=[], ys=[], colors=[])
-        self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
+    def _panel_refresh_spikes(self):
+        """Refresh spikes plotting for panel backend"""
+        if self.settings["plot_selected_spike"] and self.settings["overlap"]:
+            self._panel_refresh_one_spike()
+        else:
+            self._panel_refresh_waveforms_samples()
 
     def _panel_refresh_waveforms_samples(self):
         """Handle waveform samples plotting for panel backend"""
@@ -1376,11 +1363,22 @@ class WaveformView(ViewBase):
             source = self.lines_data_source_wfs_geom
         source.data = dict(xs=[all_x], ys=[all_y], colors=[color])
 
+    def _panel_clear_data_sources(self):
+        """Clear all data sources related to waveform samples in panel backend"""
+        # geometry mode
+        self.lines_data_source_geom.data = dict(xs=[], ys=[], colors=[])
+        self.patch_ys_lower_data_source.data = dict(xs=[], ys=[], colors=[])
+        self.patch_ys_upper_data_source.data = dict(xs=[], ys=[], colors=[])
+        self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
+        # flatten mode
+        self.lines_data_source_avg.data = dict(xs=[], ys=[], colors=[])
+        self.lines_data_source_std.data = dict(xs=[], ys=[], colors=[])
+        self.lines_data_source_wfs_flatten.data = dict(xs=[], ys=[], colors=[])
+        self.vlines_data_source_avg.data = dict(xs=[], ys=[], colors=[])
+        self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
+
     def _panel_on_spike_selection_changed(self):
-        selected_inds = self.controller.get_indices_spike_selected()
-        n_selected = selected_inds.size
-        if n_selected == 1 and self.settings["plot_selected_spike"]:
-            self._panel_refresh(keep_range=True)
+        self._panel_refresh_one_spike()
 
     def _panel_on_channel_visibility_changed(self):
         keep_range = not self.settings["auto_move_on_unit_selection"]
