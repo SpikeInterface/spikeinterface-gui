@@ -1378,10 +1378,7 @@ class WaveformView(ViewBase):
         self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_on_spike_selection_changed(self):
-        selected_inds = self.controller.get_indices_spike_selected()
-        n_selected = selected_inds.size
-        if n_selected == 1 and self.settings["plot_selected_spike"]:
-            self._panel_refresh(keep_range=True)
+        self._panel_refresh_one_spike()
 
     def _panel_on_channel_visibility_changed(self):
         keep_range = not self.settings["auto_move_on_unit_selection"]
