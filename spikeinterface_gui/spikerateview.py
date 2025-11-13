@@ -71,7 +71,7 @@ class SpikeRateView(ViewBase):
         total_frames = self.controller.final_spike_samples
         bins_s = self.settings['bin_s']
         t_start, _  = self.controller.get_t_start_t_stop()
-        num_bins = total_frames[segment_index] // int(sampling_frequency) // bins_s
+        num_bins = max(total_frames[segment_index] // int(sampling_frequency) // bins_s, 1)
 
         for r, unit_id in enumerate(visible_unit_ids):
 
