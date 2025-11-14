@@ -285,9 +285,9 @@ class CurationView(ViewBase):
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
+            curation_model = self.controller.construct_final_curation()
             with json_file.open("w") as f:
-                curation_dict = check_json(self.controller.construct_final_curation())
-                json.dump(curation_dict, f, indent=4)
+                f.write(curation_model.model_dump_json(indent=4))
             self.controller.current_curation_saved = True
 
     # PANEL
@@ -529,10 +529,9 @@ class CurationView(ViewBase):
         # Get the path from the text input
         export_path = "curation.json"
         # Save the JSON file
-        curation_dict = check_json(self.controller.construct_final_curation())
-
-        with open(export_path, "w") as f:
-            json.dump(curation_dict, f, indent=4)
+        curation_model = self.controller.construct_final_curation()
+        with export_path.open("w") as f:
+            f.write(curation_model.model_dump_json(indent=4))
 
         self.controller.current_curation_saved = True
 
@@ -543,14 +542,14 @@ class CurationView(ViewBase):
     def _panel_submit_to_parent(self, event):
         """Send the curation data to the parent window"""
         # Get the curation data and convert it to a JSON string
-        curation_data = json.dumps(check_json(self.controller.construct_final_curation()))
+        curation_model = self.controller.construct_final_curation()
 
         # Create a JavaScript snippet that will send the data to the parent window
         js_code = f"""
         <script>
         (function() {{
             try {{
-                const jsonData = {json.dumps(curation_data)};
+                const jsonData = {curation_model.model_dump_json()};
                 const data = {{
                     type: 'curation_data',
                     curation_data: JSON.parse(jsonData)

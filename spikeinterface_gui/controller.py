@@ -13,6 +13,7 @@ import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict
+from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
@@ -804,7 +805,8 @@ class Controller():
         d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
-        return d
+        model = CurationModel(**d)
+        return model
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
@@ -814,8 +816,9 @@ class Controller():
             folder = self.analyzer.folder / "spikeinterface_gui"
             folder.mkdir(exist_ok=True, parents=True)
             json_file = folder / f"curation_data.json"
-            with json_file.open("w") as f:
-                json.dump(check_json(self.construct_final_curation()), f, indent=4)
+            curation_model = self.construct_final_curation()
+            with open(json_file, "w") as f:
+                f.write(curation_model.model_dump_json(indent=4))
             self.current_curation_saved = True
         elif self.analyzer.format == "zarr":
             import zarr
@@ -823,7 +826,8 @@ class Controller():
             if "spikeinterface_gui" not in zarr_root.keys():
                 sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
             sigui_group = zarr_root["spikeinterface_gui"]
-            sigui_group.attrs["curation_data"] = check_json(self.construct_final_curation())
+            curation_model = self.construct_final_curation()
+            sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
 
     def get_split_unit_ids(self):
@@ -974,10 +978,14 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
-        if category in lbl:
+        if "labels" in lbl and category in lbl["labels"]:
+            # v2 format
+            labels = lbl["labels"][category]
+            return labels[0]
+        elif category in lbl:
+            # v1 format
             labels = lbl[category]
             return labels[0]
-            
 
     def set_label_to_unit(self, unit_id, category, label):
         if label is None:
@@ -987,13 +995,16 @@ class Controller():
         ix = self.find_unit_in_manual_labels(unit_id)
         if ix is not None:
             lbl = self.curation_data["manual_labels"][ix]
-            if category in lbl:
+            if "labels" in lbl and category in lbl["labels"]:
+                # v2 format
+                lbl["labels"][category] = [label]
+            elif category in lbl:
+                # v1 format
                 lbl[category] = [label]
-            else:
-                lbl[category] = [label]
+
         else:
-            lbl = {"unit_id": unit_id, category:[label]}
-            self.curation_data["manual_labels"].append(lbl)
+            manual_label = {"unit_id": unit_id, "labels": {category: [label]}}
+            self.curation_data["manual_labels"].append(manual_label)
         if self.verbose:
             print(f"Set label {category} to {label} for unit {unit_id}")
 
@@ -1002,6 +1013,8 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
+
+        # curation v1
         if category in lbl:
             lbl.pop(category)
             if len(lbl) == 1:
@@ -1009,3 +1022,7 @@ class Controller():
                 self.curation_data["manual_labels"].pop(ix)
                 if self.verbose:
                     print(f"Remove label {category} for unit {unit_id}")
+        # curation v2
+        elif lbl.get('labels') is not None and category in lbl.get('labels'):
+            lbl['labels'].pop(category)
+            self.curation_data["manual_labels"][ix] = lbl
