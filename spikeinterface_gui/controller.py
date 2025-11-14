@@ -994,11 +994,14 @@ class Controller():
 
         ix = self.find_unit_in_manual_labels(unit_id)
         if ix is not None:
-            labels = self.curation_data["manual_labels"][ix]["labels"]
-            if category in labels:
-                labels[category] = [label]
-            else:
-                labels[category] = [label]
+            lbl = self.curation_data["manual_labels"][ix]
+            if "labels" in lbl and category in lbl["labels"]:
+                # v2 format
+                lbl["labels"][category] = [label]
+            elif category in lbl:
+                # v1 format
+                lbl[category] = [label]
+
         else:
             manual_label = {"unit_id": unit_id, "labels": {category: [label]}}
             self.curation_data["manual_labels"].append(manual_label)
@@ -1010,6 +1013,8 @@ class Controller():
         if ix is None:
             return
         lbl = self.curation_data["manual_labels"][ix]
+
+        # curation v1
         if category in lbl:
             lbl.pop(category)
             if len(lbl) == 1:
@@ -1017,3 +1022,7 @@ class Controller():
                 self.curation_data["manual_labels"].pop(ix)
                 if self.verbose:
                     print(f"Remove label {category} for unit {unit_id}")
+        # curation v2
+        elif lbl.get('labels') is not None and category in lbl.get('labels'):
+            lbl['labels'].pop(category)
+            self.curation_data["manual_labels"][ix] = lbl
