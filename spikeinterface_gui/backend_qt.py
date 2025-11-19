@@ -420,3 +420,93 @@ orientations = {
     'horizontal' : QT.Qt.Horizontal,
     'vertical' : QT.Qt.Vertical,
 }
+
+
+class ControllerSynchronizer(QT.QWidget):
+    def __init__(self, sorting_comparison, controllers, windows, parent=None):
+        QT.QWidget.__init__(self, parent=parent)
+
+        self.comp = sorting_comparison
+        self.controllers = controllers
+        self.windows = windows
+
+        self.layout = QT.QVBoxLayout()
+        self.setLayout(self.layout)
+
+        self.label = QT.QLabel('')
+        self.layout.addWidget(self.label)
+
+
+        for i, window in enumerate(windows):
+
+            # this is not working ???!!!!!
+            # callback = lambda: self.on_unit_visibility_changed(win_ind=i)
+
+            # so uggly solution
+            callback = [self.on_unit_visibility_changed_0, self.on_unit_visibility_changed_1][i]
+
+            for view in window.views.values():
+                view.notifier.unit_visibility_changed.connect(callback)
+
+        settings = [
+            {'name': 'mode', 'type': 'list', 'limits' : ['all', 'best', ] },
+            {'name': 'thresh', 'type': 'float', 'value' : 0.05, 'step': 0.01, 'limits': (0, 1.)},
+        ]
+        self.settings = pg.parametertree.Parameter.create(name="settings", type='group', children=settings)
+    
+        # not that the parent is not the view (not Qt anymore) itself but the widget
+        self.tree_settings = pg.parametertree.ParameterTree(parent=self)
+        self.tree_settings.header().hide()
+        self.tree_settings.setParameters(self.settings, showTop=True)
+        self.tree_settings.setWindowTitle('Settings')
+        self.layout.addWidget(self.tree_settings)
+
+
+    def on_unit_visibility_changed_0(self):
+        self.on_unit_visibility_changed(0)
+
+    def on_unit_visibility_changed_1(self):
+        self.on_unit_visibility_changed(1)
+
+
+    def on_unit_visibility_changed(self, win_ind):
+        changed_controller = self.controllers[win_ind]
+        visible_unit_inds = changed_controller.get_visible_unit_indices()
+        visible_unit_ids = changed_controller.get_visible_unit_ids()
+        if len(visible_unit_inds) != 1:
+            # TODO handle several units at once
+            return
+        
+        unit_ind = visible_unit_inds[0]
+
+        agreement = self.comp.agreement_scores.values
+        if win_ind == 1:
+            agreement = agreement.T
+        
+        thresh = self.settings['thresh']
+        mode = self.settings['mode']
+
+        other_ind = (win_ind + 1) % 2
+        other_controller = self.controllers[other_ind]
+        other_window = self.windows[other_ind]
+
+        if mode == 'all':
+            other_visible_inds = agreement[unit_ind, :] > thresh
+        elif mode == 'best':
+            best_ind = np.argmax(agreement[unit_ind, :])
+            if agreement[unit_ind, best_ind] > thresh:
+                other_visible_inds = [best_ind]
+            else:
+                other_visible_inds = []
+
+        other_visible_ids = other_controller.unit_ids[other_visible_inds]
+        other_controller.set_visible_unit_ids(other_visible_ids)
+
+        for view in other_window.views.values():
+            view.refresh()
+        
+        self.label.setText(
+            f'Analyzer {win_ind} : {visible_unit_ids}\n'
+            f'Analyzer {other_ind} : {other_visible_ids}\n'
+        
+        )

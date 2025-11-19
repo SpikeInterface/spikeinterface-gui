@@ -378,3 +378,74 @@ def find_skippable_extensions(layout_dict):
     skippable_extensions = list(all_extensions.difference(set(needed_extensions)))
 
     return skippable_extensions
+
+
+def run_compare_analyzer(
+    analyzers,
+    mode="desktop",
+    with_traces=False,
+    # displayed_unit_properties=None,
+    skip_extensions=None,
+    layout_preset=None,
+    layout=None,
+    verbose=False,
+    # user_settings=None,
+    # disable_save_settings_button=False,
+):
+
+    assert isinstance(analyzers, list)
+    assert len(analyzers) == 2
+    assert mode == "desktop"
+
+    from spikeinterface_gui.myqt import QT, mkQApp
+    from spikeinterface_gui.backend_qt import QtMainWindow, ControllerSynchronizer
+    from spikeinterface.comparison import compare_two_sorters
+
+    layout_dict = get_layout_description(layout_preset, layout)
+
+    
+
+    controllers = []
+    windows = []
+    for i, analyzer in enumerate(analyzers):
+        if verbose:
+            import time
+            t0 = time.perf_counter()
+
+        controller = Controller(
+            analyzer, backend="qt",
+            # verbose=verbose,
+            verbose=False,
+
+            curation=False,
+            with_traces=with_traces,
+            skip_extensions=skip_extensions,
+        )
+        if verbose:
+            t1 = time.perf_counter()
+            print('controller init time', t1 - t0)
+
+
+            # Suppress a known pyqtgraph warning
+            warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
+            warnings.filterwarnings('ignore', category=UserWarning, message=".*QObject::connect.*")
+
+
+            app = mkQApp()
+
+            win = QtMainWindow(controller, layout_dict=layout_dict) #, user_settings=user_settings)
+            win.setWindowTitle(f'Analyzer {i}')
+            # Set window icon
+            icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
+            if icon_file.exists():
+                app.setWindowIcon(QT.QIcon(str(icon_file)))
+            win.show()
+            windows.append(win)
+            controllers.append(controller)
+
+    comp = compare_two_sorters(analyzers[0].sorting, analyzers[1].sorting)
+
+    synchronizer = ControllerSynchronizer(comp, controllers, windows)
+    synchronizer.show()
+    
+    app.exec()
