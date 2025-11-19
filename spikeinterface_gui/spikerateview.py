@@ -68,21 +68,21 @@ class SpikeRateView(ViewBase):
         
         sampling_frequency = self.controller.sampling_frequency
 
-        total_frames = self.controller.final_spike_samples
+        total_frames = self.controller.final_spike_samples[segment_index]
         bins_s = self.settings['bin_s']
-        t_start, _  = self.controller.get_t_start_t_stop()
-        num_bins = max(total_frames[segment_index] // int(sampling_frequency) // bins_s, 1)
+        t_start_samples, _  = self.controller.get_t_start_t_stop()*sampling_frequency
+        bin_edges = np.arange(t_start_samples, t_start_samples + total_frames, bins_s*sampling_frequency)
 
         for r, unit_id in enumerate(visible_unit_ids):
 
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
             spikes = self.controller.spikes[spike_inds]['sample_index']
 
-            count, bins = np.histogram(spikes, bins=num_bins)
+            count, _ = np.histogram(spikes, bins=bin_edges)
             
             color = self.get_unit_color(unit_id)
             curve = pg.PlotCurveItem(
-                (bins[1:]+bins[:-1])/(2*sampling_frequency) + t_start, 
+                (bin_edges[1:]+bin_edges[:-1])/(2*sampling_frequency),
                 count/bins_s, 
                 pen=pg.mkPen(color, width=2)
             )
