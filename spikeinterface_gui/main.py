@@ -404,7 +404,8 @@ def run_compare_analyzer(
 
     layout_dict = get_layout_description(layout_preset, layout)
 
-    
+    if names is None:
+        names = [f'Analyzer {i}' for i in range(2)]
 
     controllers = []
     windows = []
@@ -435,10 +436,7 @@ def run_compare_analyzer(
             app = mkQApp()
 
             win = QtMainWindow(controller, layout_dict=layout_dict) #, user_settings=user_settings)
-            if names is None:
-                name = f'Analyzer {i}'
-            else:
-                name = names[i]
+            name = names[i]
             win.setWindowTitle(name)
             # Set window icon
             icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
@@ -450,7 +448,7 @@ def run_compare_analyzer(
 
     comp = compare_two_sorters(analyzers[0].sorting, analyzers[1].sorting)
 
-    synchronizer = ControllerSynchronizer(comp, controllers, windows)
+    synchronizer = ControllerSynchronizer(comp, controllers, windows, names)
     synchronizer.show()
     
     app.exec()
