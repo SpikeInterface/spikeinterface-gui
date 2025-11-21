@@ -389,6 +389,7 @@ def run_compare_analyzer(
     layout_preset=None,
     layout=None,
     verbose=False,
+    names=None,
     # user_settings=None,
     # disable_save_settings_button=False,
 ):
@@ -434,7 +435,11 @@ def run_compare_analyzer(
             app = mkQApp()
 
             win = QtMainWindow(controller, layout_dict=layout_dict) #, user_settings=user_settings)
-            win.setWindowTitle(f'Analyzer {i}')
+            if names is None:
+                name = f'Analyzer {i}'
+            else:
+                name = names[i]
+            win.setWindowTitle(name)
             # Set window icon
             icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
             if icon_file.exists():

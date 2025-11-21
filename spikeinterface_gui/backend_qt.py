@@ -449,8 +449,8 @@ class ControllerSynchronizer(QT.QWidget):
                 view.notifier.unit_visibility_changed.connect(callback)
 
         settings = [
-            {'name': 'mode', 'type': 'list', 'limits' : ['all', 'best', ] },
-            {'name': 'thresh', 'type': 'float', 'value' : 0.05, 'step': 0.01, 'limits': (0, 1.)},
+            {'name': 'mode', 'type': 'list', 'limits' : ['best', 'all',] },
+            {'name': 'thresh', 'type': 'float', 'value' : 0.3, 'step': 0.01, 'limits': (0, 1.)},
         ]
         self.settings = pg.parametertree.Parameter.create(name="settings", type='group', children=settings)
     
