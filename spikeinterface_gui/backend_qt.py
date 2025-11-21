@@ -489,12 +489,13 @@ class ControllerSynchronizer(QT.QWidget):
             lut.append([r*255,g*255,b*255])
         self.lut = np.array(lut, dtype='uint8')
 
-        agreement = self.comp.agreement_scores.values
-        self.image.setImage(agreement , lut=self.lut, levels=[0, 1])
+        # agreement = self.comp.agreement_scores.values
+        self.agreement_ordered = self.comp.get_ordered_agreement_scores()
+        self.image.setImage(self.agreement_ordered.values , lut=self.lut, levels=[0, 1])
         self.image.show()
-        self.plot.setXRange(0, agreement.shape[0])
+        self.plot.setXRange(0, self.agreement_ordered.shape[0])
         self.plot.setLabel('bottom', names[0])
-        self.plot.setYRange(0, agreement.shape[1])
+        self.plot.setYRange(0, self.agreement_ordered.shape[1])
         self.plot.setLabel('left', names[1])
 
 
@@ -552,16 +553,18 @@ class ControllerSynchronizer(QT.QWidget):
         unit_ids1 = self.controllers[1].get_visible_unit_ids()
         for unit_id0, unit_id1 in itertools.product(unit_ids0, unit_ids1):
             a = self.comp.agreement_scores.loc[unit_id0, unit_id1]
-            txt += f'{self.names[0]} unit {unit_id0} - {self.names[1]} unit {unit_id1} agreement={a}'
+            txt += f'{self.names[0]} unit {unit_id0} - {self.names[1]} unit {unit_id1} agreement={a}\n'
         self.label.setText(txt)
 
     def _qt_select_pair(self, x, y, reset):
         c0 = self.controllers[0]
         c1 = self.controllers[1]
 
-
-        unit_id0 = c0.unit_ids[int(np.floor(x))]
-        unit_id1 = c1.unit_ids[int(np.floor(y))]
+        # used
+        ordered_unit_ids1 = self.agreement_ordered.index
+        ordered_unit_ids2 = self.agreement_ordered.columns
+        unit_id0 = ordered_unit_ids1[int(np.floor(x))]
+        unit_id1 = ordered_unit_ids2[int(np.floor(y))]
         
         c0.set_visible_unit_ids([unit_id0])
         c1.set_visible_unit_ids([unit_id1])
