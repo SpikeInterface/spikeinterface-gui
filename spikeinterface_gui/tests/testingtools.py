@@ -44,7 +44,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
 
     recordings = []
-    sortings = []
+    sorting = []
     probes = []
     for i in range(num_probe):
         recording, sorting = si.generate_ground_truth_recording(
@@ -75,7 +75,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
             recording = recording.set_probe(probe)
             
             recordings.append(recording)
-            sortings.append(sorting)
+            sorting.append(sorting)
             probes.append(probe.copy())
         
         if 'split' in case:
@@ -105,7 +105,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
             count += n
         recording = recording.set_probegroup(probegroup)
 
-        sorting = si.aggregate_units(sortings)
+        sorting = si.aggregate_units(sorting)
 
     sorting = sorting.rename_units(sorting.unit_ids.astype(unit_dtype))
     

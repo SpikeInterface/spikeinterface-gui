@@ -280,7 +280,7 @@ class NDScatterView(ViewBase):
             self.update_selected_components()
 
         #ndscatter
-        # TODO sam: I have the feeling taht it is a bit slow
+        # TODO sam: I have the feeling that it is a bit slow
         self.scatter.clear()
 
         # scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data(concatenated=True)
@@ -367,7 +367,7 @@ class NDScatterView(ViewBase):
         vertices = np.array(points)
         self._lasso_vertices.append(vertices)
         
-        # inside lasso and visibles
+        # inside lasso and visible
         ind_visibles,   = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
@@ -550,7 +550,7 @@ class NDScatterView(ViewBase):
             else:
                 self._lasso_vertices = [polygon]
 
-            # inside lasso and visibles
+            # inside lasso and visible
             ind_visibles, = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
             inds = self.random_spikes_indices[ind_visibles[selected]]
             self.controller.set_indices_spike_selected(inds)
