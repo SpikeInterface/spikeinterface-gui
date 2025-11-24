@@ -38,7 +38,7 @@ class NDScatterView(ViewBase):
         self.selected_comp = np.ones((ndim), dtype='bool')
         self.projection = self.get_one_random_projection()
 
-        #estimate limts
+        #estimate limits
         data = self.data
         if data.shape[0] > 1000:
             inds = np.random.choice(data.shape[0], 1000, replace=False)
@@ -297,7 +297,7 @@ class NDScatterView(ViewBase):
         self.scatter_select.setData(selected_scatter_x, selected_scatter_y)
 
 
-        # TODO sam : kepp the old implementation in mind
+        # TODO sam : keep the old implementation in mind
         # for unit_index, unit_id in enumerate(self.controller.unit_ids):
         #     if not self.controller.get_unit_visibility(unit_id):
         #         continue
