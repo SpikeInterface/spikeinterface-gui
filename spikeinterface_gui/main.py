@@ -245,8 +245,13 @@ def check_folder_is_analyzer(folder):
     bool
         True if the folder is a valid SortingAnalyzer folder, False otherwise.
     """
+    from spikeinterface.core.core_tools import is_path_remote
+
     if not isinstance(folder, (str, Path)):
         return False
+
+    if is_path_remote(folder):
+        return True # We assume remote paths are valid, will throw error later if not
 
     folder = Path(folder)
     if not folder.is_dir():
@@ -306,7 +311,11 @@ def run_mainwindow_cli():
         if args.verbose:
             print('Loading analyzer...')
         assert check_folder_is_analyzer(analyzer_folder), f'The folder {analyzer_folder} is not a valid SortingAnalyzer folder'
-        analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=False)
+        try:
+            analyzer = load_sorting_analyzer(analyzer_folder, load_extensions=False)
+        except Exception as e:
+            print('Error when loading analyzer. Please check the path or the file format')
+            raise e
         if args.verbose:
             print('Analyzer loaded')
 
