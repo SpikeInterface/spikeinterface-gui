@@ -68,21 +68,21 @@ class SpikeRateView(ViewBase):
         
         sampling_frequency = self.controller.sampling_frequency
 
-        total_frames = self.controller.final_spike_samples
+        total_frames = self.controller.final_spike_samples[segment_index]
         bins_s = self.settings['bin_s']
         t_start, _  = self.controller.get_t_start_t_stop()
-        num_bins = max(total_frames[segment_index] // int(sampling_frequency) // bins_s, 1)
+        bin_edges = np.arange(t_start*sampling_frequency, t_start*sampling_frequency + total_frames, bins_s*sampling_frequency)
 
         for r, unit_id in enumerate(visible_unit_ids):
 
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
             spikes = self.controller.spikes[spike_inds]['sample_index']
 
-            count, bins = np.histogram(spikes, bins=num_bins)
+            count, _ = np.histogram(spikes, bins=bin_edges)
             
             color = self.get_unit_color(unit_id)
             curve = pg.PlotCurveItem(
-                (bins[1:]+bins[:-1])/(2*sampling_frequency) + t_start, 
+                (bin_edges[1:]+bin_edges[:-1])/(2*sampling_frequency),
                 count/bins_s, 
                 pen=pg.mkPen(color, width=2)
             )
@@ -148,10 +148,10 @@ class SpikeRateView(ViewBase):
 
         sampling_frequency = self.controller.sampling_frequency
 
-        total_frames = self.controller.final_spike_samples
+        total_frames = self.controller.final_spike_samples[segment_index]
         bins_s = self.settings['bin_s']
-        num_bins = total_frames[segment_index] // int(sampling_frequency) // bins_s
-        t_start, t_stop  = self.controller.get_t_start_t_stop()
+        t_start, _  = self.controller.get_t_start_t_stop()
+        bin_edges = np.arange(t_start*sampling_frequency, t_start*sampling_frequency + total_frames, bins_s*sampling_frequency)
 
         max_count = 0
         xs = []
@@ -162,19 +162,19 @@ class SpikeRateView(ViewBase):
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
             spikes = self.controller.spikes[spike_inds]['sample_index']
 
-            count, bins = np.histogram(spikes, bins=num_bins)
+            count, _ = np.histogram(spikes, bins=bin_edges)
             
             # Get color from controller
             color = self.get_unit_color(unit_id)
-            xs.append((bins[1:]+bins[:-1]) / (2*sampling_frequency) + t_start)
+            xs.append((bin_edges[1:]+bin_edges[:-1]) / (2*sampling_frequency))
             ys.append(count / bins_s)
             colors.append(color)
             max_count = max(max_count, np.max(count/bins_s))
 
         self.spike_rate_data_source.data = dict(xs=xs, ys=ys, colors=colors)
 
-        self.x_range.start = t_start
-        self.x_range.end = t_stop
+        self.x_range.start = bin_edges[0] / (sampling_frequency)
+        self.x_range.end = bin_edges[-1] / (sampling_frequency)
         self.y_range.start = 0
         self.y_range.end = max_count*1.2
 
