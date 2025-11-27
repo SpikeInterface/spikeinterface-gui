@@ -288,6 +288,7 @@ def run_mainwindow_cli():
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
     parser.add_argument('--recording-base-folder', help='Base folder path for the recording (if .json/.pkl)', default=None)
     parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
+    parser.add_argument('--skip_extensions', help='Choose which extensions not to load, e.g. waveforms,principal_components', default=None)
     parser.add_argument('--port', help='Port for web mode', default=0, type=int)
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
@@ -343,12 +344,16 @@ def run_mainwindow_cli():
 
         disable_save_settings_button = args.disable_save_settings_button
 
+        skip_extensions_string = args.skip_extensions
+        skip_extensions_list = skip_extensions_string.split(',') if skip_extensions_string else None        
+
         run_mainwindow(
             analyzer,
             mode=args.mode,
             with_traces=not(args.no_traces),
             curation=args.curation,
             recording=recording,
+            skip_extensions=skip_extensions_list,
             verbose=args.verbose,
             layout=args.layout_file,
             curation_dict=curation_data,
