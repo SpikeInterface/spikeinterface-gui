@@ -85,6 +85,7 @@ class MetricsView(ViewBase):
 
     def _qt_refresh(self):
         import pyqtgraph as pg
+        import pandas as pd
         from .myqt import QT
 
 
@@ -111,27 +112,25 @@ class MetricsView(ViewBase):
 
                     scatter.setData(x=values2, y=values1)
 
-                    visible_unit_ids = self.controller.get_visible_unit_ids()
-                    visible_unit_ids = self.controller.get_visible_unit_indices()
-
                     for unit_ind, unit_id in self.controller.iter_visible_units():
                         color = self.get_unit_color(unit_id)
-                        scatter.addPoints(x=[values2[unit_ind]], y=[values1[unit_ind]],  pen=pg.mkPen(None), brush=color)
+                        if (not pd.isna(values2[unit_ind])) and (not pd.isna(values1[unit_ind])):
+                            scatter.addPoints(x=[values2[unit_ind]], y=[values1[unit_ind]],  pen=pg.mkPen(None), brush=color)
 
-                    # self.scatter.addPoints(x=scatter_x[unit_id], y=scatter_y[unit_id],  pen=pg.mkPen(None), brush=color)
-                    # self.scatter_select.setData(selected_scatter_x, selected_scatter_y)
                 elif c == r:
                     values1 = units_table[visible_metrics[r]].values
+                    values1_no_nans = values1[~np.isnan(values1)]
 
-                    count, bins = np.histogram(values1, bins=self.settings['num_bins'])
+                    count, bins = np.histogram(values1_no_nans, bins=self.settings['num_bins'])
                     curve = pg.PlotCurveItem(bins, count, stepMode='center', fillLevel=0, brush=white_brush, pen=white_brush)
                     plot.addItem(curve)
 
                     for unit_ind, unit_id in self.controller.iter_visible_units():
                         x = values1[unit_ind]
                         color = self.get_unit_color(unit_id)
-                        line = pg.InfiniteLine(pos=x, angle=90, movable=False, pen=color)
-                        plot.addItem(line)
+                        if not pd.isna(x):
+                            line = pg.InfiniteLine(pos=x, angle=90, movable=False, pen=color)
+                            plot.addItem(line)
 
     def _qt_select_metrics(self):
         if not self.tree_visible_metrics.isVisible():
