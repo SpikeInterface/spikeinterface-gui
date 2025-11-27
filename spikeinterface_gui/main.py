@@ -6,7 +6,7 @@ import numpy as np
 import warnings
 
 from spikeinterface import load_sorting_analyzer, load
-from spikeinterface.core.core_tools import is_path_remote
+from spikeinterface.core import BaseRecording, SortingAnalyzer, BaseEvent
 from spikeinterface.core.sortinganalyzer import get_available_analyzer_extensions
 from .utils_global import get_config_folder
 from spikeinterface_gui.layout_presets import get_layout_description
@@ -16,26 +16,27 @@ from spikeinterface_gui.controller import Controller
 from spikeinterface_gui.viewlist import possible_class_views
 
 def run_mainwindow(
-    analyzer,
-    mode="desktop",
-    with_traces=True,
-    curation=False,
-    curation_dict=None,
-    label_definitions=None,
-    displayed_unit_properties=None,
-    extra_unit_properties=None,
-    skip_extensions=None,
-    recording=None,
-    start_app=True,
-    layout_preset=None,
-    layout=None,
-    address="localhost",
-    port=0,
-    panel_start_server_kwargs=None,
-    panel_window_servable=True,
-    verbose=False,
-    user_settings=None,
-    disable_save_settings_button=False,
+    analyzer: SortingAnalyzer,
+    mode: str = "desktop",
+    with_traces: bool = True,
+    curation: bool = False,
+    curation_dict: dict | None = None,
+    label_definitions: dict | None = None,
+    displayed_unit_properties: list | None=None,
+    extra_unit_properties: list | None=None,
+    skip_extensions: list | None = None,
+    recording: BaseRecording | None = None,
+    events: BaseEvent | dict | None = None,
+    start_app: bool = True,
+    layout_preset: str | None = None,
+    layout: dict | None = None,
+    address: str = "localhost",
+    port: int = 0,
+    panel_start_server_kwargs: dict | None = None,
+    panel_window_servable: bool = True,
+    verbose: bool = False,
+    user_settings: dict | None = None,
+    disable_save_settings_button: bool = False,
 ):
     """
     Create the main window and start the QT app loop.
@@ -65,6 +66,9 @@ def run_mainwindow(
     recording: RecordingExtractor | None, default: None
         The recording object to display traces. This can be used when the 
         SortingAnalyzer is recordingless.
+    events: BaseEvent | dict | None, default: None
+        The events to display in the GUI. This can be a BaseEvent object or a dictionary
+        with keys as event names and another dictionary as values with "samples" or "times".
     start_qt_app: bool, default: True
         If True, the QT app loop is started
     layout_preset : str | None
@@ -136,7 +140,8 @@ def run_mainwindow(
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
-        disable_save_settings_button=disable_save_settings_button
+        disable_save_settings_button=disable_save_settings_button,
+        events=events
     )
     if verbose:
         t1 = time.perf_counter()

@@ -133,6 +133,47 @@ class MixinViewTrace:
         but.clicked.connect(self.auto_scale)
 
         tb.addWidget(but)
+
+    def _qt_create_bottom_toolbar(self):
+        from .myqt import QT
+
+        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
+        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
+        if self.controller.has_extension("events"):
+            bottom_layout = QT.QHBoxLayout()
+            # bottom_layout.addStretch()  # Push button to the right
+            bottom_layout.addWidget(self.scroll_time)
+
+            event_layout = QT.QHBoxLayout()
+            event_keys = list(self.controller.events.keys())
+            if len(event_keys) > 1:
+                self.event_type_combo = QT.QComboBox()
+                self.event_type_combo.addItems(event_keys)
+                self.event_type_combo.currentIndexChanged.connect(self._qt_on_event_type_changed)
+                event_layout.addWidget(QT.QLabel("Event:"))
+                event_layout.addWidget(self.event_type_combo)
+            else:
+                self.event_key = event_keys[0]
+
+            self.prev_event_button = QT.QPushButton("◀")
+            self.next_event_button = QT.QPushButton("▶")
+            self.prev_event_button.setMaximumWidth(40)
+            self.next_event_button.setMaximumWidth(40)
+            self.next_event_button.clicked.connect(self._qt_on_next_event)
+            self.prev_event_button.clicked.connect(self._qt_on_prev_event)
+            event_layout.addWidget(self.prev_event_button)
+            event_layout.addWidget(self.next_event_button)
+
+            # Wrap event_layout in a QWidget
+            event_widget = QT.QWidget()
+            event_widget.setLayout(event_layout)
+            bottom_layout.addWidget(event_widget)
+            bottom_widget = QT.QWidget()
+            bottom_widget.setLayout(bottom_layout)
+        else:
+            bottom_widget = self.scroll_time
+
+        self.bottom_toolbar = bottom_widget
         
     def _qt_initialize_plot(self):
         from .myqt import QT
@@ -245,6 +286,52 @@ class MixinViewTrace:
 
             self.notify_spike_selection_changed()
             self._qt_seek_with_selected_spike()
+
+    def _qt_on_event_type_changed(self):
+        self.event_key = self.event_type_combo.currentText()
+        self.refresh()
+
+    def _qt_add_event_line(self):
+        import pyqtgraph as pg
+        from .myqt import QT
+
+        # Add vertical line at event time
+        evt_time = self.controller.get_time()[0]
+        if hasattr(self, 'event_line'):
+            self.event_line.setValue(evt_time)
+            self.event_line.show()
+        else:
+            pen = pg.mkPen(color=(255, 255, 0, 180), width=2, style=QT.Qt.DotLine)
+            self.event_line = pg.InfiniteLine(pos=evt_time, angle=90, movable=False, pen=pen)
+            self.plot.addItem(self.event_line)
+
+    def _qt_remove_event_line(self):
+        if hasattr(self, 'event_line'):
+            self.plot.removeItem(self.event_line)
+            del self.event_line
+
+    def _qt_on_next_event(self):
+
+        current_sample = self.controller.time_to_sample_index(self.controller.get_time()[0])
+        event_samples = self.controller.get_events(self.event_key)
+        next_events = event_samples[event_samples > current_sample]
+        if next_events.size > 0:
+            next_evt_sample = next_events[0]
+            evt_time = self.controller.sample_index_to_time(next_evt_sample)
+            self.controller.set_time(time=evt_time)
+            self.timeseeker.seek(evt_time)
+            self._qt_add_event_line()
+
+    def _qt_on_prev_event(self):
+        current_sample = self.controller.time_to_sample_index(self.controller.get_time()[0])
+        event_samples = self.controller.get_events(self.event_key)
+        prev_events = event_samples[event_samples < current_sample]
+        if prev_events.size > 0:
+            prev_evt_sample = prev_events[-1]
+            evt_time = self.controller.sample_index_to_time(prev_evt_sample)
+            self.controller.set_time(time=evt_time)
+            self.timeseeker.seek(evt_time)
+            self._qt_add_event_line()
 
     ## panel ##
     def _panel_create_toolbar(self):
@@ -441,23 +528,21 @@ class TraceView(ViewBase, MixinViewTrace):
         # self.setLayout(self.layout)
         
         self._qt_create_toolbar()
-        
-        
+
         # create graphic view and 2 scroll bar
-        g = QT.QGridLayout()
-        self.layout.addLayout(g)
+        # g = QT.QGridLayout()
+        # self.layout.addLayout(g)
         self.graphicsview = pg.GraphicsView()
-        g.addWidget(self.graphicsview, 0,1)
+        # g.addWidget(self.graphicsview, 0, 1)
+        self.layout.addWidget(self.graphicsview)
 
         MixinViewTrace._qt_initialize_plot(self)
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
-        
 
+        self._qt_create_bottom_toolbar()
+        self.layout.addWidget(self.bottom_toolbar)
         self._qt_update_scroll_limits()
 
     def _qt_on_settings_changed(self):
@@ -476,6 +561,7 @@ class TraceView(ViewBase, MixinViewTrace):
         MixinViewTrace._qt_seek_with_selected_spike(self)
 
     def _qt_refresh(self):
+        self._qt_remove_event_line()
         t, _ = self.controller.get_time()
         self._qt_seek(t)
 

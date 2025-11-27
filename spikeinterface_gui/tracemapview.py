@@ -87,14 +87,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
-
-
-        # self.on_params_changed(do_refresh=False)
-        #this do refresh
+        self._qt_create_bottom_toolbar()
+        self.layout.addWidget(self.bottom_toolbar)
         self._qt_change_segment(0)
 
     def _qt_on_settings_changed(self, do_refresh=True):
@@ -116,6 +110,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._qt_seek_with_selected_spike()
 
     def _qt_refresh(self):
+        self._qt_remove_event_line()
         t, _ = self.controller.get_time()
         self._qt_seek(t)
 
