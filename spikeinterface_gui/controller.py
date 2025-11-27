@@ -39,7 +39,7 @@ class Controller():
                  extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
-        
+
         self.skip_extensions = skip_extensions
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
