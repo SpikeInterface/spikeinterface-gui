@@ -1378,7 +1378,8 @@ class WaveformView(ViewBase):
         self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_on_spike_selection_changed(self):
-        self._panel_refresh_one_spike()
+        if self.settings["plot_selected_spike"] and self.settings["overlap"]:
+            self._panel_refresh_one_spike()
 
     def _panel_on_channel_visibility_changed(self):
         keep_range = not self.settings["auto_move_on_unit_selection"]

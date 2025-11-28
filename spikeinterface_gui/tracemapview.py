@@ -72,8 +72,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.layout = QT.QVBoxLayout()
         
-        self._qt_create_toolbar()
-        
+        self._qt_create_toolbars()
         
         # create graphic view and 2 scroll bar
         g = QT.QGridLayout()
@@ -87,14 +86,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
-
-
-        # self.on_params_changed(do_refresh=False)
-        #this do refresh
+        self.layout.addWidget(self.bottom_toolbar)
         self._qt_change_segment(0)
 
     def _qt_on_settings_changed(self, do_refresh=True):
@@ -116,6 +108,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._qt_seek_with_selected_spike()
 
     def _qt_refresh(self):
+        self._qt_remove_event_line()
         t, _ = self.controller.get_time()
         self._qt_seek(t)
 
@@ -245,16 +238,21 @@ class TraceMapView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
+        self.event_source = ColumnDataSource({"x": [], "y": []})
+        self.event_renderer = self.figure.line(
+            x="x", y="y", source=self.event_source, line_color="yellow", line_width=2, line_dash='dashed'
+        )
+
         # # Add hover tool for spikes
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-        self._panel_create_toolbar()
+        self._panel_create_toolbars()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area
                 self.toolbar,
                 self.figure,
-                self.time_slider,
+                self.bottom_toolbar,
                 styles={"flex": "1"},
                 sizing_mode="stretch_both"
             ),
@@ -263,6 +261,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         )
 
     def _panel_refresh(self):
+        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
