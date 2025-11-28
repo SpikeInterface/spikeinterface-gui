@@ -224,7 +224,7 @@ class SpikeListView(ViewBase):
         visible_inds = self.controller.get_indices_spike_visible()
         row_selected,  = np.nonzero(np.isin(visible_inds, selected_inds))
         
-        if row_selected.size>100:#otherwise this is verry slow
+        if row_selected.size>100:#otherwise this is very slow
             row_selected = row_selected[:10]
         
         # change selection

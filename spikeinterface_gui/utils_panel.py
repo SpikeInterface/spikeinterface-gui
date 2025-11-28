@@ -234,7 +234,7 @@ class CustomCircle:
         """
         Check if the given position (x, y) is inside the circle.
         If skip_other_positions is provided, check if the position is close to any of them
-        usinf the skip_distance.
+        using the skip_distance.
         """
         # Check if position is inside the circle
         distance = np.sqrt((x - self.center[0]) ** 2 + (y - self.center[1]) ** 2)

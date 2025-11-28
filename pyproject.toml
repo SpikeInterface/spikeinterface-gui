@@ -62,3 +62,10 @@ docs = [
     "sphinx>=5.0",
     "sphinx_rtd_theme",
 ]
+
+[tool.codespell]
+# Ref: https://github.com/codespell-project/codespell#using-a-config-file
+skip = '.git*,pyproject.toml'
+check-hidden = true
+# ignore-regex = ''
+ignore-words-list = 'nd,gaus'

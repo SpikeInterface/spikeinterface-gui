@@ -78,7 +78,7 @@ class ViewBase:
     def on_settings_changed(self, *params):
         # what to do when one settings is changed
         # optionally views can implement custom method
-        # but the general case is to refesh
+        # but the general case is to refresh
         if self.backend == "qt" and hasattr(self, "_qt_on_settings_changed"):
             return self._qt_on_settings_changed()
         elif self.backend == "panel" and hasattr(self, "_panel_on_settings_changed"):
@@ -178,7 +178,7 @@ class ViewBase:
             html_color = matplotlib.colors.rgb2hex(color, keep_alpha=True)
             return html_color
 
-    # Default behavior for all views : this can be changed view by view for perfs reaons
+    # Default behavior for all views : this can be changed view by view for perfs reasons
     def on_spike_selection_changed(self):
         if not self.is_view_visible():
             return
@@ -252,7 +252,7 @@ class ViewBase:
         pass
 
     def _qt_on_unit_visibility_changed(self):
-        # most veiw need a refresh
+        # most view need a refresh
         self.refresh()
 
     def _qt_on_channel_visibility_changed(self):
@@ -312,7 +312,7 @@ class ViewBase:
         pass
 
     def _panel_on_unit_visibility_changed(self):
-        # most veiw need a refresh
+        # most view need a refresh
         self.refresh()
 
     def _panel_on_channel_visibility_changed(self):
