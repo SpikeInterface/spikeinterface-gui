@@ -74,7 +74,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         
         self._qt_create_toolbars()
         
-        
         # create graphic view and 2 scroll bar
         g = QT.QGridLayout()
         self.layout.addLayout(g)
@@ -239,6 +238,11 @@ class TraceMapView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
+        self.event_source = ColumnDataSource({"x": [], "y": []})
+        self.event_renderer = self.figure.line(
+            x="x", y="y", source=self.event_source, line_color="yellow", line_width=2, line_dash='dashed'
+        )
+
         # # Add hover tool for spikes
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
@@ -257,6 +261,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         )
 
     def _panel_refresh(self):
+        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
