@@ -72,7 +72,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.layout = QT.QVBoxLayout()
         
-        self._qt_create_toolbar()
+        self._qt_create_toolbars()
         
         
         # create graphic view and 2 scroll bar
@@ -87,7 +87,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-        self._qt_create_bottom_toolbar()
         self.layout.addWidget(self.bottom_toolbar)
         self._qt_change_segment(0)
 
@@ -243,13 +242,13 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # # Add hover tool for spikes
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-        self._panel_create_toolbar()
+        self._panel_create_toolbars()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area
                 self.toolbar,
                 self.figure,
-                self.time_slider,
+                self.bottom_toolbar,
                 styles={"flex": "1"},
                 sizing_mode="stretch_both"
             ),

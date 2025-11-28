@@ -100,7 +100,7 @@ class MixinViewTrace:
         return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors
 
     ## Qt ##
-    def _qt_create_toolbar(self):
+    def _qt_create_toolbars(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import TimeSeeker, add_stretch_to_qtoolbar
@@ -133,9 +133,6 @@ class MixinViewTrace:
         but.clicked.connect(self.auto_scale)
 
         tb.addWidget(but)
-
-    def _qt_create_bottom_toolbar(self):
-        from .myqt import QT
 
         self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
@@ -286,6 +283,10 @@ class MixinViewTrace:
 
             self.notify_spike_selection_changed()
             self._qt_seek_with_selected_spike()
+            # change selected unit
+            unit_id = self.controller.unit_ids[self.controller.spikes[ind_spike_nearest]["unit_index"]]
+            self.controller.set_visible_unit_ids([unit_id])
+            self.notify_unit_visibility_changed()
 
     def _qt_on_event_type_changed(self):
         self.event_key = self.event_type_combo.currentText()
@@ -334,7 +335,7 @@ class MixinViewTrace:
             self._qt_add_event_line()
 
     ## panel ##
-    def _panel_create_toolbar(self):
+    def _panel_create_toolbars(self):
         import panel as pn
 
         segment_index = self.controller.get_time()[1]
@@ -373,6 +374,25 @@ class MixinViewTrace:
         self.time_slider = pn.widgets.FloatSlider(name="Time (s)", start=t_start, end=t_stop, value=0, step=0.1, 
                                                   value_throttled=0, sizing_mode="stretch_width")
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
+
+        bottom_toolbar_items = [self.time_slider]
+        if self.controller.has_extension("events"):
+            event_keys = list(self.controller.events.keys())
+            if len(event_keys) > 1:
+                self.event_type_selector = pn.widgets.Select(name="Event", options=event_keys, value=event_keys[0])
+                self.event_type_selector.param.watch(self._panel_on_event_type_changed, "value")
+                bottom_toolbar_items.append(self.event_type_selector)
+            else:
+                self.event_key = event_keys[0]
+
+            self.prev_event_button = pn.widgets.Button(name="◀", button_type="default", width=40)
+            self.next_event_button = pn.widgets.Button(name="▶", button_type="default", width=40)
+            self.prev_event_button.on_click(self._panel_on_prev_event)
+            self.next_event_button.on_click(self._panel_on_next_event)
+
+            bottom_toolbar_items.append(self.prev_event_button)
+            bottom_toolbar_items.append(self.next_event_button)
+        self.bottom_toolbar = pn.Row(*bottom_toolbar_items, sizing_mode="stretch_width")
 
     def _panel_on_segment_changed(self, event):
         segment_index = int(event.new.split()[-1])
@@ -441,6 +461,10 @@ class MixinViewTrace:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self._panel_seek_with_selected_spike()
             self.notify_spike_selection_changed()
+            # change selected unit
+            unit_id = self.controller.unit_ids[self.controller.spikes[ind_spike_nearest]["unit_index"]]
+            self.controller.set_visible_unit_ids([unit_id])
+            self.notify_unit_visibility_changed()
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -527,7 +551,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self.layout = QT.QVBoxLayout()
         # self.setLayout(self.layout)
         
-        self._qt_create_toolbar()
+        self._qt_create_toolbars()
 
         # create graphic view and 2 scroll bar
         # g = QT.QGridLayout()
@@ -540,8 +564,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-
-        self._qt_create_bottom_toolbar()
         self.layout.addWidget(self.bottom_toolbar)
         self._qt_update_scroll_limits()
 
@@ -688,12 +710,12 @@ class TraceView(ViewBase, MixinViewTrace):
 
         self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
-        self._panel_create_toolbar()
+        self._panel_create_toolbars()
         
         self.layout = pn.Column(
             self.toolbar,
             self.figure,
-            self.time_slider,
+            self.bottom_toolbar,
             styles={"display": "flex", "flex-direction": "column"},
             sizing_mode="stretch_both"
         )
