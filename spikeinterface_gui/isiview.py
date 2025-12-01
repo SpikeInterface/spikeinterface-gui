@@ -2,6 +2,7 @@ from .view_base import ViewBase
 
 
 class ISIView(ViewBase):
+    id = "isi"
     _supported_backend = ['qt', 'panel']
     _settings = [
                 {'name': 'window_ms', 'type': 'float', 'value' : 50. },

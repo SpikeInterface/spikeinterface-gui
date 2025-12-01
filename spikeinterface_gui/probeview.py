@@ -8,6 +8,7 @@ from spikeinterface.postprocessing.unit_locations import possible_localization_m
 
 
 class ProbeView(ViewBase):
+    id = "probe"
     _supported_backend = ['qt', 'panel']
     _settings = [
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
