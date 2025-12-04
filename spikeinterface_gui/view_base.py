@@ -2,6 +2,7 @@ import time
 from contextlib import contextmanager
 
 class ViewBase:
+    id: str = None
     _supported_backend = []
     _need_compute = False
     _settings = None
@@ -10,6 +11,7 @@ class ViewBase:
 
     def __init__(self, controller=None, parent=None, backend="qt"):
 
+        assert self.id is not None, "Unique view ID must be defined!"
         self.backend = backend
         self.controller = controller
         # this is used for panel

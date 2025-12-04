@@ -5,6 +5,7 @@ from .view_base import ViewBase
 
 
 class CrossCorrelogramView(ViewBase):
+    id = "crosscorrelogram"
     _supported_backend = ['qt', 'panel']
     _depend_on = ["correlograms"]
     _settings = [

@@ -9,6 +9,7 @@ from spikeinterface.core.core_tools import check_json
 
 
 class CurationView(ViewBase):
+    id = "curation"
     _supported_backend = ['qt', 'panel']
     _need_compute = False
 

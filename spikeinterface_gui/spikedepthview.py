@@ -2,6 +2,7 @@ from .basescatterview import BaseScatterView
 
 
 class SpikeDepthView(BaseScatterView):
+    id = "spikedepth"
     _depend_on = ["spike_locations"]
 
     def __init__(self, controller=None, parent=None, backend="qt"):

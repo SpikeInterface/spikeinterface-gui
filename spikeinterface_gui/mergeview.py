@@ -13,6 +13,7 @@ all_presets["similarity"] = ["unit_locations", "template_similarity"]
 all_presets.update(_compute_merge_presets)
 
 class MergeView(ViewBase):
+    id = "merge"
     _supported_backend = ['qt', 'panel']
 
     _settings = None

@@ -376,6 +376,7 @@ class MixinViewTrace:
 
 
 class TraceView(ViewBase, MixinViewTrace):
+    id = "trace"
     _supported_backend = ['qt', 'panel']
 
     _depend_on = ['recording', 'noise_levels']

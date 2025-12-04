@@ -5,6 +5,7 @@ from .basescatterview import BaseScatterView
 
 
 class SpikeAmplitudeView(BaseScatterView):
+    id = "spikeamplitude"
     _depend_on = ["spike_amplitudes"]
     _settings = BaseScatterView._settings + [
         {"name": "noise_level", "type": "bool", "value": True},

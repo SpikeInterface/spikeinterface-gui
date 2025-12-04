@@ -377,7 +377,8 @@ class Controller():
                     self.has_default_quality_labels = True
 
     def check_is_view_possible(self, view_name):
-        from .viewlist import possible_class_views
+        from .viewlist import get_all_possible_views
+        possible_class_views = get_all_possible_views()
         view_class = possible_class_views[view_name]
         if view_class._depend_on is not None:
             depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)

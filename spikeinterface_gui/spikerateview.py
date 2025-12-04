@@ -3,6 +3,7 @@ import numpy as np
 
 
 class SpikeRateView(ViewBase):
+    id = "spikerate"
     _supported_backend = ['qt', 'panel']
     _settings = [
             {'name': 'bin_s', 'type': 'int', 'value' : 60 },

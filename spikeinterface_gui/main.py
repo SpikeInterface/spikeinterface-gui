@@ -13,7 +13,7 @@ from spikeinterface_gui.layout_presets import get_layout_description
 
 import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
-from spikeinterface_gui.viewlist import possible_class_views
+from spikeinterface_gui.viewlist import get_all_possible_views
 
 def run_mainwindow(
     analyzer,
@@ -376,7 +376,7 @@ def find_skippable_extensions(layout_dict):
     wants to load. Does this by taking all possible extensions, then removing any which are
     needed by a view.
     """
-    
+    possible_class_views = get_all_possible_views()
     all_extensions = set(get_available_analyzer_extensions())
 
     view_per_zone = list(layout_dict.values())

@@ -3,7 +3,7 @@ from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folde
 
 from spikeinterface_gui.controller import Controller
 from spikeinterface_gui.myqt import mkQApp
-from spikeinterface_gui.viewlist import possible_class_views
+from spikeinterface_gui.viewlist import get_all_possible_views
 from spikeinterface_gui.backend_qt import ViewWidget
 
 
@@ -36,6 +36,7 @@ def debug_one_view():
     # view_class = possible_class_views['unitlist']
     # view_class = possible_class_views['mainsettings']
     # view_class = possible_class_views['spikeamplitude']
+    possible_class_views = get_all_possible_views()
     view_class = possible_class_views['metrics']
     widget = ViewWidget(view_class)
     view = view_class(controller=controller, parent=widget, backend='qt')

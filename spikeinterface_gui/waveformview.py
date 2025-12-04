@@ -11,6 +11,7 @@ _wheel_refresh_time = 0.1
 
 
 class WaveformView(ViewBase):
+    id = "waveform"
     _supported_backend = ["qt", "panel"]
 
     _settings = [

@@ -8,6 +8,7 @@ from .view_base import ViewBase
 
 
 class WaveformHeatMapView(ViewBase):
+    id = "waveform_heatmap"
     _supported_backend = ['qt', 'panel']
     _settings = [
                       {'name': 'colormap', 'type': 'list', 'limits' : ['hot', 'viridis', 'jet', 'gray',  ] },

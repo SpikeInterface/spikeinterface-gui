@@ -1,0 +1,35 @@
+[project]
+name = "spikeinterface-gui-custom-view-example"
+version = "0.1.0"
+authors = [
+  { name="Your Name", email="your.email@example.com" },
+]
+description = "Example custom view plugin for SpikeInterface GUI"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "spikeinterface-gui>=0.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/your-repo"
+
+[build-system]
+requires = ["setuptools>=62.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["my_custom_view_plugin"]
+
+# Register the custom view with the SpikeInterface GUI
+# The key "customview" will be the ID used to reference this view
+# The value points to the module and class: "package.module:ClassName"
+[project.entry-points."spikeinterface_gui.views"]
+custom1view = "my_custom_view_plugin.custom1view:Custom1View"
+custom2view = "my_custom_view_plugin.custom2view:Custom2View"

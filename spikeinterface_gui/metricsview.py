@@ -10,6 +10,7 @@ from spikeinterface.postprocessing.unit_locations import possible_localization_m
 _default_visible_metrics = ("snr", "firing_rate")
 
 class MetricsView(ViewBase):
+    id = "metrics"
     _supported_backend = ['qt', 'panel']
     _settings = [
         {'name': 'num_bins', 'type': 'int', 'value' : 30 },

@@ -10,6 +10,7 @@ from .view_base import ViewBase
 
 
 class NDScatterView(ViewBase):
+    id = "ndscatter"
     _supported_backend = ['qt', 'panel']
     _depend_on = ['principal_components']
     _settings = [
