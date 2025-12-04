@@ -85,7 +85,6 @@ class MetricsView(ViewBase):
 
     def _qt_refresh(self):
         import pyqtgraph as pg
-        import pandas as pd
         from .myqt import QT
 
 
@@ -114,7 +113,7 @@ class MetricsView(ViewBase):
 
                     for unit_ind, unit_id in self.controller.iter_visible_units():
                         color = self.get_unit_color(unit_id)
-                        if (not pd.isna(values2[unit_ind])) and (not pd.isna(values1[unit_ind])):
+                        if (not np.isnan(values2[unit_ind])) and (not np.isnan(values1[unit_ind])):
                             scatter.addPoints(x=[values2[unit_ind]], y=[values1[unit_ind]],  pen=pg.mkPen(None), brush=color)
 
                 elif c == r:
@@ -128,7 +127,7 @@ class MetricsView(ViewBase):
                     for unit_ind, unit_id in self.controller.iter_visible_units():
                         x = values1[unit_ind]
                         color = self.get_unit_color(unit_id)
-                        if not pd.isna(x):
+                        if not np.isnan(x):
                             line = pg.InfiniteLine(pos=x, angle=90, movable=False, pen=color)
                             plot.addItem(line)
 
@@ -186,7 +185,6 @@ class MetricsView(ViewBase):
         self.refresh()
 
     def _panel_refresh(self):
-        import pandas as pd
         import panel as pn
         import bokeh.plotting as bpl
         from bokeh.layouts import gridplot
@@ -240,7 +238,7 @@ class MetricsView(ViewBase):
                             max_hist = max(hist)
                             for unit_ind, unit_id in self.controller.iter_visible_units():
                                 x = values1[unit_ind]
-                                if not pd.isna(x):
+                                if not np.isnan(x):
                                     color = self.get_unit_color(unit_id)
                                     plot.line([x, x], [0, max_hist], line_width=2, color=color, alpha=0.8)
                     else:
