@@ -7,11 +7,8 @@ import json
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
-from spikeinterface.core import get_template_extremum_channel
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
+from spikeinterface.core import get_template_extremum_channel, BaseEvent
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
@@ -33,10 +30,23 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 class Controller():
-    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
+    def __init__(
+        self,
+        analyzer=None,
+        backend="qt",
+        parent=None,
+        verbose=False,
+        save_on_compute=False,
+        curation=False,
+        curation_data=None,
+        label_definitions=None,
+        with_traces=True,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        skip_extensions=None,
+        disable_save_settings_button=False,
+        events=None
+    ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
 
@@ -220,6 +230,62 @@ class Controller():
             self.pc_ext = pc_ext
 
         self._potential_merges = None
+        # some direct attribute
+        self.num_segments = self.analyzer.get_num_segments()
+        self.sampling_frequency = self.analyzer.sampling_frequency
+
+        self.events = None
+        if events is not None:
+            if verbose:
+                print('\tLoading events')
+            self.events = {}
+            if isinstance(events, dict):
+                for key, val in events.items():
+                    if not isinstance(val, dict):
+                        if verbose:
+                            print(f'\tSkipping event {key}: not a dict')
+                        continue
+                    if 'samples' not in val and 'times' not in val:
+                        if verbose:
+                            print(f'\tSkipping event {key}: missing samples or times')
+                        continue
+                    if 'times' in val:
+                        samples_data = val['times']
+                        convert_to_samples = True
+                    else:
+                        samples_data = val['samples']
+                        convert_to_samples = False
+                    if self.num_segments > 1:
+                        if not len(samples_data) == self.num_segments:
+                            if verbose:
+                                print(f'\tSkipping event {key}: inconsistent number of samples')
+                            continue
+                    else:
+                        # here we make sure samples is a list of list
+                        if np.array(samples_data).ndim == 1:
+                            samples_data = [samples_data]
+                    if convert_to_samples:
+                        self.events[key] = [np.array(self.time_to_sample_index(s)) for s in samples_data]
+                    else:
+                        self.events[key] = [np.array(s) for s in samples_data]
+            elif isinstance(events, BaseEvent):
+                event_names = events.channel_ids
+                self.events = {
+                    event_name: [] for event_name in event_names
+                }
+                for event_name in event_names:
+                    for segment_index in range(self.num_segments):
+                        event_times_segment = events.get_event_times(
+                            channel_id=event_name,
+                            segment_index=segment_index
+                        )
+                        event_samples_segment = self.analyzer.time_to_sample_index(
+                            event_times_segment
+                        )
+                        self.events[event_name].append(np.array(event_samples_segment))
+
+            if len(self.events) == 0:
+                self.events = None
 
         t1 = time.perf_counter()
         if verbose:
@@ -228,10 +294,6 @@ class Controller():
         t0 = time.perf_counter()
 
         self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
-
-        # some direct attribute
-        self.num_segments = self.analyzer.get_num_segments()
-        self.sampling_frequency = self.analyzer.sampling_frequency
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
@@ -489,6 +551,13 @@ class Controller():
         else:
             return int(time * self.sampling_frequency)
 
+    def get_events(self, event_name):
+        if self.events is None:
+            return None
+        if event_name not in self.events:
+            return None
+        return self.events[event_name][self.time_info['segment_index']]
+
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()
         nchan = self.analyzer.get_num_channels()
@@ -715,6 +784,8 @@ class Controller():
     def has_extension(self, extension_name):
         if extension_name == 'recording':
             return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
+        elif extension_name == 'events':
+            return self.events is not None
         else:
             # extension needs to be loaded
             if extension_name in self.skip_extensions:
