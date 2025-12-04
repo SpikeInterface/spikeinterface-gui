@@ -3,7 +3,7 @@ import panel as pn
 import numpy as np
 from copy import copy
 
-from .viewlist import possible_class_views
+from .viewlist import get_all_possible_views
 from .layout_presets import get_layout_description
 from .utils_global import fill_unnecessary_space, get_present_zones_in_half_of_layout
 # Used by views to emit/trigger signals
@@ -223,6 +223,7 @@ class PanelMainWindow:
         for _, view_names in self.layout_dict.items():
             requested_views.extend(view_names)
         requested_views = set(requested_views)
+        possible_class_views = get_all_possible_views()
         for view_name, view_class in possible_class_views.items():
             if 'panel' not in view_class._supported_backend:
                 continue
