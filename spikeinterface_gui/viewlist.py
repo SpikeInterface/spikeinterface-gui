@@ -7,7 +7,7 @@ from .traceview import TraceView
 from .waveformview import WaveformView
 from .waveformheatmapview import WaveformHeatMapView
 from .isiview import ISIView
-from .crosscorrelogramview import CrossCorrelogramView
+from .correlogramview import CorrelogramView
 from .probeview import ProbeView
 from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
@@ -23,7 +23,7 @@ from .spikerateview import SpikeRateView
 builtin_views = [
     ProbeView, MainSettingsView, UnitListView, SpikeRateView, MergeView,
     TraceView, TraceMapView, WaveformView, WaveformHeatMapView, ISIView,
-    CrossCorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
+    CorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
     SpikeDepthView, SpikeRateView, CurationView, MetricsView
 ]
 
