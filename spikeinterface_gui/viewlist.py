@@ -17,6 +17,8 @@ from .mainsettingsview import MainSettingsView
 from .metricsview import MetricsView
 from .spikerateview import SpikeRateView
 
+from .compareunitlistview import CompareUnitListView
+
 # probe and mainsettings view are first, since they affect other views (e.g., time info)
 possible_class_views = dict(
     probe = ProbeView,
@@ -36,5 +38,6 @@ possible_class_views = dict(
     tracemap = TraceMapView,
     curation = CurationView,
     spikerate = SpikeRateView,
-    metrics = MetricsView,    
+    metrics = MetricsView,
+    compareunitlist = CompareUnitListView
 )
