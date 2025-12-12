@@ -540,7 +540,6 @@ class WaveformView(ViewBase):
             if num_waveforms <= 0:
                 self.curve_waveforms.setData([], [])
                 return
-            wf_ext = self.controller.analyzer.get_extension("waveforms")
             visible_unit_ids = self.controller.get_visible_unit_ids()
 
             # Process waveforms per unit to maintain color association
@@ -548,7 +547,7 @@ class WaveformView(ViewBase):
             width = None
 
             for unit_id in visible_unit_ids:
-                waveforms = wf_ext.get_waveforms_one_unit(unit_id, force_dense=True)
+                waveforms, _ = self.controller.get_waveforms(unit_id, force_dense=True)
                 if waveforms is None or len(waveforms) == 0:
                     continue
 
@@ -1270,7 +1269,6 @@ class WaveformView(ViewBase):
             self.lines_data_source_wfs_geom.data = dict(xs=[], ys=[], colors=[])
             return
 
-        wf_ext = self.controller.analyzer.get_extension("waveforms")
         visible_unit_ids = self.controller.get_visible_unit_ids()
 
         # Process waveforms per unit to maintain color association
@@ -1278,7 +1276,7 @@ class WaveformView(ViewBase):
         width = None
 
         for unit_id in visible_unit_ids:
-            waveforms = wf_ext.get_waveforms_one_unit(unit_id, force_dense=True)
+            waveforms, _ = self.controller.get_waveforms(unit_id, force_dense=True)
             if waveforms is None or len(waveforms) == 0:
                 continue
 
