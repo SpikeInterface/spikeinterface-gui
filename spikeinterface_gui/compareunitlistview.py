@@ -37,13 +37,11 @@ class CompareUnitListView(ViewBase):
         self.table.itemSelectionChanged.connect(self._qt_on_selection_changed)
 
         # Setup table structure
-        self.table.setColumnCount(5)
+        self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels([
             f'Unit ({self.controller.analyzer1_name})',
             f'Unit ({self.controller.analyzer2_name})',
             'Agreement Score',
-            f'#Spikes ({self.controller.analyzer1_name})',
-            f'#Spikes ({self.controller.analyzer2_name})'
         ])
         self.table.setSortingEnabled(True)
         # Sort by Agreement Score column (index 2) by default
@@ -113,7 +111,6 @@ class CompareUnitListView(ViewBase):
                 })
 
         # Add unmatched units from analyzer2
-        print("Remaining unmatched units in analyzer2:", len(all_units2))
         for unit2_orig in all_units2:
             unit2_idx = list(self.controller.analyzer2.unit_ids).index(unit2_orig)
             unit2 = self.controller.unit_ids2[unit2_idx]
@@ -138,36 +135,44 @@ class CompareUnitListView(ViewBase):
         for i, row in enumerate(rows):
             # Unit 1 column with color
             if row['unit1'] != '':
-                item1 = QT.QTableWidgetItem(str(row['unit1']))
                 unit1 = np.array([row['unit1']]).astype(self.unit_dtype)[0]
-                color1 = self.controller.get_unit_color(unit1)
-                item1.setBackground(QT.QColor(int(color1[0] * 255), int(color1[1] * 255), int(color1[2] * 255)))
-                # Set text color to white or black depending on background brightness
-                brightness1 = 0.299 * color1[0] + 0.587 * color1[1] + 0.114 * color1[2]
-                text_color1 = QT.QColor(255, 255, 255) if brightness1 < 0.5 else QT.QColor(0, 0, 0)
-                item1.setForeground(text_color1)
+                n = row['num_spikes1']
+                name = f'{unit1} n={n}'
+                color = self.get_unit_color(unit1)
+                pix = QT.QPixmap(16, 16)
+                pix.fill(color)
+                icon = QT.QIcon(pix)
+                item1 = QT.QTableWidgetItem(name)
+                item1.setData(QT.Qt.ItemDataRole.UserRole, unit1)
+                item1.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
+                item1.setIcon(icon)
+                item1.unit1 = unit1
             else:
                 item1 = QT.QTableWidgetItem('')
+                item1.unit1 = ''
             self.table.setItem(i, 0, item1)
             
             # Unit 2 column with color
             if row['unit2'] != '':
-                item2 = QT.QTableWidgetItem(str(row['unit2']))
                 unit2 = np.array([row['unit2']]).astype(self.unit_dtype)[0]
-                color2 = self.controller.get_unit_color(unit2)
-                item2.setBackground(QT.QColor(int(color2[0] * 255), int(color2[1] * 255), int(color2[2] * 255)))
-                # Set text color to white or black depending on background brightness
-                brightness2 = 0.299 * color2[0] + 0.587 * color2[1] + 0.114 * color2[2]
-                text_color2 = QT.QColor(255, 255, 255) if brightness2 < 0.5 else QT.QColor(0, 0, 0)
-                item2.setForeground(text_color2)
+                n = row['num_spikes2']
+                name = f'{unit2} n={n}'
+                color = self.get_unit_color(unit2)
+                pix = QT.QPixmap(16, 16)
+                pix.fill(color)
+                icon = QT.QIcon(pix)
+                item2 = QT.QTableWidgetItem(name)
+                item2.setData(QT.Qt.ItemDataRole.UserRole, unit2)
+                item2.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
+                item2.setIcon(icon)
+                item2.unit2 = unit2
             else:
                 item2 = QT.QTableWidgetItem('')
+                item2.unit2 = ''
             self.table.setItem(i, 1, item2)
             
             # Other columns
             self.table.setItem(i, 2, QT.QTableWidgetItem(row['agreement_score']))
-            self.table.setItem(i, 3, QT.QTableWidgetItem(str(row['num_spikes1'])))
-            self.table.setItem(i, 4, QT.QTableWidgetItem(str(row['num_spikes2'])))
 
         # Re-enable sorting after populating
         self.table.setSortingEnabled(True)
@@ -186,19 +191,17 @@ class CompareUnitListView(ViewBase):
         # Get unit values from table items
         unit1_item = self.table.item(row_idx, 0)
         unit2_item = self.table.item(row_idx, 1)
-        
+        unit1 = unit1_item.unit1
+        unit2 = unit2_item.unit2
+
         # Collect units to make visible
         visible_units = []
         
-        if unit1_item is not None and unit1_item.text() != '':
-            unit1 = np.array([unit1_item.text()]).astype(self.unit_dtype)[0]
+        if unit1 != '':
             visible_units.append(unit1)
-        
-        if unit2_item is not None and unit2_item.text() != '':
-            unit2 = np.array([unit2_item.text()]).astype(self.unit_dtype)[0]
+        if unit2 != '':
             visible_units.append(unit2)
 
-        print("Selected units:", visible_units)
         # Update visibility
         if visible_units:
             self.controller.set_visible_unit_ids(visible_units)
