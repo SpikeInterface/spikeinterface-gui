@@ -185,7 +185,7 @@ class BaseScatterView(ViewBase):
         tb = self.qt_widget.view_toolbar
         self.combo_seg = QT.QComboBox()
         tb.addWidget(self.combo_seg)
-        self.combo_seg.addItems([ f'Segment {segment_index}' for segment_index in range(self.controller.num_segments) ])
+        self.combo_seg.addItems([f'Segment {segment_index}' for segment_index in range(self.controller.num_segments)])
         self.combo_seg.currentIndexChanged.connect(self._qt_change_segment)
         add_stretch_to_qtoolbar(tb)
         self.lasso_but = QT.QPushButton("select", checkable = True)
@@ -278,7 +278,7 @@ class BaseScatterView(ViewBase):
             # make a copy of the color
             color = QT.QColor(self.get_unit_color(unit_id))
             color.setAlpha(int(self.settings['alpha']*255))
-            self.scatter.addPoints(x=spike_times, y=spike_data,  pen=pg.mkPen(None), brush=color)
+            self.scatter.addPoints(x=spike_times, y=spike_data, pen=pg.mkPen(None), brush=color)
 
             color = self.get_unit_color(unit_id)
             curve = pg.PlotCurveItem(hist_count, hist_bins[:-1], fillLevel=None, fillOutline=True, brush=color, pen=color)
