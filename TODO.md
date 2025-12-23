@@ -25,7 +25,7 @@
   - [ ] global settings (e.g. color options, layout)
 - [x] unit list
     - [x] more columns to panel unit list
-    - [x] add settings to select colums
+    - [x] add settings to select columns
     - [x] add sparsity and channel id
     - [x] visible only when clicking on select column
     - [x] make x-axis scrollable
