@@ -1,5 +1,5 @@
 import json
-from spikeinterface_gui.viewlist import possible_class_views
+from spikeinterface_gui.viewlist import get_all_possible_views
 import numpy as np
 
 """
@@ -27,6 +27,7 @@ downwards to make a long two-zone view.
 _presets = {}
 
 def _check_valid_layout_dict(layout_dict):
+    possible_class_views = get_all_possible_views()
     for key, class_views in layout_dict.items():
         if key not in [f"zone{a}" for a in range(1,9)]:
             raise KeyError(f"Key {key} in layout dictionary not equal to zone1, zone2, ... or zone8.")
@@ -37,6 +38,7 @@ def _check_valid_layout_dict(layout_dict):
                                 f"Valid views are {list_of_possible_class_views}")
 
 def get_layout_description(preset_name, layout=None):
+    possible_class_views = get_all_possible_views()
     if isinstance(layout, dict):
         _check_valid_layout_dict(layout)
         # If a layout_dict is provided, use it instead of the preset

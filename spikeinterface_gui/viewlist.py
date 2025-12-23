@@ -1,3 +1,5 @@
+import importlib.metadata
+
 from .unitlistview import UnitListView
 from .spikelistview import SpikeListView
 from .mergeview import MergeView
@@ -5,7 +7,7 @@ from .traceview import TraceView
 from .waveformview import WaveformView
 from .waveformheatmapview import WaveformHeatMapView
 from .isiview import ISIView
-from .crosscorrelogramview import CrossCorrelogramView
+from .correlogramview import CorrelogramView
 from .probeview import ProbeView
 from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
@@ -18,23 +20,34 @@ from .metricsview import MetricsView
 from .spikerateview import SpikeRateView
 
 # probe and mainsettings view are first, since they affect other views (e.g., time info)
-possible_class_views = dict(
-    probe = ProbeView,
-    mainsettings = MainSettingsView,
-    unitlist = UnitListView,
-    spikelist = SpikeListView,
-    merge = MergeView,
-    trace = TraceView,
-    waveform = WaveformView,
-    waveformheatmap = WaveformHeatMapView,
-    isi = ISIView,
-    correlogram = CrossCorrelogramView,
-    ndscatter = NDScatterView,
-    similarity = SimilarityView,
-    spikeamplitude = SpikeAmplitudeView,
-    spikedepth = SpikeDepthView,
-    tracemap = TraceMapView,
-    curation = CurationView,
-    spikerate = SpikeRateView,
-    metrics = MetricsView,    
-)
+builtin_views = [
+    ProbeView, MainSettingsView, UnitListView, SpikeRateView, MergeView,
+    TraceView, TraceMapView, WaveformView, WaveformHeatMapView, ISIView,
+    CorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
+    SpikeDepthView, SpikeRateView, CurationView, MetricsView
+]
+
+def get_all_possible_views():
+    """
+    Get all possible view classes, including built-in and plugin views.
+
+    Returns
+    -------
+    dict
+        A dictionary mapping view IDs to view classes.
+    """
+    # id is a unique identifier
+    possible_class_views = {}
+    for view in builtin_views:
+        possible_class_views[view.id] = view
+    # Load plugin views
+    eps = importlib.metadata.entry_points(group="spikeinterface_gui.views")
+    for ep in eps:
+        try:
+            view_class = ep.load()
+            possible_class_views[ep.name] = view_class
+        except Exception as e:
+            # Log but don't crash if a plugin fails to load
+            print(f"Warning: Failed to load plugin view '{ep.name}': {e}")
+
+    return possible_class_views

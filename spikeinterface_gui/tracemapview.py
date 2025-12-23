@@ -8,7 +8,7 @@ from .traceview import MixinViewTrace, find_nearest_spike
 
 
 class TraceMapView(ViewBase, MixinViewTrace):
-
+    id = "tracemap"
     _supported_backend = ['qt', 'panel']
     _depend_on = ['recording']
     _settings = [

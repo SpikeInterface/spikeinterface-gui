@@ -13,6 +13,7 @@ main_settings = [
 
 
 class MainSettingsView(ViewBase):
+    id = "mainsettings"
     _supported_backend = ['qt', 'panel']
     _settings = None
     _depend_on = []
