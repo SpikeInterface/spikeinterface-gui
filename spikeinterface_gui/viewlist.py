@@ -24,7 +24,7 @@ builtin_views = [
     ProbeView, MainSettingsView, UnitListView, SpikeRateView, MergeView,
     TraceView, TraceMapView, WaveformView, WaveformHeatMapView, ISIView,
     CorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
-    SpikeDepthView, SpikeRateView, CurationView, MetricsView
+    SpikeDepthView, SpikeRateView, CurationView, MetricsView, SpikeListView
 ]
 
 def get_all_possible_views():

@@ -207,7 +207,7 @@ class CorrelogramView(ViewBase):
 
 
 
-CrossCorrelogramView._gui_help_txt = """
+CorrelogramView._gui_help_txt = """
 ## Correlograms View
 
 This view shows the auto-correlograms and cross-correlograms of the selected units.
