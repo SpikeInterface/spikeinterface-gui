@@ -368,6 +368,13 @@ class CurationView(ViewBase):
         )
         save_button.on_click(self._panel_save_in_analyzer)
 
+        apply_button = pn.widgets.Button(
+            name="Apply curation",
+            button_type="primary",
+            height=30
+        )
+        apply_button.on_click(self._panel_apply_curation_to_analyzer)
+
         download_button = pn.widgets.FileDownload(
             button_type="primary",
             filename="curation.json",
@@ -399,6 +406,7 @@ class CurationView(ViewBase):
         buttons_save = pn.Row(
             save_button,
             download_button,
+            apply_button,
             submit_button,
             sizing_mode="stretch_width",
         )
@@ -529,6 +537,9 @@ class CurationView(ViewBase):
 
     def _panel_unmerge(self, event):
         self.unmerge()
+
+    def _panel_apply_curation_to_analyzer(self, event):
+        self.apply_curation_to_analyzer()
 
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()

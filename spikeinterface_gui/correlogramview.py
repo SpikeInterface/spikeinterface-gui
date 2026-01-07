@@ -121,6 +121,11 @@ class CorrelogramView(ViewBase):
             sizing_mode="stretch_both",
         )
 
+    def _panel_reinitialize(self):
+        self.ccg, self.bins = self.controller.get_correlograms()
+        self.figure_cache = {}
+        self._panel_refresh()
+
     def _panel_refresh(self):
         import panel as pn
         import bokeh.plotting as bpl

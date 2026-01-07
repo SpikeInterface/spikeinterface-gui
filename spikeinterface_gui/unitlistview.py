@@ -653,6 +653,10 @@ class UnitListView(ViewBase):
         # refresh header
         self._panel_refresh_header()
 
+    def _panel_reinitialize(self):
+        self._panel_make_layout()
+        self._refresh()
+
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids
         n1 = len(unit_ids)

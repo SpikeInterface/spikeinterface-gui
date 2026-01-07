@@ -540,6 +540,10 @@ class ProbeView(ViewBase):
                 self.y_range.start = y_min - margin
                 self.y_range.end = y_max + margin
 
+    def _panel_reinitialize(self):
+        self._panel_make_layout()
+        self._refresh()
+
     def _panel_update_unit_glyphs(self):
         # Get current data from source
         current_alphas = self.unit_glyphs.data_source.data['alpha']
