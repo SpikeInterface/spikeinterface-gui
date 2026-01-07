@@ -490,11 +490,14 @@ class ProbeView(ViewBase):
         self.should_resize_unit_circle = None
 
         # Main layout
-        self.layout = pn.Column(
-            self.figure,
-            styles={"display": "flex", "flex-direction": "column"},
-            sizing_mode="stretch_both",
-        )
+        if self.layout is None:
+            self.layout = pn.Column(
+                self.figure,
+                styles={"display": "flex", "flex-direction": "column"},
+                sizing_mode="stretch_both",
+            )
+        else:
+            self.layout.objects = [self.figure]
 
     def _panel_refresh(self):
         # Only update unit positions if they actually changed

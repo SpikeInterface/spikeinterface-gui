@@ -284,7 +284,8 @@ class CurationView(ViewBase):
         self.controller.save_curation_in_analyzer()
 
     def apply_curation_to_analyzer(self):
-        self.controller.apply_curation()
+        with self.busy_cursor():
+            self.controller.apply_curation()
 
     def _qt_export_json(self):
         from .myqt import QT

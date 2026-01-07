@@ -38,7 +38,7 @@ class ViewBase:
                 create_settings(self)
             self.notifier = SignalNotifier(view=self)
             self.busy = pn.indicators.LoadingSpinner(value=True, size=20, name='busy...')
-
+        self.layout = None
         make_layout()
         if self._settings is not None:
             listen_setting_changes(self)

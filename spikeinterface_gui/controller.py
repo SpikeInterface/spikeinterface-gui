@@ -821,15 +821,12 @@ class Controller():
 
         self.set_analyzer_info(curated_analyzer, None, None)
         self.remove_curation()
-        
-        self.curation=None
         self.refresh_colors()
 
         for view in self.views:
             view.reinitialize()
 
     def remove_curation(self):
-        self.curation = None
         self.curation_data = empty_curation_data.copy()
 
     def save_curation_in_analyzer(self):
