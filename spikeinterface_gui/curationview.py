@@ -73,6 +73,11 @@ class CurationView(ViewBase):
             but = QT.QPushButton("Save in analyzer")
             tb.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
+
+            but_apply = QT.QPushButton("Apply curation")
+            tb.addWidget(but_apply)
+            but_apply.clicked.connect(self.apply_curation_to_analyzer)
+
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)        
         tb.addWidget(but)
@@ -277,6 +282,9 @@ class CurationView(ViewBase):
     
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
+
+    def apply_curation_to_analyzer(self):
+        self.controller.apply_curation()
 
     def _qt_export_json(self):
         from .myqt import QT

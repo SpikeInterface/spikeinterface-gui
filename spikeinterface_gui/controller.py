@@ -12,7 +12,7 @@ import spikeinterface.postprocessing
 import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
-from spikeinterface.curation import validate_curation_dict
+from spikeinterface.curation import validate_curation_dict, apply_curation
 from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
@@ -54,17 +54,117 @@ class Controller():
             self.signal_handler = SignalHandler(self, parent=parent)
 
         self.with_traces = with_traces
+        self.main_settings = _default_main_settings.copy()
+        self.save_on_compute = save_on_compute
+        self.verbose = verbose
+
+        self.set_analyzer_info(analyzer, extra_unit_properties, displayed_unit_properties)
+
+        self._potential_merges = None
+        self.curation = curation
+        # TODO: Reload the dictionary if it already exists
+        if self.curation:
+            # rules:
+            #  * if user sends curation_data, then it is used
+            #  * otherwise, if curation_data already exists in folder it is used
+            #  * otherwise create an empty one
+
+            if curation_data is not None:
+                # validate the curation data
+                format_version = curation_data.get("format_version", None)
+                # assume version 2 if not present
+                if format_version is None:
+                    raise ValueError("Curation data format version is missing and is required in the curation data.")
+                try:
+                    validate_curation_dict(curation_data)
+                except Exception as e:
+                    raise ValueError(f"Invalid curation data.\nError: {e}")
+
+                if curation_data.get("merges") is None:
+                    curation_data["merges"] = []
+                else:
+                    # here we reset the merges for better formatting (str)
+                    existing_merges = curation_data["merges"]
+                    new_merges = []
+                    for m in existing_merges:
+                        if "unit_ids" not in m:
+                            continue
+                        if len(m["unit_ids"]) < 2:
+                            continue
+                        new_merges = add_merge(new_merges, m["unit_ids"])
+                    curation_data["merges"] = new_merges
+                if curation_data.get("splits") is None:
+                    curation_data["splits"] = []
+                if curation_data.get("removed") is None:
+                    curation_data["removed"] = []
+
+            elif self.analyzer.format == "binary_folder":
+                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
+                if json_file.exists():
+                    with open(json_file, "r") as f:
+                        curation_data = json.load(f)
+
+            elif self.analyzer.format == "zarr":
+                import zarr
+                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
+                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
+
+            if curation_data is None:
+                curation_data = empty_curation_data.copy()
+
+            if curation_data.get("discard_spikes") is None:
+                curation_data["discard_spikes"] = []
+
+            self.curation_data = curation_data
+
+            self.has_default_quality_labels = False
+            if "label_definitions" not in self.curation_data:
+                if label_definitions is not None:
+                    self.curation_data["label_definitions"] = label_definitions
+                else:
+                    self.curation_data["label_definitions"] = default_label_definitions.copy()
+
+            if "quality" in self.curation_data["label_definitions"]:
+                curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
+                default_quality_labels = default_label_definitions["quality"]["label_options"]
+                if set(curation_dict_quality_labels) == set(default_quality_labels):
+                    if self.verbose:
+                        print('Curation quality labels are the default ones')
+                    self.has_default_quality_labels = True
+
+    def check_is_view_possible(self, view_name):
+        from .viewlist import get_all_possible_views
+        possible_class_views = get_all_possible_views()
+        view_class = possible_class_views[view_name]
+        if view_class._depend_on is not None:
+            depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
+            if not depencies_ok:
+                if self.verbose:
+                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
+                return False
+        return True
+
+    def declare_a_view(self, new_view):
+        assert new_view not in self.views, 'view already declared {}'.format(self)
+        self.views.append(new_view)
+        self.signal_handler.connect_view(new_view)
+        
+    @property
+    def channel_ids(self):
+        return self.analyzer.channel_ids
+
+    @property
+    def unit_ids(self):
+        return self.analyzer.unit_ids
+    
+    def set_analyzer_info(self, analyzer, extra_unit_properties, displayed_unit_properties):
 
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
         
         self.return_in_uV = self.analyzer.return_in_uV
-        self.save_on_compute = save_on_compute
-
-        self.verbose = verbose
         t0 = time.perf_counter()
-
-        self.main_settings = _default_main_settings.copy()
 
         self.num_channels = self.analyzer.get_num_channels()
         # this now private and shoudl be acess using function
@@ -79,7 +179,7 @@ class Controller():
             self.analyzer_sparsity = self.analyzer.sparsity
 
         # Mandatory extensions: computation forced
-        if verbose:
+        if self.verbose:
             print('\tLoading templates')
         temp_ext = self.analyzer.get_extension("templates")
         if temp_ext is None:
@@ -93,7 +193,7 @@ class Controller():
         else:
             self.templates_std = None
 
-        if verbose:
+        if self.verbose:
             print('\tLoading unit_locations')
         ext = analyzer.get_extension('unit_locations')
         if ext is None:
@@ -103,7 +203,7 @@ class Controller():
         self.unit_positions = ext.get_data()[:, :2]
 
         # Optional extensions : can be None or skipped
-        if verbose:
+        if self.verbose:
             print('\tLoading noise_levels')
         ext = analyzer.get_extension('noise_levels')
         if ext is None and self.has_extension('recording'):
@@ -111,12 +211,12 @@ class Controller():
             ext = analyzer.compute_one_extension('noise_levels')
         self.noise_levels = ext.get_data() if ext is not None else None
 
-        if "quality_metrics" in skip_extensions:
+        if "quality_metrics" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping quality_metrics')
             self.metrics = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading quality_metrics')
             qm_ext = analyzer.get_extension('quality_metrics')
             if qm_ext is not None:
@@ -124,12 +224,12 @@ class Controller():
             else:
                 self.metrics = None
 
-        if "spike_amplitudes" in skip_extensions:
+        if "spike_amplitudes" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping spike_amplitudes')
             self.spike_amplitudes = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading spike_amplitudes')
             sa_ext = analyzer.get_extension('spike_amplitudes')
             if sa_ext is not None:
@@ -137,12 +237,12 @@ class Controller():
             else:
                 self.spike_amplitudes = None
 
-        if "spike_locations" in skip_extensions:
+        if "spike_locations" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping spike_locations')
             self.spike_depths = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading spike_locations')
             sl_ext = analyzer.get_extension('spike_locations')
             if sl_ext is not None:
@@ -150,13 +250,13 @@ class Controller():
             else:
                 self.spike_depths = None
 
-        if "correlograms" in skip_extensions:
+        if "correlograms" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping correlograms')
             self.correlograms = None
             self.correlograms_bins = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading correlograms')
             ccg_ext = analyzer.get_extension('correlograms')
             if ccg_ext is not None:
@@ -164,13 +264,13 @@ class Controller():
             else:
                 self.correlograms, self.correlograms_bins = None, None
 
-        if "isi_histograms" in skip_extensions:
+        if "isi_histograms" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping isi_histograms')
             self.isi_histograms = None
             self.isi_bins = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading isi_histograms')
             isi_ext = analyzer.get_extension('isi_histograms')
             if isi_ext is not None:
@@ -179,11 +279,11 @@ class Controller():
                 self.isi_histograms, self.isi_bins = None, None
 
         self._similarity_by_method = {}
-        if "template_similarity" in skip_extensions:
+        if "template_similarity" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping template_similarity')
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading template_similarity')
             ts_ext = analyzer.get_extension('template_similarity')
             if ts_ext is not None:
@@ -196,12 +296,12 @@ class Controller():
                     ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
                     self._similarity_by_method[method] = ts_ext.get_data()
 
-        if "waveforms" in skip_extensions:
+        if "waveforms" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping waveforms')
             self.waveforms_ext = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading waveforms')
             wf_ext = analyzer.get_extension('waveforms')
             if wf_ext is not None:
@@ -209,20 +309,18 @@ class Controller():
             else:
                 self.waveforms_ext = None
         self._pc_projections = None
-        if "principal_components" in skip_extensions:
+        if "principal_components" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping principal_components')
             self.pc_ext = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading principal_components')
             pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
-        self._potential_merges = None
-
         t1 = time.perf_counter()
-        if verbose:
+        if self.verbose:
             print('Loading extensions took', t1 - t0)
 
         t0 = time.perf_counter()
@@ -287,7 +385,7 @@ class Controller():
             self._spike_index_by_units[unit_id] = np.concatenate(inds)
 
         t1 = time.perf_counter()
-        if verbose:
+        if self.verbose:
             print('Gathering all spikes took', t1 - t0)
 
         self._spike_visible_indices = np.array([], dtype='int64')
@@ -307,99 +405,6 @@ class Controller():
         # set default time info
         self.update_time_info()
 
-        self.curation = curation
-        # TODO: Reload the dictionary if it already exists
-        if self.curation:
-            # rules:
-            #  * if user sends curation_data, then it is used
-            #  * otherwise, if curation_data already exists in folder it is used
-            #  * otherwise create an empty one
-
-            if curation_data is not None:
-                # validate the curation data
-                format_version = curation_data.get("format_version", None)
-                # assume version 2 if not present
-                if format_version is None:
-                    raise ValueError("Curation data format version is missing and is required in the curation data.")
-                try:
-                    validate_curation_dict(curation_data)
-                except Exception as e:
-                    raise ValueError(f"Invalid curation data.\nError: {e}")
-
-                if curation_data.get("merges") is None:
-                    curation_data["merges"] = []
-                else:
-                    # here we reset the merges for better formatting (str)
-                    existing_merges = curation_data["merges"]
-                    new_merges = []
-                    for m in existing_merges:
-                        if "unit_ids" not in m:
-                            continue
-                        if len(m["unit_ids"]) < 2:
-                            continue
-                        new_merges = add_merge(new_merges, m["unit_ids"])
-                    curation_data["merges"] = new_merges
-                if curation_data.get("splits") is None:
-                    curation_data["splits"] = []
-                if curation_data.get("removed") is None:
-                    curation_data["removed"] = []
-
-            elif self.analyzer.format == "binary_folder":
-                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
-                if json_file.exists():
-                    with open(json_file, "r") as f:
-                        curation_data = json.load(f)
-
-            elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
-                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
-                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
-
-            if curation_data is None:
-                curation_data = empty_curation_data.copy()
-
-            self.curation_data = curation_data
-
-            self.has_default_quality_labels = False
-            if "label_definitions" not in self.curation_data:
-                if label_definitions is not None:
-                    self.curation_data["label_definitions"] = label_definitions
-                else:
-                    self.curation_data["label_definitions"] = default_label_definitions.copy()
-
-            if "quality" in self.curation_data["label_definitions"]:
-                curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
-                default_quality_labels = default_label_definitions["quality"]["label_options"]
-                if set(curation_dict_quality_labels) == set(default_quality_labels):
-                    if self.verbose:
-                        print('Curation quality labels are the default ones')
-                    self.has_default_quality_labels = True
-
-    def check_is_view_possible(self, view_name):
-        from .viewlist import get_all_possible_views
-        possible_class_views = get_all_possible_views()
-        view_class = possible_class_views[view_name]
-        if view_class._depend_on is not None:
-            depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
-            if not depencies_ok:
-                if self.verbose:
-                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
-                return False
-        return True
-
-    def declare_a_view(self, new_view):
-        assert new_view not in self.views, 'view already declared {}'.format(self)
-        self.views.append(new_view)
-        self.signal_handler.connect_view(new_view)
-        
-    @property
-    def channel_ids(self):
-        return self.analyzer.channel_ids
-
-    @property
-    def unit_ids(self):
-        return self.analyzer.unit_ids
 
     def get_time(self):
         """
@@ -797,7 +802,7 @@ class Controller():
         )
 
         return merge_unit_groups, extra
-    
+
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
@@ -808,6 +813,24 @@ class Controller():
         d.update(self.curation_data.copy())
         model = CurationModel(**d)
         return model
+    
+    def apply_curation(self):
+
+        curation = self.construct_final_curation()
+        curated_analyzer = apply_curation(self.analyzer, curation)
+
+        self.set_analyzer_info(curated_analyzer, None, None)
+        self.remove_curation()
+        
+        self.curation=None
+        self.refresh_colors()
+
+        for view in self.views:
+            view.reinitialize()
+
+    def remove_curation(self):
+        self.curation = None
+        self.curation_data = empty_curation_data.copy()
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":

@@ -149,6 +149,17 @@ class ProbeView(ViewBase):
 
         self.roi_units.sigRegionChangeFinished.connect(self._qt_on_roi_units_changed)
 
+    def _qt_reinitialize(self):
+        import pyqtgraph as pg
+        unit_positions = self.controller.unit_positions
+        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
+        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
+
+        xlim0, xlim1, ylim0, ylim1 = self.get_view_bounds()
+        self.plot.setXRange(xlim0, xlim1)
+        self.plot.setYRange(ylim0, ylim1)
+        self._qt_refresh()
+
     def _qt_refresh(self):
         current_unit_positions = self.controller.unit_positions
         # if not np.array_equal(current_unit_positions, self._unit_positions):

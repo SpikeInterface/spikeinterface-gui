@@ -129,6 +129,9 @@ class UnitListView(ViewBase):
                 self.shortcut_noise.setKey(QT.QKeySequence('n'))
                 self.shortcut_noise.activated.connect(lambda: self._qt_set_default_label('noise'))
 
+    def _qt_reinitialize(self):
+        self._qt_full_table_refresh()
+        self._qt_refresh()
 
     def _qt_on_column_moved(self, logical_index, old_visual_index, new_visual_index):
         # Update stored column order
