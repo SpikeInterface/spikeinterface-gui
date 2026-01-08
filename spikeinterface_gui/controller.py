@@ -17,6 +17,7 @@ from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
+from .utils_global import add_new_unit_ids_to_curation_dict
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -26,7 +27,9 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 _default_main_settings = dict(
     max_visible_units=10,
     color_mode='color_by_unit',
-    use_times=False
+    use_times=False,
+    merge_new_id_strategy = 'take_first',
+    split_new_id_strategy = 'append',
 )
 
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
@@ -44,6 +47,7 @@ class Controller():
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
         self.current_curation_saved = True
+        self.applied_curations = []
 
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -805,18 +809,23 @@ class Controller():
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
-    def construct_final_curation(self):
+    def construct_final_curation(self, with_explicit_new_unit_ids=False):
         d = dict()
         d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
+        if with_explicit_new_unit_ids:
+            split_new_id_strategy = self.main_settings.get('split_new_id_strategy')
+            merge_new_id_strategy = self.main_settings.get('merge_new_id_strategy')
+            d = add_new_unit_ids_to_curation_dict(d, self.analyzer.sorting, split_new_id_strategy=split_new_id_strategy, merge_new_id_strategy=merge_new_id_strategy)
         model = CurationModel(**d)
         return model
-    
+
     def apply_curation(self):
 
-        curation = self.construct_final_curation()
+        curation = self.construct_final_curation(with_explicit_new_unit_ids=True)
         curated_analyzer = apply_curation(self.analyzer, curation)
+        self.applied_curations.append(curation)
 
         self.set_analyzer_info(curated_analyzer, None, None)
         self.remove_curation()

@@ -48,7 +48,7 @@ class SpikeAmplitudeView(BaseScatterView):
                 self.plot2.removeItem(n)
             self.noise_harea = []
 
-    def _qt_reinitialize(self):
+    def _reinitialize(self):
         self.spike_data = self.controller.spike_amplitudes
         self._qt_refresh()
 
@@ -135,10 +135,6 @@ class SpikeAmplitudeView(BaseScatterView):
                 harea.visible = False
 
         super()._panel_refresh()
-
-    def _panel_reinitialize(self):
-        self.spike_data = self.controller.spike_amplitudes
-        self._panel_refresh()
 
     def _panel_update_noise_areas(self):
         if self.controller.noise_levels is None or len(self.noise_hareas) == 0:

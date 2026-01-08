@@ -58,3 +58,34 @@ def get_present_zones_in_half_of_layout(layout_zone, shift):
     is_present = [views is not None and len(views) > 0 for views in half_dict.values()]
     present_zones = set(np.array(list(half_dict.keys()))[np.array(is_present)])
     return present_zones
+
+    
+def add_new_unit_ids_to_curation_dict(curation_dict, sorting, split_new_id_strategy, merge_new_id_strategy):
+
+    from spikeinterface.core.sorting_tools import generate_unit_ids_for_split, generate_unit_ids_for_merge_group
+    from spikeinterface.curation.curation_model import CurationModel
+
+    curation_model = CurationModel(**curation_dict)
+    old_unit_ids = curation_model.unit_ids
+
+    print(f"{sorting=}")
+
+    if len(curation_model.splits) > 0:
+        print(f"{curation_model.splits=}")
+        print(f"{split_new_id_strategy=}", flush=True)
+        unit_splits = {split.unit_id: split.get_full_spike_indices(sorting) for split in curation_model.splits}
+        new_split_unit_ids = generate_unit_ids_for_split(old_unit_ids, unit_splits, new_unit_ids=None, new_id_strategy=split_new_id_strategy)
+        print(f"{new_split_unit_ids=}")
+        for split_index, new_unit_ids in enumerate(new_split_unit_ids):
+            curation_dict['splits'][split_index]['new_unit_ids'] = new_unit_ids
+
+    if len(curation_model.merges) > 0:
+        merge_unit_groups = [m.unit_ids for m in curation_model.merges]
+        print(f"{merge_unit_groups=}")
+        print(f"{merge_new_id_strategy=}", flush=True)
+        new_merge_unit_ids = generate_unit_ids_for_merge_group(old_unit_ids, merge_unit_groups, new_unit_ids=None, new_id_strategy=merge_new_id_strategy)
+        print(f"{new_merge_unit_ids=}")
+        for merge_index, new_unit_id in enumerate(new_merge_unit_ids):
+            curation_dict['merges'][merge_index]['new_unit_id'] = new_unit_id
+
+    return curation_dict
