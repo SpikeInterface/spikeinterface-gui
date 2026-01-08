@@ -112,19 +112,18 @@ class Controller():
 
             if curation_data is None:
                 curation_data = empty_curation_data.copy()
+                curation_data["label_definitions"] = default_label_definitions.copy()
 
             if curation_data.get("discard_spikes") is None:
                 curation_data["discard_spikes"] = []
 
             self.curation_data = curation_data
 
-            self.has_default_quality_labels = False
             if "label_definitions" not in self.curation_data:
                 if label_definitions is not None:
                     self.curation_data["label_definitions"] = label_definitions
-                else:
-                    self.curation_data["label_definitions"] = default_label_definitions.copy()
 
+            self.has_default_quality_labels = False
             if "quality" in self.curation_data["label_definitions"]:
                 curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
                 default_quality_labels = default_label_definitions["quality"]["label_options"]
@@ -827,7 +826,10 @@ class Controller():
             view.reinitialize()
 
     def remove_curation(self):
-        self.curation_data = empty_curation_data.copy()
+        label_definitioins = self.curation_data.get("label_definitions", None)
+        curation_data = empty_curation_data.copy()
+        curation_data["label_definitions"] = label_definitioins
+        self.curation_data = curation_data
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
