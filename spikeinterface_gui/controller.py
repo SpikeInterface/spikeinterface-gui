@@ -4,6 +4,7 @@ import numpy as np
 
 import json
 
+from copy import deepcopy
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
@@ -357,7 +358,7 @@ class Controller():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
             if curation_data is None:
-                curation_data = empty_curation_data.copy()
+                curation_data = deepcopy(empty_curation_data)
 
             self.curation_data = curation_data
 
