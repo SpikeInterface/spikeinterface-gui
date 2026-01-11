@@ -38,7 +38,7 @@ class ViewBase:
                 create_settings(self)
             self.notifier = SignalNotifier(view=self)
             self.busy = pn.indicators.LoadingSpinner(value=True, size=20, name='busy...')
-
+        self.layout = None
         make_layout()
         if self._settings is not None:
             listen_setting_changes(self)
@@ -113,6 +113,14 @@ class ViewBase:
             t1 = time.perf_counter()
             print(f"Refresh {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
 
+    def reinitialize(self, **kwargs):
+        if self.controller.verbose:
+            t0 = time.perf_counter()
+        self._reinitialize(**kwargs)
+        if self.controller.verbose:
+            t1 = time.perf_counter()
+            print(f"Reinitialize {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
+
     def compute(self, event=None):
         with self.busy_cursor():
             self._compute()
@@ -126,6 +134,12 @@ class ViewBase:
             self._qt_refresh(**kwargs)
         elif self.backend == "panel":
             self._panel_refresh(**kwargs)
+
+    def _reinitialize(self, **kwargs):
+        if self.backend == "qt":
+            self._qt_reinitialize(**kwargs)
+        elif self.backend == "panel":
+            self._panel_reinitialize(**kwargs)
 
     def warning(self, warning_msg):
         if self.backend == "qt":
@@ -249,6 +263,9 @@ class ViewBase:
 
     def _qt_refresh(self):
         raise (NotImplementedError)
+    
+    def _qt_reinitialize(self):
+        self._qt_refresh()
 
     def _qt_on_spike_selection_changed(self):
         pass
@@ -309,6 +326,9 @@ class ViewBase:
 
     def _panel_refresh(self):
         raise (NotImplementedError)
+    
+    def _panel_reinitialize(self):
+        self._panel_refresh()
 
     def _panel_on_spike_selection_changed(self):
         pass

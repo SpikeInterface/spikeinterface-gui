@@ -129,6 +129,9 @@ class UnitListView(ViewBase):
                 self.shortcut_noise.setKey(QT.QKeySequence('n'))
                 self.shortcut_noise.activated.connect(lambda: self._qt_set_default_label('noise'))
 
+    def _qt_reinitialize(self):
+        self._qt_full_table_refresh()
+        self._qt_refresh()
 
     def _qt_on_column_moved(self, logical_index, old_visual_index, new_visual_index):
         # Update stored column order
@@ -584,16 +587,22 @@ class UnitListView(ViewBase):
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
-        self.layout = pn.Column(
-            pn.Row(
-                self.info_text,
-            ),
-            buttons,
-            sizing_mode="stretch_width",
-        )
+        if self.layout is None:
+            self.layout = pn.Column(
+                pn.Row(
+                    self.info_text,
+                ),
+                buttons,
+                sizing_mode="stretch_width",
+            )
 
-        self.layout.append(self.table)
-        self.layout.append(shortcuts_component)
+            self.layout.append(self.table)
+            self.layout.append(shortcuts_component)
+        else:
+            self.layout[0][0] = self.info_text
+            self.layout[1] = buttons
+            self.layout[2] = self.table
+            self.layout[3] = shortcuts_component
 
         self.table.tabulator.on_edit(self._panel_on_edit)
 
@@ -650,6 +659,10 @@ class UnitListView(ViewBase):
         # refresh header
         self._panel_refresh_header()
 
+    def _panel_reinitialize(self):
+        self._panel_make_layout()
+        self._panel_refresh()
+
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids
         n1 = len(unit_ids)
@@ -675,7 +688,6 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_checkbox_toggled(self, row):
-        # print("checkbox toggled on row", row)
         unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
         self.controller.set_unit_visibility(selected_unit_id, not self.controller.get_unit_visibility(selected_unit_id))
