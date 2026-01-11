@@ -1,4 +1,5 @@
 import time
+from copy import deepcopy
 
 import numpy as np
 
@@ -62,7 +63,20 @@ class Controller():
         self.save_on_compute = save_on_compute
         self.verbose = verbose
 
-        self.set_analyzer_info(analyzer, extra_unit_properties, displayed_unit_properties)
+        self.original_analyzer = None
+        self.set_analyzer_info(analyzer)
+        self.units_table = make_units_table_from_analyzer(self.analyzer, extra_properties=extra_unit_properties)
+
+        self.extra_unit_properties_names = list(extra_unit_properties.keys())
+        if displayed_unit_properties is None:
+            displayed_unit_properties = list(_default_displayed_unit_properties)
+        if extra_unit_properties is not None:
+            displayed_unit_properties += list(extra_unit_properties.keys())
+        displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
+        self.displayed_unit_properties = displayed_unit_properties
+
+        # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
+        self.refresh_colors()
 
         self._potential_merges = None
         self.curation = curation
@@ -115,7 +129,7 @@ class Controller():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
             if curation_data is None:
-                curation_data = empty_curation_data.copy()
+                curation_data = deepcopy(empty_curation_data)
                 curation_data["label_definitions"] = default_label_definitions.copy()
 
             if curation_data.get("discard_spikes") is None:
@@ -161,7 +175,7 @@ class Controller():
     def unit_ids(self):
         return self.analyzer.unit_ids
     
-    def set_analyzer_info(self, analyzer, extra_unit_properties, displayed_unit_properties):
+    def set_analyzer_info(self, analyzer):
 
         self.analyzer = analyzer
         assert self.analyzer.get_extension("random_spikes") is not None
@@ -334,9 +348,6 @@ class Controller():
         self.num_segments = self.analyzer.get_num_segments()
         self.sampling_frequency = self.analyzer.sampling_frequency
 
-        # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
-        self.refresh_colors()
-
         # at init, we set the visible channels as the sparsity of the first unit
         if self.analyzer_sparsity is not None:
             self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
@@ -396,14 +407,6 @@ class Controller():
         self.update_visible_spikes()
 
         self._traces_cached = {}
-
-        self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
-        if displayed_unit_properties is None:
-            displayed_unit_properties = list(_default_displayed_unit_properties)
-        if extra_unit_properties is not None:
-            displayed_unit_properties += list(extra_unit_properties.keys())
-        displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
-        self.displayed_unit_properties = displayed_unit_properties
 
         # set default time info
         self.update_time_info()
@@ -507,15 +510,22 @@ class Controller():
 
         return txt
 
-    def refresh_colors(self):
+    def refresh_colors(self, existing_colors=None):
         if self.backend == "qt":
             self._cached_qcolors = {}
         elif self.backend == "panel":
             pass
 
         if self.main_settings['color_mode'] == 'color_by_unit':
-            self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)
+            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
+                                            shuffle=True, seed=42)
+            if existing_colors is None:
+                self.colors = unit_colors
+            else:
+                for unit_id, unit_color in unit_colors.items():
+                    if unit_id not in self.colors.keys():
+                        self.colors[unit_id] = unit_color
+
         elif  self.main_settings['color_mode'] == 'color_only_visible':
             unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
                                         shuffle=True, seed=42)            
@@ -823,20 +833,28 @@ class Controller():
 
     def apply_curation(self):
 
+        if self.original_analyzer is None:
+            self.original_analyzer = deepcopy(self.analyzer)
+            self.original_analyzer.extensions = {}
+
         curation = self.construct_final_curation(with_explicit_new_unit_ids=True)
         curated_analyzer = apply_curation(self.analyzer, curation)
-        self.applied_curations.append(curation)
-
-        self.set_analyzer_info(curated_analyzer, None, None)
+        self.applied_curations.append(curation.model_dump())
         self.remove_curation()
-        self.refresh_colors()
+
+        self.set_analyzer_info(curated_analyzer)
+
+        # for now, don't show externally provided properties after curation
+        self.displayed_unit_properties = [displayed_property for displayed_property in self.displayed_unit_properties if displayed_property not in self.extra_unit_properties_names]
+        self.units_table = make_units_table_from_analyzer(self.analyzer)
+        self.refresh_colors(existing_colors=self.colors)
 
         for view in self.views:
             view.reinitialize()
 
     def remove_curation(self):
         label_definitioins = self.curation_data.get("label_definitions", None)
-        curation_data = empty_curation_data.copy()
+        curation_data = deepcopy(empty_curation_data)
         curation_data["label_definitions"] = label_definitioins
         self.curation_data = curation_data
 

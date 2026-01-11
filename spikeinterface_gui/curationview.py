@@ -295,10 +295,23 @@ class CurationView(ViewBase):
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
-            curation_model = self.controller.construct_final_curation()
-            with json_file.open("w") as f:
-                f.write(curation_model.model_dump_json(indent=4))
-            self.controller.current_curation_saved = True
+            if len(self.controller.applied_curations) == 0:
+                curation_model = self.controller.construct_final_curation()
+                with json_file.open("w") as f:
+                    f.write(curation_model.model_dump_json(indent=4))
+                self.controller.current_curation_saved = True
+            else:
+                # Keep this here until `SeqentialCuration` in release of spikeinterface
+                from spikeinterface.curation.curation_model import SequentialCuration
+
+                current_curation_model = self.controller.construct_final_curation()
+                applied_curations = self.controller.applied_curations
+                current_and_applied_curations = applied_curations + [current_curation_model.model_dump()]
+
+                sequential_curation_model = SequentialCuration(curation_steps=current_and_applied_curations)
+                with json_file.open("w") as f:
+                    f.write(sequential_curation_model.model_dump_json(indent=4))
+                self.controller.current_curation_saved = True
 
     # PANEL
     def _panel_make_layout(self):
