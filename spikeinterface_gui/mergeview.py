@@ -141,6 +141,11 @@ class MergeView(ViewBase):
         self.notify_manual_curation_updated()
         self.refresh()
 
+    def _reinitialize(self):
+        self.proposed_merge_unit_groups = []
+        self.merge_info = {}
+        self._refresh()
+
     ### QT
     def _qt_get_selected_group_ids(self):
         inds = self.table.selectedIndexes()

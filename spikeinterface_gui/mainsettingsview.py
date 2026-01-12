@@ -8,7 +8,9 @@ main_settings = [
     {'name': 'max_visible_units', 'type': 'int', 'value' : 10 },
     {'name': 'color_mode', 'type': 'list', 'value' : 'color_by_unit',
              'limits': ['color_by_unit', 'color_only_visible', 'color_by_visibility']},
-    {'name': 'use_times', 'type': 'bool', 'value': False}
+    {'name': 'use_times', 'type': 'bool', 'value': False},
+    {'name': 'merge_new_id_strategy', 'type': 'list', 'limits' : ['take_first', 'append', 'join']},
+    {'name': 'split_new_id_strategy', 'type': 'list', 'limits' : ['append', 'split']},
 ]
 
 
@@ -44,6 +46,12 @@ class MainSettingsView(ViewBase):
         self.controller.main_settings['use_times'] = self.main_settings['use_times']
         self.controller.update_time_info()
         self.notify_use_times_updated()
+
+    def on_merge_new_id_strategy(self):
+        self.controller.main_settings['merge_new_id_strategy'] = self.main_settings['merge_new_id_strategy']
+
+    def on_split_new_id_strategy(self):
+        self.controller.main_settings['split_new_id_strategy'] = self.main_settings['split_new_id_strategy']
 
     def save_current_settings(self, event=None):
         
@@ -106,6 +114,8 @@ class MainSettingsView(ViewBase):
         self.main_settings.param('max_visible_units').sigValueChanged.connect(self.on_max_visible_units_changed)
         self.main_settings.param('color_mode').sigValueChanged.connect(self.on_change_color_mode)
         self.main_settings.param('use_times').sigValueChanged.connect(self.on_use_times)
+        self.main_settings.param('merge_new_id_strategy').sigValueChanged.connect(self.on_merge_new_id_strategy)
+        self.main_settings.param('split_new_id_strategy').sigValueChanged.connect(self.on_split_new_id_strategy)
 
     def qt_make_settings_dict(self, view):
         """For a given view, return the current settings in a dict"""
@@ -141,6 +151,8 @@ class MainSettingsView(ViewBase):
         self.main_settings._parameterized.param.watch(self._panel_on_max_visible_units_changed, 'max_visible_units')
         self.main_settings._parameterized.param.watch(self._panel_on_change_color_mode, 'color_mode')
         self.main_settings._parameterized.param.watch(self._panel_on_use_times, 'use_times')
+        self.main_settings._parameterized.param.watch(self._panel_on_merge_new_id_strategy, 'merge_new_id_strategy')
+        self.main_settings._parameterized.param.watch(self._panel_on_split_new_id_strategy, 'split_new_id_strategy')
         self.layout = pn.Column(self.save_setting_button, self.main_settings_layout, sizing_mode="stretch_both")
 
     def panel_make_settings_dict(self, view):
@@ -159,6 +171,12 @@ class MainSettingsView(ViewBase):
 
     def _panel_on_change_color_mode(self, event):
         self.on_change_color_mode()
+
+    def _panel_on_merge_new_id_strategy(self, event):
+        self.on_merge_new_id_strategy()
+
+    def _panel_on_split_new_id_strategy(self, event):
+        self.on_split_new_id_strategy()
 
     def _panel_on_use_times(self, event):
         self.on_use_times()

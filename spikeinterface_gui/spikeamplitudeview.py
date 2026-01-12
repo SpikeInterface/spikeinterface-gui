@@ -25,6 +25,10 @@ class SpikeAmplitudeView(BaseScatterView):
             spike_data=spike_data,
         )
 
+    def _reinitialize(self):
+        self.spike_data = self.controller.spike_amplitudes
+        self._refresh()
+
     def _qt_make_layout(self):
         from .myqt import QT
 

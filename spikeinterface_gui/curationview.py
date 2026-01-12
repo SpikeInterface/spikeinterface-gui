@@ -73,6 +73,11 @@ class CurationView(ViewBase):
             but = QT.QPushButton("Save in analyzer")
             tb.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
+
+            but_apply = QT.QPushButton("Apply curation")
+            tb.addWidget(but_apply)
+            but_apply.clicked.connect(self.apply_curation_to_analyzer)
+
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)        
         tb.addWidget(but)
@@ -278,6 +283,10 @@ class CurationView(ViewBase):
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
 
+    def apply_curation_to_analyzer(self):
+        with self.busy_cursor():
+            self.controller.apply_curation()
+
     def _qt_export_json(self):
         from .myqt import QT
         fd = QT.QFileDialog(fileMode=QT.QFileDialog.AnyFile, acceptMode=QT.QFileDialog.AcceptSave)
@@ -286,10 +295,23 @@ class CurationView(ViewBase):
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
-            curation_model = self.controller.construct_final_curation()
-            with json_file.open("w") as f:
-                f.write(curation_model.model_dump_json(indent=4))
-            self.controller.current_curation_saved = True
+            if len(self.controller.applied_curations) == 0:
+                curation_model = self.controller.construct_final_curation()
+                with json_file.open("w") as f:
+                    f.write(curation_model.model_dump_json(indent=4))
+                self.controller.current_curation_saved = True
+            else:
+                # Keep this here until `SeqentialCuration` in release of spikeinterface
+                from spikeinterface.curation.curation_model import SequentialCuration
+
+                current_curation_model = self.controller.construct_final_curation()
+                applied_curations = self.controller.applied_curations
+                current_and_applied_curations = applied_curations + [current_curation_model]
+
+                sequential_curation_model = SequentialCuration(curation_steps=current_and_applied_curations)
+                with json_file.open("w") as f:
+                    f.write(sequential_curation_model.model_dump_json(indent=4))
+                self.controller.current_curation_saved = True
 
     # PANEL
     def _panel_make_layout(self):
@@ -360,6 +382,13 @@ class CurationView(ViewBase):
         )
         save_button.on_click(self._panel_save_in_analyzer)
 
+        apply_button = pn.widgets.Button(
+            name="Apply curation",
+            button_type="primary",
+            height=30
+        )
+        apply_button.on_click(self._panel_apply_curation_to_analyzer)
+
         download_button = pn.widgets.FileDownload(
             button_type="primary",
             filename="curation.json",
@@ -391,6 +420,7 @@ class CurationView(ViewBase):
         buttons_save = pn.Row(
             save_button,
             download_button,
+            apply_button,
             submit_button,
             sizing_mode="stretch_width",
         )
@@ -521,6 +551,9 @@ class CurationView(ViewBase):
 
     def _panel_unmerge(self, event):
         self.unmerge()
+
+    def _panel_apply_curation_to_analyzer(self, event):
+        self.apply_curation_to_analyzer()
 
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()
