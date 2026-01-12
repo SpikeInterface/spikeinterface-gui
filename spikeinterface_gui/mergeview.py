@@ -141,6 +141,11 @@ class MergeView(ViewBase):
         self.notify_manual_curation_updated()
         self.refresh()
 
+    def _reinitialize(self):
+        self.proposed_merge_unit_groups = []
+        self.merge_info = {}
+        self._refresh()
+
     ### QT
     def _qt_get_selected_group_ids(self):
         inds = self.table.selectedIndexes()
@@ -304,11 +309,6 @@ class MergeView(ViewBase):
     def _qt_on_unit_visibility_changed(self):
         pass
 
-    def _qt_reinitialize(self):
-        self.proposed_merge_unit_groups = []
-        self.merge_info = {}
-        self._qt_refresh()
-
     ## PANEL
     def _panel_make_layout(self):
         import panel as pn
@@ -407,11 +407,6 @@ class MergeView(ViewBase):
         # Add click handler with double click detection
         self.table.on_click(self._panel_on_click)
         self.table_area.update(self.table)
-
-    def _panel_reinitialize(self):
-        self.proposed_merge_unit_groups = []
-        self.merge_info = {}
-        self._panel_refresh()
 
     def _panel_compute_merges(self, event):
         self._compute_merges()

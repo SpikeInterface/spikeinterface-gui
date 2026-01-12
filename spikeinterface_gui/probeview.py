@@ -155,9 +155,6 @@ class ProbeView(ViewBase):
         brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
         self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
 
-        xlim0, xlim1, ylim0, ylim1 = self.get_view_bounds()
-        self.plot.setXRange(xlim0, xlim1)
-        self.plot.setYRange(ylim0, ylim1)
         self._qt_refresh()
 
     def _qt_refresh(self):

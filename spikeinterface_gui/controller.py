@@ -50,6 +50,9 @@ class Controller():
         self.current_curation_saved = True
         self.applied_curations = []
 
+        if extra_unit_properties is None:
+            self.extra_unit_properties_names = []
+
         if self.backend == "qt":
             from .backend_qt import SignalHandler
             self.signal_handler = SignalHandler(self, parent=parent)
@@ -67,11 +70,11 @@ class Controller():
         self.set_analyzer_info(analyzer)
         self.units_table = make_units_table_from_analyzer(self.analyzer, extra_properties=extra_unit_properties)
 
-        self.extra_unit_properties_names = list(extra_unit_properties.keys())
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
         if extra_unit_properties is not None:
-            displayed_unit_properties += list(extra_unit_properties.keys())
+            self.extra_unit_properties_names = list(extra_unit_properties.keys())
+            displayed_unit_properties += self.extra_unit_properties_names
         displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
         self.displayed_unit_properties = displayed_unit_properties
 
@@ -839,7 +842,7 @@ class Controller():
 
         curation = self.construct_final_curation(with_explicit_new_unit_ids=True)
         curated_analyzer = apply_curation(self.analyzer, curation)
-        self.applied_curations.append(curation.model_dump())
+        self.applied_curations.append(curation)
         self.remove_curation()
 
         self.set_analyzer_info(curated_analyzer)

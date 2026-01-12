@@ -306,7 +306,7 @@ class CurationView(ViewBase):
 
                 current_curation_model = self.controller.construct_final_curation()
                 applied_curations = self.controller.applied_curations
-                current_and_applied_curations = applied_curations + [current_curation_model.model_dump()]
+                current_and_applied_curations = applied_curations + [current_curation_model]
 
                 sequential_curation_model = SequentialCuration(curation_steps=current_and_applied_curations)
                 with json_file.open("w") as f:

@@ -25,6 +25,10 @@ class SpikeAmplitudeView(BaseScatterView):
             spike_data=spike_data,
         )
 
+    def _reinitialize(self):
+        self.spike_data = self.controller.spike_amplitudes
+        self._refresh()
+
     def _qt_make_layout(self):
         from .myqt import QT
 
@@ -47,10 +51,6 @@ class SpikeAmplitudeView(BaseScatterView):
             for n in self.noise_harea:
                 self.plot2.removeItem(n)
             self.noise_harea = []
-
-    def _reinitialize(self):
-        self.spike_data = self.controller.spike_amplitudes
-        self._qt_refresh()
 
     def _qt_add_noise_area(self):
         import pyqtgraph as pg
