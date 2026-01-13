@@ -40,8 +40,6 @@ class UnitListView(ViewBase):
     def _qt_make_layout(self):
         
         from .myqt import QT
-        import pyqtgraph as pg
-        
 
         self.menu = None
         self.layout = QT.QVBoxLayout()
@@ -51,21 +49,7 @@ class UnitListView(ViewBase):
         but.clicked.connect(self._qt_select_columns)
         tb.addWidget(but)
 
-
-        visible_cols = []
-        for col in self.controller.units_table.columns:
-            visible_cols.append(
-                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
-            )
-        self.visible_columns = pg.parametertree.Parameter.create( name='visible columns', type='group', children=visible_cols)
-        self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
-        self.tree_visible_columns.header().hide()
-        self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
-        # self.tree_visible_columns.setWindowTitle(u'visible columns')
-        # self.tree_visible_columns.setWindowFlags(QT.Qt.Window)
-        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_columns_changed)
-        self.layout.addWidget(self.tree_visible_columns)
-        self.tree_visible_columns.hide()
+        self._qt_set_up_visible_columns()
 
         # h = QT.QHBoxLayout()
         # self.layout.addLayout(h)
@@ -129,7 +113,26 @@ class UnitListView(ViewBase):
                 self.shortcut_noise.setKey(QT.QKeySequence('n'))
                 self.shortcut_noise.activated.connect(lambda: self._qt_set_default_label('noise'))
 
+    def _qt_set_up_visible_columns(self):
+
+        import pyqtgraph as pg
+        visible_cols = []
+        for col in self.controller.units_table.columns:
+            visible_cols.append(
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
+            )
+        self.visible_columns = pg.parametertree.Parameter.create( name='visible columns', type='group', children=visible_cols)
+        self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
+        self.tree_visible_columns.header().hide()
+        self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
+
+        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_columns_changed)
+        self.layout.addWidget(self.tree_visible_columns)
+        self.tree_visible_columns.hide()
+
     def _qt_reinitialize(self):
+
+        self._qt_set_up_visible_columns()
         self._qt_full_table_refresh()
         self._qt_refresh()
 
