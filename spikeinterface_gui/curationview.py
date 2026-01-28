@@ -6,20 +6,24 @@ from .view_base import ViewBase
 from spikeinterface.core.core_tools import check_json
 
 
-
-
 class CurationView(ViewBase):
     id = "curation"
-    _supported_backend = ['qt', 'panel']
+    _supported_backend = ["qt", "panel"]
     _need_compute = False
+    _settings = [
+        {"name": "listen_for_curation_changes", "type": "bool", "value": False},
+    ]
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         self.active_table = "merge"
-        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        # listen for changes setting is only used with panel
+        if backend == "qt":
+            self._settings = []
+        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
     # TODO: Cast unit ids to the correct type here
     def restore_units(self):
-        if self.backend == 'qt':
+        if self.backend == "qt":
             unit_ids = self._qt_get_delete_table_selection()
         else:
             unit_ids = self._panel_get_delete_table_selection()
@@ -30,7 +34,7 @@ class CurationView(ViewBase):
             self.refresh()
 
     def unmerge(self):
-        if self.backend == 'qt':
+        if self.backend == "qt":
             merge_indices = self._qt_get_merge_table_row()
         else:
             merge_indices = self._panel_get_merge_table_row()
@@ -40,7 +44,7 @@ class CurationView(ViewBase):
             self.refresh()
 
     def unsplit(self):
-        if self.backend == 'qt':
+        if self.backend == "qt":
             split_indices = self._qt_get_split_table_row()
         else:
             split_indices = self._panel_get_split_table_row()
@@ -55,8 +59,8 @@ class CurationView(ViewBase):
         self.controller.set_visible_unit_ids([split_unit_id])
         self.notify_unit_visibility_changed()
         spike_inds = self.controller.get_spike_indices(split_unit_id, segment_index=None)
-        active_split = [s for s in self.controller.curation_data['splits'] if s['unit_id'] == split_unit_id][0]
-        split_indices = active_split['indices'][0]
+        active_split = [s for s in self.controller.curation_data["splits"] if s["unit_id"] == split_unit_id][0]
+        split_indices = active_split["indices"][0]
         self.controller.set_indices_spike_selected(spike_inds[split_indices])
         self.notify_spike_selection_changed()
 
@@ -74,24 +78,24 @@ class CurationView(ViewBase):
             tb.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
         but = QT.QPushButton("Export JSON")
-        but.clicked.connect(self._qt_export_json)        
+        but.clicked.connect(self._qt_export_json)
         tb.addWidget(but)
 
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
 
-
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_delete = QT.QTableWidget(
+            selectionMode=QT.QAbstractItemView.SingleSelection, selectionBehavior=QT.QAbstractItemView.SelectRows
+        )
         v.addWidget(self.table_delete)
         self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
         self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
 
         self.delete_menu = QT.QMenu()
-        act = self.delete_menu.addAction('Restore')
+        act = self.delete_menu.addAction("Restore")
         act.triggered.connect(self.restore_units)
         shortcut_restore = QT.QShortcut(self.qt_widget)
         shortcut_restore.setKey(QT.QKeySequence("ctrl+r"))
@@ -99,8 +103,9 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_merge = QT.QTableWidget(
+            selectionMode=QT.QAbstractItemView.SingleSelection, selectionBehavior=QT.QAbstractItemView.SelectRows
+        )
         # self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         v.addWidget(self.table_merge)
 
@@ -109,7 +114,7 @@ class CurationView(ViewBase):
         self.table_merge.itemSelectionChanged.connect(self._qt_on_item_selection_changed_merge)
 
         self.merge_menu = QT.QMenu()
-        act = self.merge_menu.addAction('Remove merge')
+        act = self.merge_menu.addAction("Remove merge")
         act.triggered.connect(self.unmerge)
         shortcut_unmerge = QT.QShortcut(self.qt_widget)
         shortcut_unmerge.setKey(QT.QKeySequence("ctrl+u"))
@@ -117,14 +122,15 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        self.table_split = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_split = QT.QTableWidget(
+            selectionMode=QT.QAbstractItemView.SingleSelection, selectionBehavior=QT.QAbstractItemView.SelectRows
+        )
         v.addWidget(self.table_split)
         self.table_split.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_split.customContextMenuRequested.connect(self._qt_open_context_menu_split)
         self.table_split.itemSelectionChanged.connect(self._qt_on_item_selection_changed_split)
         self.split_menu = QT.QMenu()
-        act = self.split_menu.addAction('Remove split')
+        act = self.split_menu.addAction("Remove split")
         act.triggered.connect(self.unsplit)
         shortcut_unsplit = QT.QShortcut(self.qt_widget)
         shortcut_unsplit.setKey(QT.QKeySequence("ctrl+x"))
@@ -132,6 +138,7 @@ class CurationView(ViewBase):
 
     def _qt_refresh(self):
         from .myqt import QT
+
         # Merged
         merged_units = [m["unit_ids"] for m in self.controller.curation_data["merges"]]
         self.table_merge.clear()
@@ -141,12 +148,12 @@ class CurationView(ViewBase):
         self.table_merge.setSortingEnabled(False)
         for ix, group in enumerate(merged_units):
             item = QT.QTableWidgetItem(str(group))
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
             self.table_merge.setItem(ix, 0, item)
         for i in range(self.table_merge.columnCount()):
             self.table_merge.resizeColumnToContents(i)
 
-        # Removed      
+        # Removed
         removed_units = self.controller.curation_data["removed"]
         self.table_delete.clear()
         self.table_delete.setRowCount(len(removed_units))
@@ -155,12 +162,12 @@ class CurationView(ViewBase):
         self.table_delete.setSortingEnabled(False)
         for i, unit_id in enumerate(removed_units):
             color = self.get_unit_color(unit_id)
-            pix = QT.QPixmap(16,16)
+            pix = QT.QPixmap(16, 16)
             pix.fill(color)
             icon = QT.QIcon(pix)
-            item = QT.QTableWidgetItem( f'{unit_id}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table_delete.setItem(i,0, item)
+            item = QT.QTableWidgetItem(f"{unit_id}")
+            item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
+            self.table_delete.setItem(i, 0, item)
             item.setIcon(icon)
             item.unit_id = unit_id
         self.table_delete.resizeColumnToContents(0)
@@ -178,12 +185,10 @@ class CurationView(ViewBase):
             num_spikes = self.controller.num_spikes[unit_id]
             num_splits = f"({num_indices}-{num_spikes - num_indices})"
             item = QT.QTableWidgetItem(f"{unit_id} {num_splits}")
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
             self.table_split.setItem(i, 0, item)
             item.unit_id = unit_id
         self.table_split.resizeColumnToContents(0)
-
-
 
     def _qt_get_delete_table_selection(self):
         selected_items = self.table_delete.selectedItems()
@@ -198,7 +203,7 @@ class CurationView(ViewBase):
             return None
         else:
             return [s.row() for s in selected_items]
-    
+
     def _qt_get_split_table_row(self):
         selected_items = self.table_split.selectedItems()
         if len(selected_items) == 0:
@@ -214,7 +219,7 @@ class CurationView(ViewBase):
 
     def _qt_open_context_menu_split(self):
         self.split_menu.popup(self.qt_widget.cursor().pos())
-    
+
     def _qt_on_item_selection_changed_merge(self):
         if len(self.table_merge.selectedIndexes()) == 0:
             return
@@ -274,15 +279,16 @@ class CurationView(ViewBase):
 
     def on_manual_curation_updated(self):
         self.refresh()
-    
+
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
 
     def _qt_export_json(self):
         from .myqt import QT
+
         fd = QT.QFileDialog(fileMode=QT.QFileDialog.AnyFile, acceptMode=QT.QFileDialog.AcceptSave)
-        fd.setNameFilters(['JSON (*.json);'])
-        fd.setDefaultSuffix('json')
+        fd.setNameFilters(["JSON (*.json);"])
+        fd.setDefaultSuffix("json")
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
@@ -300,10 +306,13 @@ class CurationView(ViewBase):
 
         pn.extension("tabulator")
 
+        # Initialize listenet_pane as None
+        self.listener_pane = None
+
         # Create dataframe
         delete_df = pd.DataFrame({"removed": []})
         merge_df = pd.DataFrame({"merges": []})
-        split_df = pd.DataFrame({"splits": []})        
+        split_df = pd.DataFrame({"splits": []})
 
         # Create tables
         self.table_delete = SelectableTabulator(
@@ -353,39 +362,20 @@ class CurationView(ViewBase):
         self.table_split.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
-        save_button = pn.widgets.Button(
-            name="Save in analyzer",
-            button_type="primary",
-            height=30
-        )
+        save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary", height=30)
         save_button.on_click(self._panel_save_in_analyzer)
 
         download_button = pn.widgets.FileDownload(
-            button_type="primary",
-            filename="curation.json",
-            callback=self._panel_generate_json,
-            height=30
+            button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
         )
 
-        restore_button = pn.widgets.Button(
-            name="Restore",
-            button_type="primary",
-            height=30
-        )
+        restore_button = pn.widgets.Button(name="Restore", button_type="primary", height=30)
         restore_button.on_click(self._panel_restore_units)
 
-        remove_merge_button = pn.widgets.Button(
-            name="Unmerge",
-            button_type="primary",
-            height=30
-        )
+        remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary", height=30)
         remove_merge_button.on_click(self._panel_unmerge)
 
-        submit_button = pn.widgets.Button(
-            name="Submit to parent", 
-            button_type="primary",
-            height=30
-        )
+        submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary", height=30)
 
         # Create layout
         buttons_save = pn.Row(
@@ -414,29 +404,50 @@ class CurationView(ViewBase):
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         # Create main layout with proper sizing
-        sections = pn.Row(self.table_delete, self.table_merge, self.table_split,
-                          sizing_mode="stretch_width")
+        sections = pn.Row(self.table_delete, self.table_merge, self.table_split, sizing_mode="stretch_width")
         self.layout = pn.Column(
-            save_sections,
-            buttons_curate,
-            sections,
-            shortcuts_component,
-            scroll=True,
-            sizing_mode="stretch_both"
+            save_sections, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
         )
 
         # Add a custom JavaScript callback to the button that doesn't interact with Bokeh models
         submit_button.on_click(self._panel_submit_to_parent)
 
-        # Add a hidden div to store the data
-        self.data_div = pn.pane.HTML("", width=0, height=0, margin=0, sizing_mode="fixed")
-        self.layout.append(self.data_div)
+        # Create a hidden TextInput for triggering postMessage to parent
+        self.submit_trigger = pn.widgets.TextInput(value="", visible=False)
 
+        # Add JavaScript callback that triggers when the TextInput value changes
+        self.submit_trigger.jscallback(
+            value="""
+            // Extract just the JSON data (remove timestamp suffix)
+            const fullValue = cb_obj.value;
+            const lastUnderscore = fullValue.lastIndexOf('_');
+            const dataStr = lastUnderscore > 0 ? fullValue.substring(0, lastUnderscore) : fullValue;
+            
+            if (dataStr && dataStr.length > 0) {
+                try {
+                    const data = JSON.parse(dataStr);
+                    console.log('Sending data to parent:', data);
+                    parent.postMessage({
+                        type: 'panel-data',
+                        data: data
+                    }, '*');
+                    console.log('Data sent successfully to parent window');
+                } catch (error) {
+                    console.error('Error sending data to parent:', error);
+                }
+            }
+            """
+        )
+
+        self.layout.append(self.submit_trigger)
+
+        # Set up listener for external curation changes
+        self._panel_listen_for_curation_changes()
 
     def _panel_refresh(self):
         import pandas as pd
 
-        ## deleted        
+        ## deleted
         removed_units = self.controller.curation_data["removed"]
         removed_units = [str(unit_id) for unit_id in removed_units]
         df = pd.DataFrame({"removed": removed_units})
@@ -474,7 +485,7 @@ class CurationView(ViewBase):
 
     def ensure_save_warning_message(self):
 
-        if self.layout[0].name == 'curation_save_warning':
+        if self.layout[0].name == "curation_save_warning":
             return
 
         import panel as pn
@@ -483,13 +494,13 @@ class CurationView(ViewBase):
             f"""⚠️⚠️⚠️ Your curation is not saved""",
             hard_line_break=True,
             styles={"color": "red", "font-size": "16px"},
-            name="curation_save_warning"
+            name="curation_save_warning",
         )
 
         self.layout.insert(0, alert_markdown)
 
     def ensure_no_message(self):
-        if self.layout[0].name == 'curation_save_warning':
+        if self.layout[0].name == "curation_save_warning":
             self.layout.pop(0)
 
     def _panel_update_unit_visibility(self, event):
@@ -544,35 +555,237 @@ class CurationView(ViewBase):
         """Send the curation data to the parent window"""
         # Get the curation data and convert it to a JSON string
         curation_model = self.controller.construct_final_curation()
+        curation_data = curation_model.model_dump_json()
+        print(f"Curation data to submit:\n{curation_data}")
 
-        # Create a JavaScript snippet that will send the data to the parent window
-        js_code = f"""
-        <script>
-        (function() {{
-            try {{
-                const jsonData = {curation_model.model_dump_json()};
-                const data = {{
-                    type: 'curation_data',
-                    curation_data: JSON.parse(jsonData)
-                }};
-                console.log('Sending data to parent:', data);
-                parent.postMessage({{
-                    type: 'panel-data',
-                    data: data
-                }}, '*');
-                console.log('Data sent successfully');
-            }} catch (error) {{
-                console.error('Error sending data to parent:', error);
-            }}
-        }})();
-        </script>
-        """
+        # Trigger the JavaScript function via the TextInput
+        # Update the value to trigger the jscallback
+        import time
 
-        # Update the hidden div with the JavaScript code
-        self.data_div.object = js_code
+        self.submit_trigger.value = curation_data + f"_{int(time.time() * 1000)}"
+
         # Submitting to parent is a way to "save" the curation (the parent can handle it)
         self.controller.current_curation_saved = True
-        self.refresh()
+        self.ensure_no_message()
+
+    # TODO: implement
+    def _panel_listen_for_curation_changes(self):
+        """Listen for curation changes from parent window via postMessage"""
+        pass
+
+    #     import panel as pn
+
+    #     if not self.settings["listen_for_curation_changes"]:
+    #         print("⚠️ listen_for_curation_changes is False - not setting up listener")
+    #         return
+
+    #     print("✓ Setting up curation changes listener...")
+
+    #     # Only create the listener pane once
+    #     if self.listener_pane is not None:
+    #         print("⚠️ Listener pane already exists - skipping setup")
+    #         return
+
+    #     # Create a TextInput widget that will receive the JSON data from JavaScript
+    #     # Use width/height=0 instead of visible=False to ensure it's in the DOM
+    #     self.curation_receiver = pn.widgets.TextInput(
+    #         value="",
+    #         width=0,
+    #         height=0,
+    #         margin=0,
+    #         css_classes=['curation-receiver-input']
+    #     )
+
+    #     # Watch for changes to the receiver
+    #     self.curation_receiver.param.watch(self._panel_on_curation_received, 'value')
+
+    #     print("✓ Created curation receiver TextInput")
+
+    #     # Add the receiver to layout first
+    #     self.layout.append(self.curation_receiver)
+
+    #     # Create JavaScript that listens for postMessage and updates the TextInput
+    #     js_code = """
+    #     <div id="curation-listener-status"></div>
+    #     <script>
+    #     (function() {
+    #         console.log('=== CURATION LISTENER SETUP START ===');
+    #         console.log('Current URL:', window.location.href);
+    #         console.log('Is in iframe:', window.self !== window.top);
+
+    #         // Remove any existing listener first
+    #         if (window.curationListener) {
+    #             window.removeEventListener('message', window.curationListener);
+    #             console.log('✓ Removed existing listener');
+    #         }
+
+    #         // Create the listener function
+    #         window.curationListener = function(event) {
+    #             console.log('📨 Received postMessage event');
+
+    #             // Ignore messages from browser extensions
+    #             if (event.data && event.data.source === 'react-devtools-content-script') {
+    #                 return;
+    #             }
+
+    #             // Check if this is a curation data message
+    #             if (event.data && event.data.type === 'curation-data') {
+    #                 console.log('✅ CURATION DATA MESSAGE DETECTED!');
+    #                 console.log('   - Data:', event.data.data);
+
+    #                 const curationData = JSON.stringify(event.data.data);
+    #                 const timestamp = Date.now();
+    #                 const valueWithTimestamp = curationData + '_' + timestamp;
+
+    #                 // Find the hidden input and update it
+    #                 console.log('🔍 Searching for receiver input...');
+
+    #                 // Function to find the receiver input with retry logic
+    #                 function findAndUpdateInput() {
+    #                     // Method 1: Try CSS class
+    #                     let input = document.querySelector('.curation-receiver-input input[type="text"]');
+    #                     if (input) {
+    #                         console.log('✅ Found input via CSS class');
+    #                         updateInput(input);
+    #                         return true;
+    #                     }
+
+    #                     // Method 2: Find all text inputs
+    #                     const allInputs = document.querySelectorAll('input[type="text"]');
+    #                     console.log('   - Found', allInputs.length, 'text inputs');
+
+    #                     for (let i = 0; i < allInputs.length; i++) {
+    #                         const input = allInputs[i];
+    #                         const computedStyle = window.getComputedStyle(input);
+    #                         const parentStyle = input.parentElement ? window.getComputedStyle(input.parentElement) : null;
+
+    #                         // Check if this is a zero-size input
+    #                         if (computedStyle.width === '0px' || computedStyle.height === '0px' ||
+    #                             (parentStyle && (parentStyle.width === '0px' || parentStyle.height === '0px'))) {
+    #                             console.log('✅ Found zero-size input at index', i);
+    #                             updateInput(input);
+    #                             return true;
+    #                         }
+    #                     }
+
+    #                     return false;
+    #                 }
+
+    #                 function updateInput(input) {
+    #                     console.log('✅ Updating input value...');
+    #                     input.value = valueWithTimestamp;
+    #                     input.dispatchEvent(new Event('input', { bubbles: true }));
+    #                     input.dispatchEvent(new Event('change', { bubbles: true }));
+    #                     console.log('✅ Input value updated successfully');
+    #                 }
+
+    #                 // Try to find and update, with retries
+    #                 let attempts = 0;
+    #                 const maxAttempts = 10;
+
+    #                 function tryUpdate() {
+    #                     attempts++;
+    #                     if (findAndUpdateInput()) {
+    #                         console.log('✅ Successfully updated input');
+    #                     } else if (attempts < maxAttempts) {
+    #                         console.log('⏳ Input not found, retrying in 200ms... (attempt', attempts, '/', maxAttempts, ')');
+    #                         setTimeout(tryUpdate, 200);
+    #                     } else {
+    #                         console.error('❌ Failed to find input after', maxAttempts, 'attempts');
+    #                     }
+    #                 }
+
+    #                 tryUpdate();
+    #             }
+    #         };
+
+    #         // Add the event listener
+    #         window.addEventListener('message', window.curationListener, false);
+    #         console.log('✅ Event listener attached to window');
+
+    #         // Update status div
+    #         const statusDiv = document.getElementById('curation-listener-status');
+    #         if (statusDiv) {
+    #             statusDiv.innerHTML = '✅ Curation listener active';
+    #             statusDiv.style.cssText = 'color: green; font-size: 10px; position: fixed; bottom: 0; right: 0; background: white; padding: 2px 5px; z-index: 9999;';
+    #         }
+
+    #         console.log('=== CURATION LISTENER SETUP COMPLETE ===');
+    #     })();
+    #     </script>
+    #     """
+
+    #     # Create a hidden pane to inject the JavaScript
+    #     self.listener_pane = pn.pane.HTML(js_code, width=0, height=0, margin=0, sizing_mode="fixed")
+
+    #     print("✓ Created listener pane with JavaScript")
+
+    #     # Add the listener pane to the layout
+    #     self.layout.append(self.listener_pane)
+
+    #     print("✓ Curation changes listener setup complete")
+
+    # def _panel_on_curation_received(self, event):
+    #     """Called when the curation_receiver widget value changes"""
+    #     import json
+
+    #     print(f"🔔 _panel_on_curation_received called!")
+    #     print(f"   - Old value: {event.old}")
+    #     print(f"   - New value: {event.new[:100] if event.new else 'None'}...")
+
+    #     curation_json_str = event.new
+
+    #     # Ignore empty values
+    #     if not curation_json_str or curation_json_str == "":
+    #         print("⏭️  Ignoring empty value")
+    #         return
+
+    #     # Remove timestamp suffix if present
+    #     last_underscore = curation_json_str.rfind('_')
+    #     if last_underscore > 0:
+    #         potential_timestamp = curation_json_str[last_underscore + 1:]
+    #         if potential_timestamp.isdigit():
+    #             curation_json_str = curation_json_str[:last_underscore]
+    #             print(f"✂️  Removed timestamp suffix: {potential_timestamp}")
+
+    #     print(f"📦 Received curation data from parent window")
+    #     print(f"   - Length: {len(curation_json_str)} characters")
+
+    #     try:
+    #         curation_data = json.loads(curation_json_str)
+
+    #         # Validate the curation data structure
+    #         if not isinstance(curation_data, dict):
+    #             print("❌ Invalid curation data: expected dict")
+    #             return
+
+    #         print(f"✅ Parsed curation data successfully:")
+    #         print(f"   - Keys: {list(curation_data.keys())}")
+    #         print(f"   - Merges: {len(curation_data.get('merges', []))}")
+    #         print(f"   - Removed: {len(curation_data.get('removed', []))}")
+    #         print(f"   - Splits: {len(curation_data.get('splits', []))}")
+
+    #         # Load the curation data into the controller
+    #         self.controller.curation_data = curation_data
+
+    #         # Mark as unsaved
+    #         self.controller.current_curation_saved = False
+
+    #         print("🔄 Refreshing view...")
+    #         # Refresh the view to show the new data
+    #         self.refresh()
+
+    #         print("✅ Curation data received and loaded successfully")
+
+    #         # Clear the receiver to allow receiving the same data again
+    #         self.curation_receiver.value = ""
+
+    #     except json.JSONDecodeError as e:
+    #         print(f"❌ Error parsing curation JSON: {e}")
+    #     except Exception as e:
+    #         print(f"❌ Error loading curation data: {e}")
+    #         import traceback
+    #         traceback.print_exc()
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection

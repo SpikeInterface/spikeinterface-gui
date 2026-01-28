@@ -51,6 +51,7 @@
             display: flex;
             gap: 10px;
             margin-bottom: 10px;
+            flex-wrap: wrap;
         }
         button {
             padding: 8px 16px;
@@ -63,22 +64,77 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .send-controls {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+        }
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .button-secondary {
+            background-color: #2196F3;
+        }
+        .button-secondary:hover {
+            background-color: #0b7dda;
+        }
+        .button-danger {
+            background-color: #f44336;
+        }
+        .button-danger:hover {
+            background-color: #da190b;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>SpikeInterface GUI Iframe Test</h1>
+        <h1>SpikeInterface GUI Iframe Test - Bidirectional Communication</h1>
         
         <div class="controls">
-            <button id="clearBtn">Clear Data Display</button>
             <button id="startServerBtn">Start Test Server</button>
+            <button id="clearBtn">Clear Received Data</button>
         </div>
         
         <div class="iframe-container">
             <iframe id="guiFrame" src="about:blank"></iframe>
         </div>
         
-        <h2>Received Data:</h2>
+        <h2>Send Curation Data to iframe:</h2>
+        <div class="send-controls">
+            <p>Edit the curation data below and click "Send to iframe" to update the GUI:</p>
+            <textarea id="curationInput">{
+  "merges": [
+    {"unit_ids": [1, 2]},
+    {"unit_ids": [5, 6, 7]}
+  ],
+  "removed": [3, 8],
+  "splits": [
+    {
+      "unit_id": 4,
+      "indices": [[0, 1, 2, 3, 4]]
+    }
+  ]
+}</textarea>
+            <div class="controls" style="margin-top: 10px;">
+                <button id="sendDataBtn" class="button-secondary">Send to iframe</button>
+                <button id="resetDataBtn" class="button-secondary">Reset to Default</button>
+                <button id="clearCurationBtn" class="button-danger">Clear All Curation</button>
+            </div>
+        </div>
+        
+        <h2>Received Data from iframe:</h2>
         <div class="data-display">
             <pre id="dataOutput">No data received yet...</pre>
         </div>
@@ -88,15 +144,39 @@
         // DOM elements
         const iframe = document.getElementById('guiFrame');
         const dataOutput = document.getElementById('dataOutput');
+        const curationInput = document.getElementById('curationInput');
         const clearBtn = document.getElementById('clearBtn');
         const startServerBtn = document.getElementById('startServerBtn');
+        const sendDataBtn = document.getElementById('sendDataBtn');
+        const resetDataBtn = document.getElementById('resetDataBtn');
+        const clearCurationBtn = document.getElementById('clearCurationBtn');
         
         // Store received data
         let receivedData = [];
         
+        // Default curation data
+        const defaultCurationData = {
+            "merges": [
+                {"unit_ids": [1, 2]},
+                {"unit_ids": [5, 6, 7]}
+            ],
+            "removed": [3, 8],
+            "splits": [
+                {
+                    "unit_id": 4,
+                    "indices": [[0, 1, 2, 3, 4]]
+                }
+            ]
+        };
+        
         // Event listener for messages from the iframe
         function handleMessage(event) {
             console.log('Message received from iframe:', event.data);
+            
+            // Ignore messages from browser extensions
+            if (event.data && event.data.source === 'react-devtools-content-script') {
+                return;
+            }
             
             // Check if the message is from our Panel application
             if (event.data && event.data.type === 'panel-data') {
@@ -104,7 +184,8 @@
                 receivedData.push(data);
                 
                 // Format and display the data
-                displayData();
+                displayReceivedData();
+                showStatus('✓ Data received from iframe');
             }
         }
         
@@ -112,7 +193,7 @@
         window.addEventListener('message', handleMessage);
         
         // Function to display the received data
-        function displayData() {
+        function displayReceivedData() {
             if (receivedData.length === 0) {
                 dataOutput.textContent = 'No data received yet...';
                 return;
@@ -129,15 +210,59 @@
             dataOutput.scrollTop = dataOutput.scrollHeight;
         }
         
+        // Function to send curation data to the iframe
+        function sendCurationData(curationData) {
+            try {
+                // Validate the JSON
+                const data = typeof curationData === 'string' 
+                    ? JSON.parse(curationData) 
+                    : curationData;
+                
+                console.log('Sending curation data to iframe:', data);
+                
+                // Send the message to the iframe
+                iframe.contentWindow.postMessage({
+                    type: 'curation-data',
+                    data: data
+                }, '*');
+                
+                alert('Curation data sent to iframe successfully!');
+            } catch (error) {
+                console.error('Error sending curation data:', error);
+                alert('Error sending curation data: ' + error.message);
+            }
+        }
+        
         // Clear button event listener
         clearBtn.addEventListener('click', function() {
             receivedData = [];
-            displayData();
+            displayReceivedData();
             
             // Re-add the event listener to ensure it's working
             window.removeEventListener('message', handleMessage);
             window.addEventListener('message', handleMessage);
             console.log('Event listener reset');
+        });
+        
+        // Send data button event listener
+        sendDataBtn.addEventListener('click', function() {
+            const curationData = curationInput.value;
+            sendCurationData(curationData);
+        });
+        
+        // Reset data button event listener
+        resetDataBtn.addEventListener('click', function() {
+            curationInput.value = JSON.stringify(defaultCurationData, null, 2);
+        });
+        
+        // Clear curation button event listener
+        clearCurationBtn.addEventListener('click', function() {
+            const emptyCuration = {
+                "merges": [],
+                "removed": [],
+                "splits": []
+            };
+            sendCurationData(emptyCuration);
         });
         
         // Start server button event listener
@@ -176,10 +301,17 @@
         
         // Add instructions for using the curation view
         dataOutput.textContent = `Instructions:
-1. Click "Start Test Server" to launch the SpikeInterface GUI
+1. Click "Start Test Server" to launch the SpikeInterface GUI (requires listen_for_curation_changes=True)
 2. Once loaded, navigate to the "curation" tab
-3. Click the "Submit to parent" button to send data to this page
-4. The received data will appear here
+
+Testing SEND (parent → iframe):
+- Edit the curation data in the textarea above
+- Click "Send to iframe" to update the GUI's curation data
+- The GUI should refresh and show the new curation data
+
+Testing RECEIVE (iframe → parent):
+- Click the "Submit to parent" button in the GUI's curation view
+- The received data will appear in this section below
 
 Note: The first time you start the server, it may take a minute to generate test data.`;
     </script>
