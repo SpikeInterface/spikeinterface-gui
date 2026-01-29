@@ -116,13 +116,13 @@
             <p>Edit the curation data below and click "Send to iframe" to update the GUI:</p>
             <textarea id="curationInput">{
   "merges": [
-    {"unit_ids": [1, 2]},
-    {"unit_ids": [5, 6, 7]}
+    {"unit_ids": ["1", "2"]},
+    {"unit_ids": ["5", "6", "7"]}
   ],
-  "removed": [3, 8],
+  "removed": ["3", "8"],
   "splits": [
     {
-      "unit_id": 4,
+      "unit_id": "4",
       "indices": [[0, 1, 2, 3, 4]]
     }
   ]
@@ -157,13 +157,14 @@
         // Default curation data
         const defaultCurationData = {
             "merges": [
-                {"unit_ids": [1, 2]},
-                {"unit_ids": [5, 6, 7]}
+                {"unit_ids": ["1", "2"]},
+                {"unit_ids": ["5", "6", "7"]}
             ],
-            "removed": [3, 8],
+            "removed": ["3", "8"],
             "splits": [
                 {
-                    "unit_id": 4,
+                    "unit_id": "4",
+                    "mode": "indices",
                     "indices": [[0, 1, 2, 3, 4]]
                 }
             ]

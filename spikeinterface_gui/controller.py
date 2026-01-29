@@ -9,15 +9,12 @@ from copy import deepcopy
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
-from .curation_tools import add_merge, default_label_definitions, empty_curation_data
+from .curation_tools import add_merge, default_label_definitions, empty_curation_data, cast_unit_dtypes_in_curation
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -798,7 +795,30 @@ class Controller():
         )
 
         return merge_unit_groups, extra
-    
+
+    def set_curation_data(self, curation_data):
+        print("Setting curation data")
+        new_curation_data = empty_curation_data.copy()
+        new_curation_data.update(curation_data)
+
+        if "unit_ids" not in curation_data:
+            print("Setting unit_ids from controller")
+            new_curation_data["unit_ids"] = self.unit_ids.tolist()
+
+        if "label_definitions" not in curation_data:
+            print("Setting default label definitions")
+            if self.curation_data is not None and "label_definitions" in self.curation_data:
+                new_curation_data["label_definitions"] = self.curation_data["label_definitions"]
+            else:
+                new_curation_data["label_definitions"] = default_label_definitions.copy()
+
+        # cast unit ids to match type
+        new_curation_data = cast_unit_dtypes_in_curation(new_curation_data, type(self.unit_ids[0]))
+
+        # validate the curation data
+        model = CurationModel(**new_curation_data)
+        self.curation_data = model.model_dump()
+
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
