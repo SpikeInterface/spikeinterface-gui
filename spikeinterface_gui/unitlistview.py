@@ -106,6 +106,8 @@ class UnitListView(ViewBase):
             act.triggered.connect(self._qt_delete_unit)
             act = self.menu.addAction('Merge selected')
             act.triggered.connect(self._qt_merge_selected)
+            act = self.menu.addAction('Remove from merge')
+            act.triggered.connect(self._qt_remove_from_merge)
             self.shortcut_delete = QT.QShortcut(self.qt_widget)
             self.shortcut_delete.setKey(QT.QKeySequence("ctrl+d"))
             self.shortcut_delete.activated.connect(self._qt_on_delete_shortcut)
@@ -156,11 +158,17 @@ class UnitListView(ViewBase):
         from .myqt import QT
 
         self.table.itemChanged.disconnect(self._qt_on_item_changed)
+
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+
+        view_target_unit_id = visible_unit_ids[0] 
+        target_item = self.items_visibility[view_target_unit_id]
+        self.table.scrollToItem(target_item, QT.QAbstractItemView.PositionAtCenter)
         
         for unit_id in self.controller.unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Unchecked)
-        for unit_id in self.controller.get_visible_unit_ids():
+        for unit_id in visible_unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Checked)
         self._qt_refresh_color_icons()
@@ -435,9 +443,19 @@ class UnitListView(ViewBase):
                 "merged, or split already."
             )
             return
-        self.notify_manual_curation_updated()
+        else:
+            self.notify_manual_curation_updated()
 
-
+    def _qt_remove_from_merge(self):
+        merge_unit_ids = self.get_selected_unit_ids()
+        success = self.controller.remove_units_from_merge_if_possible(merge_unit_ids)
+        if not success:
+            self.warning(
+                "Could not remove units from a merge. Ensure all selected units are in a merge group, and that you are not leaving zero or one units in the merge group."
+            )
+            return
+        else:
+            self.notify_manual_curation_updated()
 
     ## panel zone ##
     def _panel_make_layout(self):
