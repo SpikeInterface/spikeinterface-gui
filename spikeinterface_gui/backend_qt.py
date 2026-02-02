@@ -158,14 +158,11 @@ class QtMainWindow(QT.QMainWindow):
     def __init__(self, controller, parent=None, layout_dict=None, user_settings=None):
         QT.QMainWindow.__init__(self, parent)
 
-        menubar = self.menuBar()
-
         self.in_focus_mode = False
-        file_menu = menubar.addMenu('View')
         toggle_focus_mode = QT.QAction('Focus Mode', self)
         toggle_focus_mode.setShortcut('Ctrl+F')
         toggle_focus_mode.triggered.connect(self.toggle_focus_mode)
-        file_menu.addAction(toggle_focus_mode)
+        self.addAction(toggle_focus_mode)
 
         self.controller = controller
         self.verbose = controller.verbose
