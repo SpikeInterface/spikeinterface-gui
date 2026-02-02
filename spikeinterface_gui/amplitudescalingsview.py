@@ -18,16 +18,6 @@ class AmplitudeScalingsView(BaseScatterView):
             spike_data=spike_data,
         )
 
-    def _qt_make_layout(self):
-        from .myqt import QT
-
-        super()._qt_make_layout()
-
-        # add split shortcut, so that it's not duplicated
-        shortcut_split = QT.QShortcut(self.qt_widget)
-        shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
-        shortcut_split.activated.connect(self.split)
-
 
 AmplitudeScalingsView._gui_help_txt = """
 ## Amplitude Scalings View

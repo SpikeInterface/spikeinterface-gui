@@ -178,7 +178,7 @@ class BaseScatterView(ViewBase):
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import add_stretch_to_qtoolbar
+        from .utils_qt import add_stretch_to_qtoolbar, split_shortcut_is_setup
 
         self.layout = QT.QVBoxLayout()
 
@@ -197,6 +197,11 @@ class BaseScatterView(ViewBase):
             self.split_but.clicked.connect(self.split)
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
+
+        if not split_shortcut_is_setup():
+            shortcut_split = QT.QShortcut(self.qt_widget)
+            shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
+            shortcut_split.activated.connect(self.split)
         
         self.graphicsview = pg.GraphicsView()
         h.addWidget(self.graphicsview, 3)

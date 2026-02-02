@@ -608,7 +608,19 @@ def find_category(categories, category):
     return None
 
 
+def split_shortcut_is_setup():
+    from PyQt5.QtWidgets import QApplication, QShortcut
 
+    # Access the running application instance
+    app = QApplication.instance()
+
+    # Loop through every top-level window (e.g., MainWindows, Dialogs)
+    for widget in app.allWidgets():
+        for sc in widget.findChildren(QShortcut):
+            if sc.key().toString() == "Ctrl+S":
+                return True
+
+    return False
 
 
 if __name__=='__main__':
