@@ -238,8 +238,6 @@ class PanelMainWindow:
             if view_name in ("trace", "tracemap") and not self.controller.with_traces:
                 continue
 
-            view = view_class(controller=self.controller, parent=None, backend='panel')
-            self.views[view_name] = view
 
             info = pn.Column(
                 pn.pane.Markdown(view_class._gui_help_txt),
@@ -249,10 +247,14 @@ class PanelMainWindow:
 
             if user_settings is not None and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
-                    if setting_name not in view.settings.keys():
+                    available_settings = [s["name"] for s in view_class._settings]
+                    if setting_name not in available_settings:
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    with param.parameterized.discard_events(view.settings._parameterized):
-                        view.settings[setting_name] = user_setting
+                    settings_index = available_settings.index(setting_name)
+                    view_class._settings[settings_index]["value"] = user_setting
+
+            view = view_class(controller=self.controller, parent=None, backend='panel')
+            self.views[view_name] = view
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
@@ -266,11 +268,11 @@ class PanelMainWindow:
 
             tabs.append(("ℹ️", info))
             view_layout = pn.Tabs(
-                    *tabs,
-                    sizing_mode="stretch_both",
-                    dynamic=True,
-                    tabs_location="left",
-                )
+                *tabs,
+                sizing_mode="stretch_both",
+                dynamic=True,
+                tabs_location="left",
+            )
             self.view_layouts[view_name] = view_layout
 
 

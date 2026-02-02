@@ -6,20 +6,18 @@ from .view_base import ViewBase
 from spikeinterface.core.core_tools import check_json
 
 
-
-
 class CurationView(ViewBase):
     id = "curation"
-    _supported_backend = ['qt', 'panel']
+    _supported_backend = ["qt", "panel"]
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         self.active_table = "merge"
-        ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+        ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
     # TODO: Cast unit ids to the correct type here
     def restore_units(self):
-        if self.backend == 'qt':
+        if self.backend == "qt":
             unit_ids = self._qt_get_delete_table_selection()
         else:
             unit_ids = self._panel_get_delete_table_selection()
@@ -30,7 +28,7 @@ class CurationView(ViewBase):
             self.refresh()
 
     def unmerge(self):
-        if self.backend == 'qt':
+        if self.backend == "qt":
             merge_indices = self._qt_get_merge_table_row()
         else:
             merge_indices = self._panel_get_merge_table_row()
@@ -40,7 +38,7 @@ class CurationView(ViewBase):
             self.refresh()
 
     def unsplit(self):
-        if self.backend == 'qt':
+        if self.backend == "qt":
             split_indices = self._qt_get_split_table_row()
         else:
             split_indices = self._panel_get_split_table_row()
@@ -55,8 +53,8 @@ class CurationView(ViewBase):
         self.controller.set_visible_unit_ids([split_unit_id])
         self.notify_unit_visibility_changed()
         spike_inds = self.controller.get_spike_indices(split_unit_id, segment_index=None)
-        active_split = [s for s in self.controller.curation_data['splits'] if s['unit_id'] == split_unit_id][0]
-        split_indices = active_split['indices'][0]
+        active_split = [s for s in self.controller.curation_data["splits"] if s["unit_id"] == split_unit_id][0]
+        split_indices = active_split["indices"][0]
         self.controller.set_indices_spike_selected(spike_inds[split_indices])
         self.notify_spike_selection_changed()
 
@@ -73,25 +71,26 @@ class CurationView(ViewBase):
             but = QT.QPushButton("Save in analyzer")
             tb.addWidget(but)
             but.clicked.connect(self.save_in_analyzer)
+
         but = QT.QPushButton("Export JSON")
-        but.clicked.connect(self._qt_export_json)        
+        but.clicked.connect(self._qt_export_json)
         tb.addWidget(but)
 
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
 
-
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        self.table_delete = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_delete = QT.QTableWidget(
+            selectionMode=QT.QAbstractItemView.SingleSelection, selectionBehavior=QT.QAbstractItemView.SelectRows
+        )
         v.addWidget(self.table_delete)
         self.table_delete.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_delete.customContextMenuRequested.connect(self._qt_open_context_menu_delete)
         self.table_delete.itemSelectionChanged.connect(self._qt_on_item_selection_changed_delete)
 
         self.delete_menu = QT.QMenu()
-        act = self.delete_menu.addAction('Restore')
+        act = self.delete_menu.addAction("Restore")
         act.triggered.connect(self.restore_units)
         shortcut_restore = QT.QShortcut(self.qt_widget)
         shortcut_restore.setKey(QT.QKeySequence("ctrl+r"))
@@ -99,8 +98,9 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        self.table_merge = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_merge = QT.QTableWidget(
+            selectionMode=QT.QAbstractItemView.SingleSelection, selectionBehavior=QT.QAbstractItemView.SelectRows
+        )
         # self.table_merge.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         v.addWidget(self.table_merge)
 
@@ -109,7 +109,7 @@ class CurationView(ViewBase):
         self.table_merge.itemSelectionChanged.connect(self._qt_on_item_selection_changed_merge)
 
         self.merge_menu = QT.QMenu()
-        act = self.merge_menu.addAction('Remove merge')
+        act = self.merge_menu.addAction("Remove merge")
         act.triggered.connect(self.unmerge)
         shortcut_unmerge = QT.QShortcut(self.qt_widget)
         shortcut_unmerge.setKey(QT.QKeySequence("ctrl+u"))
@@ -117,14 +117,15 @@ class CurationView(ViewBase):
 
         v = QT.QVBoxLayout()
         h.addLayout(v)
-        self.table_split = QT.QTableWidget(selectionMode=QT.QAbstractItemView.SingleSelection,
-                                     selectionBehavior=QT.QAbstractItemView.SelectRows)
+        self.table_split = QT.QTableWidget(
+            selectionMode=QT.QAbstractItemView.SingleSelection, selectionBehavior=QT.QAbstractItemView.SelectRows
+        )
         v.addWidget(self.table_split)
         self.table_split.setContextMenuPolicy(QT.Qt.CustomContextMenu)
         self.table_split.customContextMenuRequested.connect(self._qt_open_context_menu_split)
         self.table_split.itemSelectionChanged.connect(self._qt_on_item_selection_changed_split)
         self.split_menu = QT.QMenu()
-        act = self.split_menu.addAction('Remove split')
+        act = self.split_menu.addAction("Remove split")
         act.triggered.connect(self.unsplit)
         shortcut_unsplit = QT.QShortcut(self.qt_widget)
         shortcut_unsplit.setKey(QT.QKeySequence("ctrl+x"))
@@ -132,6 +133,7 @@ class CurationView(ViewBase):
 
     def _qt_refresh(self):
         from .myqt import QT
+
         # Merged
         merged_units = [m["unit_ids"] for m in self.controller.curation_data["merges"]]
         self.table_merge.clear()
@@ -141,12 +143,12 @@ class CurationView(ViewBase):
         self.table_merge.setSortingEnabled(False)
         for ix, group in enumerate(merged_units):
             item = QT.QTableWidgetItem(str(group))
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
             self.table_merge.setItem(ix, 0, item)
         for i in range(self.table_merge.columnCount()):
             self.table_merge.resizeColumnToContents(i)
 
-        # Removed      
+        # Removed
         removed_units = self.controller.curation_data["removed"]
         self.table_delete.clear()
         self.table_delete.setRowCount(len(removed_units))
@@ -155,12 +157,12 @@ class CurationView(ViewBase):
         self.table_delete.setSortingEnabled(False)
         for i, unit_id in enumerate(removed_units):
             color = self.get_unit_color(unit_id)
-            pix = QT.QPixmap(16,16)
+            pix = QT.QPixmap(16, 16)
             pix.fill(color)
             icon = QT.QIcon(pix)
-            item = QT.QTableWidgetItem( f'{unit_id}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table_delete.setItem(i,0, item)
+            item = QT.QTableWidgetItem(f"{unit_id}")
+            item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
+            self.table_delete.setItem(i, 0, item)
             item.setIcon(icon)
             item.unit_id = unit_id
         self.table_delete.resizeColumnToContents(0)
@@ -178,12 +180,10 @@ class CurationView(ViewBase):
             num_spikes = self.controller.num_spikes[unit_id]
             num_splits = f"({num_indices}-{num_spikes - num_indices})"
             item = QT.QTableWidgetItem(f"{unit_id} {num_splits}")
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
+            item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
             self.table_split.setItem(i, 0, item)
             item.unit_id = unit_id
         self.table_split.resizeColumnToContents(0)
-
-
 
     def _qt_get_delete_table_selection(self):
         selected_items = self.table_delete.selectedItems()
@@ -198,7 +198,7 @@ class CurationView(ViewBase):
             return None
         else:
             return [s.row() for s in selected_items]
-    
+
     def _qt_get_split_table_row(self):
         selected_items = self.table_split.selectedItems()
         if len(selected_items) == 0:
@@ -214,7 +214,7 @@ class CurationView(ViewBase):
 
     def _qt_open_context_menu_split(self):
         self.split_menu.popup(self.qt_widget.cursor().pos())
-    
+
     def _qt_on_item_selection_changed_merge(self):
         if len(self.table_merge.selectedIndexes()) == 0:
             return
@@ -274,15 +274,16 @@ class CurationView(ViewBase):
 
     def on_manual_curation_updated(self):
         self.refresh()
-    
+
     def save_in_analyzer(self):
         self.controller.save_curation_in_analyzer()
 
     def _qt_export_json(self):
         from .myqt import QT
+
         fd = QT.QFileDialog(fileMode=QT.QFileDialog.AnyFile, acceptMode=QT.QFileDialog.AcceptSave)
-        fd.setNameFilters(['JSON (*.json);'])
-        fd.setDefaultSuffix('json')
+        fd.setNameFilters(["JSON (*.json);"])
+        fd.setDefaultSuffix("json")
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
@@ -296,14 +297,17 @@ class CurationView(ViewBase):
         import pandas as pd
         import panel as pn
 
-        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator, PostMessageListener, IFrameDetector
 
         pn.extension("tabulator")
+
+        # Initialize listenet_pane as None
+        self.listener_pane = None
 
         # Create dataframe
         delete_df = pd.DataFrame({"removed": []})
         merge_df = pd.DataFrame({"merges": []})
-        split_df = pd.DataFrame({"splits": []})        
+        split_df = pd.DataFrame({"splits": []})
 
         # Create tables
         self.table_delete = SelectableTabulator(
@@ -353,54 +357,37 @@ class CurationView(ViewBase):
         self.table_split.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
-        save_button = pn.widgets.Button(
-            name="Save in analyzer",
-            button_type="primary",
-            height=30
-        )
-        save_button.on_click(self._panel_save_in_analyzer)
+        buttons_row = []
+        self.save_button = None
+        if self.controller.curation_can_be_saved():
+            self.save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary", height=30)
+            self.save_button.on_click(self._panel_save_in_analyzer)
+            buttons_row.append(self.save_button)
 
-        download_button = pn.widgets.FileDownload(
-            button_type="primary",
-            filename="curation.json",
-            callback=self._panel_generate_json,
-            height=30
+        self.download_button = pn.widgets.FileDownload(
+            button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
         )
+        buttons_row.append(self.download_button)
 
-        restore_button = pn.widgets.Button(
-            name="Restore",
-            button_type="primary",
-            height=30
-        )
+        restore_button = pn.widgets.Button(name="Restore", button_type="primary", height=30)
         restore_button.on_click(self._panel_restore_units)
 
-        remove_merge_button = pn.widgets.Button(
-            name="Unmerge",
-            button_type="primary",
-            height=30
-        )
+        remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary", height=30)
         remove_merge_button.on_click(self._panel_unmerge)
 
-        submit_button = pn.widgets.Button(
-            name="Submit to parent", 
-            button_type="primary",
-            height=30
-        )
+        remove_split = pn.widgets.Button(name="Unsplit", button_type="primary", height=30)
+        remove_split.on_click(self._panel_unsplit)
 
         # Create layout
-        buttons_save = pn.Row(
-            save_button,
-            download_button,
-            submit_button,
+        self.buttons_save = pn.Row(
+            *buttons_row,
             sizing_mode="stretch_width",
         )
-        save_sections = pn.Column(
-            buttons_save,
-            sizing_mode="stretch_width",
-        )
+
         buttons_curate = pn.Row(
             restore_button,
             remove_merge_button,
+            remove_split,
             sizing_mode="stretch_width",
         )
 
@@ -414,29 +401,20 @@ class CurationView(ViewBase):
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         # Create main layout with proper sizing
-        sections = pn.Row(self.table_delete, self.table_merge, self.table_split,
-                          sizing_mode="stretch_width")
+        sections = pn.Row(self.table_delete, self.table_merge, self.table_split, sizing_mode="stretch_width")
         self.layout = pn.Column(
-            save_sections,
-            buttons_curate,
-            sections,
-            shortcuts_component,
-            scroll=True,
-            sizing_mode="stretch_both"
+            self.buttons_save, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
         )
 
-        # Add a custom JavaScript callback to the button that doesn't interact with Bokeh models
-        submit_button.on_click(self._panel_submit_to_parent)
-
-        # Add a hidden div to store the data
-        self.data_div = pn.pane.HTML("", width=0, height=0, margin=0, sizing_mode="fixed")
-        self.layout.append(self.data_div)
-
+        self.iframe_detector = IFrameDetector()
+        print("initial:", self.iframe_detector.in_iframe)
+        self.iframe_detector.param.watch(self._panel_on_iframe_change, "in_iframe")
+        self.layout.append(self.iframe_detector)
 
     def _panel_refresh(self):
         import pandas as pd
 
-        ## deleted        
+        ## deleted
         removed_units = self.controller.curation_data["removed"]
         removed_units = [str(unit_id) for unit_id in removed_units]
         df = pd.DataFrame({"removed": removed_units})
@@ -474,7 +452,7 @@ class CurationView(ViewBase):
 
     def ensure_save_warning_message(self):
 
-        if self.layout[0].name == 'curation_save_warning':
+        if self.layout[0].name == "curation_save_warning":
             return
 
         import panel as pn
@@ -483,13 +461,13 @@ class CurationView(ViewBase):
             f"""⚠️⚠️⚠️ Your curation is not saved""",
             hard_line_break=True,
             styles={"color": "red", "font-size": "16px"},
-            name="curation_save_warning"
+            name="curation_save_warning",
         )
 
         self.layout.insert(0, alert_markdown)
 
     def ensure_no_message(self):
-        if self.layout[0].name == 'curation_save_warning':
+        if self.layout[0].name == "curation_save_warning":
             self.layout.pop(0)
 
     def _panel_update_unit_visibility(self, event):
@@ -522,6 +500,9 @@ class CurationView(ViewBase):
     def _panel_unmerge(self, event):
         self.unmerge()
 
+    def _panel_unsplit(self, event):
+        self.unsplit()
+
     def _panel_save_in_analyzer(self, event):
         self.save_in_analyzer()
         self.refresh()
@@ -540,39 +521,97 @@ class CurationView(ViewBase):
 
         return export_path
 
-    def _panel_submit_to_parent(self, event):
+    def _panel_submit_to_parent(self, event):        
         """Send the curation data to the parent window"""
+        import time
+
         # Get the curation data and convert it to a JSON string
         curation_model = self.controller.construct_final_curation()
+        curation_data = curation_model.model_dump_json()
+        # Trigger the JavaScript function via the TextInput
+        # Update the value to trigger the jscallback
+        self.submit_trigger.value = curation_data + f"_{int(time.time() * 1000)}"
 
-        # Create a JavaScript snippet that will send the data to the parent window
-        js_code = f"""
-        <script>
-        (function() {{
-            try {{
-                const jsonData = {curation_model.model_dump_json()};
-                const data = {{
-                    type: 'curation_data',
-                    curation_data: JSON.parse(jsonData)
-                }};
-                console.log('Sending data to parent:', data);
-                parent.postMessage({{
-                    type: 'panel-data',
-                    data: data
-                }}, '*');
-                console.log('Data sent successfully');
-            }} catch (error) {{
-                console.error('Error sending data to parent:', error);
-            }}
-        }})();
-        </script>
-        """
-
-        # Update the hidden div with the JavaScript code
-        self.data_div.object = js_code
         # Submitting to parent is a way to "save" the curation (the parent can handle it)
         self.controller.current_curation_saved = True
+        self.ensure_no_message()
+        print(f"Curation data sent to parent app!")
+
+    def _panel_set_curation_data(self, event):
+        """
+        Handler for PostMessageListener.on_msg.
+
+        event.data is whatever the JS side passed to model.send_msg(...).
+        Expected shape:
+        {
+            "payload": {"type": "curation-data", "data": <curation_dict>},
+        }
+        """
+        msg = event.data
+        payload = (msg or {}).get("payload", {})
+        curation_data = payload.get("data", None)
+
+        if curation_data is None:
+            print("Received message without curation data:", msg)
+            return
+
+        # Optional: validate basic structure
+        if not isinstance(curation_data, dict):
+            print("Invalid curation_data type:", type(curation_data), curation_data)
+            return
+
+        self.controller.set_curation_data(curation_data)
         self.refresh()
+
+    def _panel_on_iframe_change(self, event):
+        import panel as pn
+        from .utils_panel import PostMessageListener
+
+        in_iframe = event.new
+        print(f"CurationView detected iframe mode: {in_iframe}")
+        if in_iframe:
+            # Remove save in analyzer button and add submit to parent button
+            self.submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary", height=30)
+            self.submit_button.on_click(self._panel_submit_to_parent)
+
+            self.buttons_save = pn.Row(
+                self.submit_button,
+                self.download_button,
+                sizing_mode="stretch_width",
+            )
+            self.layout[0] = self.buttons_save
+            
+            # Create objects to submit and listen
+            self.submit_trigger = pn.widgets.TextInput(value="", visible=False)
+            # Add JavaScript callback that triggers when the TextInput value changes
+            self.submit_trigger.jscallback(
+                value="""
+                // Extract just the JSON data (remove timestamp suffix)
+                const fullValue = cb_obj.value;
+                const lastUnderscore = fullValue.lastIndexOf('_');
+                const dataStr = lastUnderscore > 0 ? fullValue.substring(0, lastUnderscore) : fullValue;
+
+                if (dataStr && dataStr.length > 0) {
+                    try {
+                        const data = JSON.parse(dataStr);
+                        console.log('Sending data to parent:', data);
+                        parent.postMessage({
+                            type: 'panel-data',
+                            data: data
+                        }, '*');
+                        console.log('Data sent successfully to parent window');
+                    } catch (error) {
+                        console.error('Error sending data to parent:', error);
+                    }
+                }
+                """
+            )
+            self.layout.append(self.submit_trigger)
+            # Set up listener for external curation changes
+            self.listener = PostMessageListener()
+            self.listener.on_msg(self._panel_set_curation_data)
+            self.layout.append(self.listener)
+
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection
@@ -660,8 +699,22 @@ revert, and export the curation data.
 - **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merges from the merged units table.
+- **unsplit**: Unsplit the selected split groups from the split units table.
 - **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
 - **press 'ctrl+u'**: Unmerge the selected merges from the merged units table.
 - **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.
+
+### Note
+When setting the `iframe_mode` setting to `True` using the `user_settings=dict(curation=dict(iframe_mode=True))`,
+the GUI is expected to be used inside an iframe. In this mode, the curation view will include a "Submit to parent" 
+button that, when clicked, will send the current curation data to the parent window.
+In this mode, bi-directional communication is established between the GUI and the parent window using the `postMessage`
+API. The GUI listens for incoming messages of this expected shape:
+
+```
+{
+    "payload": {"type": "curation-data", "data": <curation_dict>},
+}
+```
 """
