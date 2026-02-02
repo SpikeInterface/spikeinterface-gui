@@ -34,10 +34,23 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 class Controller():
-    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
+    def __init__(
+        self,
+        analyzer=None,
+        backend="qt",
+        parent=None,
+        verbose=False,
+        save_on_compute=False,
+        curation=False,
+        curation_data=None,
+        label_definitions=None,
+        with_traces=True,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        skip_extensions=None,
+        disable_save_settings_button=False,
+        external_data=None,
+    ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
 
@@ -45,6 +58,7 @@ class Controller():
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
         self.current_curation_saved = True
+        self.external_data = external_data
 
         if self.backend == "qt":
             from .backend_qt import SignalHandler
