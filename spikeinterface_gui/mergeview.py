@@ -131,6 +131,10 @@ class MergeView(ViewBase):
         return labels, rows
 
     def accept_group_merge(self, group_ids):
+        if not self.controller.curation:
+            self.warning("You are not in 'curation' mode. Merge cannot be performed.")
+            return
+
         success = self.controller.make_manual_merge_if_possible(group_ids)
         if not success:
             self.warning(

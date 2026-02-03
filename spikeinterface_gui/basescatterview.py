@@ -112,6 +112,11 @@ class BaseScatterView(ViewBase):
         """
         Add a split to the curation data based on the lasso vertices.
         """
+        if not self.controller.curation:
+            self.warning(
+                "You are not in 'curation' mode. Split cannot be performed.")
+            return
+
         # split is only possible if one unit is visible
         visible_unit_ids = self.controller.get_visible_unit_ids()
         if len(visible_unit_ids) != 1:
@@ -178,7 +183,7 @@ class BaseScatterView(ViewBase):
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import add_stretch_to_qtoolbar
+        from .utils_qt import add_stretch_to_qtoolbar, qt_shortcut_is_setup
 
         self.layout = QT.QVBoxLayout()
 
@@ -197,6 +202,11 @@ class BaseScatterView(ViewBase):
             self.split_but.clicked.connect(self.split)
         h = QT.QHBoxLayout()
         self.layout.addLayout(h)
+
+        if not qt_shortcut_is_setup("Ctrl+S"):
+            shortcut_split = QT.QShortcut(self.qt_widget)
+            shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
+            shortcut_split.activated.connect(self.split)
         
         self.graphicsview = pg.GraphicsView()
         h.addWidget(self.graphicsview, 3)

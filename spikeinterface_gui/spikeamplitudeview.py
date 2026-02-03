@@ -32,10 +32,6 @@ class SpikeAmplitudeView(BaseScatterView):
         self.noise_harea = []
         if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             self._qt_add_noise_area()
-        # add split shortcut, so that it's not duplicated
-        shortcut_split = QT.QShortcut(self.qt_widget)
-        shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
-        shortcut_split.activated.connect(self.split)
 
     def _qt_refresh(self):
         super()._qt_refresh()

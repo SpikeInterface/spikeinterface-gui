@@ -152,6 +152,19 @@ class Controller():
             else:
                 self.spike_amplitudes = None
 
+        if "amplitude_scalings" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping amplitude_scalings')
+            self.amplitude_scalings = None
+        else:
+            if verbose:
+                print('\tLoading amplitude_scalings')
+            sa_ext = analyzer.get_extension('amplitude_scalings')
+            if sa_ext is not None:
+                self.amplitude_scalings = sa_ext.get_data()
+            else:
+                self.amplitude_scalings = None
+
         if "spike_locations" in skip_extensions:
             if self.verbose:
                 print('\tSkipping spike_locations')
