@@ -609,6 +609,10 @@ def find_category(categories, category):
 
 
 def qt_shortcut_is_setup(shortcut):
+    """
+    Checks the application to see if `shortcut`, e.g. "Ctrl+S", has already
+    been set by a widget.
+    """
     from .myqt import QT
 
     # Access the running application instance
