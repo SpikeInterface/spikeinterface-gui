@@ -608,16 +608,16 @@ def find_category(categories, category):
     return None
 
 
-def split_shortcut_is_setup():
-    from PyQt5.QtWidgets import QApplication, QShortcut
+def qt_shortcut_is_setup(shortcut):
+    from .myqt import QT
 
     # Access the running application instance
-    app = QApplication.instance()
+    app = QT.QApplication.instance()
 
     # Loop through every top-level window (e.g., MainWindows, Dialogs)
     for widget in app.allWidgets():
-        for sc in widget.findChildren(QShortcut):
-            if sc.key().toString() == "Ctrl+S":
+        for sc in widget.findChildren(QT.QShortcut):
+            if sc.key().toString() == shortcut:
                 return True
 
     return False
