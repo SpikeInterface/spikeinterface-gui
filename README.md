@@ -79,6 +79,7 @@ This enables a very quick and convenient spike per spike jump on traces.
 Channel visibility can be handled with one of the roi in the probeview.
 
 Shortcuts: many shortcuts are available, please read the **?** button in each view.
+There's one secret shortcut: `ctrl+f` (or `cmd+f` on mac), for "focus mode". Try it out!
 
 ## Curation mode
 
