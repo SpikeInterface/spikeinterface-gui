@@ -255,7 +255,8 @@ class Controller():
 
         t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
+        self._extremum_channel = get_template_extremum_channel(self.analyzer,
+                                    mode="extremum", peak_sign='both', outputs='index')
 
         # some direct attribute
         self.num_segments = self.analyzer.get_num_segments()
