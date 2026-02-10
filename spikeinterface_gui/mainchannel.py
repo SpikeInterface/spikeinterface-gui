@@ -7,9 +7,10 @@ from .view_base import ViewBase
 class MainChannelView(ViewBase):
     id = "mainchannel"
     _supported_backend = ['qt', ]
-    _depend_on = ["templates"]
+    _depend_on = ["templates", "template_metrics"]
     _settings = [
-        {'name': 'ncols', 'type': 'int', 'value': 5 },
+        {'name': 'ncols', 'type': 'int', 'value': 3 },
+        {'name': 'width_mode', 'type': 'list', 'limits' : ['half_width', 'peak_width'] },
     ]
     _need_compute = True
 
@@ -17,7 +18,10 @@ class MainChannelView(ViewBase):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
         nbefore, nafter = self.controller.get_waveform_sweep()
-        self.time_vect = np.arange(-nbefore, nafter) / self.controller.sampling_frequency * 1000.
+        fs = self.controller.sampling_frequency
+        self.time_vect = np.arange(-nbefore, nafter) / fs * 1000.
+        factor = self.controller.get_template_upsampling_factor()
+        self.time_vect_high = np.arange(-nbefore*factor, nafter*factor) / (fs * factor) * 1000.
 
     
     def _on_settings_changed(self):
@@ -53,18 +57,52 @@ class MainChannelView(ViewBase):
             col = i % ncols
             row = i // ncols
 
+            unit_id = visible_unit_ids[i]
+
             plot = pg.PlotItem()
             self.grid.addItem(plot, row=row, col=col)
 
-            unit_id = visible_unit_ids[i]
-            unit_index = list(self.controller.unit_ids).index(unit_id)
-            chan_ind = self.controller.get_extremum_channel(unit_id)
-            color = self.get_unit_color(unit_id)
+            template, template_high, peak_data = self.controller.get_upsampled_templates(unit_id)
+
             
-            template_avg = self.controller.templates_average[unit_index, :, chan_ind]
-            curve = pg.PlotCurveItem(self.time_vect, template_avg,
-                                    #  brush=color,
-                                     pen=pg.mkPen(color, width=3))
+            color = self.get_unit_color(unit_id)
+
+            plot.addItem(pg.PlotCurveItem( [self.time_vect_high[0] , self.time_vect_high[-1]],
+                                          [0, 0], color="grey"))
+
+            curve = pg.PlotCurveItem(self.time_vect, template,
+                                     pen=pg.mkPen("white", width=1.))
             plot.addItem(curve)
-        
+            curve = pg.PlotCurveItem(self.time_vect_high, template_high,
+                                     pen=pg.mkPen(color, width=2))
+            plot.addItem(curve)
+
+            times = self.time_vect_high
+            names = ('trough', 'peak_before', 'peak_after')
+            peak_inds =  peak_data[[f'{k}_index' for k in names]].values
+            scatter = pg.ScatterPlotItem(x = times[peak_inds], y = template_high[peak_inds],
+                                size=10, pxMode = True, color="white")
+            plot.addItem(scatter)
+            for ind in peak_inds:
+                x = [times[ind], times[ind]]
+                y = [0, template_high[ind]]
+                plot.addItem(pg.PlotCurveItem(x,y), color="white")
+
+            for k in names:
+                if self.settings['width_mode'] == 'half_width':
+                    left = peak_data[f'{k}_half_width_left']
+                    right = peak_data[f'{k}_half_width_right']
+                if self.settings['width_mode'] == 'peak_width':
+                    left = peak_data[f'{k}_width_left']
+                    right = peak_data[f'{k}_width_right']
+                
+                if left != -1:
+                    inds = [left, right]
+                    x = times[inds]
+                    # y = template_high[inds] <<<< this make a strange line
+                    m = np.mean(template_high[inds])
+                    y = [m, m ]
+                    plot.addItem(pg.PlotCurveItem(x,y), color="white")
+
+
     

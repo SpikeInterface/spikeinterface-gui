@@ -13,10 +13,9 @@ import spikeinterface.full as si
 
 from pathlib import Path
 
-
-test_folder = Path(__file__).parent / 'my_dataset_small'
-# test_folder = Path(__file__).parent / 'my_dataset_big'
-# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
+test_folder = Path(__file__).parents[2] / 'my_dataset_small'
+# test_folder = Path(__file__).parents[2] / 'my_dataset_big'
+# test_folder = Path(__file__).parents[2] / 'my_dataset_multiprobe'
 
 
 def debug_one_view():

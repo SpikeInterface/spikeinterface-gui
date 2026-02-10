@@ -723,6 +723,19 @@ class Controller():
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
         return wfs, chan_inds
+    
+    def get_template_upsampling_factor(self):
+        return self.analyzer.get_extension("template_metrics").params['upsampling_factor']
+ 
+    def get_upsampled_templates(self, unit_id):
+        ext = self.analyzer.get_extension("template_metrics")
+        peaks_data = ext.data['peaks_data']
+        unit_index = list(self.unit_ids).index(unit_id)
+        chan_ind = self.get_extremum_channel(unit_id)
+        template = self.templates_average[unit_index, :, chan_ind]
+        template_high = ext.data['main_channel_templates'][unit_index]
+        return template, template_high, peaks_data.loc[unit_id]
+
 
     def get_common_sparse_channels(self, unit_ids):
         sparsity_mask = self.get_sparsity_mask()
