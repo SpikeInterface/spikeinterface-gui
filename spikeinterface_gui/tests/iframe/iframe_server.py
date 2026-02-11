@@ -2,130 +2,142 @@ import threading
 import webbrowser
 from pathlib import Path
 import argparse
+import socket
+import time
+
 from flask import Flask, send_file, jsonify
 
 app = Flask(__name__)
+
+PANEL_HOST = "localhost"  # <- switch back to localhost
+
 panel_server = None
 panel_url = None
 panel_thread = None
 panel_port_global = None
+panel_last_error = None
+
+
+def _wait_for_port(host: str, port: int, timeout_s: float = 20.0) -> bool:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=0.25):
+                return True
+        except OSError:
+            time.sleep(0.1)
+    return False
 
 
 @app.route("/")
 def index():
-    """Serve the iframe test HTML page"""
-    return send_file("iframe_test.html")
+    here = Path(__file__).parent
+    return send_file(str(here / "iframe_test.html"))
+
+
+@app.route("/curation.json")
+def curation_json():
+    here = Path(__file__).parent
+    return send_file(str(here / "curation.json"))
 
 
 @app.route("/start_test_server")
 def start_test_server():
-    """Start the Panel server in a separate thread"""
-    global panel_server, panel_url, panel_thread, panel_port_global
+    global panel_server, panel_url, panel_thread, panel_port_global, panel_last_error
 
-    # If a server is already running, return its URL
     if panel_url:
         return jsonify({"success": True, "url": panel_url})
 
-    # Make sure the test dataset exists
+    panel_last_error = None
+
     test_folder = Path(__file__).parent / "my_dataset"
     if not test_folder.is_dir():
         from spikeinterface_gui.tests.testingtools import make_analyzer_folder
 
         make_analyzer_folder(test_folder)
 
-    # Function to run the Panel server in a thread
     def run_panel_server():
-        global panel_server, panel_url, panel_port_global
+        global panel_server, panel_url, panel_port_global, panel_last_error
         try:
-            # Start the Panel server with curation enabled and listen_for_curation_changes
+            import panel as pn
             from spikeinterface import load_sorting_analyzer
             from spikeinterface_gui import run_mainwindow
 
-            # Load the analyzer
+            pn.extension("tabulator", "gridstack")
+
             analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
 
-            # Start the Panel server directly with listen_for_curation_changes enabled
-            win = run_mainwindow(
-                analyzer,
-                mode="web",
-                start_app=False,
-                verbose=True,
-                curation=True,
-                panel_window_servable=True,
-                # Enable listening for curation changes from parent window
-                user_settings={"curation": {"listen_for_curation_changes": True}},
+            def app_factory():
+                win = run_mainwindow(
+                    analyzer,
+                    mode="web",
+                    start_app=False,
+                    verbose=True,
+                    curation=True,
+                    panel_window_servable=True,
+                )
+                return win.main_layout
+
+            allowed = [
+                f"localhost:{int(panel_port_global)}",
+                f"127.0.0.1:{int(panel_port_global)}",
+            ]
+            print(panel_port_global)
+            server = pn.serve(
+                app_factory,
+                port=int(panel_port_global),
+                address=PANEL_HOST,
+                allow_websocket_origin=allowed,
+                show=False,
+                start=False,
             )
 
-            # Start the server manually
-            import panel as pn
+            panel_server = server
+            panel_url = f"http://{PANEL_HOST}:{panel_port_global}/"
+            print(f"Panel server starting at {panel_url} (allow_websocket_origin={allowed})")
 
-            pn.serve(win.main_layout, port=panel_port_global, address="localhost", show=False, start=True)
+            server.start()
+            server.io_loop.start()
 
-            # Get the server URL
-            panel_url = f"http://localhost:{panel_port_global}"
-            panel_server = win
-
-            print(f"Panel server started at {panel_url} with listen_for_curation_changes=True")
         except Exception as e:
-            print(f"Error starting Panel server: {e}")
+            panel_last_error = repr(e)
+            panel_server = None
+            panel_url = None
             import traceback
 
             traceback.print_exc()
 
-    # Start the Panel server in a separate thread
-    panel_thread = threading.Thread(target=run_panel_server)
-    panel_thread.daemon = True
+    panel_thread = threading.Thread(target=run_panel_server, daemon=True)
     panel_thread.start()
 
-    # Give the server some time to start
-    import time
+    if not _wait_for_port("127.0.0.1", int(panel_port_global), timeout_s=30.0):
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": "Panel server did not become ready (port not open).",
+                    "panel_host": PANEL_HOST,
+                    "panel_port": panel_port_global,
+                    "last_error": panel_last_error,
+                }
+            ),
+            500,
+        )
 
-    time.sleep(5)  # Increased wait time
-
-    # Check if the server is actually running
-    import requests
-
-    try:
-        response = requests.get(f"http://localhost:{panel_port_global}", timeout=2)
-        if response.status_code == 200:
-            return jsonify({"success": True, "url": f"http://localhost:{panel_port_global}"})
-        else:
-            return jsonify({"success": False, "error": f"Server returned status code {response.status_code}"})
-    except requests.exceptions.RequestException as e:
-        return jsonify({"success": False, "error": f"Could not connect to Panel server: {str(e)}"})
-
-
-@app.route("/stop_test_server")
-def stop_test_server():
-    """Stop the Panel server"""
-    global panel_server, panel_url, panel_thread
-
-    if panel_server:
-        # Clean up resources
-        # clean_all(Path(__file__).parent / 'my_dataset')
-        panel_url = None
-        panel_server = None
-        return jsonify({"success": True})
-    else:
-        return jsonify({"success": False, "error": "No server running"})
+    return jsonify({"success": True, "url": panel_url})
 
 
-def main(flask_port=5000, panel_port=5006):
-    """Start the Flask server and open the browser"""
+def main(flask_port=5000, panel_port=5007):
     global panel_port_global
     panel_port_global = panel_port
-    # Open the browser
     webbrowser.open(f"http://localhost:{flask_port}")
-
-    # Start the Flask server
-    app.run(debug=False, port=flask_port)
+    app.run(debug=False, port=flask_port, host="localhost")
 
 
 parser = argparse.ArgumentParser(description="Run the Flask and Panel servers.")
-parser.add_argument("--flask-port", type=int, default=5000, help="Port for the Flask server (default: 5000)")
-parser.add_argument("--panel-port", type=int, default=5006, help="Port for the Panel server (default: 5006)")
+parser.add_argument("--flask-port", type=int, default=5000)
+parser.add_argument("--panel-port", type=int, default=5006)
 
 if __name__ == "__main__":
     args = parser.parse_args()
-
     main(flask_port=int(args.flask_port), panel_port=int(args.panel_port))
