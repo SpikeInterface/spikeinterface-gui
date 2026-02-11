@@ -3,7 +3,7 @@ import panel as pn
 import numpy as np
 from copy import copy
 
-from .viewlist import possible_class_views
+from .viewlist import get_all_possible_views
 from .layout_presets import get_layout_description
 from .utils_global import fill_unnecessary_space, get_present_zones_in_half_of_layout
 # Used by views to emit/trigger signals
@@ -223,6 +223,7 @@ class PanelMainWindow:
         for _, view_names in self.layout_dict.items():
             requested_views.extend(view_names)
         requested_views = set(requested_views)
+        possible_class_views = get_all_possible_views()
         for view_name, view_class in possible_class_views.items():
             if 'panel' not in view_class._supported_backend:
                 continue
@@ -237,8 +238,6 @@ class PanelMainWindow:
             if view_name in ("trace", "tracemap") and not self.controller.with_traces:
                 continue
 
-            view = view_class(controller=self.controller, parent=None, backend='panel')
-            self.views[view_name] = view
 
             info = pn.Column(
                 pn.pane.Markdown(view_class._gui_help_txt),
@@ -248,10 +247,14 @@ class PanelMainWindow:
 
             if user_settings is not None and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
-                    if setting_name not in view.settings.keys():
+                    available_settings = [s["name"] for s in view_class._settings]
+                    if setting_name not in available_settings:
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    with param.parameterized.discard_events(view.settings._parameterized):
-                        view.settings[setting_name] = user_setting
+                    settings_index = available_settings.index(setting_name)
+                    view_class._settings[settings_index]["value"] = user_setting
+
+            view = view_class(controller=self.controller, parent=None, backend='panel')
+            self.views[view_name] = view
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
@@ -265,11 +268,11 @@ class PanelMainWindow:
 
             tabs.append(("ℹ️", info))
             view_layout = pn.Tabs(
-                    *tabs,
-                    sizing_mode="stretch_both",
-                    dynamic=True,
-                    tabs_location="left",
-                )
+                *tabs,
+                sizing_mode="stretch_both",
+                dynamic=True,
+                tabs_location="left",
+            )
             self.view_layouts[view_name] = view_layout
 
 

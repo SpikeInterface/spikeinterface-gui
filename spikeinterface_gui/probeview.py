@@ -8,6 +8,7 @@ from spikeinterface.postprocessing.unit_locations import possible_localization_m
 
 
 class ProbeView(ViewBase):
+    id = "probe"
     _supported_backend = ['qt', 'panel']
     _settings = [
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
@@ -404,7 +405,7 @@ class ProbeView(ViewBase):
             border_colors.append("black" if is_visible else color)
 
         # Create new glyph
-        data_source = ColumnDataSource(
+        self.glyphs_data_source = ColumnDataSource(
             {
                 "x": unit_positions[:, 0].tolist(),
                 "y": unit_positions[:, 1].tolist(),
@@ -416,10 +417,9 @@ class ProbeView(ViewBase):
             }
         )
         self.unit_glyphs = self.figure.scatter(
-            "x", "y", source=data_source, size="size", fill_color="color", 
+            "x", "y", source=self.glyphs_data_source, size="size", fill_color="color",
             line_color="line_color", alpha="alpha"
         )
-        # self.unit_glyphs.data_source = data_source  # Explicitly set data source
 
         # Add hover tool to new glyph
         hover = HoverTool(renderers=[self.unit_glyphs], tooltips=[("Unit", "@unit_id")])
@@ -490,7 +490,7 @@ class ProbeView(ViewBase):
         if not np.array_equal(current_unit_positions, self._unit_positions):
             self._unit_positions = current_unit_positions
             # Update positions in data source
-            self.unit_glyphs.data_source.patch({
+            self.glyphs_data_source.patch({
                 'x': [(i, pos[0]) for i, pos in enumerate(current_unit_positions)],
                 'y': [(i, pos[1]) for i, pos in enumerate(current_unit_positions)]
             })
@@ -530,10 +530,9 @@ class ProbeView(ViewBase):
 
     def _panel_update_unit_glyphs(self):
         # Get current data from source
-        current_alphas = self.unit_glyphs.data_source.data['alpha']
-        current_sizes = self.unit_glyphs.data_source.data['size']
-        current_line_colors = self.unit_glyphs.data_source.data['line_color']
-
+        current_alphas = self.glyphs_data_source.data['alpha']
+        current_sizes = self.glyphs_data_source.data['size']
+        current_line_colors = self.glyphs_data_source.data['line_color']
         # Prepare patches (only for changed values)
         alpha_patches = []
         size_patches = []
@@ -566,7 +565,7 @@ class ProbeView(ViewBase):
             if line_color_patches:
                 patch_dict['line_color'] = line_color_patches
 
-            self.unit_glyphs.data_source.patch(patch_dict)
+            self.glyphs_data_source.patch(patch_dict)
             
     def _panel_on_pan_start(self, event):
         self.figure.toolbar.active_drag = None

@@ -2,6 +2,7 @@ import time
 from contextlib import contextmanager
 
 class ViewBase:
+    id: str = None
     _supported_backend = []
     _need_compute = False
     _settings = None
@@ -10,6 +11,7 @@ class ViewBase:
 
     def __init__(self, controller=None, parent=None, backend="qt"):
 
+        assert self.id is not None, "Unique view ID must be defined!"
         self.backend = backend
         self.controller = controller
         # this is used for panel
@@ -239,6 +241,18 @@ class ViewBase:
         else:
             raise ValueError(f"Unknown backend: {self.backend}")
 
+    def is_warning_active(self):
+        if self.backend == "qt":
+            # we can check if a warning dialog is active
+            from .myqt import QT
+
+            active_window = QT.QApplication.activeWindow()
+            if active_window and isinstance(active_window, QT.QMessageBox):
+                return True
+            return False
+        elif self.backend == "panel":
+            return self._panel_warning_active
+
     ## Zone to be done per layout ##
 
     ## QT ##
@@ -406,7 +420,8 @@ class ViewBase:
         # Do nothing on cancel - just remove the dialog
 
     def _panel_clear_warning(self, event):
-        self.layout.pop(0)
+        if self._panel_warning_active:
+            self.layout.pop(0)
         self._panel_warning_active = False
 
     @contextmanager
