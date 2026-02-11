@@ -929,6 +929,27 @@ class Controller():
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
 
+
+    def remove_units_from_merge_if_possible(self, merge_unit_ids):
+        """
+        Check if selected units are in a merge group. If they are, remove them.
+        """
+        if not self.curation:
+            return False
+
+        merges = self.curation_data["merges"]
+        for i, merge in enumerate(merges):
+            if set(merge_unit_ids).issubset(set(merge['unit_ids'])):
+                merge_ids_with_removed_ids = list(set(merge['unit_ids']).difference(set(merge_unit_ids)))
+                if len(merge_ids_with_removed_ids) > 1:
+                    merges[i]['unit_ids'] = merge_ids_with_removed_ids
+                    return True
+                else:
+                    return False
+
+        return False
+
+
     def make_manual_split_if_possible(self, unit_id):
         """
         Check if the a unit_id can be split into a new split in the curation_data.
