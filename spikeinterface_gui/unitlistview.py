@@ -544,35 +544,19 @@ class UnitListView(ViewBase):
             column_callbacks={"visible": self._panel_on_visible_checkbox_toggled},
         )
 
-        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
-        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default")
         self.refresh_button = pn.widgets.Button(name="↻", button_type="default")
 
-        button_list = [
-            self.select_all_button,
-            self.unselect_all_button,
-        ]
+        button_list = []
 
         if self.controller.curation:
             self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
             self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
-            # self.hide_noise = pn.widgets.Toggle(name="Show/Hide Noise", button_type="default")
-
-            # if "quality" in self.label_definitions:
-            #     self.show_only = pn.widgets.Select(
-            #         name="Show only",
-            #         options=["all"] + list(self.label_definitions["quality"]['label_options']),
-            #         sizing_mode="stretch_width",
-            #     )
-            # else:
-            #     self.show_only = None
-
-            # self.hide_noise.param.watch(self._panel_on_hide_noise, 'value')
-            # self.show_only.param.watch(self._panel_on_show_only, 'value')
+            self.unmerge_button = pn.widgets.Button(name="Unmerge", button_type="default")
             button_list.extend(
                 [
                     self.delete_button,
                     self.merge_button,
+                    self.unmerge_button,
                 ]
             )
 
@@ -614,14 +598,12 @@ class UnitListView(ViewBase):
         self.layout.append(shortcuts_component)
 
         self.table.tabulator.on_edit(self._panel_on_edit)
-
-        self.select_all_button.on_click(self._panel_select_all)
-        self.unselect_all_button.on_click(self._panel_unselect_all)
         self.refresh_button.on_click(self._panel_refresh_click)
 
         if self.controller.curation:
             self.delete_button.on_click(self._panel_delete_unit_callback)
             self.merge_button.on_click(self._panel_merge_units_callback)
+            self.unmerge_button.on_click(self._panel_remove_from_merge_callback)
 
     def _panel_refresh_click(self, event):
         self.table.reset()
@@ -676,20 +658,16 @@ class UnitListView(ViewBase):
         txt = f"<b>All units</b>: {n1} - <b>visible</b>: {n2} - <b>selected</b>: {n3}"
         self.info_text.object = txt
 
-    def _panel_select_all(self, event):
-        self.show_all()
-        self.notifier.notify_active_view_updated()
-
-    def _panel_unselect_all(self, event):
-        self.hide_all()
-        self.notifier.notify_active_view_updated()
-
     def _panel_delete_unit_callback(self, event):
         self._panel_delete_unit()
         self.notifier.notify_active_view_updated()
 
     def _panel_merge_units_callback(self, event):
         self._panel_merge_units()
+        self.notifier.notify_active_view_updated()
+
+    def _panel_remove_from_merge_callback(self, event):
+        self._panel_remove_from_merge()
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_checkbox_toggled(self, row):
@@ -772,6 +750,18 @@ class UnitListView(ViewBase):
             self.warning(
                 "Merge could not be performed. Ensure unit ids are not removed "
                 "merged, or split already."
+            )
+            return
+        self.notify_manual_curation_updated()
+        self.refresh()
+
+    def _panel_remove_from_merge(self):
+        merge_unit_ids = self.get_selected_unit_ids()
+        success = self.controller.remove_units_from_merge_if_possible(merge_unit_ids)
+        if not success:
+            self.warning(
+                "Could not remove units from a merge. Ensure all selected units are in a merge "
+                "group, and that you are not leaving zero or one units in the merge group."
             )
             return
         self.notify_manual_curation_updated()
