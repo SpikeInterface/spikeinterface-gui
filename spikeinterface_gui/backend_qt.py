@@ -6,7 +6,7 @@ from copy import copy
 
 import weakref
 
-from .viewlist import possible_class_views
+from .viewlist import get_all_possible_views
 from .layout_presets import get_layout_description
 from .utils_global import fill_unnecessary_space, get_present_zones_in_half_of_layout
 
@@ -179,6 +179,7 @@ class QtMainWindow(QT.QMainWindow):
     def make_views(self, user_settings):
         self.views = {}
         self.docks = {}
+        possible_class_views = get_all_possible_views()
         for view_name, view_class in possible_class_views.items():
             if 'qt' not in view_class._supported_backend:
                 continue

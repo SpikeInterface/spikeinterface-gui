@@ -4,6 +4,7 @@ import numpy as np
 
 import json
 
+from copy import deepcopy
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
@@ -33,10 +34,23 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 class Controller():
-    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
+    def __init__(
+        self,
+        analyzer=None,
+        backend="qt",
+        parent=None,
+        verbose=False,
+        save_on_compute=False,
+        curation=False,
+        curation_data=None,
+        label_definitions=None,
+        with_traces=True,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        skip_extensions=None,
+        disable_save_settings_button=False,
+        external_data=None,
+    ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
 
@@ -44,6 +58,7 @@ class Controller():
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
         self.current_curation_saved = True
+        self.external_data = external_data
 
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -357,7 +372,7 @@ class Controller():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
             if curation_data is None:
-                curation_data = empty_curation_data.copy()
+                curation_data = deepcopy(empty_curation_data)
 
             self.curation_data = curation_data
 
@@ -377,7 +392,8 @@ class Controller():
                     self.has_default_quality_labels = True
 
     def check_is_view_possible(self, view_name):
-        from .viewlist import possible_class_views
+        from .viewlist import get_all_possible_views
+        possible_class_views = get_all_possible_views()
         view_class = possible_class_views[view_name]
         if view_class._depend_on is not None:
             depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)

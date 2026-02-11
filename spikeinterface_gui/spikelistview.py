@@ -111,6 +111,7 @@ def get_qt_spike_model():
 
 
 class SpikeListView(ViewBase):
+    id = "spikelist"
     _supported_backend = ['qt', 'panel']
     _settings = [
             {'name': 'select_change_channel_visibility', 'type': 'bool', 'value': False},

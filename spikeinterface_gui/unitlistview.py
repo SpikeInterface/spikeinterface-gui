@@ -6,6 +6,7 @@ from .view_base import ViewBase
 
 
 class UnitListView(ViewBase):
+    id = "unitlist"
     _supported_backend = ['qt', 'panel']
     # _settings = [] # this is a hack to create the settings button
     _settings = None

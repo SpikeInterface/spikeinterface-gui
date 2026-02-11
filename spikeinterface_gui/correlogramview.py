@@ -4,7 +4,8 @@ from .view_base import ViewBase
 
 
 
-class CrossCorrelogramView(ViewBase):
+class CorrelogramView(ViewBase):
+    id = "correlogram"
     _supported_backend = ['qt', 'panel']
     _depend_on = ["correlograms"]
     _settings = [
@@ -206,7 +207,7 @@ class CrossCorrelogramView(ViewBase):
 
 
 
-CrossCorrelogramView._gui_help_txt = """
+CorrelogramView._gui_help_txt = """
 ## Correlograms View
 
 This view shows the auto-correlograms and cross-correlograms of the selected units.
