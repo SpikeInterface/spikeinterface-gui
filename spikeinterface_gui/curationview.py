@@ -407,7 +407,6 @@ class CurationView(ViewBase):
         )
 
         self.iframe_detector = IFrameDetector()
-        print("initial:", self.iframe_detector.in_iframe)
         self.iframe_detector.param.watch(self._panel_on_iframe_change, "in_iframe")
         self.layout.append(self.iframe_detector)
 
@@ -509,7 +508,7 @@ class CurationView(ViewBase):
 
     def _panel_generate_json(self):
         # Get the path from the text input
-        export_path = "curation.json"
+        export_path = Path("curation.json")
         # Save the JSON file
         curation_model = self.controller.construct_final_curation()
         with export_path.open("w") as f:
@@ -596,9 +595,10 @@ class CurationView(ViewBase):
                         const data = JSON.parse(dataStr);
                         console.log('Sending data to parent:', data);
                         parent.postMessage({
-                            type: 'panel-data',
-                            data: data
-                        }, '*');
+                                type: 'panel-data',
+                                data: data
+                            },
+                        '*');
                         console.log('Data sent successfully to parent window');
                     } catch (error) {
                         console.error('Error sending data to parent:', error);
@@ -612,6 +612,26 @@ class CurationView(ViewBase):
             self.listener.on_msg(self._panel_set_curation_data)
             self.layout.append(self.listener)
 
+            # Notify parent that panel is ready to receive messages
+            self.ready_trigger = pn.pane.HTML(
+                """
+                <script>
+                function notifyReady() {
+                    window.parent.postMessage({
+                        type: 'panel-data',
+                        data: {loaded: true}
+                    }, "*");
+                }
+
+                if (document.readyState === "complete") {
+                    notifyReady();
+                } else {
+                    window.addEventListener("load", notifyReady);
+                }
+                </script>
+                """
+            )
+            self.layout.append(self.ready_trigger)
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection

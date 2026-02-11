@@ -35,6 +35,12 @@ def index():
     return send_file(str(here / "iframe_test.html"))
 
 
+@app.route("/curation.json")
+def curation_json():
+    here = Path(__file__).parent
+    return send_file(str(here / "curation.json"))
+
+
 @app.route("/start_test_server")
 def start_test_server():
     global panel_server, panel_url, panel_thread, panel_port_global, panel_last_error
@@ -76,7 +82,7 @@ def start_test_server():
                 f"localhost:{int(panel_port_global)}",
                 f"127.0.0.1:{int(panel_port_global)}",
             ]
-
+            print(panel_port_global)
             server = pn.serve(
                 app_factory,
                 port=int(panel_port_global),

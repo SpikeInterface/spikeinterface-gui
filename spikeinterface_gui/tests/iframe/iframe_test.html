@@ -101,32 +101,23 @@
 <body>
     <div class="container">
         <h1>SpikeInterface GUI Iframe Test - Bidirectional Communication</h1>
-        
+
         <div class="controls">
             <button id="startServerBtn">Start Test Server</button>
             <button id="clearBtn">Clear Received Data</button>
+            <label>
+                <input type="checkbox" id="autoSendCheckbox"> Auto send when ready
+            </label>
         </div>
-        
+
         <div class="iframe-container">
             <iframe id="guiFrame" src="about:blank"></iframe>
         </div>
-        
+
         <h2>Send Curation Data to iframe:</h2>
         <div class="send-controls">
             <p>Edit the curation data below and click "Send to iframe" to update the GUI:</p>
-            <textarea id="curationInput">{
-  "merges": [
-    {"unit_ids": ["1", "2"]},
-    {"unit_ids": ["5", "6", "7"]}
-  ],
-  "removed": ["3", "8"],
-  "splits": [
-    {
-      "unit_id": "4",
-      "indices": [[0, 1, 2, 3, 4]]
-    }
-  ]
-}</textarea>
+            <textarea id="curationInput">{}</textarea>
             <div class="controls" style="margin-top: 10px;">
                 <button id="sendDataBtn" class="button-secondary">Send to iframe</button>
                 <button id="resetDataBtn" class="button-secondary">Reset to Default</button>
@@ -150,35 +141,63 @@
         const sendDataBtn = document.getElementById('sendDataBtn');
         const resetDataBtn = document.getElementById('resetDataBtn');
         const clearCurationBtn = document.getElementById('clearCurationBtn');
-        
+        const autoSendCheckbox = document.getElementById('autoSendCheckbox');
+
         // Store received data
         let receivedData = [];
-        
-        // Default curation data
-        const defaultCurationData = {
-            "merges": [
-                {"unit_ids": ["1", "2"]},
-                {"unit_ids": ["5", "6", "7"]}
-            ],
-            "removed": ["3", "8"],
-            "splits": [
-                {
-                    "unit_id": "4",
-                    "mode": "indices",
-                    "indices": [[0, 1, 2, 3, 4]]
+        let autoSendEnabled = false;
+        let defaultCurationData = null;
+
+        // Update auto-send state when checkbox changes
+        autoSendCheckbox.addEventListener('change', function() {
+            autoSendEnabled = autoSendCheckbox.checked;
+            console.log('Auto-send ' + (autoSendEnabled ? 'enabled' : 'disabled'));
+        });
+
+        // Load default curation data from curation.json
+        fetch('/curation.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            ]
-        };
-        
+                return response.json();
+            })
+            .then(data => {
+                defaultCurationData = data;
+                // Initialize the textarea with the loaded data
+                curationInput.value = JSON.stringify(defaultCurationData, null, 2);
+                console.log('Loaded curation data from curation.json');
+            })
+            .catch(error => {
+                console.error('Error loading curation.json:', error);
+                // Fallback to simple default data
+                defaultCurationData = {
+                    "merges": [
+                        {"unit_ids": ["1", "2"]},
+                        {"unit_ids": ["5", "6", "7"]}
+                    ],
+                    "removed": ["3", "8"],
+                    "splits": [
+                        {
+                            "unit_id": "4",
+                            "mode": "indices",
+                            "indices": [[0, 1, 2, 3, 4]]
+                        }
+                    ]
+                };
+                curationInput.value = JSON.stringify(defaultCurationData, null, 2);
+                console.log('Using fallback curation data');
+            });
+
         // Event listener for messages from the iframe
         function handleMessage(event) {
             console.log('Message received from iframe:', event.data);
-            
+
             // Ignore messages from browser extensions
             if (event.data && event.data.source === 'react-devtools-content-script') {
                 return;
             }
-            
+
             // Check if the message is from our Panel application
             if (event.data && event.data.type === 'panel-data') {
                 const data = event.data.data;
@@ -186,7 +205,18 @@
                 
                 // Format and display the data
                 displayReceivedData();
-                showStatus('✓ Data received from iframe');
+
+                // Check for loaded status and auto-send if enabled
+                if (data && data.loaded === true) {
+                    console.log('iframe loaded detected, auto-send enabled:', autoSendCheckbox.checked);
+                    if (autoSendCheckbox.checked) {
+                        console.log('Auto-sending curation data...');
+                        const curationData = curationInput.value;
+                        setTimeout(() => {
+                            sendCurationData(curationData);
+                        }, 100); // Small delay to ensure iframe is fully ready
+                    }
+                }
             }
         }
         
@@ -227,7 +257,7 @@
                     data: data
                 }, '*');
                 
-                alert('Curation data sent to iframe successfully!');
+                console.log('Curation data sent to iframe successfully!');
             } catch (error) {
                 console.error('Error sending curation data:', error);
                 alert('Error sending curation data: ' + error.message);
@@ -253,7 +283,9 @@
         
         // Reset data button event listener
         resetDataBtn.addEventListener('click', function() {
-            curationInput.value = JSON.stringify(defaultCurationData, null, 2);
+            if (defaultCurationData) {
+                curationInput.value = JSON.stringify(defaultCurationData, null, 2);
+            }
         });
         
         // Clear curation button event listener
@@ -302,8 +334,9 @@
         
         // Add instructions for using the curation view
         dataOutput.textContent = `Instructions:
-1. Click "Start Test Server" to launch the SpikeInterface GUI (requires listen_for_curation_changes=True)
-2. Once loaded, navigate to the "curation" tab
+1. Click "Start Test Server" to launch the SpikeInterface GUI
+2. Optionally enable "Auto send when ready" to automatically send curation data when the iframe signals it's loaded
+3. Once loaded, navigate to the "curation" tab
 
 Testing SEND (parent → iframe):
 - Edit the curation data in the textarea above

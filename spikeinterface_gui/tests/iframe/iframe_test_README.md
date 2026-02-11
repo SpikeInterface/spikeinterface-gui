@@ -13,7 +13,7 @@ The test consists of:
    
 2. `iframe_server.py` - A Flask server that:
    - Serves the HTML page
-   - Starts the Panel application with `listen_for_curation_changes=True`
+   - Starts the Panel application
 
 ## How to Run
 
@@ -37,23 +37,7 @@ The test consists of:
 2. In the parent window, edit the curation data in the textarea
 3. Click "Send to iframe" button
 4. The GUI should refresh and display the new curation data in its tables
-
-Example curation data to send:
-```json
-{
-  "merges": [
-    {"unit_ids": [1, 2]},
-    {"unit_ids": [5, 6, 7]}
-  ],
-  "removed": [3, 8],
-  "splits": [
-    {
-      "unit_id": 4,
-      "indices": [[0, 1, 2, 3, 4]]
-    }
-  ]
-}
-```
+5. The "Auto send when ready" button will automatically send the curation data when the iframe is ready
 
 ### Test 2: Receive Data from iframe (iframe → Parent)
 
@@ -72,11 +56,10 @@ Example curation data to send:
 ### Parent → iframe Communication
 
 1. Parent window constructs a curation data object
-2. Sends it via `postMessage` with `type: 'curation-data'`
-3. The iframe's JavaScript listener receives the message
-4. The listener dispatches a custom event
-5. Panel's jscallback receives the event and calls Python's `receive_curation_data` method
-6. Python updates `controller.curation_data` and refreshes the view
+2. The iframe sends a `loaded=true` message when ready to receive data
+3. Sends it via `postMessage` with `type: 'curation-data'`
+4. The iframe's JavaScript listener receives the message
+5. Python updates `controller.set_curation_data` and refreshes the view
 
 ### iframe → Parent Communication
 
@@ -86,27 +69,17 @@ Example curation data to send:
 4. Parent window's message listener receives the data
 5. Data is parsed and displayed
 
-## Troubleshooting
-
-- **Panel server fails to start**: Check the console for error messages
-- **No data received when clicking "Send to iframe"**: 
-  - Make sure `listen_for_curation_changes=True` is set
-  - Check browser console for JavaScript errors
-  - Verify the iframe has fully loaded
-- **No data received when clicking "Submit to parent"**: 
-  - Check that you're using the latest curationview.py
-  - Look for JSON parsing errors in browser console
 
 ## Technical Details
+
+The curation data needs to follow the [`CurationModel`](https://spikeinterface.readthedocs.io/en/stable/api.html#curation-model).
 
 ### Message Format (Parent → iframe)
 ```javascript
 {
   type: 'curation-data',
   data: {
-    merges: [...],
-    removed: [...],
-    splits: [...]
+    // Full curation model JSON
   }
 }
 ```
@@ -118,16 +91,5 @@ Example curation data to send:
   data: {
     // Full curation model JSON
   }
-}
-```
-
-### Required Settings
-
-The Panel server must be started with:
-```python
-view_settings={
-    "curation": {
-        "listen_for_curation_changes": True
-    }
 }
 ```

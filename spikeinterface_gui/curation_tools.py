@@ -40,30 +40,30 @@ def add_merge(previous_merges, new_merge_unit_ids):
     return new_merges
 
 
-def cast_unit_dtypes_in_curation(curation_data, unit_ids_dtype):
-    """Cast unit ids in curation data to the correct dtype."""
-    if "unit_ids" in curation_data:
-        curation_data["unit_ids"] = [unit_ids_dtype(uid) for uid in curation_data["unit_ids"]]
+# def cast_unit_dtypes_in_curation(curation_data, unit_ids_dtype):
+#     """Cast unit ids in curation data to the correct dtype."""
+#     if "unit_ids" in curation_data:
+#         curation_data["unit_ids"] = [unit_ids_dtype(uid) for uid in curation_data["unit_ids"]]
 
-    if "merges" in curation_data:
-        for merge in curation_data["merges"]:
-            merge["unit_ids"] = [unit_ids_dtype(uid) for uid in merge["unit_ids"]]
-            new_unit_id = merge.get("new_unit_id", None)
-            if new_unit_id is not None:
-                merge["new_unit_id"] = unit_ids_dtype(new_unit_id)
+#     if "merges" in curation_data:
+#         for merge in curation_data["merges"]:
+#             merge["unit_ids"] = [unit_ids_dtype(uid) for uid in merge["unit_ids"]]
+#             new_unit_id = merge.get("new_unit_id", None)
+#             if new_unit_id is not None:
+#                 merge["new_unit_id"] = unit_ids_dtype(new_unit_id)
 
-    if "splits" in curation_data:
-        for split in curation_data["splits"]:
-            split["unit_id"] = unit_ids_dtype(split["unit_id"])
-            new_unit_ids = split.get("new_unit_ids", None)
-            if new_unit_ids is not None:
-                split["new_unit_ids"] = [unit_ids_dtype(uid) for uid in new_unit_ids]
+#     if "splits" in curation_data:
+#         for split in curation_data["splits"]:
+#             split["unit_id"] = unit_ids_dtype(split["unit_id"])
+#             new_unit_ids = split.get("new_unit_ids", None)
+#             if new_unit_ids is not None:
+#                 split["new_unit_ids"] = [unit_ids_dtype(uid) for uid in new_unit_ids]
 
-    if "removed" in curation_data:
-        curation_data["removed"] = [unit_ids_dtype(uid) for uid in curation_data["removed"]]
+#     if "removed" in curation_data:
+#         curation_data["removed"] = [unit_ids_dtype(uid) for uid in curation_data["removed"]]
 
-    if "manual_labels" in curation_data:
-        for label_entry in curation_data["manual_labels"]:
-            label_entry["unit_id"] = unit_ids_dtype(label_entry["unit_id"])
+#     if "manual_labels" in curation_data:
+#         for label_entry in curation_data["manual_labels"]:
+#             label_entry["unit_id"] = unit_ids_dtype(label_entry["unit_id"])
 
-    return curation_data
+#     return curation_data
