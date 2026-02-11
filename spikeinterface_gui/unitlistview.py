@@ -20,16 +20,6 @@ class UnitListView(ViewBase):
 
 
     ## common ##
-    def show_all(self):
-        self.controller.set_visible_unit_ids(self.controller.unit_ids)
-        self.notify_unit_visibility_changed()
-        self.refresh()
-    
-    def hide_all(self):
-        self.controller.set_all_unit_visibility_off()
-        self.notify_unit_visibility_changed()
-        self.refresh()
-
     def get_selected_unit_ids(self):
         if self.backend == 'qt':
             return self._qt_get_selected_unit_ids()
@@ -88,10 +78,6 @@ class UnitListView(ViewBase):
         self.column_order = None
         
         self.menu = QT.QMenu()
-        act = self.menu.addAction('Show all')
-        act.triggered.connect(self.show_all)
-        act = self.menu.addAction('Hide all')
-        act.triggered.connect(self.hide_all)
 
         self.shortcut_only_previous = QT.QShortcut(self.qt_widget)
         self.shortcut_only_previous.setKey(QT.QKeySequence(QT.CTRL | QT.Key_Up))
