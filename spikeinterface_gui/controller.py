@@ -34,10 +34,23 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 class Controller():
-    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
+    def __init__(
+        self,
+        analyzer=None,
+        backend="qt",
+        parent=None,
+        verbose=False,
+        save_on_compute=False,
+        curation=False,
+        curation_data=None,
+        label_definitions=None,
+        with_traces=True,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        skip_extensions=None,
+        disable_save_settings_button=False,
+        external_data=None,
+    ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
 
@@ -45,6 +58,7 @@ class Controller():
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
         self.current_curation_saved = True
+        self.external_data = external_data
 
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -137,6 +151,19 @@ class Controller():
                 self.spike_amplitudes = sa_ext.get_data()
             else:
                 self.spike_amplitudes = None
+
+        if "amplitude_scalings" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping amplitude_scalings')
+            self.amplitude_scalings = None
+        else:
+            if verbose:
+                print('\tLoading amplitude_scalings')
+            sa_ext = analyzer.get_extension('amplitude_scalings')
+            if sa_ext is not None:
+                self.amplitude_scalings = sa_ext.get_data()
+            else:
+                self.amplitude_scalings = None
 
         if "spike_locations" in skip_extensions:
             if self.verbose:
@@ -901,6 +928,27 @@ class Controller():
         if self.verbose:
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
+
+
+    def remove_units_from_merge_if_possible(self, merge_unit_ids):
+        """
+        Check if selected units are in a merge group. If they are, remove them.
+        """
+        if not self.curation:
+            return False
+
+        merges = self.curation_data["merges"]
+        for i, merge in enumerate(merges):
+            if set(merge_unit_ids).issubset(set(merge['unit_ids'])):
+                merge_ids_with_removed_ids = list(set(merge['unit_ids']).difference(set(merge_unit_ids)))
+                if len(merge_ids_with_removed_ids) > 1:
+                    merges[i]['unit_ids'] = merge_ids_with_removed_ids
+                    return True
+                else:
+                    return False
+
+        return False
+
 
     def make_manual_split_if_possible(self, unit_id):
         """

@@ -13,6 +13,7 @@ from .ndscatterview import NDScatterView
 from .similarityview import SimilarityView
 from .spikeamplitudeview import SpikeAmplitudeView
 from .spikedepthview import SpikeDepthView
+from .amplitudescalingsview import AmplitudeScalingsView
 from .tracemapview import TraceMapView
 from .curationview import CurationView
 from .mainsettingsview import MainSettingsView
@@ -24,7 +25,8 @@ builtin_views = [
     ProbeView, MainSettingsView, UnitListView, SpikeRateView, MergeView,
     TraceView, TraceMapView, WaveformView, WaveformHeatMapView, ISIView,
     CorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
-    SpikeDepthView, SpikeRateView, CurationView, MetricsView, SpikeListView
+    SpikeDepthView, SpikeRateView, CurationView, MetricsView, SpikeListView,
+    AmplitudeScalingsView,
 ]
 
 def get_all_possible_views():

@@ -36,6 +36,7 @@ def run_mainwindow(
     verbose=False,
     user_settings=None,
     disable_save_settings_button=False,
+    external_data=None,
 ):
     """
     Create the main window and start the QT app loop.
@@ -92,6 +93,9 @@ def run_mainwindow(
         A dictionary of user settings for each view, which overwrite the default settings.
     disable_save_settings_button: bool, default: False
         If True, disables the "save default settings" button, so that user cannot do this.
+    external_data: object, default: None
+        Whatever is passed to `external_data` is attached to the controller as the attribute
+        `external_data`. Useful for custom views.
     """
 
     if mode == "desktop":
@@ -129,14 +133,18 @@ def run_mainwindow(
         skip_extensions = find_skippable_extensions(layout_dict)
 
     controller = Controller(
-        analyzer, backend=backend, verbose=verbose,
-        curation=curation, curation_data=curation_dict,
+        analyzer,
+        backend=backend,
+        verbose=verbose,
+        curation=curation,
+        curation_data=curation_dict,
         label_definitions=label_definitions,
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
-        disable_save_settings_button=disable_save_settings_button
+        disable_save_settings_button=disable_save_settings_button,
+        external_data=external_data,
     )
     if verbose:
         t1 = time.perf_counter()

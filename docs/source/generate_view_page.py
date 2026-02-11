@@ -82,6 +82,7 @@ def generate_views_rst():
         'similarity': 'similarityview.py',
         'spikeamplitude': 'spikeamplitudeview.py',
         'spikedepth': 'spikedepthview.py',
+        'amplitudescalings': 'amplitudescalingsview.py',
         'tracemap': 'tracemapview.py',
         'curation': 'curationview.py',
         'spikerate': 'spikerateview.py',
