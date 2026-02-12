@@ -190,7 +190,6 @@ class ViewBase:
             self._panel_on_spike_selection_changed()
 
     def on_unit_visibility_changed(self):
-        # print(f"on_unit_visibility_changed {self.__class__.__name__} visible{self.is_view_visible()}", flush=True)
         if not self.is_view_visible():
             return
         if self.backend == "qt":
@@ -199,7 +198,6 @@ class ViewBase:
             self._panel_on_unit_visibility_changed()
 
     def on_channel_visibility_changed(self):
-        # print(f"on_channel_visibility_changed {self.__class__.__name__} visible{self.is_view_visible()}", flush=True)
         if not self.is_view_visible():
             return
         if self.backend == "qt":

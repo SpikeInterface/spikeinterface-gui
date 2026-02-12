@@ -343,7 +343,6 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
-            # refresh_table_function=self.refresh,
             conditional_shortcut=self._conditional_refresh_split,
             column_callbacks={"splits": self._panel_on_split_col},
         )
@@ -498,6 +497,7 @@ class CurationView(ViewBase):
             visible_unit_ids = self.table_delete.value["removed"].values[self.table_delete.selection].tolist()
             visible_unit_ids = [unit_dtype.type(unit_id) for unit_id in visible_unit_ids]
             self.controller.set_visible_unit_ids(visible_unit_ids)
+            self.notify_unit_visibility_changed()
         elif self.active_table == "merge":
             merge_groups = self.table_merge.value["merges"].values[self.table_merge.selection].tolist()
             # self.controller.set_all_unit_visibility_off()
@@ -506,15 +506,11 @@ class CurationView(ViewBase):
                 merge_unit_ids = [unit_dtype.type(unit_id) for unit_id in merge_group.split(" - ")]
                 visible_unit_ids.extend(merge_unit_ids)
             self.controller.set_visible_unit_ids(visible_unit_ids)
+            self.notify_unit_visibility_changed()
         elif self.active_table == "split":
-            split_unit_str = self.table_split.value["splits"].values[self.table_split.selection].tolist()
-            if len(split_unit_str) == 1:
-                split_unit_str = split_unit_str[0]
-                split_unit = split_unit_str.split(" ")[0]
-                # self.controller.set_all_unit_visibility_off()
-                split_unit = unit_dtype.type(split_unit)
-                self.controller.set_visible_unit_ids([split_unit])
-        self.notify_unit_visibility_changed()
+            # this is handled by the table callback to properly set the selected spikes, so we do nothing here
+            pass
+
 
     def _panel_restore_units(self, event):
         self.restore_units()

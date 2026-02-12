@@ -657,7 +657,6 @@ class UnitListView(ViewBase):
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_checkbox_toggled(self, row):
-        # print("checkbox toggled on row", row)
         unit_ids = self.table.value.index.values
         selected_unit_id = unit_ids[row]
         self.controller.set_unit_visibility(selected_unit_id, not self.controller.get_unit_visibility(selected_unit_id))
