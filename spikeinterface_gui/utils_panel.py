@@ -326,6 +326,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._original_value = self.tabulator.value.copy()
         self.tabulator.formatters = self._formatters        
         self.tabulator.on_click(self._on_click)
+        self.tabulator.param.watch(self._on_selection_change, "selection")
 
         super().__init__()
 
@@ -479,6 +480,13 @@ class SelectableTabulator(pn.viewable.Viewer):
                 )
         self.tabulator.value = df
 
+    def _on_selection_change(self, event):
+        """
+        Handle the selection change event. This is called when the selection is changed.
+        """
+        if self._refresh_table_function is not None:
+            self._refresh_table_function()
+
     def _on_click(self, event):
         """
         Handle the selection change event. This is called when a row or cell is clicked.
@@ -494,16 +502,7 @@ class SelectableTabulator(pn.viewable.Viewer):
                 self.selection = [row]
                 if self._on_only_function is not None:
                     self._on_only_function()
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
         if not double_clicked:
-            current_selection = list(self.selection)
-            if row in current_selection:
-                current_selection.remove(row)
-            else:
-                current_selection.append(row)
-            self.selection = current_selection
-
             if col in self._column_callbacks:
                 callback = self._column_callbacks[col]
                 if callable(callback):
