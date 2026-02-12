@@ -318,11 +318,11 @@ class UnitListView(ViewBase):
 
         col = item.column()
         if col == 1:
+            is_visible = item.checkState() == QT.Qt.Checked
             # visibility checkbox
             unit_id = item.unit_id
-            self.controller.set_unit_visibility(unit_id, bool(item.checkState()))
+            self.controller.set_unit_visibility(unit_id, is_visible)
             self.notify_unit_visibility_changed()
-            # self._qt_refresh_color_icons()
 
 
         elif col in self.label_columns:
