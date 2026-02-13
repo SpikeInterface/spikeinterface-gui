@@ -712,6 +712,6 @@ Units are color coded.
 ### Controls
 - **left click** : select single unit
 - **ctrl + left click** : add unit to selection
-- **mouse drag from within circle** : change channel visibilty and unit visibility on other views
+- **mouse drag from within circle** : change channel visibility and unit visibility on other views
 - **mouse drag from "diamond"** : change channel / unit radii size
 """

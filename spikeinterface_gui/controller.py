@@ -82,7 +82,7 @@ class Controller():
         self.main_settings = _default_main_settings.copy()
 
         self.num_channels = self.analyzer.get_num_channels()
-        # this now private and shoudl be acess using function
+        # this now private and should be access using function
         self._visible_unit_ids = [self.unit_ids[0]]
 
         # sparsity
@@ -582,7 +582,7 @@ class Controller():
         return self._visible_unit_ids
 
     def get_visible_unit_indices(self):
-        """Get list of indicies of visible units"""
+        """Get list of indices of visible units"""
         unit_ids = list(self.unit_ids)
         visible_unit_indices = [unit_ids.index(u) for u in self._visible_unit_ids]
         return visible_unit_indices

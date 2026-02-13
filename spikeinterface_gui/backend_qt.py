@@ -48,7 +48,7 @@ class SignalNotifier(QT.QObject):
         self.unit_color_changed.emit()
 
 
-# Used by controler to handle/callback signals
+# Used by controller to handle/callback signals
 class SignalHandler(QT.QObject):
     def __init__(self, controller, parent=None):
         QT.QObject.__init__(self, parent=parent)
@@ -165,13 +165,13 @@ class QtMainWindow(QT.QMainWindow):
         self.make_views(user_settings)
         self.create_main_layout()
 
-        # refresh all views wihtout notiying
+        # refresh all views without notiying
         self.controller.signal_handler.deactivate()
         for view in self.views.values():
             # refresh do not work because view are not yet visible at init
             view._refresh()
         self.controller.signal_handler.activate()
-        # TODO sam : all veiws are always refreshed at the moment so this is useless.
+        # TODO sam : all views are always refreshed at the moment so this is useless.
         # uncommen this when ViewBase.is_view_visible() work correctly
         # for view_name, dock in self.docks.items():
         #     dock.visibilityChanged.connect(self.views[view_name].refresh)

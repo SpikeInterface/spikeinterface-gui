@@ -207,7 +207,7 @@ class PanelMainWindow:
         self.make_views(user_settings)
         self.create_main_layout()
         
-        # refresh all views wihtout notiying
+        # refresh all views without notiying
         self.controller.signal_handler.deactivate()
         self.controller.signal_handler.activate()
 
@@ -284,7 +284,7 @@ class PanelMainWindow:
 
         layout_zone = {}
         for zone, view_names in preset.items():
-            # keep only instanciated views
+            # keep only instantiated views
             view_names = [view_name for view_name in view_names if view_name in self.view_layouts.keys()]
 
             if len(view_names) == 0:
