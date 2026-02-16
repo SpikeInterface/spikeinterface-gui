@@ -315,10 +315,9 @@ class BaseScatterView(ViewBase):
         self._max_count = max_count
 
         # set x range to time range of the current segment for scatter, and max count for histogram
-        # set y range to min and max of visible spike amplitudes plus a margin
-        margin = 0.2 * (np.max(ymaxs) - np.min(ymins))
-        ymin = np.min(ymins) - margin
-        ymax = np.max(ymaxs) + margin
+        # set y range to min and max of visible spike amplitudes
+        ymin = np.min(ymins)
+        ymax = np.max(ymaxs)
         t_start, t_stop = self.controller.get_t_start_t_stop()
         self.viewBox.setXRange(t_start, t_stop, padding = 0.0)
         self.viewBox.setYRange(ymin, ymax, padding = 0.0)
@@ -551,11 +550,10 @@ class BaseScatterView(ViewBase):
         # handle selected spikes
         self._panel_update_selected_spikes()
 
-        # set y range to min and max of visible spike amplitudes plus a margin
-        margin = 0.2 * (np.max(ymaxs) - np.min(ymins))
+        # set y range to min and max of visible spike amplitudes
         if len(ys) > 0:
-            self.y_range.start = np.min(ymins) - margin
-            self.y_range.end = np.max(ymaxs) + margin
+            self.y_range.start = np.min(ymins)
+            self.y_range.end = np.max(ymaxs)
             self.hist_fig.x_range.end = max_count
             self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
 
