@@ -93,6 +93,8 @@ class WaveformView(ViewBase):
         return common_channel_indexes
 
     def get_spike_waveform(self, ind):
+        if not self.controller.has_extension("recording") or not self.controller.with_traces:
+            return None, None
         seg_num = self.controller.spikes["segment_index"][ind]
         peak_ind = self.controller.spikes["sample_index"][ind]
 
@@ -535,6 +537,8 @@ class WaveformView(ViewBase):
                 selected_inds = self.controller.get_indices_spike_selected()
                 ind = selected_inds[0]
                 wf, width = self.get_spike_waveform(ind)
+                if wf is None:
+                    return
                 wf = wf[:, common_channel_indexes]
         elif self.settings["plot_waveforms_samples"]:
             if not self.controller.has_extension("waveforms"):
@@ -1207,6 +1211,8 @@ class WaveformView(ViewBase):
             ind = selected_inds[0]
             common_channel_indexes = self.get_common_channels()
             wf, width = self.get_spike_waveform(ind)
+            if wf is None:
+                return
             wf = wf[:, common_channel_indexes]
 
             if wf.shape[0] == width:

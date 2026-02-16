@@ -277,12 +277,14 @@ class PanelMainWindow:
 
 
     def create_main_layout(self):
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts
 
         pn.extension("gridstack")
 
         preset = self.layout_dict
 
         layout_zone = {}
+        self.all_tabs = []
         for zone, view_names in preset.items():
             # keep only instanciated views
             view_names = [view_name for view_name in view_names if view_name in self.view_layouts.keys()]
@@ -299,6 +301,7 @@ class PanelMainWindow:
                 # Function to update visibility
                 tabs = layout_zone[zone]
                 tabs.param.watch(self.update_visibility, "active")
+                self.all_tabs.append(tabs)
                 # Simulate an event
                 self.update_visibility(
                     param.parameterized.Event(
@@ -316,7 +319,17 @@ class PanelMainWindow:
         gs = self.make_half_layout(gs, layout_zone, "left")
         gs = self.make_half_layout(gs, layout_zone, "right")
 
-        self.main_layout = gs
+        # Initialize keyboard shortcuts
+        self.focus_mode = False
+        shortcuts = [KeyboardShortcut(name="focus", key="f", ctrlKey=True),]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._handle_shortcut)
+
+        self.main_layout = pn.Column(
+            gs,
+            shortcuts_component,
+            sizing_mode="stretch_both",
+        )
 
     def make_half_layout(self, gs, layout_zone, left_or_right):
         """
@@ -387,6 +400,22 @@ class PanelMainWindow:
                 view.refresh()
                 # we also set the current view as the panel active
                 view.notify_active_view_updated()
+
+    def _handle_shortcut(self, event):
+        if event.data == "focus":
+            self.focus_mode = not self.focus_mode
+
+            for tabs in self.all_tabs:
+                if self.focus_mode:
+                    tabs.stylesheets = [
+                        """
+                        .bk-header {
+                            display: none !important;
+                        }
+                        """
+                    ]
+                else:
+                    tabs.stylesheets = []
 
 
 def get_local_ip():
