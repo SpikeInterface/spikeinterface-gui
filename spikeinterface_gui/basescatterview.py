@@ -171,6 +171,10 @@ class BaseScatterView(ViewBase):
         self.notify_manual_curation_updated()
         
 
+    def _on_settings_changed(self):
+        self.refresh(set_scatter_range=True)
+
+
     def on_unit_visibility_changed(self):
         self._lasso_vertices = {segment_index: None for segment_index in range(self.controller.num_segments)}
         visible_unit_ids = self.controller.get_visible_unit_ids()
@@ -180,12 +184,6 @@ class BaseScatterView(ViewBase):
             if visible_unit_id in split_unit_ids:
                 self._current_selected = self.controller.get_indices_spike_selected().size
         self.refresh(set_scatter_range=True)
-
-    def _qt_on_time_info_updated(self):
-        if self.combo_seg.currentIndex() != self.controller.get_time()[1]:
-            self._block_auto_refresh_and_notify = True
-            self.refresh(set_scatter_range=True)
-            self._block_auto_refresh_and_notify = False
 
     def on_use_times_updated(self):
         self.refresh(set_scatter_range=True)
@@ -330,6 +328,11 @@ class BaseScatterView(ViewBase):
         spike_times, spike_data = self.get_selected_spikes_data(segment_index=self.combo_seg.currentIndex(), visible_inds=all_inds)
         self.scatter_select.setData(spike_times, spike_data)
 
+    def _qt_on_time_info_updated(self):
+        if self.combo_seg.currentIndex() != self.controller.get_time()[1]:
+            self._block_auto_refresh_and_notify = True
+            self.refresh(set_scatter_range=True)
+            self._block_auto_refresh_and_notify = False
 
     def _qt_enable_disable_lasso(self, checked):
         if checked and len(self.controller.get_visible_unit_ids()) == 1:
