@@ -54,7 +54,6 @@ class WaveformHeatMapView(ViewBase):
 
         waveforms = []
         for unit_id in visible_unit_ids:
-            wfs, channel_inds = self.controller.get_waveforms(unit_id)
             wfs, chan_inds = self.controller.get_waveforms(unit_id)
             keep = np.isin(chan_inds, intersect_sparse_indexes)
             waveforms.append(wfs[:, :, keep])

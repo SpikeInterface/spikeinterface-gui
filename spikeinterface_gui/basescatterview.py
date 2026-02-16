@@ -35,6 +35,7 @@ class BaseScatterView(ViewBase):
         # this is used in panel
         self._current_selected = 0
         self._block_auto_refresh_and_notify = False
+        self._first_refresh_done = False
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
@@ -116,7 +117,6 @@ class BaseScatterView(ViewBase):
             already_selected = self.controller.get_indices_spike_selected()
             indices = np.sort(np.unique(np.concatenate((already_selected, indices))))
         self.controller.set_indices_spike_selected(indices)
-        # self.refresh()
         self.notify_spike_selection_changed()
 
     def split(self):
@@ -179,16 +179,16 @@ class BaseScatterView(ViewBase):
             split_unit_ids = self.controller.get_split_unit_ids()
             if visible_unit_id in split_unit_ids:
                 self._current_selected = self.controller.get_indices_spike_selected().size
-        self.refresh()
+        self.refresh(set_scatter_range=True)
 
     def _qt_on_time_info_updated(self):
         if self.combo_seg.currentIndex() != self.controller.get_time()[1]:
             self._block_auto_refresh_and_notify = True
-            self.refresh()
+            self.refresh(set_scatter_range=True)
             self._block_auto_refresh_and_notify = False
 
     def on_use_times_updated(self):
-        self.refresh()
+        self.refresh(set_scatter_range=True)
 
     ## QT zone ##
     def _qt_make_layout(self):
@@ -271,7 +271,7 @@ class BaseScatterView(ViewBase):
             self.refresh()
             self.notify_time_info_updated()
 
-    def _qt_refresh(self):
+    def _qt_refresh(self, set_scatter_range=False):
         from .myqt import QT
         import pyqtgraph as pg
         
@@ -316,13 +316,15 @@ class BaseScatterView(ViewBase):
 
         # set x range to time range of the current segment for scatter, and max count for histogram
         # set y range to min and max of visible spike amplitudes
-        ymin = np.min(ymins)
-        ymax = np.max(ymaxs)
-        t_start, t_stop = self.controller.get_t_start_t_stop()
-        self.viewBox.setXRange(t_start, t_stop, padding = 0.0)
-        self.viewBox.setYRange(ymin, ymax, padding = 0.0)
+        if set_scatter_range or not self._first_refresh_done:
+            ymin = np.min(ymins)
+            ymax = np.max(ymaxs)
+            t_start, t_stop = self.controller.get_t_start_t_stop()
+            self.viewBox.setXRange(t_start, t_stop, padding = 0.0)
+            self.viewBox.setYRange(ymin, ymax, padding = 0.0)
+            self.viewBox2.setYRange(ymin, ymax, padding = 0.0)
+            self._first_refresh_done = True
         self.viewBox2.setXRange(0, self._max_count, padding = 0.0)
-        self.viewBox2.setYRange(ymin, ymax, padding = 0.0)
 
         # explicitly set the y-range of the histogram to match the spike data
         spike_times, spike_data = self.get_selected_spikes_data(segment_index=self.combo_seg.currentIndex(), visible_inds=all_inds)
@@ -484,7 +486,7 @@ class BaseScatterView(ViewBase):
         self.noise_harea = []
         self.plotted_inds = []
 
-    def _panel_refresh(self):
+    def _panel_refresh(self, set_scatter_range=False):
         from bokeh.models import FixedTicker
 
         self.plotted_inds = []
@@ -551,11 +553,12 @@ class BaseScatterView(ViewBase):
         self._panel_update_selected_spikes()
 
         # set y range to min and max of visible spike amplitudes
-        if len(ys) > 0:
+        if set_scatter_range or not self._first_refresh_done:
             self.y_range.start = np.min(ymins)
             self.y_range.end = np.max(ymaxs)
-            self.hist_fig.x_range.end = max_count
-            self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
+            self._first_refresh_done = True
+        self.hist_fig.x_range.end = max_count
+        self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
 
     def _panel_on_select_button(self, event):
         if self.select_toggle_button.value:
@@ -571,7 +574,7 @@ class BaseScatterView(ViewBase):
         t_start, t_end = self.controller.get_t_start_t_stop()
         self.scatter_fig.x_range.start = t_start
         self.scatter_fig.x_range.end = t_end
-        self.refresh()
+        self.refresh(set_scatter_range=True)
         self.notify_time_info_updated()
 
     def _on_panel_selection_geometry(self, event):
