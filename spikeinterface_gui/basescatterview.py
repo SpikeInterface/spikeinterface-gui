@@ -314,7 +314,7 @@ class BaseScatterView(ViewBase):
 
         # set x range to time range of the current segment for scatter, and max count for histogram
         # set y range to min and max of visible spike amplitudes
-        if set_scatter_range or not self._first_refresh_done:
+        if len(ymins) > 0 and (set_scatter_range or not self._first_refresh_done):
             ymin = np.min(ymins)
             ymax = np.max(ymaxs)
             t_start, t_stop = self.controller.get_t_start_t_stop()
@@ -490,6 +490,7 @@ class BaseScatterView(ViewBase):
         self.plotted_inds = []
 
     def _panel_refresh(self, set_scatter_range=False):
+        import panel as pn
         from bokeh.models import FixedTicker
 
         self.plotted_inds = []
@@ -555,13 +556,17 @@ class BaseScatterView(ViewBase):
         # handle selected spikes
         self._panel_update_selected_spikes()
 
-        # set y range to min and max of visible spike amplitudes
-        if set_scatter_range or not self._first_refresh_done:
-            self.y_range.start = np.min(ymins)
-            self.y_range.end = np.max(ymaxs)
-            self._first_refresh_done = True
-        self.hist_fig.x_range.end = max_count
-        self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
+        # Defer Range updates to avoid nested document lock issues
+        def update_ranges():
+            if set_scatter_range or not self._first_refresh_done:
+                self.y_range.start = np.min(ymins)
+                self.y_range.end = np.max(ymaxs)
+                self._first_refresh_done = True
+            self.hist_fig.x_range.end = max_count
+            self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
+
+        # Schedule the update to run after the current event loop iteration
+        pn.state.execute(update_ranges, schedule=True)
 
     def _panel_on_select_button(self, event):
         if self.select_toggle_button.value:
@@ -618,9 +623,17 @@ class BaseScatterView(ViewBase):
         self.split()
 
     def _panel_update_selected_spikes(self):
+        import panel as pn
+
         # handle selected spikes
         selected_spike_indices = self.controller.get_indices_spike_selected()
         selected_spike_indices = np.intersect1d(selected_spike_indices, self.plotted_inds)
+        if len(selected_spike_indices) == 1:
+            selected_segment = self.controller.spikes[selected_spike_indices[0]]['segment_index']
+            segment_index = self.controller.get_time()[1]
+            if selected_segment != segment_index:
+                self.segment_selector.value = f"Segment {selected_segment}"
+                self._panel_change_segment(None)
         if len(selected_spike_indices) > 0:
             # map absolute indices to visible spikes
             segment_index = self.controller.get_time()[1]
@@ -634,22 +647,16 @@ class BaseScatterView(ViewBase):
             # set selected spikes in scatter plot
             if self.settings["auto_decimate"] and len(selected_indices) > 0:
                 selected_indices, = np.nonzero(np.isin(self.plotted_inds, selected_spike_indices))
-            self.scatter_source.selected.indices = list(selected_indices)
         else:
-            self.scatter_source.selected.indices = []
+            selected_indices = []
+
+        # Defer the Bokeh update to avoid nested callback issues
+        def update_selection():
+            self.scatter_source.selected.indices = list(selected_indices)
+
+        pn.state.execute(update_selection, schedule=True)
 
     def _panel_on_spike_selection_changed(self):
-        # set selection in scatter plot
-        selected_indices = self.controller.get_indices_spike_selected()
-        if len(selected_indices) == 0:
-            self.scatter_source.selected.indices = []
-            return
-        elif len(selected_indices) == 1:
-            selected_segment = self.controller.spikes[selected_indices[0]]['segment_index']
-            segment_index = self.controller.get_time()[1]
-            if selected_segment != segment_index:
-                self.segment_selector.value = f"Segment {selected_segment}"
-                self._panel_change_segment(None)
         # update selected spikes
         self._panel_update_selected_spikes()
 

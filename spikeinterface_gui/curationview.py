@@ -315,11 +315,11 @@ class CurationView(ViewBase):
             show_index=False,
             disabled=True,
             sortable=False,
+            selectable=True,
             formatters={"removed": "plaintext"},
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
-            # refresh_table_function=self.refresh,
             conditional_shortcut=self._conditional_refresh_delete,
             column_callbacks={"removed": self._panel_on_deleted_col},
         )
@@ -333,7 +333,6 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
-            # refresh_table_function=self.refresh,
             conditional_shortcut=self._conditional_refresh_merge,
             column_callbacks={"merges": self._panel_on_merged_col},
         )
@@ -351,9 +350,10 @@ class CurationView(ViewBase):
             column_callbacks={"splits": self._panel_on_split_col},
         )
 
-        self.table_delete.param.watch(self._panel_update_unit_visibility, "selection")
-        self.table_merge.param.watch(self._panel_update_unit_visibility, "selection")
-        self.table_split.param.watch(self._panel_update_unit_visibility, "selection")
+        # Watch selection changes instead of calling from column callbacks
+        self.table_delete.param.watch(self._panel_on_table_selection_changed, "selection")
+        self.table_merge.param.watch(self._panel_on_table_selection_changed, "selection")
+        self.table_split.param.watch(self._panel_on_table_selection_changed, "selection")
 
         # Create buttons
         buttons_row = []
@@ -665,22 +665,46 @@ class CurationView(ViewBase):
 
     def _panel_on_deleted_col(self, row):
         self.active_table = "delete"
-        self.table_merge.selection = []
-        self.table_split.selection = []
 
     def _panel_on_merged_col(self, row):
         self.active_table = "merge"
-        self.table_delete.selection = []
-        self.table_split.selection = []
 
     def _panel_on_split_col(self, row):
         self.active_table = "split"
-        self.table_delete.selection = []
-        self.table_merge.selection = []
-        # set split selection
-        split_unit_str = self.table_split.value["splits"].values[row]
-        split_unit_id = self.controller.unit_ids.dtype.type(split_unit_str.split(" ")[0])
-        self.select_and_notify_split(split_unit_id)
+
+    def _panel_on_table_selection_changed(self, event):
+        """
+        Unified handler for all table selection changes.
+        Determines which table was changed and updates visibility accordingly.
+        """
+        import panel as pn
+
+        print(f"Selection changed in table: {self.active_table}")
+        # Determine which table triggered the change
+        if self.active_table == "delete" and len(self.table_delete.selection) > 0:
+            self.table_merge.selection = []
+            self.table_split.selection = []
+            # Defer to avoid nested Bokeh callbacks (especially from ctrl+click)
+            pn.state.execute(lambda: self._panel_update_unit_visibility(None), schedule=True)
+        elif self.active_table == "merge" and len(self.table_merge.selection) > 0:
+            self.table_delete.selection = []
+            self.table_split.selection = []
+            # Defer to avoid nested Bokeh callbacks (especially from ctrl+click)
+            pn.state.execute(lambda: self._panel_update_unit_visibility(None), schedule=True)
+        elif self.active_table == "split" and len(self.table_split.selection) > 0:
+            self.table_delete.selection = []
+            self.table_merge.selection = []
+            # Handle split specially (sets selected spikes) - also deferred
+            def handle_split():
+                split_unit_str = self.table_split.value["splits"].values[self.table_split.selection[0]]
+                split_unit_id = self.controller.unit_ids.dtype.type(split_unit_str.split(" ")[0])
+                self.select_and_notify_split(split_unit_id)
+            # Defer to avoid nested Bokeh callbacks (especially from ctrl+click)
+            pn.state.execute(handle_split, schedule=True)
+        elif len(self.table_delete.selection) == 0 and len(self.table_merge.selection) == 0 and len(self.table_split.selection) == 0:
+            # All tables are cleared
+            self.active_table = None
+
 
     def _conditional_refresh_merge(self):
         # Check if the view is active before refreshing

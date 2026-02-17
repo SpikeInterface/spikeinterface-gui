@@ -293,7 +293,7 @@ class SelectableTabulator(pn.viewable.Viewer):
     refresh_table_function: Callable | None
         A function to call when the table a new selection is made via keyboard shortcuts.
     on_only_function: Callable | None
-        A function to call when the table a ctrl+selection is made via keyboard shortcuts or a double-click.
+        A function to call when a ctrl+selection is made via keyboard shortcuts or a double-click.
     conditional_shortcut: Callable | None
         A function that returns True if the shortcuts should be enabled, False otherwise.
     column_callbacks: dict[Callable] | None
@@ -314,6 +314,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._formatters = kwargs.get("formatters", {})
         self._editors = kwargs.get("editors", {})
         self._frozen_columns = kwargs.get("frozen_columns", [])
+        self._selectable = kwargs.get("selectable", True)
         if "sortable" in kwargs:
             self._sortable = kwargs.pop("sortable")
         else:
@@ -395,8 +396,9 @@ class SelectableTabulator(pn.viewable.Viewer):
 
     @selection.setter
     def selection(self, val):
-        if isinstance(self.tabulator.selectable, int):
-            max_selectable = self.tabulator.selectable
+        # Added this logic to prevent max selection with shift+click / arrows
+        if isinstance(self._selectable, int):
+            max_selectable = self._selectable
             if not isinstance(max_selectable, bool):
                 if len(val) > max_selectable:
                     val = val[-max_selectable:]
@@ -438,6 +440,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.tabulator.formatters = self._formatters
         self.tabulator.editors = self._editors
         self.tabulator.frozen_columns = self._frozen_columns
+        self.tabulator.selectable = self._selectable
         self.tabulator.sorters = []
 
     def refresh(self):
@@ -486,7 +489,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         Handle the selection change event. This is called when the selection is changed.
         """
         if self._refresh_table_function is not None:
-            self._refresh_table_function()
+            pn.state.execute(self._refresh_table_function, schedule=True)
 
     def _on_click(self, event):
         """
