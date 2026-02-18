@@ -149,6 +149,14 @@ class WaveformView(ViewBase):
 
         tb = self.qt_widget.view_toolbar
 
+        # Mode flatten or geometry
+        self.combo_mode = QT.QComboBox()
+        tb.addWidget(self.combo_mode)
+        self.mode = "geometry"
+        self.combo_mode.addItems(["geometry", "flatten"])
+        self.combo_mode.currentIndexChanged.connect(self._qt_on_combo_mode_changed)
+        add_stretch_to_qtoolbar(tb)
+
         but = QT.QPushButton("scale")
         but.clicked.connect(self._qt_zoom_range)
         tb.addWidget(but)
@@ -161,6 +169,9 @@ class WaveformView(ViewBase):
 
         mode_settings = self.settings.child('mode')
         mode_settings.sigValueChanged.connect(self._qt_on_mode_changed)
+
+    def _qt_on_combo_mode_changed(self):
+        self.settings['mode'] = str(self.combo_mode.currentText())
 
     def _qt_on_mode_changed(self):
         self._qt_initialize_plot()
