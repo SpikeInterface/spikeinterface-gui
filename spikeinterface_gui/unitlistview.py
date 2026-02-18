@@ -667,11 +667,17 @@ class UnitListView(ViewBase):
         self.refresh()
 
     def _panel_on_unit_visibility_changed(self):
+        import panel as pn
+
         # update selection to match visible units
         visible_units = self.controller.get_visible_unit_ids()
         unit_ids = list(self.table.value.index.values)
         rows_to_select = [unit_ids.index(unit_id) for unit_id in visible_units if unit_id in unit_ids]
-        self.table.selection = rows_to_select
+
+        def _do_update():
+            self.table.selection = rows_to_select
+
+        pn.state.execute(_do_update, schedule=True)
         self.refresh()
 
     def _panel_refresh_colors(self):

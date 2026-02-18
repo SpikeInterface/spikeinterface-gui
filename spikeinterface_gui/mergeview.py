@@ -438,9 +438,15 @@ class MergeView(ViewBase):
         self.layout[layout_index] = self.preset_params_selectors[self.preset]
 
     def _panel_on_click(self, event):
+        import panel as pn
+
         # set unit visibility
         row = event.row
-        self.table.selection = [row]
+
+        def _do_update():
+            self.table.selection = [row]
+
+        pn.state.execute(_do_update, schedule=True)
         self._panel_update_visible_pair(row)
 
     def _panel_include_deleted_change(self, event):
@@ -458,6 +464,8 @@ class MergeView(ViewBase):
         self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):
+        import panel as pn
+
         if event.data == "accept":
             selected = self.table.selection
             for row in selected:
@@ -466,11 +474,19 @@ class MergeView(ViewBase):
             self.notify_manual_curation_updated()
         elif event.data == "next":
             next_row = min(self.table.selection[0] + 1, len(self.table.value) - 1)
-            self.table.selection = [next_row]
+
+            def _do_next():
+                self.table.selection = [next_row]
+
+            pn.state.execute(_do_next, schedule=True)
             self._panel_update_visible_pair(next_row)
         elif event.data == "previous":
             previous_row = max(self.table.selection[0] - 1, 0)
-            self.table.selection = [previous_row]
+
+            def _do_prev():
+                self.table.selection = [previous_row]
+
+            pn.state.execute(_do_prev, schedule=True)
             self._panel_update_visible_pair(previous_row)
 
     def _panel_on_spike_selection_changed(self):

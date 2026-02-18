@@ -257,33 +257,45 @@ class WaveformHeatMapView(ViewBase):
         )
 
     def _panel_refresh(self):
+        import panel as pn
+
         hist2d = self.get_plotting_data()
 
-        if hist2d is None:
-            self.image_source.data.update({
-                "image": [],
-                "dw": [],
-                "dh": []
-            })
-            return
+        def _do_update():
+            if hist2d is None:
+                self.image_source.data = {
+                    "image": [],
+                    "dw": [],
+                    "dh": []
+                }
+                return
 
-        self.image_source.data.update({
-            "image": [hist2d.T],
-            "dw": [hist2d.shape[0]],
-            "dh": [hist2d.shape[1]]
-        })
+            self.image_source.data = {
+                "image": [hist2d.T],
+                "dw": [hist2d.shape[0]],
+                "dh": [hist2d.shape[1]]
+            }
 
-        self.color_mapper.low = 0
-        self.color_mapper.high = np.max(hist2d)
+            self.color_mapper.low = 0
+            self.color_mapper.high = np.max(hist2d)
 
-        self.figure.x_range.start = 0
-        self.figure.x_range.end = hist2d.shape[0]
-        self.figure.y_range.start = 0
-        self.figure.y_range.end = hist2d.shape[1]
+            self.figure.x_range.start = 0
+            self.figure.x_range.end = hist2d.shape[0]
+            self.figure.y_range.start = 0
+            self.figure.y_range.end = hist2d.shape[1]
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_gain_zoom(self, event):
+        import panel as pn
+
         factor = 1.3 if event.delta > 0 else 1 / 1.3
-        self.color_mapper.high = self.color_mapper.high * factor
+        new_high = self.color_mapper.high * factor
+
+        def _do_update():
+            self.color_mapper.high = new_high
+
+        pn.state.execute(_do_update, schedule=True)
 
 
 

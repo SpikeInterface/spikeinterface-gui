@@ -1022,7 +1022,8 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _panel_gain_zoom(self, event):
-        self.figure_geom.toolbar.active_scroll = None
+        import panel as pn
+
         current_time = time.perf_counter()
         if self.last_wheel_event_time is not None:
             time_elapsed = current_time - self.last_wheel_event_time
@@ -1030,8 +1031,14 @@ class WaveformView(ViewBase):
             time_elapsed = 1000
         if time_elapsed > _wheel_refresh_time:
             modifiers = event.modifiers
-            if modifiers["shift"] and modifiers["alt"]:
+
+            def _enable_active_scroll(tool):
+                self.figure_geom.toolbar.active_scroll = self.zoom_tool
+
+            def _disable_active_scroll():
                 self.figure_geom.toolbar.active_scroll = None
+
+            if modifiers["shift"] and modifiers["alt"]:
                 if self.mode == "geometry":
                     factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
                     # adjust y range and keep center
@@ -1040,29 +1047,36 @@ class WaveformView(ViewBase):
                     yrange = ymax - ymin
                     ymid = 0.5 * (ymin + ymax)
                     new_yrange = yrange * factor_ratio
-                    ymin = ymid - new_yrange / 2.
-                    ymax = ymid + new_yrange / 2.
-                    self.figure_geom.y_range.start = ymin
-                    self.figure_geom.y_range.end = ymax
+                    new_ymin = ymid - new_yrange / 2.
+                    new_ymax = ymid + new_yrange / 2.
+
+                    def _do_range_update():
+                        self.figure_geom.toolbar.active_scroll = None
+                        self.figure_geom.y_range.start = new_ymin
+                        self.figure_geom.y_range.end = new_ymax
+
+                    pn.state.execute(_do_range_update, schedule=True)
+                else:
+                    pn.state.execute(_disable_active_scroll, schedule=True)
             elif modifiers["shift"]:
-                self.figure_geom.toolbar.active_scroll = self.zoom_tool
+                pn.state.execute(_enable_active_scroll, schedule=True)
             elif modifiers["alt"]:
-                self.figure_geom.toolbar.active_scroll = None
                 if self.mode == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.factor_x *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
+                pn.state.execute(_disable_active_scroll, schedule=True)
             elif not modifiers["ctrl"]:
-                self.figure_geom.toolbar.active_scroll = None
                 if self.mode == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.gain_y *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
+                pn.state.execute(_disable_active_scroll, schedule=True)
         else:
             # Ignore the event if it occurs too quickly
-            self.figure_geom.toolbar.active_scroll = None
+            pn.state.execute(_disable_active_scroll, schedule=True)
         self.last_wheel_event_time = current_time
 
     def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
@@ -1388,11 +1402,14 @@ class WaveformView(ViewBase):
         self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_on_spike_selection_changed(self):
-        self._panel_refresh_one_spike()
+        import panel as pn
+        pn.state.execute(self._panel_refresh_one_spike, schedule=True)
 
     def _panel_on_channel_visibility_changed(self):
+        import panel as pn
+
         keep_range = not self.settings["auto_move_on_unit_selection"]
-        self._panel_refresh(keep_range=keep_range)
+        pn.state.execute(lambda: self._panel_refresh(keep_range=keep_range), schedule=True)
 
     def _panel_handle_shortcut(self, event):
         if event.data == "overlap":

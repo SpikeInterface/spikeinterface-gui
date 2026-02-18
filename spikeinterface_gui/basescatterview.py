@@ -557,31 +557,44 @@ class BaseScatterView(ViewBase):
         self._panel_update_selected_spikes()
 
         # Defer Range updates to avoid nested document lock issues
-        def update_ranges():
-            if set_scatter_range or not self._first_refresh_done:
-                self.y_range.start = np.min(ymins)
-                self.y_range.end = np.max(ymaxs)
-                self._first_refresh_done = True
-            self.hist_fig.x_range.end = max_count
-            self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
+        # def update_ranges():
+        if set_scatter_range or not self._first_refresh_done:
+            self.y_range.start = np.min(ymins)
+            self.y_range.end = np.max(ymaxs)
+            self._first_refresh_done = True
+        self.hist_fig.x_range.end = max_count
+        self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
 
         # Schedule the update to run after the current event loop iteration
-        pn.state.execute(update_ranges, schedule=True)
+        # pn.state.execute(update_ranges, schedule=True)
 
     def _panel_on_select_button(self, event):
-        if self.select_toggle_button.value:
-            self.scatter_fig.toolbar.active_drag = self.lasso_tool
-        else:
-            self.scatter_fig.toolbar.active_drag = None
-            self.scatter_source.selected.indices = []
+        import panel as pn
+
+        value = self.select_toggle_button.value
+
+        def _do_update():
+            if value:
+                self.scatter_fig.toolbar.active_drag = self.lasso_tool
+            else:
+                self.scatter_fig.toolbar.active_drag = None
+                self.scatter_source.selected.indices = []
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_change_segment(self, event):
+        import panel as pn
+
         self._current_selected = 0
         segment_index = int(self.segment_selector.value.split()[-1])
         self.controller.set_time(segment_index=segment_index)
         t_start, t_end = self.controller.get_t_start_t_stop()
-        self.scatter_fig.x_range.start = t_start
-        self.scatter_fig.x_range.end = t_end
+
+        def _do_update():
+            self.scatter_fig.x_range.start = t_start
+            self.scatter_fig.x_range.end = t_end
+
+        pn.state.execute(_do_update, schedule=True)
         self.refresh(set_scatter_range=True)
         self.notify_time_info_updated()
 
@@ -650,14 +663,13 @@ class BaseScatterView(ViewBase):
         else:
             selected_indices = []
 
-        # Defer the Bokeh update to avoid nested callback issues
-        def update_selection():
+        def _do_update():
             self.scatter_source.selected.indices = list(selected_indices)
 
-        pn.state.execute(update_selection, schedule=True)
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_spike_selection_changed(self):
-        # update selected spikes
+        # update selected spikes (scheduled via pn.state.execute inside)
         self._panel_update_selected_spikes()
 
     def _panel_handle_shortcut(self, event):
