@@ -1032,7 +1032,7 @@ class WaveformView(ViewBase):
         if time_elapsed > _wheel_refresh_time:
             modifiers = event.modifiers
 
-            def _enable_active_scroll(tool):
+            def _enable_active_scroll():
                 self.figure_geom.toolbar.active_scroll = self.zoom_tool
 
             def _disable_active_scroll():
