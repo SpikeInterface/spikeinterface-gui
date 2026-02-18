@@ -468,10 +468,21 @@ class MergeView(ViewBase):
 
         if event.data == "accept":
             selected = self.table.selection
-            for row in selected:
-                group_ids = self.table.value.iloc[row].group_ids
-                self.accept_group_merge(group_ids)
+            if len(selected) == 0:
+                return
+            # selected is always 1
+            row = selected[0]
+            group_ids = self.table.value.iloc[row].group_ids
+            self.accept_group_merge(group_ids)
             self.notify_manual_curation_updated()
+
+            next_row = min(row + 1, len(self.table.value) - 1)
+
+            def _select_next():
+                self.table.selection = [next_row]
+
+            pn.state.execute(_select_next, schedule=True)
+            self._panel_update_visible_pair(next_row)
         elif event.data == "next":
             next_row = min(self.table.selection[0] + 1, len(self.table.value) - 1)
 
