@@ -15,6 +15,7 @@ class WaveformView(ViewBase):
     _supported_backend = ["qt", "panel"]
 
     _settings = [
+        {'name': 'mode', 'type': 'list', 'value' : 'geometry', 'limits': ['geometry', 'flatten']},
         {"name": "overlap", "type": "bool", "value": True},
         {
             "name": "plot_selected_spike",
@@ -148,14 +149,6 @@ class WaveformView(ViewBase):
 
         tb = self.qt_widget.view_toolbar
 
-        # Mode flatten or geometry
-        self.combo_mode = QT.QComboBox()
-        tb.addWidget(self.combo_mode)
-        self.mode = "geometry"
-        self.combo_mode.addItems(["geometry", "flatten"])
-        self.combo_mode.currentIndexChanged.connect(self._qt_on_combo_mode_changed)
-        add_stretch_to_qtoolbar(tb)
-
         but = QT.QPushButton("scale")
         but.clicked.connect(self._qt_zoom_range)
         tb.addWidget(but)
@@ -166,8 +159,10 @@ class WaveformView(ViewBase):
 
         self.alpha = 60
 
-    def _qt_on_combo_mode_changed(self):
-        self.mode = str(self.combo_mode.currentText())
+        mode_settings = self.settings.child('mode')
+        mode_settings.sigValueChanged.connect(self._qt_on_mode_changed)
+
+    def _qt_on_mode_changed(self):
         self._qt_initialize_plot()
         self.refresh()
 
@@ -202,7 +197,7 @@ class WaveformView(ViewBase):
         # List for scalebar items
         self.scalebar_items = []
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             grid.nextRow()
             grid.nextRow()
             self.viewBox2 = ViewBoxHandlingDoubleclickAndGain()
@@ -214,8 +209,9 @@ class WaveformView(ViewBase):
 
             self._common_channel_indexes_flat = None
 
-        elif self.mode == "geometry":
-            self.plot2 = None
+        elif self.settings["mode"] == "geometry":
+            self.plot2 = pg.PlotItem()
+            self.plot2.hide()
 
         self._x_range = None
         self._y1_range = None
@@ -251,13 +247,13 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _qt_widen_narrow(self, factor_ratio):
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             self.factor_x *= factor_ratio
             self._qt_refresh(keep_range=True)
 
     def _qt_heighten_shorten(self, factor_ratio):
             import pyqtgraph as pg
-            if self.mode == "geometry":
+            if self.settings["mode"] == "geometry":
                 vb = self.plot1.getViewBox()
 
                 # Disable auto-range properly (must be on ViewBox!)
@@ -276,12 +272,12 @@ class WaveformView(ViewBase):
                 vb.setYRange(ymin, ymax, padding=0.0)
 
     def _qt_gain_zoom(self, factor_ratio):
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             self.gain_y *= factor_ratio
             self._qt_refresh(keep_range=True, auto_zoom=False)
 
     def _qt_limit_zoom(self, factor_ratio):
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             if self._x_range is None:
                 self._x_range = tuple(self.viewBox1.state["viewRange"][0])
             l0, l1 = self._x_range
@@ -320,10 +316,10 @@ class WaveformView(ViewBase):
             for unit_id in self.controller.get_visible_unit_ids():
                 dict_visible_units[unit_id] = True
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self._qt_refresh_mode_flatten(dict_visible_units, keep_range)
-        elif self.mode == "geometry":
+        elif self.settings["mode"] == "geometry":
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self._qt_refresh_mode_geometry(dict_visible_units, keep_range, auto_zoom)
             self._qt_add_scalebars()
@@ -611,11 +607,11 @@ class WaveformView(ViewBase):
                 self.curve_waveforms.setData([], [])
                 return
 
-            if self.mode == "flatten":
+            if self.settings["mode"] == "flatten":
                 wf_flat = wf.T.ravel()
                 xvect = np.arange(wf_flat.size)
                 self.curve_waveforms.setData(xvect, wf_flat)
-            elif self.mode == "geometry":
+            elif self.settings["mode"] == "geometry":
                 ypos = self.contact_location[common_channel_indexes, 1]
                 wf_plot = wf * self.gain_y * self.delta_y + ypos[None, :]
 
@@ -715,7 +711,7 @@ class WaveformView(ViewBase):
         if n_waveforms == 0:
             return
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             # For flatten mode, plot all waveforms as continuous lines
             all_x = []
             all_y = []
@@ -732,7 +728,7 @@ class WaveformView(ViewBase):
             self.plot1.addItem(curve)
             self.curve_waveforms_samples.append(curve)
 
-        elif self.mode == "geometry":
+        elif self.settings["mode"] == "geometry":
             ypos = self.contact_location[common_channel_indexes, 1]
 
             all_x = []
@@ -787,8 +783,7 @@ class WaveformView(ViewBase):
         x = contact_locations[:, 0]
         y = contact_locations[:, 1]
 
-        self.mode_selector = pn.widgets.Select(name="mode", options=["geometry", "flatten"])
-        self.mode_selector.param.watch(self._panel_on_mode_selector_changed, "value")
+        self.settings._parameterized.param.watch(self._panel_on_mode_changed, 'mode')
 
         # Create figures with basic tools
         self.figure_geom = bpl.figure(
@@ -891,7 +886,6 @@ class WaveformView(ViewBase):
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         self.layout = pn.Column(
-            pn.Row(self.mode_selector),
             self.geom_pane,
             self.flatten_pane,
             shortcuts_component,
@@ -900,7 +894,6 @@ class WaveformView(ViewBase):
         )
 
     def _panel_refresh(self, keep_range=False):
-        self.mode = self.mode_selector.value
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         dict_visible_units = {k: False for k in self.controller.unit_ids}
@@ -913,13 +906,13 @@ class WaveformView(ViewBase):
             for unit_id in self.controller.get_visible_unit_ids():
                 dict_visible_units[unit_id] = True
 
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             # zoom factor is reset
             if self.settings["auto_zoom_on_unit_selection"]:
                 self.factor_x = 1.0
                 self.gain_y = 0.02
             self._panel_refresh_mode_geometry(dict_visible_units, keep_range=keep_range)
-        elif self.mode == "flatten":
+        elif self.settings["mode"] == "flatten":
             self._panel_refresh_mode_flatten(dict_visible_units, keep_range=keep_range)
 
         self._panel_refresh_spikes()
@@ -1008,12 +1001,10 @@ class WaveformView(ViewBase):
             self.figure_geom.add_layout(y_label)
             self.scalebar_labels.append(y_label)
 
-    def _panel_on_mode_selector_changed(self, event):
-        import panel as pn
+    def _panel_on_mode_changed(self, event):
 
-        self.mode = self.mode_selector.value
         # Toggle visibility instead of swapping objects
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             self.geom_pane.visible = False
             self.flatten_pane.visible = True
         else:
@@ -1032,7 +1023,7 @@ class WaveformView(ViewBase):
             modifiers = event.modifiers
             if modifiers["shift"] and modifiers["alt"]:
                 self.figure_geom.toolbar.active_scroll = None
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
                     # adjust y range and keep center
                     ymin = self.figure_geom.y_range.start
@@ -1048,14 +1039,14 @@ class WaveformView(ViewBase):
                 self.figure_geom.toolbar.active_scroll = self.zoom_tool
             elif modifiers["alt"]:
                 self.figure_geom.toolbar.active_scroll = None
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.factor_x *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
             elif not modifiers["ctrl"]:
                 self.figure_geom.toolbar.active_scroll = None
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.gain_y *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
@@ -1217,7 +1208,7 @@ class WaveformView(ViewBase):
 
             if wf.shape[0] == width:
                 # this avoid border bugs
-                if self.mode == "flatten":
+                if self.settings["mode"] == "flatten":
                     wf = wf.T.ravel()
                     x = np.arange(wf.size)
 
@@ -1226,7 +1217,7 @@ class WaveformView(ViewBase):
                     xs = [x]
                     ys = [wf]
                     colors = [color]
-                elif self.mode == "geometry":
+                elif self.settings["mode"] == "geometry":
                     ypos = self.contact_location[common_channel_indexes, 1]
 
                     wf = wf * self.gain_y * self.delta_y + ypos[None, :]
@@ -1243,7 +1234,7 @@ class WaveformView(ViewBase):
                 source.data = dict(xs=xs, ys=ys, colors=colors)
         else:
             # clean existing lines
-            if self.mode == "flatten":
+            if self.settings["mode"] == "flatten":
                 source = self.lines_data_source_wfs_flatten
             else:
                 source = self.lines_data_source_wfs_geom
@@ -1332,7 +1323,7 @@ class WaveformView(ViewBase):
 
         alpha = self.settings["waveforms_alpha"]
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             current_alpha = self.lines_waveforms_samples_flatten.glyph.line_alpha
             if current_alpha != alpha:
                 self.lines_waveforms_samples_flatten.glyph.line_alpha = alpha
@@ -1350,7 +1341,7 @@ class WaveformView(ViewBase):
 
             source = self.lines_data_source_wfs_flatten
 
-        elif self.mode == "geometry":
+        elif self.settings["mode"] == "geometry":
             current_alpha = self.lines_waveforms_samples_geom.glyph.line_alpha
             if current_alpha != alpha:
                 self.lines_waveforms_samples_geom.glyph.line_alpha = alpha
