@@ -690,45 +690,6 @@ class KeyboardShortcuts(ReactComponent):
     }
     """
 
-
-class PostMessageListener(ReactComponent):
-    """
-    Listen to window.postMessage events and forward them to Python via on_msg().
-    This avoids ReactiveHTML/Bokeh 'source' linkage issues.
-    """
-    _model_name = "PostMessageListener"
-    _model_module = "post_message_listener"
-    _model_module_version = "0.0.1"
-
-    # If set, only forward messages whose event.data.type matches this value.
-    accept_type = param.String(default="curation-data")
-
-    _esm = """
-    export function render({ model }) {
-      const [accept_type] = model.useState("accept_type");
-
-      function onMessage(event) {
-        const data = event.data;
-
-        // Ignore messages from browser extensions
-        if (data && data.source === "react-devtools-content-script") return;
-
-        if (accept_type && data && data.type !== accept_type) return;
-
-        // Always include a timestamp so repeated sends still look "new"
-        model.send_msg({ payload: data, _ts: Date.now() });
-      }
-
-      React.useEffect(() => {
-        window.addEventListener("message", onMessage);
-        return () => window.removeEventListener("message", onMessage);
-      }, [accept_type]);
-
-      return <></>;
-    }
-    """
-
-
 class IFrameDetector(pn.reactive.ReactiveHTML):
     """
     Simple component that detects if it is running inside an iframe.

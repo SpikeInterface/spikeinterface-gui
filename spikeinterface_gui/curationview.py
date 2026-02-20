@@ -297,7 +297,7 @@ class CurationView(ViewBase):
         import pandas as pd
         import panel as pn
 
-        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator, PostMessageListener, IFrameDetector
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator, IFrameDetector
 
         pn.extension("tabulator")
 
@@ -560,7 +560,6 @@ class CurationView(ViewBase):
 
     def _panel_on_iframe_change(self, event):
         import panel as pn
-        from .utils_panel import PostMessageListener
 
         in_iframe = event.new
         print(f"CurationView detected iframe mode: {in_iframe}")
@@ -603,31 +602,6 @@ class CurationView(ViewBase):
                 """
             )
             self.layout.append(self.submit_trigger)
-            # Set up listener for external curation changes
-            self.listener = PostMessageListener()
-            self.listener.on_msg(self._panel_set_curation_data)
-            self.layout.append(self.listener)
-
-            # Notify parent that panel is ready to receive messages
-            self.ready_trigger = pn.pane.HTML(
-                """
-                <script>
-                function notifyReady() {
-                    window.parent.postMessage({
-                        type: 'panel-data',
-                        data: {loaded: true}
-                    }, "*");
-                }
-
-                if (document.readyState === "complete") {
-                    notifyReady();
-                } else {
-                    window.addEventListener("load", notifyReady);
-                }
-                </script>
-                """
-            )
-            self.layout.append(self.ready_trigger)
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection
@@ -679,7 +653,6 @@ class CurationView(ViewBase):
         """
         import panel as pn
 
-        print(f"Selection changed in table: {self.active_table}")
         # Determine which table triggered the change
         if self.active_table == "delete" and len(self.table_delete.selection) > 0:
             self.table_merge.selection = []
