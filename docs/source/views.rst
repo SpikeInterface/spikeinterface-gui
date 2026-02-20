@@ -85,7 +85,7 @@ Screenshots
           :width: 100%
 
 SpikeRateView View
-==================
+------------------
 
 This view shows firing rate for spikes per `bin_s`.
 
