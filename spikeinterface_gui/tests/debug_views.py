@@ -39,7 +39,7 @@ def debug_one_view():
     # view_class = possible_class_views['spikeamplitude']
     possible_class_views = get_all_possible_views()
     # view_class = possible_class_views['metrics']
-    view_class = possible_class_views['mainchannel']
+    view_class = possible_class_views['']
     widget = ViewWidget(view_class)
     view = view_class(controller=controller, parent=widget, backend='qt')
     widget.set_view(view)

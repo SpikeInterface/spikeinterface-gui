@@ -10,6 +10,8 @@ import sys
 import re
 from pathlib import Path
 
+from spikeinterface_gui.viewlist import get_all_possible_views
+
 
 def markdown_to_rst(markdown_text):
     """Convert markdown text to RST format."""
@@ -66,28 +68,12 @@ def generate_views_rst():
 
     # Add GUI directory to Python path
     sys.path.insert(0, str(gui_dir.absolute()))
+
+    all_possible_class_views = get_all_possible_views()
     
     # Define view information by parsing files directly (avoiding import issues)
     view_files = {
-        'probe': 'probeview.py',
-        'unitlist': 'unitlistview.py',
-        'spikelist': 'spikelistview.py', 
-        'merge': 'mergeview.py',
-        'trace': 'traceview.py',
-        'waveform': 'waveformview.py',
-        'waveformheatmap': 'waveformheatmapview.py',
-        'isi': 'isiview.py',
-        'correlogram': 'crosscorrelogramview.py',
-        'ndscatter': 'ndscatterview.py',
-        'similarity': 'similarityview.py',
-        'spikeamplitude': 'spikeamplitudeview.py',
-        'spikedepth': 'spikedepthview.py',
-        'amplitudescalings': 'amplitudescalingsview.py',
-        'tracemap': 'tracemapview.py',
-        'curation': 'curationview.py',
-        'spikerate': 'spikerateview.py',
-        'metrics': 'metricsview.py',        
-        'mainsettings': 'mainsettingsview.py',
+        p: f"{p}view.py" for p in all_possible_class_views.keys()
     }
     
     # Extract help text from each view file

@@ -29,6 +29,26 @@ Screenshots
      - .. image:: images/views/web/probe.png
           :width: 100%
 
+Main settings
+-------------
+
+Overview and main controls.
+Can save current settings for entire GUI as the default user settings using the "Save as default settings" button.
+
+Screenshots
+~~~~~~~~~~~
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Desktop (Qt)
+     - Web (Panel)
+   * - .. image:: images/views/desktop/mainsettings.png
+          :width: 100%
+     - .. image:: images/views/web/mainsettings.png
+          :width: 100%
+
 Unit List
 ---------
 
@@ -64,17 +84,10 @@ Screenshots
      - .. image:: images/views/web/unitlist.png
           :width: 100%
 
-Spike list View
----------------
+SpikeRateView View
+==================
 
-Show all spikes of the visible units. When spikes are selected, they are highlighted in the Spike Amplitude View and the ND SCatter View.
-When a single spike is selected, the Trace and TraceMap Views are centered on it.
-
-Controls
-~~~~~~~~
-* **↻ spikes**: refresh the spike list
-* **clear**: clear the selected spikes
-* **shift + arrow up/down** : select next/previous spike and make it visible alone
+This view shows firing rate for spikes per `bin_s`.
 
 Screenshots
 ~~~~~~~~~~~
@@ -85,19 +98,17 @@ Screenshots
 
    * - Desktop (Qt)
      - Web (Panel)
-   * - .. image:: images/views/desktop/spikelist.png
+   * - .. image:: images/views/desktop/spikerate.png
           :width: 100%
-     - .. image:: images/views/web/spikelist.png
+     - .. image:: images/views/web/spikerate.png
           :width: 100%
 
 Merge View
 ----------
 
 This view allows you to compute potential merges between units based on their similarity or using the auto merge function.
-Select the method to use for merging units.
-The available methods are:
-- similarity: Computes the similarity between units based on their features.
-- automerge: uses the auto merge function in SpikeInterface to find potential merges.
+Select the preset to use for merging units.
+The available presets are inherited from spikeinterface.
 
 Click "Calculate merges" to compute the potential merges. When finished, the table will be populated
 with the potential merges.
@@ -133,6 +144,7 @@ Controls
 * **auto scale**: Automatically adjust the scale of the traces.
 * **time (s)**: Set the time point to display traces.
 * **mouse wheel**: change the scale of the traces.
+* **double click**: select the nearest spike and center the view on it.
 
 Screenshots
 ~~~~~~~~~~~
@@ -146,6 +158,33 @@ Screenshots
    * - .. image:: images/views/desktop/trace.png
           :width: 100%
      - .. image:: images/views/web/trace.png
+          :width: 100%
+
+Trace Map View
+--------------
+
+This view shows the trace map of all the channels.
+
+Controls
+~~~~~~~~
+* **x size (s)**: Set the time window size for the traces.
+* **auto scale**: Automatically adjust the scale of the traces.
+* **time (s)**: Set the time point to display traces.
+* **mouse wheel**: change the scale of the traces.
+* **double click**: select the nearest spike and center the view on it.
+
+Screenshots
+~~~~~~~~~~~
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Desktop (Qt)
+     - Web (Panel)
+   * - .. image:: images/views/desktop/tracemap.png
+          :width: 100%
+     - .. image:: images/views/web/tracemap.png
           :width: 100%
 
 Waveform View
@@ -163,9 +202,11 @@ Controls
 ~~~~~~~~
 * **mode** : change displaye mode (geometry or flatten)
 * **ctrl + o** : toggle overlap mode
+* **ctrl + p** : toggle plot waveform samples
 * **mouse wheel** : scale waveform amplitudes
 * **alt + mouse wheel** : widen/narrow x axis
 * **shift + mouse wheel** : zoom
+* **shift + alt + mouse wheel** : scale vertical spacing between channels
 
 Screenshots
 ~~~~~~~~~~~
@@ -304,6 +345,7 @@ comparing the distribution of ampltidues to the noise levels.
 Controls
 ~~~~~~~~
 - **select** : activate lasso selection to select individual spikes
+- **split** or **ctrl+s** : split the selected spikes into a new unit (only if one unit is visible)
 
 Screenshots
 ~~~~~~~~~~~
@@ -327,6 +369,7 @@ Check deppth of spikes across the recording time or in a histogram.
 Controls
 ~~~~~~~~
 - **select** : activate lasso selection to select individual spikes
+- **split** or **ctrl+s** : split the selected spikes into a new unit (only if one unit is visible)
 
 Screenshots
 ~~~~~~~~~~~
@@ -340,32 +383,6 @@ Screenshots
    * - .. image:: images/views/desktop/spikedepth.png
           :width: 100%
      - .. image:: images/views/web/spikedepth.png
-          :width: 100%
-
-Trace Map View
---------------
-
-This view shows the trace map of all the channels.
-
-Controls
-~~~~~~~~
-* **x size (s)**: Set the time window size for the traces.
-* **auto scale**: Automatically adjust the scale of the traces.
-* **time (s)**: Set the time point to display traces.
-* **mouse wheel**: change the scale of the traces.
-
-Screenshots
-~~~~~~~~~~~
-
-.. list-table::
-   :widths: 50 50
-   :header-rows: 1
-
-   * - Desktop (Qt)
-     - Web (Panel)
-   * - .. image:: images/views/desktop/tracemap.png
-          :width: 100%
-     - .. image:: images/views/web/tracemap.png
           :width: 100%
 
 Curation View
@@ -399,25 +416,6 @@ Screenshots
      - .. image:: images/views/web/curation.png
           :width: 100%
 
-SpikeRateView View
-------------------
-
-This view shows firing rate for spikes per `bin_s`.
-
-Screenshots
-~~~~~~~~~~~
-
-.. list-table::
-   :widths: 50 50
-   :header-rows: 1
-
-   * - Desktop (Qt)
-     - Web (Panel)
-   * - .. image:: images/views/desktop/spikerate.png
-          :width: 100%
-     - .. image:: images/views/web/spikerate.png
-          :width: 100%
-
 Metrics View
 ------------
 
@@ -437,10 +435,17 @@ Screenshots
      - .. image:: images/views/web/metrics.png
           :width: 100%
 
-Main settings
--------------
+Spike list View
+---------------
 
-Overview and main controls
+Show all spikes of the visible units. When spikes are selected, they are highlighted in the Spike Amplitude View and the ND SCatter View.
+When a single spike is selected, the Trace and TraceMap Views are centered on it.
+
+Controls
+~~~~~~~~
+* **↻ spikes**: refresh the spike list
+* **clear**: clear the selected spikes
+* **shift + arrow up/down** : select next/previous spike and make it visible alone
 
 Screenshots
 ~~~~~~~~~~~
@@ -451,8 +456,46 @@ Screenshots
 
    * - Desktop (Qt)
      - Web (Panel)
-   * - .. image:: images/views/desktop/mainsettings.png
+   * - .. image:: images/views/desktop/spikelist.png
           :width: 100%
-     - .. image:: images/views/web/mainsettings.png
+     - .. image:: images/views/web/spikelist.png
+          :width: 100%
+
+Amplitude Scalings View
+-----------------------
+
+Amplitude scalings measure the optimal scaling which should be applied to the template so that
+it best matches each spike waveform.
+
+Controls
+~~~~~~~~
+- **select** : activate lasso selection to select individual spikes
+- **split** or **ctrl+s** : split the selected spikes into a new unit (only if one unit is visible)
+
+*Screenshots not available for this view.*
+
+Main Template View
+------------------
+
+Display average template on main channel.
+If the `template_metrics` are computed, it also displayed the template signal
+used to compute metrics (usually upsampled) and the trough/peak_before/peak_after
+positions and widths.
+
+- troughs are negative extrema and are displayed with a downward triangle symbol
+- peaks are positive extrema and are displayed with an upward triangle symbol
+
+Screenshots
+~~~~~~~~~~~
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Desktop (Qt)
+     - Web (Panel)
+   * - .. image:: images/views/desktop/maintemplate.png
+          :width: 100%
+     - .. image:: images/views/web/maintemplate.png
           :width: 100%
 
