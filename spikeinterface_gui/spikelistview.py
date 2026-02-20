@@ -367,7 +367,6 @@ class SpikeListView(ViewBase):
         self.notify_active_view_updated()
 
     def _panel_on_user_selection_changed(self, event=None):
-        import panel as pn
 
         # Ignore if we're updating from controller
         if self._updating_from_controller:
@@ -381,11 +380,8 @@ class SpikeListView(ViewBase):
             absolute_indices = visible_inds[np.array(selection)]
 
         # Defer the entire selection handling to avoid nested Bokeh callbacks
-        # def update_selection():
         self.handle_selection(absolute_indices)
         self._panel_refresh_label()
-
-        # pn.state.execute(update_selection, schedule=True)
 
     def _panel_refresh_label(self):
         n1 = self.controller.spikes.size

@@ -809,23 +809,6 @@ class Controller():
 
         return merge_unit_groups, extra
 
-    def set_curation_data(self, curation_data):
-        print("Setting curation data")
-        new_curation_data = empty_curation_data.copy()
-        new_curation_data.update(curation_data)
-
-        if "unit_ids" not in curation_data:
-            print("Setting unit_ids from controller")
-            new_curation_data["unit_ids"] = self.unit_ids.tolist()
-
-        if "label_definitions" not in curation_data:
-            print("Setting default label definitions")
-            new_curation_data["label_definitions"] = default_label_definitions.copy()
-
-        # validate the curation data
-        model = CurationModel(**new_curation_data)
-        self.curation_data = model.model_dump()
-
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
