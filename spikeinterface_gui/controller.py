@@ -50,6 +50,8 @@ class Controller():
         skip_extensions=None,
         disable_save_settings_button=False,
         external_data=None,
+        curation_callback=None,
+        curation_callback_kwargs=None
     ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
@@ -336,6 +338,9 @@ class Controller():
         self.update_time_info()
 
         self.curation = curation
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
+
         # TODO: Reload the dictionary if it already exists
         if self.curation:
             # rules:
@@ -858,6 +863,10 @@ class Controller():
             curation_model = self.construct_final_curation()
             sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
+
+    def save_curation_callback(self):
+        self.curation_callback(self.curation_data, **self.curation_callback_kwargs)
+        self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:

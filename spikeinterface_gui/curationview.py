@@ -63,16 +63,19 @@ class CurationView(ViewBase):
     ## Qt
     def _qt_make_layout(self):
         from .myqt import QT
-        import pyqtgraph as pg
 
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
 
         tb = self.qt_widget.view_toolbar
-        if self.controller.curation_can_be_saved():
+        if self.controller.curation_callback is not None:
+            but = QT.QPushButton("Save curation")
+            tb.addWidget(but)
+            but.clicked.connect(self.controller.save_curation_callback)
+        elif self.controller.curation_can_be_saved():
             but = QT.QPushButton("Save in analyzer")
             tb.addWidget(but)
-            but.clicked.connect(self.save_in_analyzer)
+            but.clicked.connect(self.controller.save_curation_in_analyzer)
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)        
         tb.addWidget(but)
@@ -184,7 +187,6 @@ class CurationView(ViewBase):
         self.table_split.resizeColumnToContents(0)
 
 
-
     def _qt_get_delete_table_selection(self):
         selected_items = self.table_delete.selectedItems()
         if len(selected_items) == 0:
@@ -274,9 +276,6 @@ class CurationView(ViewBase):
 
     def on_manual_curation_updated(self):
         self.refresh()
-    
-    def save_in_analyzer(self):
-        self.controller.save_curation_in_analyzer()
 
     def _qt_export_json(self):
         from .myqt import QT
@@ -352,12 +351,18 @@ class CurationView(ViewBase):
         self.table_split.param.watch(self._panel_update_unit_visibility, "selection")
 
         # Create buttons
+        if self.controller.curation_callback is not None:
+            save_button_name = "Save curation"
+            save_button_callback = self._panel_save_curation_callback
+        else:
+            save_button_name = "Save in analyzer"
+            save_button_callback = self._panel_save_in_analyzer
         save_button = pn.widgets.Button(
-            name="Save in analyzer",
+            name=save_button_name,
             button_type="primary",
             height=30
         )
-        save_button.on_click(self._panel_save_in_analyzer)
+        save_button.on_click(save_button_callback)
 
         download_button = pn.widgets.FileDownload(
             button_type="primary",
@@ -380,17 +385,10 @@ class CurationView(ViewBase):
         )
         remove_merge_button.on_click(self._panel_unmerge)
 
-        submit_button = pn.widgets.Button(
-            name="Submit to parent", 
-            button_type="primary",
-            height=30
-        )
-
         # Create layout
         buttons_save = pn.Row(
             save_button,
             download_button,
-            submit_button,
             sizing_mode="stretch_width",
         )
         save_sections = pn.Column(
@@ -423,9 +421,6 @@ class CurationView(ViewBase):
             scroll=True,
             sizing_mode="stretch_both"
         )
-
-        # Add a custom JavaScript callback to the button that doesn't interact with Bokeh models
-        submit_button.on_click(self._panel_submit_to_parent)
 
         # Add a hidden div to store the data
         self.data_div = pn.pane.HTML("", width=0, height=0, margin=0, sizing_mode="fixed")
@@ -519,7 +514,11 @@ class CurationView(ViewBase):
         self.unmerge()
 
     def _panel_save_in_analyzer(self, event):
-        self.save_in_analyzer()
+        self.controller.save_curation_in_analyzer()
+        self.refresh()
+
+    def _panel_save_curation_callback(self, event):
+        self.controller.save_curation_callback()
         self.refresh()
 
     def _panel_generate_json(self):
@@ -535,40 +534,6 @@ class CurationView(ViewBase):
         self.refresh()
 
         return export_path
-
-    def _panel_submit_to_parent(self, event):
-        """Send the curation data to the parent window"""
-        # Get the curation data and convert it to a JSON string
-        curation_model = self.controller.construct_final_curation()
-
-        # Create a JavaScript snippet that will send the data to the parent window
-        js_code = f"""
-        <script>
-        (function() {{
-            try {{
-                const jsonData = {curation_model.model_dump_json()};
-                const data = {{
-                    type: 'curation_data',
-                    curation_data: JSON.parse(jsonData)
-                }};
-                console.log('Sending data to parent:', data);
-                parent.postMessage({{
-                    type: 'panel-data',
-                    data: data
-                }}, '*');
-                console.log('Data sent successfully');
-            }} catch (error) {{
-                console.error('Error sending data to parent:', error);
-            }}
-        }})();
-        </script>
-        """
-
-        # Update the hidden div with the JavaScript code
-        self.data_div.object = js_code
-        # Submitting to parent is a way to "save" the curation (the parent can handle it)
-        self.controller.current_curation_saved = True
-        self.refresh()
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection
@@ -652,11 +617,11 @@ The curation view shows the current status of the curation process and allows th
 revert, and export the curation data.
 
 ### Controls
-- **save in analyzer**: Save the current curation state in the analyzer.
+- **save in analyzer**/**save data**: Save the current curation state in the analyzer. 
+  If a custom save callback is provided, it will be used instead.
 - **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merges from the merged units table.
-- **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
 - **press 'ctrl+u'**: Unmerge the selected merges from the merged units table.
 - **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.

@@ -29,6 +29,9 @@ def run_mainwindow(
     start_app=True,
     layout_preset=None,
     layout=None,
+    external_data=None,
+    curation_callback=None,
+    curation_callback_kwargs=None,
     address="localhost",
     port=0,
     panel_start_server_kwargs=None,
@@ -36,7 +39,6 @@ def run_mainwindow(
     verbose=False,
     user_settings=None,
     disable_save_settings_button=False,
-    external_data=None,
 ):
     """
     Create the main window and start the QT app loop.
@@ -72,6 +74,15 @@ def run_mainwindow(
         The name of the layout preset. None is default.
     layout : dict | None
         The layout dictionary to use instead of the preset.
+    external_data: object, default: None
+        Whatever is passed to `external_data` is attached to the controller as the attribute
+        `external_data`. Useful for custom views.
+    curation_callback: function, default: None
+        A function that is called when the curation is saved. It should take two arguments:
+        - `curation_data`: a dictionary containing the curation data (merges, splits, removed units)
+        - `curation_callback_kwargs`: a dictionary of additional keyword arguments specified in `curation_callback_kwargs`
+    curation_callback_kwargs: dict, default: None
+        A dictionary of additional keyword arguments to pass to the `curation_callback` when it is called.
     address: str, default : "localhost"
         For "web" mode only. By default it is "localhost".
         Use "auto-ip" to use the real IP address of the machine.
@@ -93,9 +104,6 @@ def run_mainwindow(
         A dictionary of user settings for each view, which overwrite the default settings.
     disable_save_settings_button: bool, default: False
         If True, disables the "save default settings" button, so that user cannot do this.
-    external_data: object, default: None
-        Whatever is passed to `external_data` is attached to the controller as the attribute
-        `external_data`. Useful for custom views.
     """
 
     if mode == "desktop":
@@ -145,6 +153,8 @@ def run_mainwindow(
         skip_extensions=skip_extensions,
         disable_save_settings_button=disable_save_settings_button,
         external_data=external_data,
+        curation_callback=curation_callback,
+        curation_callback_kwargs=curation_callback_kwargs,
     )
     if verbose:
         t1 = time.perf_counter()
