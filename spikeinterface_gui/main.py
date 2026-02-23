@@ -109,6 +109,10 @@ def run_mainwindow(
     #   1) User specified settings
     #   2) Settings in the config folder
     #   3) Default settings of each view 
+    user_main_settings = None
+    if user_settings is not None:
+        user_main_settings = user_settings.get('mainsettings')
+
     if user_settings is None:
         sigui_version = spikeinterface_gui.__version__
         config_version_folder = get_config_folder() / sigui_version
@@ -145,6 +149,7 @@ def run_mainwindow(
         skip_extensions=skip_extensions,
         disable_save_settings_button=disable_save_settings_button,
         external_data=external_data,
+        user_main_settings=user_main_settings
     )
     if verbose:
         t1 = time.perf_counter()
