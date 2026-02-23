@@ -418,6 +418,16 @@ class PanelMainWindow:
                     tabs.stylesheets = []
 
 
+    def set_external_curation(self, curation_data):
+        if "curation" not in self.views:
+            return
+
+        curation_view = self.views["curation"]
+        self.controller.set_curation_data(curation_data)
+        curation_view.notify_manual_curation_updated()
+        curation_view.refresh()
+
+
 def get_local_ip():
     """
     Get the local IP address of the machine.
