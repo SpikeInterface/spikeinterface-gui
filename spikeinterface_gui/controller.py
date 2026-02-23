@@ -725,20 +725,23 @@ class Controller():
         return wfs, chan_inds
     
     def get_template_upsampling_factor(self):
-        return self.analyzer.get_extension("template_metrics").params['upsampling_factor']
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        if template_metrics_ext is None or template_metrics_ext.params.get('upsampling_factor') is None:
+            return 1
+        else:
+            return template_metrics_ext.params['upsampling_factor']
  
     def get_upsampled_templates(self, unit_id):
-        ext = self.analyzer.get_extension("template_metrics")
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
         unit_index = list(self.unit_ids).index(unit_id)
         chan_ind = self.get_extremum_channel(unit_id)
         template = self.templates_average[unit_index, :, chan_ind]
-        if "peaks_data" not in ext.data:
-            peaks_data = None
-            template_high = None
+        if template_metrics_ext is None or "peaks_data" not in template_metrics_ext.data:
+            return template, None, None
         else:
-            peaks_data = ext.data['peaks_data']
-            template_high = ext.data['main_channel_templates'][unit_index]
-        return template, template_high, peaks_data.loc[unit_id]
+            peaks_data = template_metrics_ext.data['peaks_data']
+            template_high = template_metrics_ext.data['main_channel_templates'][unit_index]
+            return template, template_high, peaks_data.loc[unit_id]
 
 
     def get_common_sparse_channels(self, unit_ids):

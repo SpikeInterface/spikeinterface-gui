@@ -7,7 +7,7 @@ from .view_base import ViewBase
 class MainTemplateView(ViewBase):
     id = "maintemplate"
     _supported_backend = ['qt', 'panel']
-    _depend_on = ["templates", "template_metrics"]
+    _depend_on = ["templates"]
     _settings = [
         {'name': 'ncols', 'type': 'int', 'value': 3 },
         {'name': 'width_mode', 'type': 'list', 'limits' : ['half_width', 'peak_width'] },
@@ -318,4 +318,8 @@ positions and widths.
 
 - troughs are negative extrema and are displayed with a downward triangle symbol
 - peaks are positive extrema and are displayed with an upward triangle symbol
+
+x-axis represents time and is in units of milliseconds.
+y-axis represents the electrical signal. The units depend on your preprocessing 
+steps, but is usually in uV.
 """
