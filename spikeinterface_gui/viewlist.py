@@ -19,6 +19,7 @@ from .curationview import CurationView
 from .mainsettingsview import MainSettingsView
 from .metricsview import MetricsView
 from .spikerateview import SpikeRateView
+from .maintemplateview import MainTemplateView
 
 # probe and mainsettings view are first, since they affect other views (e.g., time info)
 builtin_views = [
@@ -26,7 +27,7 @@ builtin_views = [
     TraceView, TraceMapView, WaveformView, WaveformHeatMapView, ISIView,
     CorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
     SpikeDepthView, SpikeRateView, CurationView, MetricsView, SpikeListView,
-    AmplitudeScalingsView,
+    AmplitudeScalingsView, MainTemplateView
 ]
 
 def get_all_possible_views():

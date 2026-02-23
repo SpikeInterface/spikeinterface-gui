@@ -41,6 +41,10 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
+    tm = analyzer.get_extension("template_metrics").get_data().iloc[0, :]
+    # print(tm)
+    # return
+
     print(analyzer)
 
     if curation:
@@ -123,7 +127,8 @@ if __name__ == '__main__':
     dataset = args.dataset
     global test_folder
     if dataset is not None:
-        test_folder = Path(dataset).parent / f"my_dataset_{dataset}"
+        test_folder = Path(__file__).parents[2] / f"my_dataset_{dataset}"
+    
     if not test_folder.is_dir():
         setup_module()
 
