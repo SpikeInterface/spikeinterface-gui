@@ -1034,12 +1034,6 @@ class WaveformView(ViewBase):
         if time_elapsed > _wheel_refresh_time:
             modifiers = event.modifiers
 
-            def _enable_active_scroll():
-                self.figure_geom.toolbar.active_scroll = self.zoom_tool
-
-            def _disable_active_scroll():
-                self.figure_geom.toolbar.active_scroll = None
-
             if modifiers["shift"] and modifiers["alt"]:
                 if self.mode == "geometry":
                     factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
@@ -1059,27 +1053,33 @@ class WaveformView(ViewBase):
 
                     pn.state.execute(_do_range_update, schedule=True)
                 else:
-                    pn.state.execute(_disable_active_scroll, schedule=True)
+                    pn.state.execute(self._panel_disable_active_scroll, schedule=True)
             elif modifiers["shift"]:
-                pn.state.execute(_enable_active_scroll, schedule=True)
+                pn.state.execute(self._panel_enable_active_scroll, schedule=True)
             elif modifiers["alt"]:
                 if self.mode == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.factor_x *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
-                pn.state.execute(_disable_active_scroll, schedule=True)
+                pn.state.execute(self._panel_disable_active_scroll, schedule=True)
             elif not modifiers["ctrl"]:
                 if self.mode == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.gain_y *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
-                pn.state.execute(_disable_active_scroll, schedule=True)
+                pn.state.execute(self._panel_disable_active_scroll, schedule=True)
         else:
             # Ignore the event if it occurs too quickly
-            pn.state.execute(_disable_active_scroll, schedule=True)
+            pn.state.execute(self._panel_disable_active_scroll, schedule=True)
         self.last_wheel_event_time = current_time
+
+    def _panel_enable_active_scroll(self):
+            self.figure_geom.toolbar.active_scroll = self.zoom_tool
+
+    def _panel_disable_active_scroll(self):
+        self.figure_geom.toolbar.active_scroll = None
 
     def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
         self._panel_clear_scalebars()
