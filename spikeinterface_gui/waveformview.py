@@ -1041,7 +1041,7 @@ class WaveformView(ViewBase):
                 self.figure_geom.toolbar.active_scroll = None
 
             if modifiers["shift"] and modifiers["alt"]:
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
                     # adjust y range and keep center
                     ymin = self.figure_geom.y_range.start
@@ -1063,14 +1063,14 @@ class WaveformView(ViewBase):
             elif modifiers["shift"]:
                 pn.state.execute(_enable_active_scroll, schedule=True)
             elif modifiers["alt"]:
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.factor_x *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
                 pn.state.execute(_disable_active_scroll, schedule=True)
             elif not modifiers["ctrl"]:
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.gain_y *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
