@@ -11,14 +11,14 @@ class WaveformHeatMapView(ViewBase):
     id = "waveformheatmap"
     _supported_backend = ['qt', 'panel']
     _settings = [
-                      {'name': 'colormap', 'type': 'list', 'limits' : ['hot', 'viridis', 'jet', 'gray',  ] },
-                      {'name': 'show_channel_id', 'type': 'bool', 'value': True},
-                      #~ {'name': 'data', 'type': 'list', 'limits' : ['waveforms', 'features', ] },
-                      {'name': 'bin_min', 'type': 'float', 'value' : -20. },
-                      {'name': 'bin_max', 'type': 'float', 'value' : 8. },
-                      {'name': 'bin_size', 'type': 'float', 'value' : .1 },
-                      {'name': 'max_unit', 'type': 'int', 'value' : 4 },
-                      ]
+        {'name': 'colormap', 'type': 'list', 'limits' : ['hot', 'viridis', 'jet', 'gray',  ] },
+        {'name': 'show_channel_id', 'type': 'bool', 'value': True},
+        #~ {'name': 'data', 'type': 'list', 'limits' : ['waveforms', 'features', ] },
+        {'name': 'bin_min', 'type': 'float', 'value' : -20. },
+        {'name': 'bin_max', 'type': 'float', 'value' : 8. },
+        {'name': 'bin_size', 'type': 'float', 'value' : .1 },
+        {'name': 'max_unit', 'type': 'int', 'value' : 4 },
+    ]
     
     _depend_on = ['waveforms']
 

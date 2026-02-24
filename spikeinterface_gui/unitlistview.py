@@ -105,6 +105,10 @@ class UnitListView(ViewBase):
             self.shortcut_mua = None
             self.shortcut_noise = None
             if self.controller.has_default_quality_labels:
+                self.shortcut_clear = QT.QShortcut(self.qt_widget)
+                self.shortcut_clear.setKey(QT.QKeySequence('c'))
+                self.shortcut_clear.activated.connect(lambda: self._qt_set_default_label(None))
+
                 self.shortcut_good = QT.QShortcut(self.qt_widget)
                 self.shortcut_good.setKey(QT.QKeySequence('g'))
                 self.shortcut_good.activated.connect(lambda: self._qt_set_default_label('good'))
@@ -212,7 +216,7 @@ class UnitListView(ViewBase):
         self.table.clear()
 
 
-        internal_column_names = ['unit_id', 'visible',  'channel_id', 'sparsity']
+        internal_column_names = ['unit_id', 'visible',  'channel_id']
 
         # internal labels
         column_labels = list(internal_column_names)
@@ -272,11 +276,6 @@ class UnitListView(ViewBase):
             item = CustomItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 2, item)
-            
-            num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
-            item = CustomItem(f'{num_chan}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 3, item)
 
             n_first = len(internal_column_names)
             self.label_columns = list(range(n_first, n_first + num_labels))
@@ -476,19 +475,14 @@ class UnitListView(ViewBase):
                 if label == "quality":
                     frozen_columns.append(label)
         data["channel_id"] = []
-        data["sparsity"] = []
 
         self.main_cols = list(data.keys())
-        sparsity_mask = self.controller.get_sparsity_mask()
         for unit_index, unit_id in enumerate(unit_ids):
             data["unit_id"].append(
                 {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
             )
             data["channel_id"].append(
                 self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
-            )
-            data["sparsity"].append(
-                np.sum(sparsity_mask[unit_index, :])
             )
         for col in self.controller.displayed_unit_properties:
             data[col] = self.controller.units_table[col]
@@ -564,6 +558,7 @@ class UnitListView(ViewBase):
             if self.controller.has_default_quality_labels:
                 shortcuts.extend(
                     [
+                        KeyboardShortcut(name="clear", key="c", ctrlKey=False),
                         KeyboardShortcut(name="good", key="g", ctrlKey=False),
                         KeyboardShortcut(name="mua", key="m", ctrlKey=False),
                         KeyboardShortcut(name="noise", key="n", ctrlKey=False),
@@ -767,6 +762,12 @@ class UnitListView(ViewBase):
                 self.controller.set_visible_unit_ids(selected_unit_ids)
                 self.notify_unit_visibility_changed()
                 self.refresh()
+            elif event.data == "clear":
+                for unit_id in selected_unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", None)
+                self.table.value.loc[selected_unit_ids, "quality"] = ""
+                self.notify_manual_curation_updated()
+                self.refresh()
             elif event.data == "good":
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", "good")
@@ -800,6 +801,7 @@ This view controls the visibility of units.
 * **ctrl + arrow up/down** : select next/previous unit and make it visible alone
 * **press 'ctrl+d'** : delete selected units (if curation=True)
 * **press 'ctrl+m'** : merge selected units (if curation=True)
+* **press 'c'** : clear label of selected units (if curation=True)
 * **press 'g'** : label selected units as good (if curation=True)
 * **press 'm'** : label selected units as mua (if curation=True)
 * **press 'n'** : label selected units as noise (if curation=True)
