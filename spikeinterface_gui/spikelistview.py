@@ -273,7 +273,7 @@ class SpikeListView(ViewBase):
             pagination=None,
             # SelectableTabulator functions
             parent_view=self,
-            refresh_table_function=self._panel_refresh_table,
+            refresh_table_function=None,
             conditional_shortcut=self.is_view_active,
         )
         # Add selection event handler
@@ -376,7 +376,7 @@ class SpikeListView(ViewBase):
         if len(selection) == 0:
             absolute_indices = []
         else:
-            visible_inds = self.controller.get_indices_spike_visible()
+            visible_inds = self.table.value['#'].values
             absolute_indices = visible_inds[np.array(selection)]
 
         # Defer the entire selection handling to avoid nested Bokeh callbacks

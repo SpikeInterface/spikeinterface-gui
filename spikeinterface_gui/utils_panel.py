@@ -547,26 +547,18 @@ class SelectableTabulator(pn.viewable.Viewer):
             if event.data == "first":
                 first_row = 0
                 self.selection = [first_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = first_row
             elif event.data == "last":
                 last_row = len(self.value) - 1
                 self.selection = [last_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = last_row
             elif event.data == "next":
                 next_row = self._get_next_row()
                 self.selection = [next_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "previous":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = previous_row
             elif event.data == "next_only":
                 next_row = self._get_next_row()
@@ -575,16 +567,12 @@ class SelectableTabulator(pn.viewable.Viewer):
                 # self.notify_unit_visibility_changed()
                 if self._on_only_function is not None:
                     self._on_only_function()
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "previous_only":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
                 if self._on_only_function is not None:
                     self._on_only_function()
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = previous_row
             elif event.data == "append_next":
                 next_row = self._get_next_row()
@@ -595,8 +583,6 @@ class SelectableTabulator(pn.viewable.Viewer):
                 elif current_row in self.selection:
                     current_selection.remove(current_row)
                 self.selection = current_selection
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "append_previous":
                 previous_row = self._get_previous_row()
@@ -607,8 +593,6 @@ class SelectableTabulator(pn.viewable.Viewer):
                 elif current_row in self.selection:
                     current_selection.remove(current_row)
                 self.selection = current_selection
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = previous_row
 
 
