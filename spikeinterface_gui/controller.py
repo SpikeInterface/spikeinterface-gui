@@ -82,9 +82,7 @@ class Controller():
 
         self.main_settings = _default_main_settings.copy()
         if user_main_settings is not None:
-            for main_setting in  _default_main_settings.copy().keys():
-                if user_main_settings.get(main_setting) is not None:
-                    self.main_settings[main_setting] = user_main_settings[main_setting]
+            self.main_settings.update(user_main_settings)
 
         self.num_channels = self.analyzer.get_num_channels()
         # this now private and shoudl be acess using function
