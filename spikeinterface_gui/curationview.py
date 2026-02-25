@@ -297,7 +297,7 @@ class CurationView(ViewBase):
         import pandas as pd
         import panel as pn
 
-        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator, IFrameDetector
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts, SelectableTabulator
 
         pn.extension("tabulator")
 
@@ -402,10 +402,6 @@ class CurationView(ViewBase):
         self.layout = pn.Column(
             self.buttons_save, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
         )
-
-        self.iframe_detector = IFrameDetector()
-        self.iframe_detector.param.watch(self._panel_on_iframe_change, "in_iframe")
-        self.layout.append(self.iframe_detector)
 
     def _panel_refresh(self):
         import pandas as pd
@@ -556,51 +552,6 @@ class CurationView(ViewBase):
         self.controller.set_curation_data(curation_data)
         self.refresh()
 
-    def _panel_on_iframe_change(self, event):
-        import panel as pn
-
-        in_iframe = event.new
-        print(f"CurationView detected iframe mode: {in_iframe}")
-        if in_iframe:
-            # Remove save in analyzer button and add submit to parent button
-            self.submit_button = pn.widgets.Button(name="Submit to parent", button_type="primary", height=30)
-            self.submit_button.on_click(self._panel_submit_to_parent)
-
-            self.buttons_save = pn.Row(
-                self.submit_button,
-                self.download_button,
-                sizing_mode="stretch_width",
-            )
-            self.layout[0] = self.buttons_save
-            
-            # Create objects to submit and listen
-            self.submit_trigger = pn.widgets.TextInput(value="", visible=False)
-            # Add JavaScript callback that triggers when the TextInput value changes
-            self.submit_trigger.jscallback(
-                value="""
-                // Extract just the JSON data (remove timestamp suffix)
-                const fullValue = cb_obj.value;
-                const lastUnderscore = fullValue.lastIndexOf('_');
-                const dataStr = lastUnderscore > 0 ? fullValue.substring(0, lastUnderscore) : fullValue;
-
-                if (dataStr && dataStr.length > 0) {
-                    try {
-                        const data = JSON.parse(dataStr);
-                        console.log('Sending data to parent:', data);
-                        parent.postMessage({
-                                type: 'panel-data',
-                                data: data
-                            },
-                        '*');
-                        console.log('Data sent successfully to parent window');
-                    } catch (error) {
-                        console.error('Error sending data to parent:', error);
-                    }
-                }
-                """
-            )
-            self.layout.append(self.submit_trigger)
-
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection
         if len(selected_items) == 0:
@@ -715,17 +666,4 @@ revert, and export the curation data.
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
 - **press 'ctrl+u'**: Unmerge the selected merges from the merged units table.
 - **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.
-
-### Note
-When setting the `iframe_mode` setting to `True` using the `user_settings=dict(curation=dict(iframe_mode=True))`,
-the GUI is expected to be used inside an iframe. In this mode, the curation view will include a "Submit to parent" 
-button that, when clicked, will send the current curation data to the parent window.
-In this mode, bi-directional communication is established between the GUI and the parent window using the `postMessage`
-API. The GUI listens for incoming messages of this expected shape:
-
-```
-{
-    "payload": {"type": "curation-data", "data": <curation_dict>},
-}
-```
 """

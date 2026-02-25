@@ -673,19 +673,3 @@ class KeyboardShortcuts(ReactComponent):
       return <></>;
     }
     """
-
-class IFrameDetector(pn.reactive.ReactiveHTML):
-    """
-    Simple component that detects if it is running inside an iframe.
-    """
-    in_iframe = param.Parameter(default=None)
-
-    _template = "<div></div>"
-
-    _scripts = {
-        "render": """
-            const val = window.self !== window.top;
-            console.log("iframe detector JS:", val);
-            data.in_iframe = val;  // reliable sync
-        """
-    }
