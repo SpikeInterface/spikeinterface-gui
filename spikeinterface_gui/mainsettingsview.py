@@ -20,6 +20,12 @@ class MainSettingsView(ViewBase):
     _need_compute = False
 
     def __init__(self, controller=None, parent=None, backend="qt"):
+        # retrieve main settings from controller
+        self.main_settings_updated = main_settings.copy()
+        for setting in self.main_settings_updated:
+            setting_name = setting['name']
+            setting_value = controller.main_settings.get(setting_name, setting['value'])
+            setting['value'] = setting_value
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
 
@@ -94,8 +100,12 @@ class MainSettingsView(ViewBase):
             but.clicked.connect(self.save_current_settings)
             self.layout.addWidget(but)
 
-        self.main_settings = pg.parametertree.Parameter.create(name="main settings", type='group', children=main_settings)
-        
+        self.main_settings = pg.parametertree.Parameter.create(
+            name="main settings",
+            type='group',
+            children=self.main_settings_updated
+        )
+
         # not that the parent is not the view (not Qt anymore) itself but the widget
         self.tree_main_settings = pg.parametertree.ParameterTree(parent=self.qt_widget)
         self.tree_main_settings.header().hide()
@@ -135,7 +145,7 @@ class MainSettingsView(ViewBase):
             self.save_setting_button.on_click(self.save_current_settings)
 
         # Create method and arguments layout
-        self.main_settings = SettingsProxy(create_dynamic_parameterized(main_settings))
+        self.main_settings = SettingsProxy(create_dynamic_parameterized(self.main_settings_updated))
         self.main_settings_layout = pn.Param(self.main_settings._parameterized, sizing_mode="stretch_both", 
                                              name=f"Main settings")
         self.main_settings._parameterized.param.watch(self._panel_on_max_visible_units_changed, 'max_visible_units')
