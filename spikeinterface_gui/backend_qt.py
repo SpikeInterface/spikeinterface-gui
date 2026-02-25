@@ -201,7 +201,7 @@ class QtMainWindow(QT.QMainWindow):
             widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
 
-            if user_settings is not None and user_settings.get(view_name) is not None:
+            if user_settings is not None and view_name != 'mainsettings' and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     if setting_name not in view.settings.keys().keys():
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")

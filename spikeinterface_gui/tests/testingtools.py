@@ -125,6 +125,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     sorting_analyzer.compute("template_similarity", method="l1")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
     sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
+    sorting_analyzer.compute("template_metrics")
     sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
 
 
@@ -168,7 +169,7 @@ if __name__ == '__main__':
     folder = test_folder / 'sorting_analyzer'
     
     clean_all(test_folder)
-    make_analyzer_folder(test_folder, num_probe=2)
+    make_analyzer_folder(test_folder, case="small", )
     
     sorting_analyzer = si.load_sorting_analyzer(folder)
     print(sorting_analyzer)

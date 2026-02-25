@@ -51,7 +51,8 @@ class Controller():
         disable_save_settings_button=False,
         external_data=None,
         curation_callback=None,
-        curation_callback_kwargs=None
+        curation_callback_kwargs=None,
+        user_main_settings=None,
     ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
@@ -82,6 +83,8 @@ class Controller():
         t0 = time.perf_counter()
 
         self.main_settings = _default_main_settings.copy()
+        if user_main_settings is not None:
+            self.main_settings.update(user_main_settings)
 
         self.num_channels = self.analyzer.get_num_channels()
         # this now private and shoudl be acess using function
@@ -257,7 +260,8 @@ class Controller():
 
         t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
+        self._extremum_channel = get_template_extremum_channel(self.analyzer,
+                                    mode="extremum", peak_sign='both', outputs='index')
 
         # some direct attribute
         self.num_segments = self.analyzer.get_num_segments()
@@ -727,6 +731,26 @@ class Controller():
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
         return wfs, chan_inds
+    
+    def get_template_upsampling_factor(self):
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        if template_metrics_ext is None or template_metrics_ext.params.get('upsampling_factor') is None:
+            return 1
+        else:
+            return template_metrics_ext.params['upsampling_factor']
+ 
+    def get_upsampled_templates(self, unit_id):
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        unit_index = list(self.unit_ids).index(unit_id)
+        chan_ind = self.get_extremum_channel(unit_id)
+        template = self.templates_average[unit_index, :, chan_ind]
+        if template_metrics_ext is None or "peaks_data" not in template_metrics_ext.data:
+            return template, None, None
+        else:
+            peaks_data = template_metrics_ext.data['peaks_data']
+            template_high = template_metrics_ext.data['main_channel_templates'][unit_index]
+            return template, template_high, peaks_data.loc[unit_id]
+
 
     def get_common_sparse_channels(self, unit_ids):
         sparsity_mask = self.get_sparsity_mask()
