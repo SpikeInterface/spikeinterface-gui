@@ -21,8 +21,8 @@ class MainSettingsView(ViewBase):
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         # retrieve main settings from controller
-        self.main_settings_updated = main_settings.copy()
-        for setting in self.main_settings_updated:
+        self.main_settings_sync = main_settings.copy()
+        for setting in self.main_settings_sync:
             setting_name = setting['name']
             setting_value = controller.main_settings.get(setting_name, setting['value'])
             setting['value'] = setting_value
@@ -103,7 +103,7 @@ class MainSettingsView(ViewBase):
         self.main_settings = pg.parametertree.Parameter.create(
             name="main settings",
             type='group',
-            children=self.main_settings_updated
+            children=self.main_settings_sync
         )
 
         # not that the parent is not the view (not Qt anymore) itself but the widget
@@ -145,7 +145,7 @@ class MainSettingsView(ViewBase):
             self.save_setting_button.on_click(self.save_current_settings)
 
         # Create method and arguments layout
-        self.main_settings = SettingsProxy(create_dynamic_parameterized(self.main_settings_updated))
+        self.main_settings = SettingsProxy(create_dynamic_parameterized(self.main_settings_sync))
         self.main_settings_layout = pn.Param(self.main_settings._parameterized, sizing_mode="stretch_both", 
                                              name=f"Main settings")
         self.main_settings._parameterized.param.watch(self._panel_on_max_visible_units_changed, 'max_visible_units')
