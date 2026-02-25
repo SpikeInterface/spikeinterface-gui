@@ -462,11 +462,11 @@ class CurationView(ViewBase):
         self.table_split.selection = []
 
         if not self.controller.current_curation_saved:
-            self.ensure_save_warning_message()
+            self._panel_ensure_save_warning_message()
         else:
-            self.ensure_no_message()
+            self._panel_ensure_no_message()
 
-    def ensure_save_warning_message(self):
+    def _panel_ensure_save_warning_message(self):
 
         if self.layout[0].name == 'curation_save_warning':
             return
@@ -482,7 +482,7 @@ class CurationView(ViewBase):
 
         self.layout.insert(0, alert_markdown)
 
-    def ensure_no_message(self):
+    def _panel_ensure_no_message(self):
         if self.layout[0].name == 'curation_save_warning':
             self.layout.pop(0)
 
