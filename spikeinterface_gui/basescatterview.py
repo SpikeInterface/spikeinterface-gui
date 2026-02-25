@@ -46,6 +46,12 @@ class BaseScatterView(ViewBase):
         spike_times = self.controller.sample_index_to_time(spike_indices)
         spike_data = self.spike_data[inds]
 
+        if len(spike_data) == 1:
+            spike_data_value = spike_data[0]
+            ymin = spike_data_value - 0.1 * spike_data_value
+            ymax = spike_data_value + 0.1 * spike_data_value
+            return spike_times, spike_data, np.array([1]), np.array([ymin, ymax]), ymin, ymax, inds
+
         # avoid clear outliers in the plot and histogram by using percentiles
         ymin, ymax = np.percentile(spike_data, [self.settings['display_low_percentiles'], self.settings['display_high_percentiles']])
         min_bin_size = np.min(np.diff(np.unique(spike_data)))
@@ -298,6 +304,8 @@ class BaseScatterView(ViewBase):
                 unit_id, 
                 segment_index=segment_index
             )
+            if len(spike_times) == 0:
+                continue
 
             # make a copy of the color
             color = QT.QColor(self.get_unit_color(unit_id))
@@ -520,6 +528,8 @@ class BaseScatterView(ViewBase):
                 unit_id,
                 segment_index=segment_index
             )
+            if len(spike_times) == 0:
+                continue
             color = self.get_unit_color(unit_id)
             xs.extend(spike_times)
             ys.extend(spike_data)

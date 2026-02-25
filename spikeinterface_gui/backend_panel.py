@@ -245,7 +245,7 @@ class PanelMainWindow:
                 sizing_mode="stretch_both"
             )
 
-            if user_settings is not None and user_settings.get(view_name) is not None:
+            if user_settings is not None and view_name != 'mainsettings' and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     available_settings = [s["name"] for s in view_class._settings]
                     if setting_name not in available_settings:

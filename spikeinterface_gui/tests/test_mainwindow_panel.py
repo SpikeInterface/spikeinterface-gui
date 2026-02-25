@@ -80,9 +80,9 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
         layout_preset='default',
-        # skip_extensions=["waveforms", "principal_components", "template_similarity", "spike_amplitudes"],
         # address="10.69.168.40",
         port=port,
+        # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
     return win
 
