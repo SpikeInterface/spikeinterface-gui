@@ -332,7 +332,9 @@ class Controller():
         # set default time info
         self.update_time_info()
 
-        if curation:
+        # set curation to False. It will be set to True if curation data is provided and valid
+        self.curation = curation
+        if self.curation:
             # rules:
             #  * if user sends curation_data, then it is used
             #  * otherwise, if curation_data already exists in folder it is used
@@ -384,7 +386,6 @@ class Controller():
 
             curation_data = CurationModel(**curation_data).model_dump()
             self.curation_data = curation_data
-            self.curation = True
 
     def check_is_view_possible(self, view_name):
         from .viewlist import get_all_possible_views
