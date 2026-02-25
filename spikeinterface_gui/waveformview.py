@@ -1063,7 +1063,7 @@ class WaveformView(ViewBase):
         self.last_wheel_event_time = current_time
 
     def _panel_enable_active_scroll(self):
-            self.figure_geom.toolbar.active_scroll = self.zoom_tool
+        self.figure_geom.toolbar.active_scroll = self.zoom_tool
 
     def _panel_disable_active_scroll(self):
         self.figure_geom.toolbar.active_scroll = None
