@@ -435,11 +435,11 @@ class CurationView(ViewBase):
         self.table_split.selection = []
 
         if not self.controller.current_curation_saved:
-            self.ensure_save_warning_message()
+            self._panel_ensure_save_warning_message()
         else:
-            self.ensure_no_message()
+            self._panel_ensure_no_message()
 
-    def ensure_save_warning_message(self):
+    def _panel_ensure_save_warning_message(self):
 
         if self.layout[0].name == "curation_save_warning":
             return
@@ -455,7 +455,7 @@ class CurationView(ViewBase):
 
         self.layout.insert(0, alert_markdown)
 
-    def ensure_no_message(self):
+    def _panel_ensure_no_message(self):
         if self.layout[0].name == "curation_save_warning":
             self.layout.pop(0)
 
@@ -506,48 +506,6 @@ class CurationView(ViewBase):
         self.refresh()
 
         return export_path
-
-    def _panel_submit_to_parent(self, event):        
-        """Send the curation data to the parent window"""
-        import time
-
-        # Get the curation data and convert it to a JSON string
-        curation_model = self.controller.construct_final_curation()
-        curation_data = curation_model.model_dump_json()
-        # Trigger the JavaScript function via the TextInput
-        # Update the value to trigger the jscallback
-        self.submit_trigger.value = curation_data + f"_{int(time.time() * 1000)}"
-
-        # Submitting to parent is a way to "save" the curation (the parent can handle it)
-        self.controller.current_curation_saved = True
-        self.ensure_no_message()
-        print(f"Curation data sent to parent app!")
-
-    def _panel_set_curation_data(self, event):
-        """
-        Handler for PostMessageListener.on_msg.
-
-        event.data is whatever the JS side passed to model.send_msg(...).
-        Expected shape:
-        {
-            "payload": {"type": "curation-data", "data": <curation_dict>},
-        }
-        """
-        msg = event.data
-        payload = (msg or {}).get("payload", {})
-        curation_data = payload.get("data", None)
-
-        if curation_data is None:
-            print("Received message without curation data:", msg)
-            return
-
-        # Optional: validate basic structure
-        if not isinstance(curation_data, dict):
-            print("Invalid curation_data type:", type(curation_data), curation_data)
-            return
-
-        self.controller.set_curation_data(curation_data)
-        self.refresh()
 
     def _panel_get_delete_table_selection(self):
         selected_items = self.table_delete.selection
