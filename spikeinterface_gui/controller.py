@@ -332,7 +332,6 @@ class Controller():
         # set default time info
         self.update_time_info()
 
-        # set curation to False. It will be set to True if curation data is provided and valid
         self.curation = curation
         if self.curation:
             # rules:
