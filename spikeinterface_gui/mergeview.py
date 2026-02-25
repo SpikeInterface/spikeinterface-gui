@@ -270,7 +270,7 @@ class MergeView(ViewBase):
 
     def _qt_refresh(self):
         from .myqt import QT
-        from .utils_qt import CustomItem
+        from .utils_qt import CustomItem, CustomItemMergeUnitID
 
         self.table.clear()
         self.table.setSortingEnabled(False)
@@ -298,7 +298,7 @@ class MergeView(ViewBase):
                     pix = QT.QPixmap(16, 16)
                     pix.fill(color)
                     icon = QT.QIcon(pix)
-                    item = QT.QTableWidgetItem(name)
+                    item = CustomItemMergeUnitID(name)
                     item.setData(QT.Qt.ItemDataRole.UserRole, unit_id)
                     item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
                     self.table.setItem(r, c, item)

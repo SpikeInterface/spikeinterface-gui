@@ -474,6 +474,18 @@ class CustomItemUnitID(QT.QTableWidgetItem):
         other_ind = self.unit_ids.index(other.text())
         return ind < other_ind
 
+class CustomItemMergeUnitID(QT.QTableWidgetItem):
+    # special case for merge view unit_id columns: sort numerically by the unit_id stored in UserRole
+    def __lt__(self, other):
+        self_data = self.data(QT.Qt.ItemDataRole.UserRole)
+        other_data = other.data(QT.Qt.ItemDataRole.UserRole)
+        if self_data is not None and other_data is not None:
+            try:
+                return float(self_data) < float(other_data)
+            except (TypeError, ValueError):
+                pass
+        return self.text() < other.text()
+
 class OrderableCheckItem(QT.QTableWidgetItem):
     # special case for checkbox
     def is_checked(self):
