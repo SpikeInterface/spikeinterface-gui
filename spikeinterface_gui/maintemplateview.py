@@ -68,6 +68,7 @@ class MainTemplateView(ViewBase):
 
             if template_high is None:
                 template_high = template
+                self.time_vect_high = self.time_vect
                 plot_template = False
             else:
                 plot_template = True
@@ -180,6 +181,7 @@ class MainTemplateView(ViewBase):
 
             if template_high is None:
                 template_high = template
+                self.time_vect_high = self.time_vect
                 plot_template = False
             else:
                 plot_template = True

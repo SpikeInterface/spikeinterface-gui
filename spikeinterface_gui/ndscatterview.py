@@ -488,20 +488,31 @@ class NDScatterView(ViewBase):
         self.scatter_fig.y_range.end = self.limit
 
     def _panel_on_spike_selection_changed(self):
+        import panel as pn
+
         # handle selection with lasso
         plotted_spike_indices = self.scatter_source.data.get("spike_indices", [])
         ind_selected, = np.nonzero(np.isin(plotted_spike_indices, self.controller.get_indices_spike_selected()))
-        self.scatter_source.selected.indices = ind_selected
+
+        def _do_update():
+            self.scatter_source.selected.indices = ind_selected
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_gain_zoom(self, event):
-        from bokeh.models import Range1d
+        import panel as pn
 
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.limit /= factor
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        limit = self.limit
+
+        def _do_update():
+            self.scatter_fig.x_range.start = -limit
+            self.scatter_fig.x_range.end = limit
+            self.scatter_fig.y_range.start = -limit
+            self.scatter_fig.y_range.end = limit
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_next_face(self, event):
         self.next_face()
@@ -522,11 +533,18 @@ class NDScatterView(ViewBase):
                 self.auto_update_limit = True
 
     def _panel_on_select_button(self, event):
-        if self.select_toggle_button.value:
-            self.scatter_fig.toolbar.active_drag = self.lasso_tool
-        else:
-            self.scatter_fig.toolbar.active_drag = None
-            self.scatter_source.selected.indices = []
+        import panel as pn
+
+        value = self.select_toggle_button.value
+
+        def _do_update():
+            if value:
+                self.scatter_fig.toolbar.active_drag = self.lasso_tool
+            else:
+                self.scatter_fig.toolbar.active_drag = None
+                self.scatter_source.selected.indices = []
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _on_panel_selection_geometry(self, event):
         """

@@ -9,10 +9,7 @@ from copy import deepcopy
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
@@ -345,7 +342,6 @@ class Controller():
         self.curation_callback = curation_callback
         self.curation_callback_kwargs = curation_callback_kwargs
 
-        # TODO: Reload the dictionary if it already exists
         if self.curation:
             # rules:
             #  * if user sends curation_data, then it is used
@@ -354,6 +350,7 @@ class Controller():
 
             if curation_data is not None:
                 # validate the curation data
+                curation_data = deepcopy(curation_data)
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
                 if format_version is None:
@@ -362,24 +359,6 @@ class Controller():
                     validate_curation_dict(curation_data)
                 except Exception as e:
                     raise ValueError(f"Invalid curation data.\nError: {e}")
-
-                if curation_data.get("merges") is None:
-                    curation_data["merges"] = []
-                else:
-                    # here we reset the merges for better formatting (str)
-                    existing_merges = curation_data["merges"]
-                    new_merges = []
-                    for m in existing_merges:
-                        if "unit_ids" not in m:
-                            continue
-                        if len(m["unit_ids"]) < 2:
-                            continue
-                        new_merges = add_merge(new_merges, m["unit_ids"])
-                    curation_data["merges"] = new_merges
-                if curation_data.get("splits") is None:
-                    curation_data["splits"] = []
-                if curation_data.get("removed") is None:
-                    curation_data["removed"] = []
 
             elif self.analyzer.format == "binary_folder":
                 json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
@@ -395,23 +374,26 @@ class Controller():
 
             if curation_data is None:
                 curation_data = deepcopy(empty_curation_data)
+                curation_data["unit_ids"] = self.unit_ids.tolist()
 
-            self.curation_data = curation_data
-
-            self.has_default_quality_labels = False
-            if "label_definitions" not in self.curation_data:
+            if "label_definitions" not in curation_data:
                 if label_definitions is not None:
-                    self.curation_data["label_definitions"] = label_definitions
+                    curation_data["label_definitions"] = label_definitions
                 else:
-                    self.curation_data["label_definitions"] = default_label_definitions.copy()
+                    curation_data["label_definitions"] = default_label_definitions.copy()
 
-            if "quality" in self.curation_data["label_definitions"]:
-                curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
+            # This will enable the default shortcuts if has default quality labels
+            self.has_default_quality_labels = False
+            if "quality" in curation_data["label_definitions"]:
+                curation_dict_quality_labels = curation_data["label_definitions"]["quality"]["label_options"]
                 default_quality_labels = default_label_definitions["quality"]["label_options"]
                 if set(curation_dict_quality_labels) == set(default_quality_labels):
                     if self.verbose:
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
+
+            curation_data = CurationModel(**curation_data).model_dump()
+            self.curation_data = curation_data
 
     def check_is_view_possible(self, view_name):
         from .viewlist import get_all_possible_views
@@ -854,7 +836,7 @@ class Controller():
         )
 
         return merge_unit_groups, extra
-    
+
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
