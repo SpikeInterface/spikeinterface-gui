@@ -941,14 +941,6 @@ class WaveformView(ViewBase):
         self._panel_refresh_spikes()
 
     def _panel_clear_scalebars(self):
-        # for line in self.scalebar_lines:
-        #     if line in self.figure_geom.renderers:
-        #         self.figure_geom.renderers.remove(line)
-        # self.scalebar_lines = []
-        # for label in self.scalebar_labels:
-        #     if label in self.figure_geom.center:
-        #         self.figure_geom.center.remove(label)
-        # self.scalebar_labels = []
         self.scalebar_labels_source.data = dict(x=[], y=[], text=[], text_color=[])
         self.scalebar_lines_source.data = dict(xs=[], ys=[], colors=[])
 

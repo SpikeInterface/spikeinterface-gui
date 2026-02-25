@@ -17,7 +17,7 @@ class BaseScatterView(ViewBase):
             {'name': 'display_high_percentiles', 'type': 'float', 'value' : 98.0, 'limits':(50, 100), 'step':0.5},
         ]
     _need_compute = False
-    
+
     def __init__(self, spike_data, y_label, controller=None, parent=None, backend="qt"):
         
         # compute data bounds
@@ -184,6 +184,9 @@ class BaseScatterView(ViewBase):
             if visible_unit_id in split_unit_ids:
                 self._current_selected = self.controller.get_indices_spike_selected().size
         self.refresh(set_scatter_range=True)
+
+    def on_spike_selection_changed(self):
+        self.refresh()
 
     def on_use_times_updated(self):
         self.refresh(set_scatter_range=True)

@@ -118,7 +118,6 @@ class SpikeListView(ViewBase):
         ]
     
     def __init__(self, controller=None, parent=None, backend="qt"):
-        self._updating_from_controller = False  # Add this guard
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
     def handle_selection(self, inds):
@@ -335,14 +334,12 @@ class SpikeListView(ViewBase):
             self.table.value = df
 
         selected_inds = self.controller.get_indices_spike_selected()
-        self._updating_from_controller = True
         if len(selected_inds) == 0:
             self.table.selection = []
         else:
             # Find the rows corresponding to the selected indices
             row_selected, = np.nonzero(np.isin(visible_inds, selected_inds))
             self.table.selection = [int(r) for r in row_selected]
-        self._updating_from_controller = False
             
         self._panel_refresh_label()
 
@@ -365,11 +362,6 @@ class SpikeListView(ViewBase):
         self.notify_active_view_updated()
 
     def _panel_on_user_selection_changed(self):
-
-        # Ignore if we're updating from controller
-        if self._updating_from_controller:
-            return
-
         selection = self.table.selection
         if len(selection) == 0:
             absolute_indices = []
@@ -395,9 +387,7 @@ class SpikeListView(ViewBase):
         def _do_update():
             # Clear the table when visibility changes
             self.table.value = pd.DataFrame(columns=_columns, data=[])
-            self._updating_from_controller = True
             self.table.selection = []
-            self._updating_from_controller = False
             self._panel_refresh_label()
 
         pn.state.execute(_do_update, schedule=True)
