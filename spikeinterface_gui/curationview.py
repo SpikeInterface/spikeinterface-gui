@@ -301,9 +301,6 @@ class CurationView(ViewBase):
 
         pn.extension("tabulator")
 
-        # Initialize listenet_pane as None
-        self.listener_pane = None
-
         # Create dataframe
         delete_df = pd.DataFrame({"removed": []})
         merge_df = pd.DataFrame({"merges": []})
