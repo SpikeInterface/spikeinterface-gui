@@ -785,7 +785,7 @@ class WaveformView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import WheelZoomTool, Range1d, ColumnDataSource
+        from bokeh.models import WheelZoomTool, Range1d, ColumnDataSource, LabelSet
         from bokeh.events import MouseWheel
 
         from .utils_panel import _bg_color, KeyboardShortcut, KeyboardShortcuts
@@ -867,8 +867,20 @@ class WaveformView(ViewBase):
         self.vlines_flatten_std = self.figure_std.multi_line('xs', 'ys', source=self.vlines_data_source_std,
                                                              line_color='colors', line_width=1, line_dash='dashed')
 
-        self.scalebar_lines = []
-        self.scalebar_labels = []
+        self.scalebar_lines_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.scalebar_lines = self.figure_geom.multi_line('xs', 'ys', source=self.scalebar_lines_source,
+                                                          line_color='white', line_width=3)
+        self.scalebar_labels_source = ColumnDataSource(data=dict(x=[], y=[], text=[], text_color=[], text_align=[],angle=[]))
+        self.scalebar_labels = LabelSet(
+                source=self.scalebar_labels_source,
+                x='x',
+                y='y',
+                text='text',
+                text_color='text_color',
+                text_align='center',
+                angle='angle'
+            )
+        self.figure_geom.add_layout(self.scalebar_labels)
 
         # instantiate sources and lines for waveforms samples
         self.lines_data_source_wfs_flatten = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
@@ -929,14 +941,16 @@ class WaveformView(ViewBase):
         self._panel_refresh_spikes()
 
     def _panel_clear_scalebars(self):
-        for line in self.scalebar_lines:
-            if line in self.figure_geom.renderers:
-                self.figure_geom.renderers.remove(line)
-        self.scalebar_lines = []
-        for label in self.scalebar_labels:
-            if label in self.figure_geom.center:
-                self.figure_geom.center.remove(label)
-        self.scalebar_labels = []
+        # for line in self.scalebar_lines:
+        #     if line in self.figure_geom.renderers:
+        #         self.figure_geom.renderers.remove(line)
+        # self.scalebar_lines = []
+        # for label in self.scalebar_labels:
+        #     if label in self.figure_geom.center:
+        #         self.figure_geom.center.remove(label)
+        # self.scalebar_labels = []
+        self.scalebar_labels_source.data = dict(x=[], y=[], text=[], text_color=[])
+        self.scalebar_lines_source.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_add_scalebars(self):
         from bokeh.models import Span, Label
@@ -968,49 +982,30 @@ class WaveformView(ViewBase):
         y_text_pos = y_start + y_text_offset
 
         # X scalebar (time)
+        scalebar_xs, scalebar_ys = [], []
+        scalebar_labels_xs, scalebar_labels_ys, scalebar_labels_angles, scalebar_labels_texts = [], [], [], []
         if self.settings["x_scalebar"]:
             # Create x scalebar using line method
-            x_line = self.figure_geom.line(
-                [scalebar_x_pos, scalebar_x_pos + scalebar_x_width],
-                [scalebar_y_pos, scalebar_y_pos],
-                line_color='white',
-                line_width=3
-            )
-            self.scalebar_lines.append(x_line)
-
-            # X scalebar label
-            x_label = Label(
-                x=scalebar_x_pos + scalebar_x_width / 4,
-                y=y_text_pos,
-                text=f"{scalebar_x_ms} ms",
-                text_color='white',
-                text_align='center',
-            )
-            self.figure_geom.add_layout(x_label)
-            self.scalebar_labels.append(x_label)
+            scalebar_xs.append([scalebar_x_pos, scalebar_x_pos + scalebar_x_width])
+            scalebar_ys.append([scalebar_y_pos, scalebar_y_pos])
+            scalebar_labels_xs.append(scalebar_x_pos + scalebar_x_width / 4)
+            scalebar_labels_ys.append(y_text_pos)
+            scalebar_labels_angles.append(0)
+            scalebar_labels_texts = [f"{scalebar_x_ms} ms"]
 
         if self.settings["y_scalebar"]:
             # Y scalebar (voltage)
             y_scalebar_length = scalebar_y_uv * self.gain_y * self.delta_y
-            y_line = self.figure_geom.line(
-                [scalebar_x_pos, scalebar_x_pos],
-                [scalebar_y_pos, scalebar_y_pos + y_scalebar_length],
-                line_color='white',
-                line_width=3
-            )
-            self.scalebar_lines.append(y_line)
-
-            # Y scalebar label
-            y_label = Label(
-                x=x_text_pos,
-                y=scalebar_y_pos + y_scalebar_length / 4,
-                text=f"{scalebar_y_uv} µV",
-                text_color='white',
-                angle=np.pi / 2,
-                text_align='center'
-            )
-            self.figure_geom.add_layout(y_label)
-            self.scalebar_labels.append(y_label)
+            scalebar_xs.append([scalebar_x_pos, scalebar_x_pos])
+            scalebar_ys.append([scalebar_y_pos, scalebar_y_pos + y_scalebar_length])
+            scalebar_labels_xs.append(x_text_pos)
+            scalebar_labels_ys.append(scalebar_y_pos + y_scalebar_length / 4)
+            scalebar_labels_angles.append(np.pi / 2)
+            scalebar_labels_texts.append(f"{scalebar_y_uv} µV")
+        self.scalebar_lines_source.data = dict(xs=scalebar_xs, ys=scalebar_ys, colors=["white"]*len(scalebar_xs))
+        self.scalebar_labels_source.data = dict(x=scalebar_labels_xs, y=scalebar_labels_ys, text=scalebar_labels_texts, 
+                                                text_color=['white']*len(scalebar_labels_texts),
+                                                text_align=["center"]*len(scalebar_labels_texts), angle=scalebar_labels_angles)
 
     def _panel_on_mode_changed(self, event):
 
