@@ -14,6 +14,7 @@ pn.extension("tabulator")
 from panel.param import param
 from panel.custom import ReactComponent
 from panel.widgets import Tabulator
+from panel.reactive import ReactiveHTML
 
 from bokeh.models import ColumnDataSource, Patches, HTMLTemplateFormatter
 
@@ -289,10 +290,10 @@ class SelectableTabulator(pn.viewable.Viewer):
         Arguments passed to the Tabulator constructor.
     parent_view: ViewBase | None
         The parent view that will be notified of selection changes.
-    refresh_table_function: Callable | None
+    on_selection_changed: Callable | None
         A function to call when the table a new selection is made via keyboard shortcuts.
     on_only_function: Callable | None
-        A function to call when the table a ctrl+selection is made via keyboard shortcuts or a double-click.
+        A function to call when a ctrl+selection is made via keyboard shortcuts or a double-click.
     conditional_shortcut: Callable | None
         A function that returns True if the shortcuts should be enabled, False otherwise.
     column_callbacks: dict[Callable] | None
@@ -304,7 +305,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         *args,
         skip_sort_columns: list[str] = [],
         parent_view: ViewBase | None = None,
-        refresh_table_function: Callable | None = None,
+        on_selection_changed: Callable | None = None,
         on_only_function: Callable | None = None,
         conditional_shortcut: Callable | None = None,
         column_callbacks: dict[str, Callable] | None = None,
@@ -313,6 +314,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._formatters = kwargs.get("formatters", {})
         self._editors = kwargs.get("editors", {})
         self._frozen_columns = kwargs.get("frozen_columns", [])
+        self._selectable = kwargs.get("selectable", True)
         if "sortable" in kwargs:
             self._sortable = kwargs.pop("sortable")
         else:
@@ -332,7 +334,7 @@ class SelectableTabulator(pn.viewable.Viewer):
 
         self.original_indices = self.value.index.values
         self._parent_view = parent_view
-        self._refresh_table_function = refresh_table_function
+        self._on_selection_changed = on_selection_changed
         self._on_only_function = on_only_function
         self._conditional_shortcut = conditional_shortcut if conditional_shortcut is not None else lambda: True
         self._column_callbacks = column_callbacks if column_callbacks is not None else {}
@@ -394,8 +396,9 @@ class SelectableTabulator(pn.viewable.Viewer):
 
     @selection.setter
     def selection(self, val):
-        if isinstance(self.tabulator.selectable, int):
-            max_selectable = self.tabulator.selectable
+        # Added this logic to prevent max selection with shift+click / arrows
+        if isinstance(self._selectable, int):
+            max_selectable = self._selectable
             if not isinstance(max_selectable, bool):
                 if len(val) > max_selectable:
                     val = val[-max_selectable:]
@@ -437,6 +440,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.tabulator.formatters = self._formatters
         self.tabulator.editors = self._editors
         self.tabulator.frozen_columns = self._frozen_columns
+        self.tabulator.selectable = self._selectable
         self.tabulator.sorters = []
 
     def refresh(self):
@@ -484,8 +488,8 @@ class SelectableTabulator(pn.viewable.Viewer):
         """
         Handle the selection change event. This is called when the selection is changed.
         """
-        if self._refresh_table_function is not None:
-            self._refresh_table_function()
+        if self._on_selection_changed is not None:
+            pn.state.execute(self._on_selection_changed, schedule=True)
 
     def _on_click(self, event):
         """
@@ -543,26 +547,18 @@ class SelectableTabulator(pn.viewable.Viewer):
             if event.data == "first":
                 first_row = 0
                 self.selection = [first_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = first_row
             elif event.data == "last":
                 last_row = len(self.value) - 1
                 self.selection = [last_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = last_row
             elif event.data == "next":
                 next_row = self._get_next_row()
                 self.selection = [next_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "previous":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = previous_row
             elif event.data == "next_only":
                 next_row = self._get_next_row()
@@ -571,16 +567,12 @@ class SelectableTabulator(pn.viewable.Viewer):
                 # self.notify_unit_visibility_changed()
                 if self._on_only_function is not None:
                     self._on_only_function()
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "previous_only":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
                 if self._on_only_function is not None:
                     self._on_only_function()
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = previous_row
             elif event.data == "append_next":
                 next_row = self._get_next_row()
@@ -591,8 +583,6 @@ class SelectableTabulator(pn.viewable.Viewer):
                 elif current_row in self.selection:
                     current_selection.remove(current_row)
                 self.selection = current_selection
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = next_row
             elif event.data == "append_previous":
                 previous_row = self._get_previous_row()
@@ -603,8 +593,6 @@ class SelectableTabulator(pn.viewable.Viewer):
                 elif current_row in self.selection:
                     current_selection.remove(current_row)
                 self.selection = current_selection
-                if self._refresh_table_function is not None:
-                    self._refresh_table_function()
                 self._last_selected_row = previous_row
 
 

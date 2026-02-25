@@ -316,6 +316,8 @@ class MixinViewTrace:
             self.notify_time_info_updated()
 
     def _panel_seek_with_selected_spike(self):
+        import panel as pn
+
         ind_selected = self.controller.get_indices_spike_selected()
         n_selected = ind_selected.size
 
@@ -340,8 +342,14 @@ class MixinViewTrace:
 
             # Center view on spike
             margin = self.xsize / 3
-            self.figure.x_range.start = peak_time - margin
-            self.figure.x_range.end = peak_time + 2 * margin
+            range_start = peak_time - margin
+            range_end = peak_time + 2 * margin
+
+            def _do_update():
+                self.figure.x_range.start = range_start
+                self.figure.x_range.end = range_end
+
+            pn.state.execute(_do_update, schedule=True)
 
             self._block_auto_refresh_and_notify = False
             self.refresh()

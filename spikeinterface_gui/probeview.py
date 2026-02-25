@@ -485,55 +485,84 @@ class ProbeView(ViewBase):
         )
 
     def _panel_refresh(self):
-        # Only update unit positions if they actually changed
+        import panel as pn
+
+        # Compute everything outside the scheduled callback
         current_unit_positions = self.controller.unit_positions
-        if not np.array_equal(current_unit_positions, self._unit_positions):
-            self._unit_positions = current_unit_positions
-            # Update positions in data source
-            self.glyphs_data_source.patch({
+        positions_changed = not np.array_equal(current_unit_positions, self._unit_positions)
+        show_channel_id = self.settings['show_channel_id']
+        auto_zoom = self.settings['auto_zoom_on_unit_selection']
+        radius_channel = self.settings['radius_channel']
+
+        selected_unit_indices = self.controller.get_visible_unit_indices()
+        visible_mask = self.controller.get_units_visibility_mask()
+
+        # Pre-compute unit glyph updates
+        glyph_patch_dict = self._panel_compute_unit_glyph_patches()
+
+        # Pre-compute position patches
+        position_patches = None
+        if positions_changed:
+            position_patches = {
                 'x': [(i, pos[0]) for i, pos in enumerate(current_unit_positions)],
                 'y': [(i, pos[1]) for i, pos in enumerate(current_unit_positions)]
-            })
+            }
 
-        # Update unit positions
-        self._panel_update_unit_glyphs()
+        # Pre-compute zoom bounds
+        zoom_bounds = None
+        if auto_zoom and sum(visible_mask) > 0:
+            visible_pos = self.controller.unit_positions[visible_mask, :]
+            x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
+            y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
+            margin = 50
+            zoom_bounds = (x_min - margin, x_max + margin, y_min - margin, y_max + margin)
 
-        # channel labels
-        for label in self.channel_labels:
-            label.visible = self.settings['show_channel_id']
-
-        # Update selection circles if only one unit is visible
-        selected_unit_indices = self.controller.get_visible_unit_indices()
+        # Pre-compute circle updates
+        circle_update = None
         if len(selected_unit_indices) == 1:
             unit_index = selected_unit_indices[0]
             unit_positions = self.controller.unit_positions
-            x, y = unit_positions[unit_index, 0], unit_positions[unit_index, 1]
-            # Update circles position
-            self.unit_circle.update_position(x, y)
+            cx, cy = unit_positions[unit_index, 0], unit_positions[unit_index, 1]
+            visible_channel_inds = self.update_channel_visibility(cx, cy, radius_channel)
+            circle_update = (cx, cy, visible_channel_inds)
 
-            self.channel_circle.update_position(x, y)
-            # Update channel visibility
-            visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
+        # def _do_update():
+        if positions_changed:
+            self._unit_positions = current_unit_positions
+            if position_patches:
+                self.glyphs_data_source.patch(position_patches)
+
+        # Update unit glyphs
+        if glyph_patch_dict:
+            self.glyphs_data_source.patch(glyph_patch_dict)
+
+        # Channel labels
+        for label in self.channel_labels:
+            label.visible = show_channel_id
+
+        # Update selection circles
+        if circle_update is not None:
+            cx, cy, visible_channel_inds = circle_update
+            self.unit_circle.update_position(cx, cy)
+            self.channel_circle.update_position(cx, cy)
             self.controller.set_channel_visibility(visible_channel_inds)
 
-        if self.settings['auto_zoom_on_unit_selection']:
-            visible_mask = self.controller.get_units_visibility_mask()
-            if sum(visible_mask) > 0:
-                visible_pos = self.controller.unit_positions[visible_mask, :]
-                x_min, x_max = np.min(visible_pos[:, 0]), np.max(visible_pos[:, 0])
-                y_min, y_max = np.min(visible_pos[:, 1]), np.max(visible_pos[:, 1])
-                margin = 50
-                self.x_range.start = x_min - margin
-                self.x_range.end = x_max + margin
-                self.y_range.start = y_min - margin
-                self.y_range.end = y_max + margin
+        # Auto zoom
+        if zoom_bounds is not None:
+            self.x_range.start = zoom_bounds[0]
+            self.x_range.end = zoom_bounds[1]
+            self.y_range.start = zoom_bounds[2]
+            self.y_range.end = zoom_bounds[3]
 
-    def _panel_update_unit_glyphs(self):
-        # Get current data from source
+        # Defer to avoid nested Bokeh callbacks
+        # pn.state.execute(_do_update, schedule=True)
+
+    def _panel_compute_unit_glyph_patches(self):
+        """Compute glyph patches without modifying Bokeh models."""
         current_alphas = self.glyphs_data_source.data['alpha']
         current_sizes = self.glyphs_data_source.data['size']
         current_line_colors = self.glyphs_data_source.data['line_color']
-        # Prepare patches (only for changed values)
+
         alpha_patches = []
         size_patches = []
         line_color_patches = []
@@ -542,12 +571,10 @@ class ProbeView(ViewBase):
             color = self.get_unit_color(unit_id)
             is_visible = self.controller.get_unit_visibility(unit_id)
 
-            # Compute new values
             new_alpha = self.alpha_selected if is_visible else self.alpha_unselected
             new_size = self.unit_marker_size_selected if is_visible else self.unit_marker_size_unselected
             new_line_color = "black" if is_visible else color
 
-            # Only patch if changed
             if current_alphas[idx] != new_alpha:
                 alpha_patches.append((idx, new_alpha))
             if current_sizes[idx] != new_size:
@@ -555,21 +582,32 @@ class ProbeView(ViewBase):
             if current_line_colors[idx] != new_line_color:
                 line_color_patches.append((idx, new_line_color))
 
-        # Apply patches if any changes detected
-        if len(alpha_patches) > 0 or len(size_patches) > 0 or len(line_color_patches) > 0:
-            patch_dict = {}
-            if alpha_patches:
-                patch_dict['alpha'] = alpha_patches
-            if size_patches:
-                patch_dict['size'] = size_patches
-            if line_color_patches:
-                patch_dict['line_color'] = line_color_patches
+        patch_dict = {}
+        if alpha_patches:
+            patch_dict['alpha'] = alpha_patches
+        if size_patches:
+            patch_dict['size'] = size_patches
+        if line_color_patches:
+            patch_dict['line_color'] = line_color_patches
 
-            self.glyphs_data_source.patch(patch_dict)
-            
+        return patch_dict
+
+    def _panel_update_unit_glyphs(self):
+        import panel as pn
+
+        patch_dict = self._panel_compute_unit_glyph_patches()
+        if patch_dict:
+            pn.state.execute(lambda: self.glyphs_data_source.patch(patch_dict), schedule=True)
+
     def _panel_on_pan_start(self, event):
-        self.figure.toolbar.active_drag = None
+        import panel as pn
+
         x, y = event.x, event.y
+
+        def _do_update():
+            self.figure.toolbar.active_drag = None
+
+        pn.state.execute(_do_update, schedule=True)
 
         if self.unit_circle.is_close_to_diamond(x, y):
             self.should_resize_unit_circle = [x, y]
@@ -654,6 +692,8 @@ class ProbeView(ViewBase):
 
 
     def _panel_on_tap(self, event):
+        import panel as pn
+
         x, y = event.x, event.y
         unit_positions = self.controller.unit_positions
         distances = np.sqrt(np.sum((unit_positions - np.array([x, y])) ** 2, axis=1))
@@ -683,16 +723,18 @@ class ProbeView(ViewBase):
 
             self._panel_update_unit_glyphs()
 
-            
             if select_only:
                 # Update selection circles
-                self.unit_circle.update_position(x, y)
-                self.channel_circle.update_position(x, y)
+                def _do_update():
+                    self.unit_circle.update_position(x, y)
+                    self.channel_circle.update_position(x, y)
+
+                pn.state.execute(_do_update, schedule=True)
 
                 # Update channel visibility
                 visible_channel_inds = self.update_channel_visibility(x, y, self.settings['radius_channel'])
                 self.controller.set_channel_visibility(visible_channel_inds)
-                self.notify_channel_visibility_changed
+                self.notify_channel_visibility_changed()
             self.notify_unit_visibility_changed()
 
 

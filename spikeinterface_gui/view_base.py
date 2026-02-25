@@ -125,7 +125,8 @@ class ViewBase:
         if self.backend == "qt":
             self._qt_refresh(**kwargs)
         elif self.backend == "panel":
-            self._panel_refresh(**kwargs)
+            import panel as pn
+            pn.state.execute(lambda: self._panel_refresh(**kwargs), schedule=True)
 
     def warning(self, warning_msg):
         if self.backend == "qt":

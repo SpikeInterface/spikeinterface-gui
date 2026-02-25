@@ -310,15 +310,30 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._panel_seek_with_selected_spike()
 
     def _panel_gain_zoom(self, event):
+        import panel as pn
+
         factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
-        self.color_mapper.high = self.color_mapper.high * factor_ratio
-        self.color_mapper.low = -self.color_mapper.high
+        new_high = self.color_mapper.high * factor_ratio
+        new_low = -new_high
+
+        def _do_update():
+            self.color_mapper.high = new_high
+            self.color_mapper.low = new_low
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_auto_scale(self, event):
+        import panel as pn
+
         if self.last_data_curves is not None:
             self.color_limit = np.max(np.abs(self.last_data_curves))
-            self.color_mapper.high = self.color_limit
-            self.color_mapper.low = -self.color_limit
+            color_limit = self.color_limit
+
+            def _do_update():
+                self.color_mapper.high = color_limit
+                self.color_mapper.low = -color_limit
+
+            pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
