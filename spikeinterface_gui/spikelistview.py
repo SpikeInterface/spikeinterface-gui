@@ -273,11 +273,9 @@ class SpikeListView(ViewBase):
             pagination=None,
             # SelectableTabulator functions
             parent_view=self,
-            refresh_table_function=None,
+            on_selection_changed=self._panel_on_user_selection_changed,
             conditional_shortcut=self.is_view_active,
         )
-        # Add selection event handler
-        self.table.param.watch(self._panel_on_user_selection_changed, "selection")
 
         self.refresh_button = pn.widgets.Button(name="↻ spikes", button_type="default", sizing_mode="stretch_width")
         self.refresh_button.on_click(self._panel_on_refresh_click)
@@ -366,13 +364,13 @@ class SpikeListView(ViewBase):
         self.notify_spike_selection_changed()
         self.notify_active_view_updated()
 
-    def _panel_on_user_selection_changed(self, event=None):
+    def _panel_on_user_selection_changed(self):
 
         # Ignore if we're updating from controller
         if self._updating_from_controller:
             return
 
-        selection = event.new if event else self.table.selection
+        selection = self.table.selection
         if len(selection) == 0:
             absolute_indices = []
         else:

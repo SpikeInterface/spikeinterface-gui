@@ -524,7 +524,6 @@ class UnitListView(ViewBase):
             # SelectableTabulator functions
             skip_sort_columns=["unit_id"],
             parent_view=self,
-            refresh_table_function=self.refresh,
             conditional_shortcut=self.is_view_active,
             on_only_function=self._panel_on_only_selection,
             column_callbacks={"visible": self._panel_on_visible_checkbox_toggled},

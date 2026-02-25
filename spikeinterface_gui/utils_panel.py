@@ -290,7 +290,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         Arguments passed to the Tabulator constructor.
     parent_view: ViewBase | None
         The parent view that will be notified of selection changes.
-    refresh_table_function: Callable | None
+    on_selection_changed: Callable | None
         A function to call when the table a new selection is made via keyboard shortcuts.
     on_only_function: Callable | None
         A function to call when a ctrl+selection is made via keyboard shortcuts or a double-click.
@@ -305,7 +305,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         *args,
         skip_sort_columns: list[str] = [],
         parent_view: ViewBase | None = None,
-        refresh_table_function: Callable | None = None,
+        on_selection_changed: Callable | None = None,
         on_only_function: Callable | None = None,
         conditional_shortcut: Callable | None = None,
         column_callbacks: dict[str, Callable] | None = None,
@@ -334,7 +334,7 @@ class SelectableTabulator(pn.viewable.Viewer):
 
         self.original_indices = self.value.index.values
         self._parent_view = parent_view
-        self._refresh_table_function = refresh_table_function
+        self._on_selection_changed = on_selection_changed
         self._on_only_function = on_only_function
         self._conditional_shortcut = conditional_shortcut if conditional_shortcut is not None else lambda: True
         self._column_callbacks = column_callbacks if column_callbacks is not None else {}
@@ -488,8 +488,8 @@ class SelectableTabulator(pn.viewable.Viewer):
         """
         Handle the selection change event. This is called when the selection is changed.
         """
-        if self._refresh_table_function is not None:
-            pn.state.execute(self._refresh_table_function, schedule=True)
+        if self._on_selection_changed is not None:
+            pn.state.execute(self._on_selection_changed, schedule=True)
 
     def _on_click(self, event):
         """

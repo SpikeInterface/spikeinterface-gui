@@ -320,6 +320,7 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
+            on_selection_changed=self._panel_on_table_selection_changed,
             conditional_shortcut=self._conditional_refresh_delete,
             column_callbacks={"removed": self._panel_on_deleted_col},
         )
@@ -333,6 +334,7 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
+            on_selection_changed=self._panel_on_table_selection_changed,
             conditional_shortcut=self._conditional_refresh_merge,
             column_callbacks={"merges": self._panel_on_merged_col},
         )
@@ -346,14 +348,10 @@ class CurationView(ViewBase):
             sizing_mode="stretch_width",
             # SelectableTabulator functions
             parent_view=self,
+            on_selection_changed=self._panel_on_table_selection_changed,
             conditional_shortcut=self._conditional_refresh_split,
             column_callbacks={"splits": self._panel_on_split_col},
         )
-
-        # Watch selection changes instead of calling from column callbacks
-        self.table_delete.param.watch(self._panel_on_table_selection_changed, "selection")
-        self.table_merge.param.watch(self._panel_on_table_selection_changed, "selection")
-        self.table_split.param.watch(self._panel_on_table_selection_changed, "selection")
 
         # Create buttons
         buttons_row = []
@@ -646,7 +644,7 @@ class CurationView(ViewBase):
     def _panel_on_split_col(self, row):
         self.active_table = "split"
 
-    def _panel_on_table_selection_changed(self, event):
+    def _panel_on_table_selection_changed(self):
         """
         Unified handler for all table selection changes.
         Determines which table was changed and updates visibility accordingly.
