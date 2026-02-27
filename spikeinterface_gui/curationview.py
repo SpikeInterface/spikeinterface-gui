@@ -363,16 +363,18 @@ class CurationView(ViewBase):
         )
         save_button.on_click(save_button_callback)
 
-        self.download_button = pn.widgets.FileDownload(
+        download_button = pn.widgets.FileDownload(
             button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
         )
-        buttons_row.append(self.download_button)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary", height=30)
         restore_button.on_click(self._panel_restore_units)
 
         remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary", height=30)
         remove_merge_button.on_click(self._panel_unmerge)
+
+        remove_split_button = pn.widgets.Button(name="Unsplit", button_type="primary", height=30)
+        remove_split_button.on_click(self._panel_unsplit)
 
         # Create layout
         buttons_save = pn.Row(
@@ -388,7 +390,7 @@ class CurationView(ViewBase):
         buttons_curate = pn.Row(
             restore_button,
             remove_merge_button,
-            remove_split,
+            remove_split_button,
             sizing_mode="stretch_width",
         )
 
@@ -404,7 +406,7 @@ class CurationView(ViewBase):
         # Create main layout with proper sizing
         sections = pn.Row(self.table_delete, self.table_merge, self.table_split, sizing_mode="stretch_width")
         self.layout = pn.Column(
-            self.buttons_save, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
+            save_sections, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
         )
 
     def _panel_refresh(self):
@@ -454,7 +456,7 @@ class CurationView(ViewBase):
         import panel as pn
 
         alert_markdown = pn.pane.Markdown(
-            f"""⚠️⚠️⚠️ Your curation is not saved""",
+            f"""⚠️ Your curation is not saved!""",
             hard_line_break=True,
             styles={"color": "red", "font-size": "16px"},
             name="curation_save_warning",
