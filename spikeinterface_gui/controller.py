@@ -47,6 +47,8 @@ class Controller():
         skip_extensions=None,
         disable_save_settings_button=False,
         external_data=None,
+        curation_callback=None,
+        curation_callback_kwargs=None,
         user_main_settings=None,
     ):
         self.views = []
@@ -337,6 +339,9 @@ class Controller():
         self.update_time_info()
 
         self.curation = curation
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
+
         if self.curation:
             # rules:
             #  * if user sends curation_data, then it is used
@@ -843,6 +848,23 @@ class Controller():
         model = CurationModel(**d)
         return model
 
+    def set_curation_data(self, curation_data):
+        print("Setting curation data")
+        new_curation_data = empty_curation_data.copy()
+        new_curation_data.update(curation_data)
+
+        if "unit_ids" not in curation_data:
+            print("Setting unit_ids from controller")
+            new_curation_data["unit_ids"] = self.unit_ids.tolist()
+
+        if "label_definitions" not in curation_data:
+            print("Setting default label definitions")
+            new_curation_data["label_definitions"] = default_label_definitions.copy()
+
+        # validate the curation data
+        model = CurationModel(**new_curation_data)
+        self.curation_data = model.model_dump()
+
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
             print("Analyzer is an in-memory object. Cannot save curation file in it.")
@@ -864,6 +886,16 @@ class Controller():
             curation_model = self.construct_final_curation()
             sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
+
+    def save_curation_callback(self):
+        curation = self.construct_final_curation()
+        curation_data = curation.model_dump()
+        if self.curation_callback_kwargs is None:
+            curation_callback_kwargs = {}
+        else:
+            curation_callback_kwargs = self.curation_callback_kwargs
+        self.curation_callback(curation_data, **curation_callback_kwargs)
+        self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:

@@ -418,6 +418,29 @@ class PanelMainWindow:
                     tabs.stylesheets = []
 
 
+    def set_external_curation(self, curation_data):
+        """Set external curation to controlled and triggers curation and unitlist refresh
+
+        Parameters
+        ----------
+        curation_data : dict
+            The external curation data to be set.
+        """
+        if "curation" not in self.views:
+            return
+
+        curation_view = self.views["curation"]
+        self.controller.set_curation_data(curation_data)
+        self.controller.current_curation_saved = True
+        curation_view.notify_manual_curation_updated()
+        curation_view.refresh()
+
+        # we also need to refresh the unit list view to update the unit visibility according to the new curation
+        if "unitlist" in self.views:
+            unitlist_view = self.views["unitlist"]
+            unitlist_view.update_manual_labels()
+
+
 def get_local_ip():
     """
     Get the local IP address of the machine.

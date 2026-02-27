@@ -26,6 +26,12 @@ class UnitListView(ViewBase):
         elif self.backend == 'panel':
             return self._panel_get_selected_unit_ids()
 
+    def update_manual_labels(self):
+        if self.backend == 'qt':
+            self._qt_full_table_refresh()
+        elif self.backend == 'panel':
+            self._panel_update_labels()
+
     ## Qt ##
     def _qt_make_layout(self):
         
@@ -709,6 +715,17 @@ class UnitListView(ViewBase):
             self.controller.set_label_to_unit(unit_id, column, new_label)
             self.notify_manual_curation_updated()
         self.notifier.notify_active_view_updated()
+
+    def _panel_update_labels(self):
+        # this is called after a label change to update the table values
+        for col in self.label_definitions:
+            for row in range(len(self.table.value)):
+                unit_id = self.table.value.index[row]
+                label_value = self.controller.get_unit_label(unit_id, col)
+                if label_value is None:
+                    label_value = ""
+                self.table.value.at[unit_id, col] = label_value
+        self.refresh()
 
     def _panel_on_only_selection(self):
         selected_unit = self.table.selection[0]
