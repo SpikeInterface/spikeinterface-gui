@@ -326,12 +326,6 @@ class Controller():
         self._traces_cached = {}
 
         self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
-        # add num_chan column as first column
-        num_chan = np.sum(self.get_sparsity_mask(), axis=1)
-        self.units_table.loc[:, 'num_chan'] = num_chan
-        cols = self.units_table.columns.tolist()
-        cols = ['num_chan'] + [c for c in cols if c != 'num_chan']
-        self.units_table = self.units_table[cols]
 
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
