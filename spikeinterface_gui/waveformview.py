@@ -939,7 +939,7 @@ class WaveformView(ViewBase):
         self.scalebar_labels = []
 
     def _panel_add_scalebars(self):
-        from bokeh.models import Span, Label
+        from bokeh.models import Label
 
         if not self.settings["x_scalebar"] and not self.settings["y_scalebar"]:
             return
