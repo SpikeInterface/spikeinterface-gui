@@ -554,26 +554,29 @@ class ProbeView(ViewBase):
             self.y_range.start = zoom_bounds[2]
             self.y_range.end = zoom_bounds[3]
 
-        # Defer to avoid nested Bokeh callbacks
-        # pn.state.execute(_do_update, schedule=True)
 
     def _panel_compute_unit_glyph_patches(self):
         """Compute glyph patches without modifying Bokeh models."""
         current_alphas = self.glyphs_data_source.data['alpha']
         current_sizes = self.glyphs_data_source.data['size']
         current_line_colors = self.glyphs_data_source.data['line_color']
+        current_colors = self.glyphs_data_source.data['color']
 
         alpha_patches = []
         size_patches = []
         line_color_patches = []
+        color_patches = []
+
+        if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
+            self.controller.refresh_colors()
 
         for idx, unit_id in enumerate(self.controller.unit_ids):
-            color = self.get_unit_color(unit_id)
+            new_color = self.get_unit_color(unit_id)
             is_visible = self.controller.get_unit_visibility(unit_id)
 
             new_alpha = self.alpha_selected if is_visible else self.alpha_unselected
             new_size = self.unit_marker_size_selected if is_visible else self.unit_marker_size_unselected
-            new_line_color = "black" if is_visible else color
+            new_line_color = "black" if is_visible else new_color
 
             if current_alphas[idx] != new_alpha:
                 alpha_patches.append((idx, new_alpha))
@@ -581,6 +584,8 @@ class ProbeView(ViewBase):
                 size_patches.append((idx, new_size))
             if current_line_colors[idx] != new_line_color:
                 line_color_patches.append((idx, new_line_color))
+            if current_colors[idx] != new_color:
+                color_patches.append((idx, new_color))
 
         patch_dict = {}
         if alpha_patches:
@@ -589,6 +594,8 @@ class ProbeView(ViewBase):
             patch_dict['size'] = size_patches
         if line_color_patches:
             patch_dict['line_color'] = line_color_patches
+        if color_patches:
+            patch_dict['color'] = color_patches
 
         return patch_dict
 
