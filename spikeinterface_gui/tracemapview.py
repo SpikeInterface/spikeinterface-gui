@@ -27,7 +27,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         channel_groups = controller.get_channel_groups()
         self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], channel_groups))
         self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
-        if len(channel_groups) > 1:
+        if len(np.unique(channel_groups)) > 1:
             self.chan_group_offsets, = np.nonzero(np.diff(np.sort(channel_groups)))
             self.chan_group_offsets = self.chan_group_offsets + 1
         else:
