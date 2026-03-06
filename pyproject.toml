@@ -16,7 +16,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "spikeinterface[full]>=0.103.0",
+    "spikeinterface[full]>=0.104.0",
     "markdown"
 ]
 
