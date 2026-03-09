@@ -100,7 +100,7 @@ class MixinViewTrace:
         return times_chunk, data_curves, scatter_x, scatter_y, scatter_colors
 
     ## Qt ##
-    def _qt_create_toolbar(self):
+    def _qt_create_toolbars(self):
         from .myqt import QT
         import pyqtgraph as pg
         from .utils_qt import TimeSeeker, add_stretch_to_qtoolbar
@@ -134,15 +134,12 @@ class MixinViewTrace:
 
         tb.addWidget(but)
 
-    def _qt_create_bottom_toolbar(self):
-        from .myqt import QT
-
         self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
         if self.controller.has_extension("events"):
             bottom_layout = QT.QHBoxLayout()
-            # bottom_layout.addStretch()  # Push button to the right
-            bottom_layout.addWidget(self.scroll_time)
+            bottom_layout.addWidget(self.scroll_time, stretch=8)
+            bottom_layout.addStretch()  # Push button to the right
 
             event_layout = QT.QHBoxLayout()
             event_keys = list(self.controller.events.keys())
@@ -150,20 +147,25 @@ class MixinViewTrace:
                 self.event_type_combo = QT.QComboBox()
                 self.event_type_combo.addItems(event_keys)
                 self.event_type_combo.currentIndexChanged.connect(self._qt_on_event_type_changed)
+<<<<<<< HEAD
                 event_layout.addWidget(QT.QLabel("Event:"))
                 event_layout.addWidget(self.event_type_combo)
                 self.event_key = event_keys[0]
+=======
+                event_layout.addWidget(QT.QLabel("Event:"), stretch=2)
+                event_layout.addWidget(self.event_type_combo, stretch=3)
+>>>>>>> 02f80a61baad3b22a6ac368ba700383d93494235
             else:
                 self.event_key = event_keys[0]
 
             self.prev_event_button = QT.QPushButton("◀")
             self.next_event_button = QT.QPushButton("▶")
-            self.prev_event_button.setMaximumWidth(40)
-            self.next_event_button.setMaximumWidth(40)
+            self.prev_event_button.setMaximumWidth(30)
+            self.next_event_button.setMaximumWidth(30)
             self.next_event_button.clicked.connect(self._qt_on_next_event)
             self.prev_event_button.clicked.connect(self._qt_on_prev_event)
-            event_layout.addWidget(self.prev_event_button)
-            event_layout.addWidget(self.next_event_button)
+            event_layout.addWidget(self.prev_event_button, stretch=1)
+            event_layout.addWidget(self.next_event_button, stretch=1)
 
             # Wrap event_layout in a QWidget
             event_widget = QT.QWidget()
@@ -289,6 +291,10 @@ class MixinViewTrace:
 
             self.notify_spike_selection_changed()
             self._qt_seek_with_selected_spike()
+            # change selected unit
+            unit_id = self.controller.unit_ids[self.controller.spikes[ind_spike_nearest]["unit_index"]]
+            self.controller.set_visible_unit_ids([unit_id])
+            self.notify_unit_visibility_changed()
 
     def _qt_on_event_type_changed(self):
         self.event_key = self.event_type_combo.currentText()
@@ -340,7 +346,7 @@ class MixinViewTrace:
             self.notify_time_info_updated()
 
     ## panel ##
-    def _panel_create_toolbar(self):
+    def _panel_create_toolbars(self):
         import panel as pn
 
         segment_index = self.controller.get_time()[1]
@@ -383,6 +389,7 @@ class MixinViewTrace:
                                                   value_throttled=0, sizing_mode="stretch_width")
         self.time_slider.param.watch(self._panel_on_time_slider_changed, "value_throttled")
 
+        bottom_bar_items = [self.time_slider]
         if self.controller.has_extension("events"):
             self.event_line = None
             if self.controller.has_extension("events"):
@@ -408,12 +415,11 @@ class MixinViewTrace:
 
             self.prev_event_button.on_click(self._panel_on_prev_event)
             self.next_event_button.on_click(self._panel_on_next_event)
-            row_items = [self.time_slider, self.prev_event_button, self.next_event_button]
+            bottom_bar_items.extend([self.prev_event_button, self.next_event_button])
             if self.event_selector is not None:
-                row_items.append(self.event_selector)
-            return pn.Row(*row_items, sizing_mode="stretch_width")
-        else:
-            return self.time_slider
+                bottom_bar_items.append(self.event_selector)
+        return pn.Row(*bottom_bar_items, sizing_mode="stretch_width")
+       
 
     def _panel_on_segment_changed(self, event):
         segment_index = int(event.new.split()[-1])
@@ -532,6 +538,49 @@ class MixinViewTrace:
             self.controller.set_indices_spike_selected([ind_spike_nearest])
             self._panel_seek_with_selected_spike()
             self.notify_spike_selection_changed()
+            # change selected unit
+            unit_id = self.controller.unit_ids[self.controller.spikes[ind_spike_nearest]["unit_index"]]
+            self.controller.set_visible_unit_ids([unit_id])
+            self.notify_unit_visibility_changed()
+
+    def _panel_on_event_type_changed(self, event):
+        self.event_key = event.new
+        self.refresh()
+
+    def _panel_on_next_event(self, event):
+        current_sample = self.controller.time_to_sample_index(self.controller.get_time()[0])
+        event_samples = self.controller.get_events(self.event_key)
+        next_events = event_samples[event_samples > current_sample]
+        if next_events.size > 0:
+            next_evt_sample = next_events[0]
+            evt_time = self.controller.sample_index_to_time(next_evt_sample)
+            self.controller.set_time(time=evt_time)
+            self.time_slider.value = evt_time
+            self._panel_refresh()
+            self._panel_add_event_line()
+
+    def _panel_on_prev_event(self, event):
+        current_sample = self.controller.time_to_sample_index(self.controller.get_time()[0])
+        event_samples = self.controller.get_events(self.event_key)
+        prev_events = event_samples[event_samples < current_sample]
+        if prev_events.size > 0:
+            prev_evt_sample = prev_events[-1]
+            evt_time = self.controller.sample_index_to_time(prev_evt_sample)
+            self.controller.set_time(time=evt_time)
+            self.time_slider.value = evt_time
+            self._panel_refresh()
+            self._panel_add_event_line()
+
+    def _panel_add_event_line(self):
+        # Add vertical line at event time
+        evt_time = self.controller.get_time()[0]
+        # get yspan from self.figure
+        fig = self.figure
+        yspan = [fig.y_range.start, fig.y_range.end]
+        self.event_source.data = dict(x=[evt_time, evt_time], y=yspan)
+
+    def _panel_remove_event_line(self):
+        self.event_source.data = dict(x=[], y=[])
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -619,7 +668,7 @@ class TraceView(ViewBase, MixinViewTrace):
         self.layout = QT.QVBoxLayout()
         # self.setLayout(self.layout)
         
-        self._qt_create_toolbar()
+        self._qt_create_toolbars()
 
         # create graphic view and 2 scroll bar
         # g = QT.QGridLayout()
@@ -632,8 +681,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-
-        self._qt_create_bottom_toolbar()
         self.layout.addWidget(self.bottom_toolbar)
         self._qt_update_scroll_limits()
 
@@ -780,6 +827,11 @@ class TraceView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
+        self.event_source = ColumnDataSource({"x": [], "y": []})
+        self.event_renderer = self.figure.line(
+            x="x", y="y", source=self.event_source, line_color="yellow", line_width=2, line_dash='dashed'
+        )
+
         self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         self.toolbar = self._panel_create_toolbar()
@@ -795,6 +847,7 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
+        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
