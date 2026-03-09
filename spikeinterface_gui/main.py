@@ -13,7 +13,7 @@ from spikeinterface_gui.layout_presets import get_layout_description
 
 import spikeinterface_gui
 from spikeinterface_gui.controller import Controller
-from spikeinterface_gui.viewlist import possible_class_views
+from spikeinterface_gui.viewlist import get_all_possible_views
 
 def run_mainwindow(
     analyzer: SortingAnalyzer,
@@ -37,6 +37,7 @@ def run_mainwindow(
     verbose: bool = False,
     user_settings: dict | None = None,
     disable_save_settings_button: bool = False,
+    external_data: dict | None = None,
 ):
     """
     Create the main window and start the QT app loop.
@@ -96,6 +97,9 @@ def run_mainwindow(
         A dictionary of user settings for each view, which overwrite the default settings.
     disable_save_settings_button: bool, default: False
         If True, disables the "save default settings" button, so that user cannot do this.
+    external_data: object, default: None
+        Whatever is passed to `external_data` is attached to the controller as the attribute
+        `external_data`. Useful for custom views.
     """
 
     if mode == "desktop":
@@ -109,6 +113,10 @@ def run_mainwindow(
     #   1) User specified settings
     #   2) Settings in the config folder
     #   3) Default settings of each view 
+    user_main_settings = None
+    if user_settings is not None:
+        user_main_settings = user_settings.get('mainsettings')
+
     if user_settings is None:
         sigui_version = spikeinterface_gui.__version__
         config_version_folder = get_config_folder() / sigui_version
@@ -133,15 +141,20 @@ def run_mainwindow(
         skip_extensions = find_skippable_extensions(layout_dict)
 
     controller = Controller(
-        analyzer, backend=backend, verbose=verbose,
-        curation=curation, curation_data=curation_dict,
+        analyzer,
+        backend=backend,
+        verbose=verbose,
+        curation=curation,
+        curation_data=curation_dict,
         label_definitions=label_definitions,
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
         disable_save_settings_button=disable_save_settings_button,
-        events=events
+        events=events,
+        external_data=external_data,
+        user_main_settings=user_main_settings
     )
     if verbose:
         t1 = time.perf_counter()
@@ -298,6 +311,7 @@ def run_mainwindow_cli():
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
     parser.add_argument('--recording-base-folder', help='Base folder path for the recording (if .json/.pkl)', default=None)
     parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
+    parser.add_argument('--skip_extensions', help='Choose which extensions not to load, comma separated (e.g. waveforms,principal_components)', default=None)
     parser.add_argument('--port', help='Port for web mode', default=0, type=int)
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
@@ -357,12 +371,16 @@ def run_mainwindow_cli():
 
         disable_save_settings_button = args.disable_save_settings_button
 
+        skip_extensions_string = args.skip_extensions
+        skip_extensions_list = skip_extensions_string.split(',') if skip_extensions_string else None        
+
         run_mainwindow(
             analyzer,
             mode=args.mode,
             with_traces=not(args.no_traces),
             curation=args.curation,
             recording=recording,
+            skip_extensions=skip_extensions_list,
             verbose=args.verbose,
             layout=args.layout_file,
             curation_dict=curation_data,
@@ -376,7 +394,7 @@ def find_skippable_extensions(layout_dict):
     wants to load. Does this by taking all possible extensions, then removing any which are
     needed by a view.
     """
-    
+    possible_class_views = get_all_possible_views()
     all_extensions = set(get_available_analyzer_extensions())
 
     view_per_zone = list(layout_dict.values())

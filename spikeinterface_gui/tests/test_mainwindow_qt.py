@@ -35,11 +35,15 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, from_si_api=False):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False):
 
 
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
+
+    tm = analyzer.get_extension("template_metrics").get_data().iloc[0, :]
+    # print(tm)
+    # return
 
     print(analyzer)
 
@@ -64,6 +68,18 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         yip=np.array([f"yip{i}" for i in range(n)]),
     )
 
+    events_dict = None
+    if events:
+        events_dict = {"event1": {"samples": []}, "event2": {"samples": []}}
+        for segment_index in range(analyzer.get_num_segments()):
+            events_dict["event1"]["samples"].append(
+                np.random.choice(np.arange(analyzer.get_num_samples(segment_index)), 30)
+            )
+            events_dict["event2"]["samples"].append(
+                np.random.choice(np.arange(analyzer.get_num_samples(segment_index)), 50)
+            )
+        
+
     for segment_index in range(analyzer.get_num_segments()):
         shift = (segment_index + 1) * 100
         # add a gap to times
@@ -85,6 +101,8 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
         layout_preset='default',
+        events=events_dict
+        # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
 
 
@@ -117,17 +135,19 @@ def test_launcher(verbose=True):
 
 parser = ArgumentParser()
 parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
+parser.add_argument('--events', action="store_true", help='Simulate and add events')
 
 if __name__ == '__main__':
     args = parser.parse_args()
     dataset = args.dataset
     global test_folder
     if dataset is not None:
-        test_folder = Path(dataset).parent / f"my_dataset_{dataset}"
+        test_folder = Path(__file__).parents[2] / f"my_dataset_{dataset}"
+    
     if not test_folder.is_dir():
         setup_module()
 
-    win = test_mainwindow(start_app=True, verbose=True, curation=True)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events)
     # win = test_mainwindow(start_app=True, verbose=True, curation=False)
 
     # test_launcher(verbose=True)

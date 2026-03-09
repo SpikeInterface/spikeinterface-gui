@@ -2,6 +2,7 @@ import numpy as np
 from .view_base import ViewBase
 
 class EventView(ViewBase):
+    id = "event"
     _supported_backend = ['qt', 'panel']
     _depend_on = ["events"]
     _settings = [

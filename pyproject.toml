@@ -41,6 +41,8 @@ package-dir = {"spikeinterface_gui" = "spikeinterface_gui"}
 [project.scripts]
 sigui = "spikeinterface_gui.main:run_mainwindow_cli"
 
+[project.entry-points."spikeinterface_gui.views"]
+
 [project.optional-dependencies]
 
 desktop = [

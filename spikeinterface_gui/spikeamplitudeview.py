@@ -5,6 +5,7 @@ from .basescatterview import BaseScatterView
 
 
 class SpikeAmplitudeView(BaseScatterView):
+    id = "spikeamplitude"
     _depend_on = ["spike_amplitudes"]
     _settings = BaseScatterView._settings + [
         {"name": "noise_level", "type": "bool", "value": True},
@@ -31,13 +32,9 @@ class SpikeAmplitudeView(BaseScatterView):
         self.noise_harea = []
         if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             self._qt_add_noise_area()
-        # add split shortcut, so that it's not duplicated
-        shortcut_split = QT.QShortcut(self.qt_widget)
-        shortcut_split.setKey(QT.QKeySequence("ctrl+s"))
-        shortcut_split.activated.connect(self.split)
 
-    def _qt_refresh(self):
-        super()._qt_refresh()
+    def _qt_refresh(self, **kwargs):
+        super()._qt_refresh(**kwargs)
         # average noise across channels
         if self.settings["noise_level"] and self.controller.has_extension("noise_levels"):
             self._qt_add_noise_area()
@@ -111,7 +108,7 @@ class SpikeAmplitudeView(BaseScatterView):
         self.noise_sources = []
         self.noise_hareas = []
 
-    def _panel_refresh(self):
+    def _panel_refresh(self, **kwargs):
         # Toggle visibility and update data if needed
         if self.settings["noise_level"]:
             if len(self.noise_hareas) != self.settings["noise_factor"]:
@@ -129,7 +126,7 @@ class SpikeAmplitudeView(BaseScatterView):
             for harea in self.noise_hareas:
                 harea.visible = False
 
-        super()._panel_refresh()
+        super()._panel_refresh(**kwargs)
 
     def _panel_update_noise_areas(self):
         if self.controller.noise_levels is None or len(self.noise_hareas) == 0:

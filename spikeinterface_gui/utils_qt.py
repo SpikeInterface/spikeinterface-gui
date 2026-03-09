@@ -608,7 +608,23 @@ def find_category(categories, category):
     return None
 
 
+def qt_shortcut_is_setup(shortcut):
+    """
+    Checks the application to see if `shortcut`, e.g. "Ctrl+S", has already
+    been set by a widget.
+    """
+    from .myqt import QT
 
+    # Access the running application instance
+    app = QT.QApplication.instance()
+
+    # Loop through every top-level window (e.g., MainWindows, Dialogs)
+    for widget in app.allWidgets():
+        for sc in widget.findChildren(QT.QShortcut):
+            if sc.key().toString() == shortcut:
+                return True
+
+    return False
 
 
 if __name__=='__main__':

@@ -11,9 +11,11 @@ _wheel_refresh_time = 0.1
 
 
 class WaveformView(ViewBase):
+    id = "waveform"
     _supported_backend = ["qt", "panel"]
 
     _settings = [
+        {'name': 'mode', 'type': 'list', 'value' : 'geometry', 'limits': ['geometry', 'flatten']},
         {"name": "overlap", "type": "bool", "value": True},
         {
             "name": "plot_selected_spike",
@@ -48,17 +50,20 @@ class WaveformView(ViewBase):
         ypos = self.contact_location[:,1]
 
         # copied directly from spikeinterface.widgets.unit_waveform
-        manh = np.abs(
-            self.contact_location[None, :] - self.contact_location[:, None]
-        )  # vertical and horizontal distances between each channel
-        eucl = np.linalg.norm(manh, axis=2)  # Euclidean distance matrix
-        np.fill_diagonal(eucl, np.inf)  # the distance of a channel to itself is not considered
-        gaus = np.exp(-0.5 * (eucl / eucl.min()) ** 2)  # sigma uses the min distance between channels
-        weight = manh[..., 0] / eucl * gaus
-        if weight.sum() == 0:
+        if num_chan == 1:
             self.delta_x = 10
         else:
-            self.delta_x = (manh[..., 0] * weight).sum() / weight.sum()
+            manh = np.abs(
+                self.contact_location[None, :] - self.contact_location[:, None]
+            )  # vertical and horizontal distances between each channel
+            eucl = np.linalg.norm(manh, axis=2)  # Euclidean distance matrix
+            np.fill_diagonal(eucl, np.inf)  # the distance of a channel to itself is not considered
+            gaus = np.exp(-0.5 * (eucl / eucl.min()) ** 2)  # sigma uses the min distance between channels
+            weight = manh[..., 0] / eucl * gaus
+            if weight.sum() == 0:
+                self.delta_x = 10
+            else:
+                self.delta_x = (manh[..., 0] * weight).sum() / weight.sum()
 
         unique_y = np.sort(np.unique(np.round(ypos)))
         if unique_y.size > 1:
@@ -89,6 +94,8 @@ class WaveformView(ViewBase):
         return common_channel_indexes
 
     def get_spike_waveform(self, ind):
+        if not self.controller.has_extension("recording") or not self.controller.with_traces:
+            return None, None
         seg_num = self.controller.spikes["segment_index"][ind]
         peak_ind = self.controller.spikes["sample_index"][ind]
 
@@ -160,8 +167,13 @@ class WaveformView(ViewBase):
 
         self.alpha = 60
 
+        mode_settings = self.settings.child('mode')
+        mode_settings.sigValueChanged.connect(self._qt_on_mode_changed)
+
     def _qt_on_combo_mode_changed(self):
-        self.mode = str(self.combo_mode.currentText())
+        self.settings['mode'] = str(self.combo_mode.currentText())
+
+    def _qt_on_mode_changed(self):
         self._qt_initialize_plot()
         self.refresh()
 
@@ -196,7 +208,7 @@ class WaveformView(ViewBase):
         # List for scalebar items
         self.scalebar_items = []
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             grid.nextRow()
             grid.nextRow()
             self.viewBox2 = ViewBoxHandlingDoubleclickAndGain()
@@ -208,8 +220,9 @@ class WaveformView(ViewBase):
 
             self._common_channel_indexes_flat = None
 
-        elif self.mode == "geometry":
-            self.plot2 = None
+        elif self.settings["mode"] == "geometry":
+            self.plot2 = pg.PlotItem()
+            self.plot2.hide()
 
         self._x_range = None
         self._y1_range = None
@@ -245,13 +258,13 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _qt_widen_narrow(self, factor_ratio):
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             self.factor_x *= factor_ratio
             self._qt_refresh(keep_range=True)
 
     def _qt_heighten_shorten(self, factor_ratio):
             import pyqtgraph as pg
-            if self.mode == "geometry":
+            if self.settings["mode"] == "geometry":
                 vb = self.plot1.getViewBox()
 
                 # Disable auto-range properly (must be on ViewBox!)
@@ -270,12 +283,12 @@ class WaveformView(ViewBase):
                 vb.setYRange(ymin, ymax, padding=0.0)
 
     def _qt_gain_zoom(self, factor_ratio):
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             self.gain_y *= factor_ratio
             self._qt_refresh(keep_range=True, auto_zoom=False)
 
     def _qt_limit_zoom(self, factor_ratio):
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             if self._x_range is None:
                 self._x_range = tuple(self.viewBox1.state["viewRange"][0])
             l0, l1 = self._x_range
@@ -314,10 +327,10 @@ class WaveformView(ViewBase):
             for unit_id in self.controller.get_visible_unit_ids():
                 dict_visible_units[unit_id] = True
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             self.plot1.setAspectLocked(lock=False, ratio=None)
             self._qt_refresh_mode_flatten(dict_visible_units, keep_range)
-        elif self.mode == "geometry":
+        elif self.settings["mode"] == "geometry":
             self.plot1.setAspectLocked(lock=True, ratio=1)
             self._qt_refresh_mode_geometry(dict_visible_units, keep_range, auto_zoom)
             self._qt_add_scalebars()
@@ -531,6 +544,8 @@ class WaveformView(ViewBase):
                 selected_inds = self.controller.get_indices_spike_selected()
                 ind = selected_inds[0]
                 wf, width = self.get_spike_waveform(ind)
+                if wf is None:
+                    return
                 wf = wf[:, common_channel_indexes]
         elif self.settings["plot_waveforms_samples"]:
             if not self.controller.has_extension("waveforms"):
@@ -603,11 +618,11 @@ class WaveformView(ViewBase):
                 self.curve_waveforms.setData([], [])
                 return
 
-            if self.mode == "flatten":
+            if self.settings["mode"] == "flatten":
                 wf_flat = wf.T.ravel()
                 xvect = np.arange(wf_flat.size)
                 self.curve_waveforms.setData(xvect, wf_flat)
-            elif self.mode == "geometry":
+            elif self.settings["mode"] == "geometry":
                 ypos = self.contact_location[common_channel_indexes, 1]
                 wf_plot = wf * self.gain_y * self.delta_y + ypos[None, :]
 
@@ -707,7 +722,7 @@ class WaveformView(ViewBase):
         if n_waveforms == 0:
             return
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             # For flatten mode, plot all waveforms as continuous lines
             all_x = []
             all_y = []
@@ -724,7 +739,7 @@ class WaveformView(ViewBase):
             self.plot1.addItem(curve)
             self.curve_waveforms_samples.append(curve)
 
-        elif self.mode == "geometry":
+        elif self.settings["mode"] == "geometry":
             ypos = self.contact_location[common_channel_indexes, 1]
 
             all_x = []
@@ -770,7 +785,7 @@ class WaveformView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import WheelZoomTool, Range1d, ColumnDataSource
+        from bokeh.models import WheelZoomTool, Range1d, ColumnDataSource, LabelSet
         from bokeh.events import MouseWheel
 
         from .utils_panel import _bg_color, KeyboardShortcut, KeyboardShortcuts
@@ -779,8 +794,7 @@ class WaveformView(ViewBase):
         x = contact_locations[:, 0]
         y = contact_locations[:, 1]
 
-        self.mode_selector = pn.widgets.Select(name="mode", options=["geometry", "flatten"])
-        self.mode_selector.param.watch(self._panel_on_mode_selector_changed, "value")
+        self.settings._parameterized.param.watch(self._panel_on_mode_changed, 'mode')
 
         # Create figures with basic tools
         self.figure_geom = bpl.figure(
@@ -853,8 +867,20 @@ class WaveformView(ViewBase):
         self.vlines_flatten_std = self.figure_std.multi_line('xs', 'ys', source=self.vlines_data_source_std,
                                                              line_color='colors', line_width=1, line_dash='dashed')
 
-        self.scalebar_lines = []
-        self.scalebar_labels = []
+        self.scalebar_lines_source = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
+        self.scalebar_lines = self.figure_geom.multi_line('xs', 'ys', source=self.scalebar_lines_source,
+                                                          line_color='white', line_width=3)
+        self.scalebar_labels_source = ColumnDataSource(data=dict(x=[], y=[], text=[], text_color=[], text_align=[],angle=[]))
+        self.scalebar_labels = LabelSet(
+                source=self.scalebar_labels_source,
+                x='x',
+                y='y',
+                text='text',
+                text_color='text_color',
+                text_align='center',
+                angle='angle'
+            )
+        self.figure_geom.add_layout(self.scalebar_labels)
 
         # instantiate sources and lines for waveforms samples
         self.lines_data_source_wfs_flatten = ColumnDataSource(data=dict(xs=[], ys=[], colors=[]))
@@ -883,7 +909,6 @@ class WaveformView(ViewBase):
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
         self.layout = pn.Column(
-            pn.Row(self.mode_selector),
             self.geom_pane,
             self.flatten_pane,
             shortcuts_component,
@@ -892,7 +917,6 @@ class WaveformView(ViewBase):
         )
 
     def _panel_refresh(self, keep_range=False):
-        self.mode = self.mode_selector.value
         selected_inds = self.controller.get_indices_spike_selected()
         n_selected = selected_inds.size
         dict_visible_units = {k: False for k in self.controller.unit_ids}
@@ -905,26 +929,20 @@ class WaveformView(ViewBase):
             for unit_id in self.controller.get_visible_unit_ids():
                 dict_visible_units[unit_id] = True
 
-        if self.mode == "geometry":
+        if self.settings["mode"] == "geometry":
             # zoom factor is reset
             if self.settings["auto_zoom_on_unit_selection"]:
                 self.factor_x = 1.0
                 self.gain_y = 0.02
             self._panel_refresh_mode_geometry(dict_visible_units, keep_range=keep_range)
-        elif self.mode == "flatten":
+        elif self.settings["mode"] == "flatten":
             self._panel_refresh_mode_flatten(dict_visible_units, keep_range=keep_range)
 
         self._panel_refresh_spikes()
 
     def _panel_clear_scalebars(self):
-        for line in self.scalebar_lines:
-            if line in self.figure_geom.renderers:
-                self.figure_geom.renderers.remove(line)
-        self.scalebar_lines = []
-        for label in self.scalebar_labels:
-            if label in self.figure_geom.center:
-                self.figure_geom.center.remove(label)
-        self.scalebar_labels = []
+        self.scalebar_labels_source.data = dict(x=[], y=[], text=[], text_color=[])
+        self.scalebar_lines_source.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_add_scalebars(self):
         from bokeh.models import Span, Label
@@ -956,56 +974,35 @@ class WaveformView(ViewBase):
         y_text_pos = y_start + y_text_offset
 
         # X scalebar (time)
+        scalebar_xs, scalebar_ys = [], []
+        scalebar_labels_xs, scalebar_labels_ys, scalebar_labels_angles, scalebar_labels_texts = [], [], [], []
         if self.settings["x_scalebar"]:
             # Create x scalebar using line method
-            x_line = self.figure_geom.line(
-                [scalebar_x_pos, scalebar_x_pos + scalebar_x_width],
-                [scalebar_y_pos, scalebar_y_pos],
-                line_color='white',
-                line_width=3
-            )
-            self.scalebar_lines.append(x_line)
-
-            # X scalebar label
-            x_label = Label(
-                x=scalebar_x_pos + scalebar_x_width / 4,
-                y=y_text_pos,
-                text=f"{scalebar_x_ms} ms",
-                text_color='white',
-                text_align='center',
-            )
-            self.figure_geom.add_layout(x_label)
-            self.scalebar_labels.append(x_label)
+            scalebar_xs.append([scalebar_x_pos, scalebar_x_pos + scalebar_x_width])
+            scalebar_ys.append([scalebar_y_pos, scalebar_y_pos])
+            scalebar_labels_xs.append(scalebar_x_pos + scalebar_x_width / 4)
+            scalebar_labels_ys.append(y_text_pos)
+            scalebar_labels_angles.append(0)
+            scalebar_labels_texts = [f"{scalebar_x_ms} ms"]
 
         if self.settings["y_scalebar"]:
             # Y scalebar (voltage)
             y_scalebar_length = scalebar_y_uv * self.gain_y * self.delta_y
-            y_line = self.figure_geom.line(
-                [scalebar_x_pos, scalebar_x_pos],
-                [scalebar_y_pos, scalebar_y_pos + y_scalebar_length],
-                line_color='white',
-                line_width=3
-            )
-            self.scalebar_lines.append(y_line)
+            scalebar_xs.append([scalebar_x_pos, scalebar_x_pos])
+            scalebar_ys.append([scalebar_y_pos, scalebar_y_pos + y_scalebar_length])
+            scalebar_labels_xs.append(x_text_pos)
+            scalebar_labels_ys.append(scalebar_y_pos + y_scalebar_length / 4)
+            scalebar_labels_angles.append(np.pi / 2)
+            scalebar_labels_texts.append(f"{scalebar_y_uv} µV")
+        self.scalebar_lines_source.data = dict(xs=scalebar_xs, ys=scalebar_ys, colors=["white"]*len(scalebar_xs))
+        self.scalebar_labels_source.data = dict(x=scalebar_labels_xs, y=scalebar_labels_ys, text=scalebar_labels_texts, 
+                                                text_color=['white']*len(scalebar_labels_texts),
+                                                text_align=["center"]*len(scalebar_labels_texts), angle=scalebar_labels_angles)
 
-            # Y scalebar label
-            y_label = Label(
-                x=x_text_pos,
-                y=scalebar_y_pos + y_scalebar_length / 4,
-                text=f"{scalebar_y_uv} µV",
-                text_color='white',
-                angle=np.pi / 2,
-                text_align='center'
-            )
-            self.figure_geom.add_layout(y_label)
-            self.scalebar_labels.append(y_label)
+    def _panel_on_mode_changed(self, event):
 
-    def _panel_on_mode_selector_changed(self, event):
-        import panel as pn
-
-        self.mode = self.mode_selector.value
         # Toggle visibility instead of swapping objects
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             self.geom_pane.visible = False
             self.flatten_pane.visible = True
         else:
@@ -1014,7 +1011,8 @@ class WaveformView(ViewBase):
         self.refresh()
 
     def _panel_gain_zoom(self, event):
-        self.figure_geom.toolbar.active_scroll = None
+        import panel as pn
+
         current_time = time.perf_counter()
         if self.last_wheel_event_time is not None:
             time_elapsed = current_time - self.last_wheel_event_time
@@ -1022,9 +1020,9 @@ class WaveformView(ViewBase):
             time_elapsed = 1000
         if time_elapsed > _wheel_refresh_time:
             modifiers = event.modifiers
+
             if modifiers["shift"] and modifiers["alt"]:
-                self.figure_geom.toolbar.active_scroll = None
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
                     # adjust y range and keep center
                     ymin = self.figure_geom.y_range.start
@@ -1032,30 +1030,43 @@ class WaveformView(ViewBase):
                     yrange = ymax - ymin
                     ymid = 0.5 * (ymin + ymax)
                     new_yrange = yrange * factor_ratio
-                    ymin = ymid - new_yrange / 2.
-                    ymax = ymid + new_yrange / 2.
-                    self.figure_geom.y_range.start = ymin
-                    self.figure_geom.y_range.end = ymax
+                    new_ymin = ymid - new_yrange / 2.
+                    new_ymax = ymid + new_yrange / 2.
+
+                    def _do_range_update():
+                        self.figure_geom.toolbar.active_scroll = None
+                        self.figure_geom.y_range.start = new_ymin
+                        self.figure_geom.y_range.end = new_ymax
+
+                    pn.state.execute(_do_range_update, schedule=True)
+                else:
+                    pn.state.execute(self._panel_disable_active_scroll, schedule=True)
             elif modifiers["shift"]:
-                self.figure_geom.toolbar.active_scroll = self.zoom_tool
+                pn.state.execute(self._panel_enable_active_scroll, schedule=True)
             elif modifiers["alt"]:
-                self.figure_geom.toolbar.active_scroll = None
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.factor_x *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
+                pn.state.execute(self._panel_disable_active_scroll, schedule=True)
             elif not modifiers["ctrl"]:
-                self.figure_geom.toolbar.active_scroll = None
-                if self.mode == "geometry":
+                if self.settings["mode"] == "geometry":
                     factor = 1.3 if event.delta > 0 else 1 / 1.3
                     self.gain_y *= factor
                     self._panel_refresh_mode_geometry(keep_range=True)
                     self._panel_refresh_spikes()
+                pn.state.execute(self._panel_disable_active_scroll, schedule=True)
         else:
             # Ignore the event if it occurs too quickly
-            self.figure_geom.toolbar.active_scroll = None
+            pn.state.execute(self._panel_disable_active_scroll, schedule=True)
         self.last_wheel_event_time = current_time
+
+    def _panel_enable_active_scroll(self):
+        self.figure_geom.toolbar.active_scroll = self.zoom_tool
+
+    def _panel_disable_active_scroll(self):
+        self.figure_geom.toolbar.active_scroll = None
 
     def _panel_refresh_mode_geometry(self, dict_visible_units=None, keep_range=False):
         self._panel_clear_scalebars()
@@ -1203,11 +1214,13 @@ class WaveformView(ViewBase):
             ind = selected_inds[0]
             common_channel_indexes = self.get_common_channels()
             wf, width = self.get_spike_waveform(ind)
+            if wf is None:
+                return
             wf = wf[:, common_channel_indexes]
 
             if wf.shape[0] == width:
                 # this avoid border bugs
-                if self.mode == "flatten":
+                if self.settings["mode"] == "flatten":
                     wf = wf.T.ravel()
                     x = np.arange(wf.size)
 
@@ -1216,7 +1229,7 @@ class WaveformView(ViewBase):
                     xs = [x]
                     ys = [wf]
                     colors = [color]
-                elif self.mode == "geometry":
+                elif self.settings["mode"] == "geometry":
                     ypos = self.contact_location[common_channel_indexes, 1]
 
                     wf = wf * self.gain_y * self.delta_y + ypos[None, :]
@@ -1233,7 +1246,7 @@ class WaveformView(ViewBase):
                 source.data = dict(xs=xs, ys=ys, colors=colors)
         else:
             # clean existing lines
-            if self.mode == "flatten":
+            if self.settings["mode"] == "flatten":
                 source = self.lines_data_source_wfs_flatten
             else:
                 source = self.lines_data_source_wfs_geom
@@ -1322,7 +1335,7 @@ class WaveformView(ViewBase):
 
         alpha = self.settings["waveforms_alpha"]
 
-        if self.mode == "flatten":
+        if self.settings["mode"] == "flatten":
             current_alpha = self.lines_waveforms_samples_flatten.glyph.line_alpha
             if current_alpha != alpha:
                 self.lines_waveforms_samples_flatten.glyph.line_alpha = alpha
@@ -1340,7 +1353,7 @@ class WaveformView(ViewBase):
 
             source = self.lines_data_source_wfs_flatten
 
-        elif self.mode == "geometry":
+        elif self.settings["mode"] == "geometry":
             current_alpha = self.lines_waveforms_samples_geom.glyph.line_alpha
             if current_alpha != alpha:
                 self.lines_waveforms_samples_geom.glyph.line_alpha = alpha
@@ -1378,11 +1391,14 @@ class WaveformView(ViewBase):
         self.vlines_data_source_std.data = dict(xs=[], ys=[], colors=[])
 
     def _panel_on_spike_selection_changed(self):
-        self._panel_refresh_one_spike()
+        import panel as pn
+        pn.state.execute(self._panel_refresh_one_spike, schedule=True)
 
     def _panel_on_channel_visibility_changed(self):
+        import panel as pn
+
         keep_range = not self.settings["auto_move_on_unit_selection"]
-        self._panel_refresh(keep_range=keep_range)
+        pn.state.execute(lambda: self._panel_refresh(keep_range=keep_range), schedule=True)
 
     def _panel_handle_shortcut(self, event):
         if event.data == "overlap":
