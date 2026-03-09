@@ -6,6 +6,7 @@ from .view_base import ViewBase
 
 from .traceview import MixinViewTrace, find_nearest_spike
 
+INT32_MAX = 2147483647
 
 class TraceMapView(ViewBase, MixinViewTrace):
     id = "tracemap"
@@ -134,11 +135,16 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
         value = self.controller.time_to_sample_index(t)
+
+        segment_index = self.controller.get_time()[1]
+        num_samples = self.controller.get_num_samples(segment_index)
+        if num_samples > INT32_MAX:
+            value = round((value * INT32_MAX) / num_samples)
+
         self.scroll_time.setValue(value)
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
-        segment_index = self.controller.get_time()[1]
         times_chunk, data_curves, scatter_x, scatter_y, scatter_colors = \
             self.get_data_in_chunk(t1, t2, segment_index)
         data_curves = data_curves.T

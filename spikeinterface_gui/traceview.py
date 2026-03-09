@@ -13,6 +13,8 @@ from .view_base import ViewBase
 #   * segment change
 #   * 
 
+INT32_MAX = 2147483647
+
 class MixinViewTrace:
 
     MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR = 0.5  # seconds
@@ -174,7 +176,13 @@ class MixinViewTrace:
         t_start, t_stop = self.controller.get_t_start_t_stop()
         self.timeseeker.set_start_stop(t_start, t_stop, seek=False)
         self.scroll_time.setMinimum(0)
-        self.scroll_time.setMaximum(length - 1)
+
+        if length > INT32_MAX:
+            slider_max = INT32_MAX
+        else:
+            slider_max = length - 1
+
+        self.scroll_time.setMaximum(slider_max)
 
     def _qt_change_segment(self, segment_index):
         #TODO: dirty because now seg_pos IS segment_index
@@ -214,6 +222,11 @@ class MixinViewTrace:
             self.spinbox_xsize.setValue(newsize)
 
     def _qt_on_scroll_time(self, val):
+        segment_index = self.controller.get_time()[1]
+        num_samples = self.controller.get_num_samples(segment_index)
+        if num_samples > INT32_MAX:
+            val = round(val * (num_samples / INT32_MAX))
+
         time = self.controller.sample_index_to_time(val)
         self.timeseeker.seek(time)
 
@@ -501,6 +514,12 @@ class TraceView(ViewBase, MixinViewTrace):
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
         value = self.controller.time_to_sample_index(t)
+
+        segment_index = self.controller.get_time()[1]
+        num_samples = self.controller.get_num_samples(segment_index)
+        if num_samples > INT32_MAX:
+            value = round((value * INT32_MAX) / num_samples)
+
         self.scroll_time.setValue(value)
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
