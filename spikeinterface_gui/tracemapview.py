@@ -110,7 +110,6 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._qt_seek_with_selected_spike()
 
     def _qt_refresh(self):
-        self._qt_remove_event_line()
         t, _ = self.controller.get_time()
         self._qt_seek(t)
 
@@ -157,6 +156,9 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.plot.setXRange(t1, t2, padding=0.0)
         self.plot.setYRange(0, num_chans, padding=0.0)
+
+        # events
+        self._qt_add_event_lines(t1, t2)
 
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
@@ -243,13 +245,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # # Add hover tool for spikes
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-        self._panel_create_toolbar()
+        self.toolbar = self._panel_create_toolbar()
+        self.bottom_toolbar = self._panel_create_bottom_toolbar()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area
                 self.toolbar,
                 self.figure,
-                self.time_slider,
+                self.bottom_toolbar,
                 styles={"flex": "1"},
                 sizing_mode="stretch_both"
             ),
@@ -297,6 +300,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.x_range.end = t2
         self.figure.y_range.end = data_curves.shape[1]
 
+        self._panel_add_event_lines(t1, t2)
+
     def _panel_on_settings_changed(self):
         self.make_color_lut()
         self.refresh()
@@ -333,15 +338,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
         time, segment_index = self.controller.get_time()
-
         self._block_auto_refresh_and_notify = True
         self._panel_change_segment(segment_index)
-
-        # Update time slider value
-        self.time_slider.value = time
-
         self._block_auto_refresh_and_notify = False
-        # we don't need a refresh in panel because changing tab triggers a refresh
+        self.refresh()
+        # Update slider visually after refresh, blocking the callback to avoid
+        # a Bokeh round-trip loop (browser sends value_throttled back to server)
+        self._block_auto_refresh_and_notify = True
+        self.time_slider.value = time
+        self._block_auto_refresh_and_notify = False
 
     def _panel_on_use_times_updated(self):
         # Update time seeker
