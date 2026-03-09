@@ -677,15 +677,18 @@ class UnitListView(ViewBase):
     def _panel_refresh_colors(self):
         import matplotlib.colors as mcolors
 
-        unit_ids_data = []
-        for unit_id in self.table.value.index.values:
-            unit_ids_data.append(
-                {
-                    "id": str(unit_id),
-                    "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))
-                }
-            )
-        self.table.value.loc[:, "unit_id"] = unit_ids_data
+        if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
+            self.controller.refresh_colors()
+            # in this mode the color is dynamic based on visibility, so we need to refresh all colors
+            unit_ids_data = []
+            for unit_id in self.table.value.index.values:
+                unit_ids_data.append(
+                    {
+                        "id": str(unit_id),
+                        "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))
+                    }
+                )
+            self.table.value.loc[:, "unit_id"] = unit_ids_data
 
     def _panel_on_unit_color_changed(self):
         # here we update the unit colors, since they are then fixed in the table
@@ -709,6 +712,7 @@ class UnitListView(ViewBase):
         selected_unit = self.table.selection[0]
         unit_id = self.table.value.index.values[selected_unit]
         self.controller.set_visible_unit_ids([unit_id])
+        self._panel_refresh_colors()
         # update the visible column
         df = self.table.value
         df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
