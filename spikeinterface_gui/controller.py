@@ -15,6 +15,7 @@ from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
+from .event_tools import parse_events
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -256,7 +257,7 @@ class Controller():
         # parse events
         self.events = None
         if events is not None:
-            self.events = self.parse_events(events, verbose=verbose)
+            self.events = parse_events(events, self, verbose=verbose)
             if len(self.events) == 0:
                 self.events = None
 
@@ -510,56 +511,6 @@ class Controller():
             return time
         else:
             return int(time * self.sampling_frequency)
-
-    def parse_events(self, events, verbose=False):
-        events_dict = {}
-        if isinstance(events, dict):
-            for key, val in events.items():
-                if not isinstance(val, dict):
-                    if verbose:
-                        print(f'\tSkipping event {key}: not a dict')
-                    continue
-                if 'samples' not in val and 'times' not in val:
-                    if verbose:
-                        print(f'\tSkipping event {key}: missing samples or times')
-                    continue
-                if 'times' in val:
-                    samples_data = val['times']
-                    convert_to_samples = True
-                else:
-                    samples_data = val['samples']
-                    convert_to_samples = False
-                if self.num_segments > 1:
-                    if not len(samples_data) == self.num_segments:
-                        if verbose:
-                            print(f'\tSkipping event {key}: values should be a list of {self.num_segments} segments.')
-                        continue
-                else:
-                    # here we make sure samples is a list of list
-                    if np.array(samples_data).ndim == 1:
-                        samples_data = [samples_data]
-                if convert_to_samples:
-                    events_dict[key] = [np.sort(np.array(self.time_to_sample_index(s))) for s in samples_data]
-                else:
-                    events_dict[key] = [np.sort(np.array(s)) for s in samples_data]
-                if verbose:
-                    print(f"Event key: {key} - ({[len(s) for s in samples_data]})")
-        elif isinstance(events, BaseEvent):
-            event_names = events.channel_ids
-            events_dict = {
-                event_name: [] for event_name in event_names
-            }
-            for event_name in event_names:
-                for segment_index in range(self.num_segments):
-                    event_times_segment = events.get_event_times(
-                        channel_id=event_name,
-                        segment_index=segment_index
-                    )
-                    event_samples_segment = self.analyzer.time_to_sample_index(
-                        event_times_segment
-                    )
-                    events_dict[event_name].append(np.array(event_samples_segment))
-        return events_dict
 
     def get_events(self, event_name):
         if self.events is None:
