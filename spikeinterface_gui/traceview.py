@@ -147,14 +147,9 @@ class MixinViewTrace:
                 self.event_type_combo = QT.QComboBox()
                 self.event_type_combo.addItems(event_keys)
                 self.event_type_combo.currentIndexChanged.connect(self._qt_on_event_type_changed)
-<<<<<<< HEAD
-                event_layout.addWidget(QT.QLabel("Event:"))
-                event_layout.addWidget(self.event_type_combo)
-                self.event_key = event_keys[0]
-=======
                 event_layout.addWidget(QT.QLabel("Event:"), stretch=2)
                 event_layout.addWidget(self.event_type_combo, stretch=3)
->>>>>>> 02f80a61baad3b22a6ac368ba700383d93494235
+                self.event_key = event_keys[0]
             else:
                 self.event_key = event_keys[0]
 
