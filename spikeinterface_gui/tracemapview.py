@@ -171,7 +171,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         if self.chan_group_offsets is not None:
             for ch in self.chan_group_offsets:
-                hline = pg.InfiniteLine(pos=ch, angle=0, movable=False, pen=pg.mkPen("y"))
+                hline = pg.InfiniteLine(pos=ch, angle=0, movable=False, pen=pg.mkPen("black"))
                 self.plot.addItem(hline)
 
     def _qt_on_time_info_updated(self):
