@@ -601,6 +601,7 @@ class BaseScatterView(ViewBase):
                 for period in valid_periods_unit:
                     t_start = self.controller.sample_index_to_time(period[0])
                     t_end = self.controller.sample_index_to_time(period[1])
+                    # set y1/y2 to very large values to make sure they always display
                     region = self.scatter_fig.varea(
                         x=[t_start, t_end],
                         y1=[-1_000_000, -1_000_000],
