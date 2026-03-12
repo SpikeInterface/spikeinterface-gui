@@ -9,6 +9,7 @@ class BaseScatterView(ViewBase):
     _depend_on = None
     _settings = [
             {'name': "auto_decimate", 'type': 'bool', 'value' : True},
+            {'name': "display_valid_periods", 'type': 'bool', 'value' : True},
             {'name': 'max_spikes_per_unit', 'type': 'int', 'value' : 5_000},
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05},
             {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5},
@@ -38,6 +39,8 @@ class BaseScatterView(ViewBase):
         self._first_refresh_done = False
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
+
+        self.valid_period_regions = []
 
 
     def get_unit_data(self, unit_id, segment_index=0):
@@ -298,8 +301,8 @@ class BaseScatterView(ViewBase):
         all_inds = []
         ymins = []
         ymaxs = []
-        for unit_id in self.controller.get_visible_unit_ids():
-
+        visible_units = self.controller.get_visible_unit_ids()
+        for unit_id in visible_units:
             spike_times, spike_data, hist_count, hist_bins, ymin, ymax, inds = self.get_unit_data(
                 unit_id, 
                 segment_index=segment_index
@@ -336,8 +339,27 @@ class BaseScatterView(ViewBase):
         self.viewBox2.setXRange(0, self._max_count, padding = 0.0)
 
         # explicitly set the y-range of the histogram to match the spike data
-        spike_times, spike_data = self.get_selected_spikes_data(segment_index=self.combo_seg.currentIndex(), visible_inds=all_inds)
+        spike_times, spike_data = self.get_selected_spikes_data(segment_index=segment_index, visible_inds=all_inds)
         self.scatter_select.setData(spike_times, spike_data)
+
+        if self.settings["display_valid_periods"] and self.controller.valid_periods is not None:
+            for region in self.valid_period_regions:
+                self.plot.removeItem(region)
+            self.valid_period_regions = []
+            for unit_id in visible_units:
+                valid_periods_unit = self.controller.valid_periods[segment_index][unit_id]
+                color = self.get_unit_color(unit_id, alpha=0.3)
+                pen_color = pg.mkColor(color)
+                for period in valid_periods_unit:
+                    t_start = self.controller.sample_index_to_time(period[0])
+                    t_end = self.controller.sample_index_to_time(period[1])
+                    region = pg.LinearRegionItem([t_start, t_end], movable=False, brush=pen_color)
+                    self.plot.addItem(region, ignoreBounds=True)
+                    self.valid_period_regions.append(region)
+        else:
+            for region in self.valid_period_regions:
+                self.plot.removeItem(region)
+            self.valid_period_regions = []
 
     def _qt_on_time_info_updated(self):
         if self.combo_seg.currentIndex() != self.controller.get_time()[1]:
@@ -496,8 +518,6 @@ class BaseScatterView(ViewBase):
                 ),
             )
         )
-        # self.hist_lines = []
-        self.noise_harea = []
         self.plotted_inds = []
 
     def _panel_refresh(self, set_scatter_range=False):
@@ -569,6 +589,30 @@ class BaseScatterView(ViewBase):
         # handle selected spikes
         self._panel_update_selected_spikes()
 
+        # Add valid period regions
+        if self.settings["display_valid_periods"] and self.controller.valid_periods is not None:
+            for region in self.valid_period_regions:
+                self.scatter_fig.renderers.remove(region)
+            self.valid_period_regions = []
+            for unit_id in visible_unit_ids:
+                valid_periods_unit = self.controller.valid_periods[segment_index][unit_id]
+                color = self.get_unit_color(unit_id)
+                color_shade = self.get_unit_color(unit_id, alpha=0.3)
+                for period in valid_periods_unit:
+                    t_start = self.controller.sample_index_to_time(period[0])
+                    t_end = self.controller.sample_index_to_time(period[1])
+                    region = self.scatter_fig.varea(
+                        x=[t_start, t_end],
+                        y1=[-1_000_000, -1_000_000],
+                        y2=[1_000_000, 1_000_000],
+                        fill_color=color_shade
+                    )
+                    self.valid_period_regions.append(region)
+        else:
+            for region in self.valid_period_regions:
+                self.scatter_fig.renderers.remove(region)
+            self.valid_period_regions = []
+
         # Defer Range updates to avoid nested document lock issues
         # def update_ranges():
         if set_scatter_range or not self._first_refresh_done:
@@ -578,8 +622,6 @@ class BaseScatterView(ViewBase):
         self.hist_fig.x_range.end = max_count
         self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
 
-        # Schedule the update to run after the current event loop iteration
-        # pn.state.execute(update_ranges, schedule=True)
 
     def _panel_on_select_button(self, event):
         import panel as pn
