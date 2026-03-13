@@ -272,11 +272,9 @@ class SpikeListView(ViewBase):
             pagination=None,
             # SelectableTabulator functions
             parent_view=self,
-            refresh_table_function=self._panel_refresh_table,
+            on_selection_changed=self._panel_on_user_selection_changed,
             conditional_shortcut=self.is_view_active,
         )
-        # Add selection event handler
-        self.table.param.watch(self._panel_on_selection_changed, "selection")
 
         self.refresh_button = pn.widgets.Button(name="↻ spikes", button_type="default", sizing_mode="stretch_width")
         self.refresh_button.on_click(self._panel_on_refresh_click)
@@ -328,9 +326,12 @@ class SpikeListView(ViewBase):
             'rand_selected': spikes['rand_selected']
         }
 
-        # Update table data
+        # Update table data without replacing entire dataframe
         df = pd.DataFrame(data)
-        self.table.value = df
+
+        # Only update if data changed
+        if not self.table.value.equals(df):
+            self.table.value = df
 
         selected_inds = self.controller.get_indices_spike_selected()
         if len(selected_inds) == 0:
@@ -348,19 +349,28 @@ class SpikeListView(ViewBase):
         self.notify_active_view_updated()
 
     def _panel_on_clear_click(self, event):
+        import panel as pn
+
         self.controller.set_indices_spike_selected([])
-        self.table.selection = []
+
+        def _do_update():
+            self.table.selection = []
+            self._panel_refresh_label()
+
+        pn.state.execute(_do_update, schedule=True)
         self.notify_spike_selection_changed()
-        self._panel_refresh_label()
         self.notify_active_view_updated()
 
-    def _panel_on_selection_changed(self, event=None):
-        selection = event.new
+    def _panel_on_user_selection_changed(self):
+        selection = self.table.selection
         if len(selection) == 0:
-            self.handle_selection([])
+            absolute_indices = []
         else:
-            absolute_indices = self.controller.get_indices_spike_visible()[np.array(selection)]
-            self.handle_selection(absolute_indices)
+            visible_inds = self.table.value['#'].values
+            absolute_indices = visible_inds[np.array(selection)]
+
+        # Defer the entire selection handling to avoid nested Bokeh callbacks
+        self.handle_selection(absolute_indices)
         self._panel_refresh_label()
 
     def _panel_refresh_label(self):
@@ -371,21 +381,33 @@ class SpikeListView(ViewBase):
         self.info_text.object = txt
 
     def _panel_on_unit_visibility_changed(self):
+        import panel as pn
         import pandas as pd
-        # Clear the table when visibility changes
-        self.table.value = pd.DataFrame(columns=_columns, data=[])
-        self._panel_refresh_label()
+
+        def _do_update():
+            # Clear the table when visibility changes
+            self.table.value = pd.DataFrame(columns=_columns, data=[])
+            self.table.selection = []
+            self._panel_refresh_label()
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_spike_selection_changed(self):
+        import panel as pn
+
         if len(self.table.value) == 0:
             return
         selected_inds = self.controller.get_indices_spike_selected()
         visible_inds = self.controller.get_indices_spike_visible()
         row_selected, = np.nonzero(np.isin(visible_inds, selected_inds))
         row_selected = [int(r) for r in row_selected]
-        # Update the selection in the table
-        self.table.selection = row_selected
-        self._panel_refresh_label()
+
+        def _do_update():
+            # Update the selection in the table
+            self.table.selection = row_selected
+            self._panel_refresh_label()
+
+        pn.state.execute(_do_update, schedule=True)
 
 
 SpikeListView._gui_help_txt = """

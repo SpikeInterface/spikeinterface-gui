@@ -17,7 +17,7 @@ class BaseScatterView(ViewBase):
             {'name': 'display_high_percentiles', 'type': 'float', 'value' : 98.0, 'limits':(50, 100), 'step':0.5},
         ]
     _need_compute = False
-    
+
     def __init__(self, spike_data, y_label, controller=None, parent=None, backend="qt"):
         
         # compute data bounds
@@ -45,6 +45,12 @@ class BaseScatterView(ViewBase):
         spike_indices = self.controller.spikes["sample_index"][inds]
         spike_times = self.controller.sample_index_to_time(spike_indices)
         spike_data = self.spike_data[inds]
+
+        if len(spike_data) == 1:
+            spike_data_value = spike_data[0]
+            ymin = spike_data_value - 0.1 * spike_data_value
+            ymax = spike_data_value + 0.1 * spike_data_value
+            return spike_times, spike_data, np.array([1]), np.array([ymin, ymax]), ymin, ymax, inds
 
         # avoid clear outliers in the plot and histogram by using percentiles
         ymin, ymax = np.percentile(spike_data, [self.settings['display_low_percentiles'], self.settings['display_high_percentiles']])
@@ -185,6 +191,9 @@ class BaseScatterView(ViewBase):
                 self._current_selected = self.controller.get_indices_spike_selected().size
         self.refresh(set_scatter_range=True)
 
+    def on_spike_selection_changed(self):
+        self.refresh()
+
     def on_use_times_updated(self):
         self.refresh(set_scatter_range=True)
 
@@ -295,6 +304,8 @@ class BaseScatterView(ViewBase):
                 unit_id, 
                 segment_index=segment_index
             )
+            if len(spike_times) == 0:
+                continue
 
             # make a copy of the color
             color = QT.QColor(self.get_unit_color(unit_id))
@@ -314,7 +325,7 @@ class BaseScatterView(ViewBase):
 
         # set x range to time range of the current segment for scatter, and max count for histogram
         # set y range to min and max of visible spike amplitudes
-        if set_scatter_range or not self._first_refresh_done:
+        if len(ymins) > 0 and (set_scatter_range or not self._first_refresh_done):
             ymin = np.min(ymins)
             ymax = np.max(ymaxs)
             t_start, t_stop = self.controller.get_t_start_t_stop()
@@ -490,6 +501,7 @@ class BaseScatterView(ViewBase):
         self.plotted_inds = []
 
     def _panel_refresh(self, set_scatter_range=False):
+        import panel as pn
         from bokeh.models import FixedTicker
 
         self.plotted_inds = []
@@ -516,6 +528,8 @@ class BaseScatterView(ViewBase):
                 unit_id,
                 segment_index=segment_index
             )
+            if len(spike_times) == 0:
+                continue
             color = self.get_unit_color(unit_id)
             xs.extend(spike_times)
             ys.extend(spike_data)
@@ -555,7 +569,8 @@ class BaseScatterView(ViewBase):
         # handle selected spikes
         self._panel_update_selected_spikes()
 
-        # set y range to min and max of visible spike amplitudes
+        # Defer Range updates to avoid nested document lock issues
+        # def update_ranges():
         if set_scatter_range or not self._first_refresh_done:
             self.y_range.start = np.min(ymins)
             self.y_range.end = np.max(ymaxs)
@@ -563,20 +578,36 @@ class BaseScatterView(ViewBase):
         self.hist_fig.x_range.end = max_count
         self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
 
+        # Schedule the update to run after the current event loop iteration
+        # pn.state.execute(update_ranges, schedule=True)
+
     def _panel_on_select_button(self, event):
-        if self.select_toggle_button.value:
-            self.scatter_fig.toolbar.active_drag = self.lasso_tool
-        else:
-            self.scatter_fig.toolbar.active_drag = None
-            self.scatter_source.selected.indices = []
+        import panel as pn
+
+        value = self.select_toggle_button.value
+
+        def _do_update():
+            if value:
+                self.scatter_fig.toolbar.active_drag = self.lasso_tool
+            else:
+                self.scatter_fig.toolbar.active_drag = None
+                self.scatter_source.selected.indices = []
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_change_segment(self, event):
+        import panel as pn
+
         self._current_selected = 0
         segment_index = int(self.segment_selector.value.split()[-1])
         self.controller.set_time(segment_index=segment_index)
         t_start, t_end = self.controller.get_t_start_t_stop()
-        self.scatter_fig.x_range.start = t_start
-        self.scatter_fig.x_range.end = t_end
+
+        def _do_update():
+            self.scatter_fig.x_range.start = t_start
+            self.scatter_fig.x_range.end = t_end
+
+        pn.state.execute(_do_update, schedule=True)
         self.refresh(set_scatter_range=True)
         self.notify_time_info_updated()
 
@@ -618,9 +649,17 @@ class BaseScatterView(ViewBase):
         self.split()
 
     def _panel_update_selected_spikes(self):
+        import panel as pn
+
         # handle selected spikes
         selected_spike_indices = self.controller.get_indices_spike_selected()
         selected_spike_indices = np.intersect1d(selected_spike_indices, self.plotted_inds)
+        if len(selected_spike_indices) == 1:
+            selected_segment = self.controller.spikes[selected_spike_indices[0]]['segment_index']
+            segment_index = self.controller.get_time()[1]
+            if selected_segment != segment_index:
+                self.segment_selector.value = f"Segment {selected_segment}"
+                self._panel_change_segment(None)
         if len(selected_spike_indices) > 0:
             # map absolute indices to visible spikes
             segment_index = self.controller.get_time()[1]
@@ -634,23 +673,16 @@ class BaseScatterView(ViewBase):
             # set selected spikes in scatter plot
             if self.settings["auto_decimate"] and len(selected_indices) > 0:
                 selected_indices, = np.nonzero(np.isin(self.plotted_inds, selected_spike_indices))
-            self.scatter_source.selected.indices = list(selected_indices)
         else:
-            self.scatter_source.selected.indices = []
+            selected_indices = []
+
+        def _do_update():
+            self.scatter_source.selected.indices = list(selected_indices)
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_spike_selection_changed(self):
-        # set selection in scatter plot
-        selected_indices = self.controller.get_indices_spike_selected()
-        if len(selected_indices) == 0:
-            self.scatter_source.selected.indices = []
-            return
-        elif len(selected_indices) == 1:
-            selected_segment = self.controller.spikes[selected_indices[0]]['segment_index']
-            segment_index = self.controller.get_time()[1]
-            if selected_segment != segment_index:
-                self.segment_selector.value = f"Segment {selected_segment}"
-                self._panel_change_segment(None)
-        # update selected spikes
+        # update selected spikes (scheduled via pn.state.execute inside)
         self._panel_update_selected_spikes()
 
     def _panel_handle_shortcut(self, event):

@@ -9,10 +9,7 @@ from copy import deepcopy
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import CurationModel
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
@@ -50,6 +47,8 @@ class Controller():
         skip_extensions=None,
         disable_save_settings_button=False,
         external_data=None,
+        curation_callback=None,
+        curation_callback_kwargs=None,
         user_main_settings=None,
     ):
         self.views = []
@@ -329,6 +328,7 @@ class Controller():
         self._traces_cached = {}
 
         self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
+
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
         if extra_unit_properties is not None:
@@ -340,7 +340,9 @@ class Controller():
         self.update_time_info()
 
         self.curation = curation
-        # TODO: Reload the dictionary if it already exists
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
+
         if self.curation:
             # rules:
             #  * if user sends curation_data, then it is used
@@ -349,6 +351,7 @@ class Controller():
 
             if curation_data is not None:
                 # validate the curation data
+                curation_data = deepcopy(curation_data)
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
                 if format_version is None:
@@ -357,24 +360,6 @@ class Controller():
                     validate_curation_dict(curation_data)
                 except Exception as e:
                     raise ValueError(f"Invalid curation data.\nError: {e}")
-
-                if curation_data.get("merges") is None:
-                    curation_data["merges"] = []
-                else:
-                    # here we reset the merges for better formatting (str)
-                    existing_merges = curation_data["merges"]
-                    new_merges = []
-                    for m in existing_merges:
-                        if "unit_ids" not in m:
-                            continue
-                        if len(m["unit_ids"]) < 2:
-                            continue
-                        new_merges = add_merge(new_merges, m["unit_ids"])
-                    curation_data["merges"] = new_merges
-                if curation_data.get("splits") is None:
-                    curation_data["splits"] = []
-                if curation_data.get("removed") is None:
-                    curation_data["removed"] = []
 
             elif self.analyzer.format == "binary_folder":
                 json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
@@ -390,23 +375,26 @@ class Controller():
 
             if curation_data is None:
                 curation_data = deepcopy(empty_curation_data)
+                curation_data["unit_ids"] = self.unit_ids.tolist()
 
-            self.curation_data = curation_data
-
-            self.has_default_quality_labels = False
-            if "label_definitions" not in self.curation_data:
+            if "label_definitions" not in curation_data:
                 if label_definitions is not None:
-                    self.curation_data["label_definitions"] = label_definitions
+                    curation_data["label_definitions"] = label_definitions
                 else:
-                    self.curation_data["label_definitions"] = default_label_definitions.copy()
+                    curation_data["label_definitions"] = default_label_definitions.copy()
 
-            if "quality" in self.curation_data["label_definitions"]:
-                curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
+            # This will enable the default shortcuts if has default quality labels
+            self.has_default_quality_labels = False
+            if "quality" in curation_data["label_definitions"]:
+                curation_dict_quality_labels = curation_data["label_definitions"]["quality"]["label_options"]
                 default_quality_labels = default_label_definitions["quality"]["label_options"]
                 if set(curation_dict_quality_labels) == set(default_quality_labels):
                     if self.verbose:
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
+
+            curation_data = CurationModel(**curation_data).model_dump()
+            self.curation_data = curation_data
 
     def check_is_view_possible(self, view_name):
         from .viewlist import get_all_possible_views
@@ -710,6 +698,12 @@ class Controller():
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
         return location
+
+    def get_channel_groups(self):
+        if self.has_extension("recording"):
+            return self.analyzer.recording.get_channel_groups()
+        else:
+            return np.zeros(self.analyzer.get_num_channels(), dtype=int)
     
     def get_waveform_sweep(self):
         return self.nbefore, self.nafter
@@ -721,7 +715,7 @@ class Controller():
         wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=False)
         if self.analyzer.sparsity is None:
             # dense waveforms
-            chan_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
+            chan_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
         else:
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
@@ -849,7 +843,7 @@ class Controller():
         )
 
         return merge_unit_groups, extra
-    
+
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
@@ -860,6 +854,23 @@ class Controller():
         d.update(self.curation_data.copy())
         model = CurationModel(**d)
         return model
+
+    def set_curation_data(self, curation_data):
+        print("Setting curation data")
+        new_curation_data = empty_curation_data.copy()
+        new_curation_data.update(curation_data)
+
+        if "unit_ids" not in curation_data:
+            print("Setting unit_ids from controller")
+            new_curation_data["unit_ids"] = self.unit_ids.tolist()
+
+        if "label_definitions" not in curation_data:
+            print("Setting default label definitions")
+            new_curation_data["label_definitions"] = default_label_definitions.copy()
+
+        # validate the curation data
+        model = CurationModel(**new_curation_data)
+        self.curation_data = model.model_dump()
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
@@ -882,6 +893,16 @@ class Controller():
             curation_model = self.construct_final_curation()
             sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
+
+    def save_curation_callback(self):
+        curation = self.construct_final_curation()
+        curation_data = curation.model_dump()
+        if self.curation_callback_kwargs is None:
+            curation_callback_kwargs = {}
+        else:
+            curation_callback_kwargs = self.curation_callback_kwargs
+        self.curation_callback(curation_data, **curation_callback_kwargs)
+        self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:
