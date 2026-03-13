@@ -470,8 +470,9 @@ class Controller():
         else:
             self.time_info['time_by_seg'] = time_by_seg
 
-    def get_t_start_t_stop(self, use_times=None):
-        segment_index = self.time_info["segment_index"]
+    def get_t_start_t_stop(self, use_times=None, segment_index=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
         if use_times is None:
             use_times = self.main_settings["use_times"]
         if use_times and self.has_extension("recording"):
@@ -512,9 +513,12 @@ class Controller():
         else:
             return sample_index / self.sampling_frequency
 
-    def time_to_sample_index(self, time):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def time_to_sample_index(self, time, segment_index=None, use_times=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             time = self.analyzer.recording.time_to_sample_index(time, segment_index=segment_index)
             return time
         else:

@@ -83,7 +83,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
 
     events_dict = None
     if events:
-        events_dict = {"event1": {"samples": []}, "event2": {"samples": []}}
+        events_dict = {"event1": {"times": []}, "event2": {"times": []}}
         for segment_index in range(analyzer.get_num_segments()):
             # events_dict["event1"]["samples"].append(
             #     np.random.choice(np.arange(analyzer.get_num_samples(segment_index)), 30)

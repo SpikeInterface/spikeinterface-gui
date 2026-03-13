@@ -49,13 +49,24 @@ def parse_events(events, controller, verbose=False):
                     samples_data = [samples_data]
             if convert_to_samples:
                 # filter events based on recording start/stop times
-                print(f"Number of events before filtering: {[len(s) for s in samples_data]}")
-                t_start, t_end = controller.get_t_start_t_stop(use_times=True)
-                samples_data = [s[(s >= t_start) & (s <= t_end)] for s in samples_data]
-                print(f"Number of events after filtering: {[len(s) for s in samples_data]}")
-                parsed_events[key] = [np.array(controller.time_to_sample_index(s)) for s in samples_data]
+                filtered_samples_data = []
+                parsed_events[key] = []
+                for segment_index in range(controller.num_segments):
+                    t_start, t_end = controller.get_t_start_t_stop(use_times=True, segment_index=segment_index)
+                    s = samples_data[segment_index]
+                    filtered_samples_data = s[(s >= t_start) & (s <= t_end)]
+                    parsed_events[key].append(
+                        np.sort(
+                            controller.time_to_sample_index(
+                                filtered_samples_data,
+                                segment_index=segment_index,
+                                use_times=True
+                            )
+                        )
+                    )
+                
             else:
-                parsed_events[key] = [np.array(s) for s in samples_data]
+                parsed_events[key] = [np.sort(s) for s in samples_data]
     elif isinstance(events, BaseEvent):
         event_names = events.channel_ids
         parsed_events = {
@@ -68,9 +79,9 @@ def parse_events(events, controller, verbose=False):
                     segment_index=segment_index
                 )
                 event_samples_segment = controller.time_to_sample_index(
-                    event_times_segment
+                    event_times_segment, segment_index=segment_index, use_times=True
                 )
-                parsed_events[event_name].append(np.array(event_samples_segment))
+                parsed_events[event_name].append(np.sort(event_samples_segment))
     else:
         if verbose:
             print('\tSkipping events: not a dict or BaseEvent')
