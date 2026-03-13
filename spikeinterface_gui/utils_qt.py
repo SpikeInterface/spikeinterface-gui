@@ -470,9 +470,13 @@ class CustomItemUnitID(QT.QTableWidgetItem):
         self.unit_ids = [f"{u}" for u in unit_ids]
 
     def __lt__(self, other):
-        ind = self.unit_ids.index(self.text())
-        other_ind = self.unit_ids.index(other.text())
+        # since mergeview has "{unit_id} (n={n_spikes})" as name, we split and keep the first part
+        unit_id = self.text().split(' ')[0]
+        other_unit_id = other.text().split(' ')[0]
+        ind = self.unit_ids.index(unit_id)
+        other_ind = self.unit_ids.index(other_unit_id)
         return ind < other_ind
+
 
 class OrderableCheckItem(QT.QTableWidgetItem):
     # special case for checkbox
