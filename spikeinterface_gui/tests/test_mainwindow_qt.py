@@ -85,12 +85,6 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
     if events:
         events_dict = {"event1": {"times": []}, "event2": {"times": []}}
         for segment_index in range(analyzer.get_num_segments()):
-            # events_dict["event1"]["samples"].append(
-            #     np.random.choice(np.arange(analyzer.get_num_samples(segment_index)), 30)
-            # )
-            # events_dict["event2"]["samples"].append(
-            #     np.random.choice(np.arange(analyzer.get_num_samples(segment_index)), 50)
-            # )
             times = analyzer.recording.get_times(segment_index)
             events_dict["event1"]["times"].append(
                 np.random.choice(times, 30)
@@ -99,8 +93,12 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
                 np.random.choice(times, 50)
             )
             # add some events outside of recording times to test filtering
-            events_dict["event1"]["times"][-1] = np.concatenate([events_dict["event1"]["times"][-1], [times[0] - 10, times[-1] + 20]])
-            events_dict["event2"]["times"][-1] = np.concatenate([events_dict["event2"]["times"][-1], [times[0] - 5, times[-1] + 15]])
+            events_dict["event1"]["times"][-1] = np.concatenate(
+                [events_dict["event1"]["times"][-1], [times[0] - 10, times[-1] + 20]]
+            )
+            events_dict["event2"]["times"][-1] = np.concatenate(
+                [events_dict["event2"]["times"][-1], [times[0] - 5, times[-1] + 15]]
+            )
 
     win = run_mainwindow(
         analyzer,
