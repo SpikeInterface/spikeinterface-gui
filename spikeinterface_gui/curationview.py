@@ -61,17 +61,19 @@ class CurationView(ViewBase):
     ## Qt
     def _qt_make_layout(self):
         from .myqt import QT
-        import pyqtgraph as pg
 
         self.merge_info = {}
         self.layout = QT.QVBoxLayout()
 
         tb = self.qt_widget.view_toolbar
-        if self.controller.curation_can_be_saved():
+        if self.controller.curation_callback is not None:
+            but = QT.QPushButton("Save curation")
+            tb.addWidget(but)
+            but.clicked.connect(self.controller.save_curation_callback)
+        elif self.controller.curation_can_be_saved():
             but = QT.QPushButton("Save in analyzer")
             tb.addWidget(but)
-            but.clicked.connect(self.save_in_analyzer)
-
+            but.clicked.connect(self.controller.save_curation_in_analyzer)
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)
         tb.addWidget(but)
@@ -275,9 +277,6 @@ class CurationView(ViewBase):
     def on_manual_curation_updated(self):
         self.refresh()
 
-    def save_in_analyzer(self):
-        self.controller.save_curation_in_analyzer()
-
     def _qt_export_json(self):
         from .myqt import QT
 
@@ -351,17 +350,22 @@ class CurationView(ViewBase):
         )
 
         # Create buttons
-        buttons_row = []
-        self.save_button = None
-        if self.controller.curation_can_be_saved():
-            self.save_button = pn.widgets.Button(name="Save in analyzer", button_type="primary", height=30)
-            self.save_button.on_click(self._panel_save_in_analyzer)
-            buttons_row.append(self.save_button)
+        if self.controller.curation_callback is not None:
+            save_button_name = "Save curation"
+            save_button_callback = self._panel_save_curation_callback
+        else:
+            save_button_name = "Save in analyzer"
+            save_button_callback = self._panel_save_in_analyzer
+        save_button = pn.widgets.Button(
+            name=save_button_name,
+            button_type="primary",
+            height=30
+        )
+        save_button.on_click(save_button_callback)
 
-        self.download_button = pn.widgets.FileDownload(
+        download_button = pn.widgets.FileDownload(
             button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
         )
-        buttons_row.append(self.download_button)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary", height=30)
         restore_button.on_click(self._panel_restore_units)
@@ -369,19 +373,24 @@ class CurationView(ViewBase):
         remove_merge_button = pn.widgets.Button(name="Unmerge", button_type="primary", height=30)
         remove_merge_button.on_click(self._panel_unmerge)
 
-        remove_split = pn.widgets.Button(name="Unsplit", button_type="primary", height=30)
-        remove_split.on_click(self._panel_unsplit)
+        remove_split_button = pn.widgets.Button(name="Unsplit", button_type="primary", height=30)
+        remove_split_button.on_click(self._panel_unsplit)
 
         # Create layout
-        self.buttons_save = pn.Row(
-            *buttons_row,
+        buttons_save = pn.Row(
+            save_button,
+            download_button,
+            sizing_mode="stretch_width",
+        )
+        save_sections = pn.Column(
+            buttons_save,
             sizing_mode="stretch_width",
         )
 
         buttons_curate = pn.Row(
             restore_button,
             remove_merge_button,
-            remove_split,
+            remove_split_button,
             sizing_mode="stretch_width",
         )
 
@@ -397,7 +406,7 @@ class CurationView(ViewBase):
         # Create main layout with proper sizing
         sections = pn.Row(self.table_delete, self.table_merge, self.table_split, sizing_mode="stretch_width")
         self.layout = pn.Column(
-            self.buttons_save, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
+            save_sections, buttons_curate, sections, shortcuts_component, scroll=True, sizing_mode="stretch_both"
         )
 
     def _panel_refresh(self):
@@ -447,7 +456,7 @@ class CurationView(ViewBase):
         import panel as pn
 
         alert_markdown = pn.pane.Markdown(
-            f"""⚠️⚠️⚠️ Your curation is not saved""",
+            f"""⚠️ Your curation is not saved!""",
             hard_line_break=True,
             styles={"color": "red", "font-size": "16px"},
             name="curation_save_warning",
@@ -490,7 +499,11 @@ class CurationView(ViewBase):
         self.unsplit()
 
     def _panel_save_in_analyzer(self, event):
-        self.save_in_analyzer()
+        self.controller.save_curation_in_analyzer()
+        self.refresh()
+
+    def _panel_save_curation_callback(self, event):
+        self.controller.save_curation_callback()
         self.refresh()
 
     def _panel_generate_json(self):
@@ -612,12 +625,12 @@ The curation view shows the current status of the curation process and allows th
 revert, and export the curation data.
 
 ### Controls
-- **save in analyzer**: Save the current curation state in the analyzer.
+- **save in analyzer**/**save data**: Save the current curation state in the analyzer. 
+  If a custom save callback is provided, it will be used instead.
 - **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merges from the merged units table.
 - **unsplit**: Unsplit the selected split groups from the split units table.
-- **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
 - **press 'ctrl+u'**: Unmerge the selected merges from the merged units table.
 - **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.
