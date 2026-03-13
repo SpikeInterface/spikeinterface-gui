@@ -38,7 +38,7 @@ QSpinBox{
 
 
 def add_stretch_to_qtoolbar(tb):
-    # add an expending widget + a seprator
+    # add an expending widget + a separator
     empty = QT.QWidget()
     empty.setSizePolicy(QT.QSizePolicy.Expanding, QT.QSizePolicy.Preferred)
     tb.addWidget(empty)
