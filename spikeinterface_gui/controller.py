@@ -49,6 +49,8 @@ class Controller():
         disable_save_settings_button=False,
         events=None,
         external_data=None,
+        curation_callback=None,
+        curation_callback_kwargs=None,
         user_main_settings=None,
     ):
         self.views = []
@@ -334,6 +336,7 @@ class Controller():
         self._traces_cached = {}
 
         self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
+
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
         if extra_unit_properties is not None:
@@ -345,6 +348,9 @@ class Controller():
         self.update_time_info()
 
         self.curation = curation
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
+
         if self.curation:
             # rules:
             #  * if user sends curation_data, then it is used
@@ -707,6 +713,12 @@ class Controller():
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
         return location
+
+    def get_channel_groups(self):
+        if self.has_extension("recording"):
+            return self.analyzer.recording.get_channel_groups()
+        else:
+            return np.zeros(self.analyzer.get_num_channels(), dtype=int)
     
     def get_waveform_sweep(self):
         return self.nbefore, self.nafter
@@ -718,7 +730,7 @@ class Controller():
         wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=False)
         if self.analyzer.sparsity is None:
             # dense waveforms
-            chan_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
+            chan_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
         else:
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
@@ -860,6 +872,23 @@ class Controller():
         model = CurationModel(**d)
         return model
 
+    def set_curation_data(self, curation_data):
+        print("Setting curation data")
+        new_curation_data = empty_curation_data.copy()
+        new_curation_data.update(curation_data)
+
+        if "unit_ids" not in curation_data:
+            print("Setting unit_ids from controller")
+            new_curation_data["unit_ids"] = self.unit_ids.tolist()
+
+        if "label_definitions" not in curation_data:
+            print("Setting default label definitions")
+            new_curation_data["label_definitions"] = default_label_definitions.copy()
+
+        # validate the curation data
+        model = CurationModel(**new_curation_data)
+        self.curation_data = model.model_dump()
+
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
             print("Analyzer is an in-memory object. Cannot save curation file in it.")
@@ -881,6 +910,16 @@ class Controller():
             curation_model = self.construct_final_curation()
             sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
+
+    def save_curation_callback(self):
+        curation = self.construct_final_curation()
+        curation_data = curation.model_dump()
+        if self.curation_callback_kwargs is None:
+            curation_callback_kwargs = {}
+        else:
+            curation_callback_kwargs = self.curation_callback_kwargs
+        self.curation_callback(curation_data, **curation_callback_kwargs)
+        self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:

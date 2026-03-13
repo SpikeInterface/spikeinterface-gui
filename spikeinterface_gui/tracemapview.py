@@ -24,8 +24,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         pos = controller.get_contact_location()
-        self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], ))
+        channel_groups = controller.get_channel_groups()
+        self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], channel_groups))
         self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
+        if len(np.unique(channel_groups)) > 1:
+            self.chan_group_offsets, = np.nonzero(np.diff(np.sort(channel_groups)))
+            self.chan_group_offsets = self.chan_group_offsets + 1
+        else:
+            self.chan_group_offsets = None
         self.color_limit = None
         self.last_data_curves = None
         self.factor = None
@@ -158,6 +164,12 @@ class TraceMapView(ViewBase, MixinViewTrace):
         # events
         self._qt_add_event_lines(t1, t2)
 
+        # group separation lines
+        if self.chan_group_offsets is not None:
+            for ch in self.chan_group_offsets:
+                hline = pg.InfiniteLine(pos=ch, angle=0, movable=False, pen=pg.mkPen("black"))
+                self.plot.addItem(hline)
+
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
         time, segment_index = self.controller.get_time()
@@ -219,7 +231,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.xaxis.major_tick_line_color = "white"
         self.figure.yaxis.visible = False
         self.figure.x_range = Range1d(start=0, end=0.5)
-        self.figure.y_range = Range1d(start=0, end=1)
+        self.figure.y_range = Range1d(start=0, end=self.controller.num_channels)
 
 
         # Add data sources
@@ -244,6 +256,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.event_renderer = self.figure.line(
             x="x", y="y", source=self.event_source, line_color="yellow", line_width=2, line_dash='dashed'
         )
+        if self.chan_group_offsets is not None:
+            self.figure.hspan(y=list(self.chan_group_offsets), line_color="yellow")
 
         # # Add hover tool for spikes
         # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
