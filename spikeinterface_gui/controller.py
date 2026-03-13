@@ -470,9 +470,11 @@ class Controller():
         else:
             self.time_info['time_by_seg'] = time_by_seg
 
-    def get_t_start_t_stop(self):
+    def get_t_start_t_stop(self, use_times=None):
         segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             t_start = self.analyzer.recording.get_start_time(segment_index=segment_index)
             t_stop = self.analyzer.recording.get_end_time(segment_index=segment_index)
             return t_start, t_stop

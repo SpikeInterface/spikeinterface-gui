@@ -48,6 +48,11 @@ def parse_events(events, controller, verbose=False):
                 if np.array(samples_data).ndim == 1:
                     samples_data = [samples_data]
             if convert_to_samples:
+                # filter events based on recording start/stop times
+                print(f"Number of events before filtering: {[len(s) for s in samples_data]}")
+                t_start, t_end = controller.get_t_start_t_stop(use_times=True)
+                samples_data = [s[(s >= t_start) & (s <= t_end)] for s in samples_data]
+                print(f"Number of events after filtering: {[len(s) for s in samples_data]}")
                 parsed_events[key] = [np.array(controller.time_to_sample_index(s)) for s in samples_data]
             else:
                 parsed_events[key] = [np.array(s) for s in samples_data]
