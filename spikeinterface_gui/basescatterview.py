@@ -353,7 +353,7 @@ class BaseScatterView(ViewBase):
                 for period in valid_periods_unit:
                     t_start = self.controller.sample_index_to_time(period[0])
                     t_end = self.controller.sample_index_to_time(period[1])
-                    region = pg.LinearRegionItem([t_start, t_end], movable=False, brush=pen_color)
+                    region = pg.LinearRegionItem([t_start, t_end], movable=False, brush=pen_color, pen=pen_color)
                     self.plot.addItem(region, ignoreBounds=True)
                     self.valid_period_regions.append(region)
         else:
