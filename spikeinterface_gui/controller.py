@@ -332,6 +332,7 @@ class Controller():
         self._traces_cached = {}
 
         self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
+
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
         if extra_unit_properties is not None:
@@ -698,6 +699,12 @@ class Controller():
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
         return location
+
+    def get_channel_groups(self):
+        if self.has_extension("recording"):
+            return self.analyzer.recording.get_channel_groups()
+        else:
+            return np.zeros(self.analyzer.get_num_channels(), dtype=int)
     
     def get_waveform_sweep(self):
         return self.nbefore, self.nafter
@@ -709,7 +716,7 @@ class Controller():
         wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=False)
         if self.analyzer.sparsity is None:
             # dense waveforms
-            chan_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
+            chan_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
         else:
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
