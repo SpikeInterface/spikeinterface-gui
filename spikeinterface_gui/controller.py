@@ -518,12 +518,14 @@ class Controller():
         else:
             return int(time * self.sampling_frequency)
 
-    def get_events(self, event_name):
+    def get_events(self, event_name, segment_index=None):
         if self.events is None:
             return None
         if event_name not in self.events:
             return None
-        return self.events[event_name][self.time_info['segment_index']]
+        if segment_index is None:
+            segment_index = self.time_info['segment_index']
+        return self.events[event_name][segment_index]
 
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()

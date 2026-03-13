@@ -22,26 +22,46 @@ class EventView(ViewBase):
 
 
     def get_aligned_spikes(self, unit_ids):
-        event_times = np.array(self.controller.get_events(self.selected_event_key))
         window_s = [self.settings['window_start'], self.settings['window_end']]
         window_samples = [int(w * self.controller.sampling_frequency) for w in window_s]
+        # gather all events across segments
+        all_event_times = []
+        num_segments = self.controller.num_segments
+        num_events = 0
+        for segment_index in range(num_segments):
+            events = self.controller.get_events(self.selected_event_key, segment_index=segment_index)
+            if events is not None:
+                all_event_times.append(events)
+                num_events += len(events)
+            else:
+                all_event_times.append(np.array([]))
 
-        if len(event_times) > self.settings['max_trials']:
-            event_times = event_times[np.random.choice(len(event_times), self.settings['max_trials'], replace=False)]
+        if num_events > self.settings['max_trials']:
+            # sub-sample events based on segment durations
+            segment_samples = [self.controller.get_num_samples(segment_index) for segment_index in range(num_segments)]
+            total_samples = sum(segment_samples)
+            events_per_segment = []
+            for segment_index in range(num_segments - 1):
+                events_per_segment.append(
+                    min(int(segment_samples[segment_index] / total_samples * self.settings['max_trials']), len(all_event_times[segment_index]))
+                )
+            # assign remaining to last segment to ensure total is max_trials
+            events_per_segment.append(min(self.settings['max_trials'] - sum(events_per_segment), len(all_event_times[-1])))
+            event_times = [np.random.choice(et, size=events_per_segment[i], replace=False) for i, et in enumerate(all_event_times)]
 
         aligned_spikes_dict = {}
         for selected_unit in unit_ids:
             aligned_spikes = []
-            # TODO: deal with this!!! (at controller level)
-            segment_index = 0
-            inds = self.controller.get_spike_indices(selected_unit, segment_index=segment_index)
-            spike_times = self.controller.spikes["sample_index"][inds]
 
-            for et in event_times:
-                rel_spikes = spike_times - et
-                rel_spikes = rel_spikes[(rel_spikes >= window_samples[0]) & (rel_spikes <= window_samples[1])]
-                aligned_spikes.append(rel_spikes / self.controller.sampling_frequency)  # convert to seconds
-            aligned_spikes_dict[selected_unit] = aligned_spikes
+            for segment_index in range(num_segments):
+                inds = self.controller.get_spike_indices(selected_unit, segment_index=segment_index)
+                spike_times = self.controller.spikes["sample_index"][inds]
+
+                for et in event_times[segment_index]:
+                    rel_spikes = spike_times - et
+                    rel_spikes = rel_spikes[(rel_spikes >= window_samples[0]) & (rel_spikes <= window_samples[1])]
+                    aligned_spikes.append(rel_spikes / self.controller.sampling_frequency)  # convert to seconds
+                aligned_spikes_dict[selected_unit] = aligned_spikes
         return aligned_spikes_dict
 
     def _qt_make_layout(self):
