@@ -348,7 +348,7 @@ class BaseScatterView(ViewBase):
             self.valid_period_regions = []
             for unit_id in visible_units:
                 valid_periods_unit = self.controller.valid_periods[segment_index][unit_id]
-                color = self.get_unit_color(unit_id, alpha=0.3)
+                color = self.get_unit_color(unit_id, alpha=0.2)
                 pen_color = pg.mkColor(color)
                 for period in valid_periods_unit:
                     t_start = self.controller.sample_index_to_time(period[0])
@@ -474,6 +474,17 @@ class BaseScatterView(ViewBase):
         # Add SelectionGeometry event handler to capture lasso vertices
         self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)
 
+        self.valid_periods_source = ColumnDataSource(data=dict(
+            left=[], right=[], top=[], bottom=[], fill_color=[]
+        ))
+        self.scatter_fig.quad(
+            left="left", right="right",
+            top="top", bottom="bottom",
+            fill_color="fill_color",
+            line_color=None,
+            source=self.valid_periods_source,
+        )
+
         self.hist_source = ColumnDataSource(data={"x": [], "y": []})
         self.hist_data_source = ColumnDataSource(data=dict(x=[], y=[], color=[]))
         self.hist_fig = bpl.figure(
@@ -589,30 +600,23 @@ class BaseScatterView(ViewBase):
         # handle selected spikes
         self._panel_update_selected_spikes()
 
-        # Add valid period regions
+        # Update valid period regions
         if self.settings["display_valid_periods"] and self.controller.valid_periods is not None:
-            for region in self.valid_period_regions:
-                self.scatter_fig.renderers.remove(region)
-            self.valid_period_regions = []
+            lefts, rights, tops, bottoms, colors = [], [], [], [], []
             for unit_id in visible_unit_ids:
                 valid_periods_unit = self.controller.valid_periods[segment_index][unit_id]
-                color = self.get_unit_color(unit_id)
-                color_shade = self.get_unit_color(unit_id, alpha=0.3)
+                color_shade = self.get_unit_color(unit_id, alpha=0.2)
                 for period in valid_periods_unit:
-                    t_start = self.controller.sample_index_to_time(period[0])
-                    t_end = self.controller.sample_index_to_time(period[1])
-                    # set y1/y2 to very large values to make sure they always display
-                    region = self.scatter_fig.varea(
-                        x=[t_start, t_end],
-                        y1=[-1_000_000, -1_000_000],
-                        y2=[1_000_000, 1_000_000],
-                        fill_color=color_shade
-                    )
-                    self.valid_period_regions.append(region)
+                    lefts.append(self.controller.sample_index_to_time(period[0]))
+                    rights.append(self.controller.sample_index_to_time(period[1]))
+                    tops.append(1_000_000)
+                    bottoms.append(-1_000_000)
+                    colors.append(color_shade)
+            self.valid_periods_source.data = dict(
+                left=lefts, right=rights, top=tops, bottom=bottoms, fill_color=colors
+            )
         else:
-            for region in self.valid_period_regions:
-                self.scatter_fig.renderers.remove(region)
-            self.valid_period_regions = []
+            self.valid_periods_source.data = dict(left=[], right=[], top=[], bottom=[], fill_color=[])
 
         # Defer Range updates to avoid nested document lock issues
         # def update_ranges():
