@@ -252,18 +252,12 @@ class TraceMapView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
-        self.event_source = ColumnDataSource({"x": [], "y": []})
-        self.event_renderer = self.figure.line(
-            x="x", y="y", source=self.event_source, line_color="yellow", line_width=2, line_dash='dashed'
-        )
         if self.chan_group_offsets is not None:
             self.figure.hspan(y=list(self.chan_group_offsets), line_color="yellow")
 
         # # Add hover tool for spikes
-        # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-        self.toolbar = self._panel_create_toolbar()
-        self.bottom_toolbar = self._panel_create_bottom_toolbar()
+        self._panel_create_toolbars()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area

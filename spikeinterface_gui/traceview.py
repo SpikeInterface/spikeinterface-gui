@@ -366,13 +366,13 @@ class MixinViewTrace:
         self.xsize_spinner.param.watch(self._panel_on_xsize_changed, "value")
         self.auto_scale_button.on_click(self._panel_auto_scale)
 
-        toolbar = pn.Row(
+        self.toolbar = pn.Row(
             self.segment_selector,
             xsize,
             self.auto_scale_button,
             sizing_mode="stretch_width",
         )
-        return toolbar
+        self.bottom_toolbar = self._panel_create_bottom_toolbar()
 
     def _panel_create_bottom_toolbar(self):
         import panel as pn
@@ -572,10 +572,10 @@ class MixinViewTrace:
         # get yspan from self.figure
         fig = self.figure
         yspan = [fig.y_range.start, fig.y_range.end]
-        self.event_source.data = dict(x=[evt_time, evt_time], y=yspan)
+        self.event_source.data = {"xs": [[evt_time, evt_time]], "ys": [yspan]}
 
     def _panel_remove_event_line(self):
-        self.event_source.data = dict(x=[], y=[])
+        self.event_source.data = {"xs": [], "ys": []}
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -822,15 +822,9 @@ class TraceView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
-        self.event_source = ColumnDataSource({"x": [], "y": []})
-        self.event_renderer = self.figure.line(
-            x="x", y="y", source=self.event_source, line_color="yellow", line_width=2, line_dash='dashed'
-        )
-
         self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
-        self.toolbar = self._panel_create_toolbar()
-        self.bottom_toolbar = self._panel_create_bottom_toolbar()
+        self._panel_create_toolbars()
         
         self.layout = pn.Column(
             self.toolbar,
