@@ -11,7 +11,7 @@ from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.curation import validate_curation_dict
-from spikeinterface.curation.curation_model import CurationModel
+from spikeinterface.curation.curation_model import Curation
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
@@ -393,7 +393,7 @@ class Controller():
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
-            curation_data = CurationModel(**curation_data).model_dump()
+            curation_data = Curation(**curation_data).model_dump()
             self.curation_data = curation_data
 
     def check_is_view_possible(self, view_name):
@@ -852,7 +852,7 @@ class Controller():
         d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
-        model = CurationModel(**d)
+        model = Curation(**d)
         return model
 
     def set_curation_data(self, curation_data):
