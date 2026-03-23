@@ -136,6 +136,8 @@ class MixinViewTrace:
 
         self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
+        self._qt_update_scroll_step()
+
         if self.controller.has_extension("events"):
             bottom_layout = QT.QHBoxLayout()
             bottom_layout.addWidget(self.scroll_time, stretch=8)
@@ -209,13 +211,17 @@ class MixinViewTrace:
         self.gains = None
         self.offsets = None
 
-    def _qt_update_scroll_limits(self):
+    def _qt_update_scroll_step(self):
         segment_index = self.controller.get_time()[1]
         length = self.controller.get_num_samples(segment_index)
+        num_scrollbar_steps = max(2**16, length)
+        self.scroll_step = length / num_scrollbar_steps
+
         t_start, t_stop = self.controller.get_t_start_t_stop()
         self.timeseeker.set_start_stop(t_start, t_stop, seek=False)
+
         self.scroll_time.setMinimum(0)
-        self.scroll_time.setMaximum(length - 1)
+        self.scroll_time.setMaximum(num_scrollbar_steps - 1)
 
     def _qt_change_segment(self, segment_index):
         #TODO: dirty because now seg_pos IS segment_index
@@ -224,7 +230,8 @@ class MixinViewTrace:
         if segment_index != self.combo_seg.currentIndex():
             self.combo_seg.setCurrentIndex(segment_index)
 
-        self._qt_update_scroll_limits()
+        self._qt_update_scroll_step()
+
         if not self._block_auto_refresh_and_notify:
             self.refresh()
             self.notify_time_info_updated()
@@ -255,7 +262,8 @@ class MixinViewTrace:
             self.spinbox_xsize.setValue(newsize)
 
     def _qt_on_scroll_time(self, val):
-        time = self.controller.sample_index_to_time(val)
+        sample = int(val * self.scroll_step)
+        time = self.controller.sample_index_to_time(sample)
         self.timeseeker.seek(time)
 
     def _qt_seek_with_selected_spike(self):
@@ -677,7 +685,6 @@ class TraceView(ViewBase, MixinViewTrace):
         self.plot.addItem(self.scatter)
 
         self.layout.addWidget(self.bottom_toolbar)
-        self._qt_update_scroll_limits()
 
     def _qt_on_settings_changed(self):
         # adjust xsize spinbox bounds, and adjust xsize if out of bounds
@@ -707,12 +714,11 @@ class TraceView(ViewBase, MixinViewTrace):
 
         xsize = self.xsize
         t1, t2 = t - xsize/3., t + xsize * 2/3.
-        sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
-        value = self.controller.time_to_sample_index(t)
+        sample = self.controller.time_to_sample_index(t)
+        value = int(sample / self.scroll_step)
         self.scroll_time.setValue(value)
-        self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
 
         visible_channel_inds = self.get_visible_channel_inds()
