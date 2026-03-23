@@ -8,13 +8,14 @@ from copy import deepcopy
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
-from spikeinterface.core import get_template_extremum_channel
+from spikeinterface.core import get_template_extremum_channel, BaseEvent
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import Curation
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
+from .event_tools import parse_events
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -46,6 +47,7 @@ class Controller():
         extra_unit_properties=None,
         skip_extensions=None,
         disable_save_settings_button=False,
+        events=None,
         external_data=None,
         curation_callback=None,
         curation_callback_kwargs=None,
@@ -256,6 +258,16 @@ class Controller():
             self.valid_periods = None
 
         self._potential_merges = None
+        # some direct attribute
+        self.num_segments = self.analyzer.get_num_segments()
+        self.sampling_frequency = self.analyzer.sampling_frequency
+
+        # parse events
+        self.events = None
+        if events is not None:
+            self.events = parse_events(events, self, verbose=verbose)
+            if len(self.events) == 0:
+                self.events = None
 
         t1 = time.perf_counter()
         if verbose:
@@ -265,10 +277,6 @@ class Controller():
 
         self._extremum_channel = get_template_extremum_channel(self.analyzer,
                                     mode="extremum", peak_sign='both', outputs='index')
-
-        # some direct attribute
-        self.num_segments = self.analyzer.get_num_segments()
-        self.sampling_frequency = self.analyzer.sampling_frequency
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
@@ -468,9 +476,12 @@ class Controller():
         else:
             self.time_info['time_by_seg'] = time_by_seg
 
-    def get_t_start_t_stop(self):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def get_t_start_t_stop(self, use_times=None, segment_index=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             t_start = self.analyzer.recording.get_start_time(segment_index=segment_index)
             t_stop = self.analyzer.recording.get_end_time(segment_index=segment_index)
             return t_start, t_stop
@@ -508,13 +519,25 @@ class Controller():
         else:
             return sample_index / self.sampling_frequency
 
-    def time_to_sample_index(self, time):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def time_to_sample_index(self, time, segment_index=None, use_times=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             time = self.analyzer.recording.time_to_sample_index(time, segment_index=segment_index)
             return time
         else:
             return int(time * self.sampling_frequency)
+
+    def get_events(self, event_name, segment_index=None):
+        if self.events is None:
+            return None
+        if event_name not in self.events:
+            return None
+        if segment_index is None:
+            segment_index = self.time_info['segment_index']
+        return self.events[event_name][segment_index]
 
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()
@@ -768,6 +791,8 @@ class Controller():
     def has_extension(self, extension_name):
         if extension_name == 'recording':
             return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
+        elif extension_name == 'events':
+            return self.events is not None
         else:
             # extension needs to be loaded
             if extension_name in self.skip_extensions:

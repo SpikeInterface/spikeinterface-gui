@@ -129,12 +129,6 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
 
 
-    qm = sorting_analyzer.get_extension("quality_metrics").get_data()
-    # print(qm.index)
-    # print(qm.index.dtype)
-    # print(sorting_analyzer.unit_ids.dtype)
-
-
 def make_curation_dict(analyzer):
     unit_ids = analyzer.unit_ids.tolist()
     curation_dict = {

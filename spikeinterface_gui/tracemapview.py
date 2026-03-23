@@ -78,8 +78,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.layout = QT.QVBoxLayout()
         
-        self._qt_create_toolbar()
-        
+        self._qt_create_toolbars()
         
         # create graphic view and 2 scroll bar
         g = QT.QGridLayout()
@@ -93,14 +92,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
-
-
-        # self.on_params_changed(do_refresh=False)
-        #this do refresh
+        self.layout.addWidget(self.bottom_toolbar)
         self._qt_change_segment(0)
 
     def _qt_on_settings_changed(self, do_refresh=True):
@@ -169,6 +161,10 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.plot.setXRange(t1, t2, padding=0.0)
         self.plot.setYRange(0, num_chans, padding=0.0)
 
+        # events
+        self._qt_add_event_lines(t1, t2)
+
+        # group separation lines
         if self.chan_group_offsets is not None:
             for ch in self.chan_group_offsets:
                 hline = pg.InfiniteLine(pos=ch, angle=0, movable=False, pen=pg.mkPen("black"))
@@ -260,15 +256,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
             self.figure.hspan(y=list(self.chan_group_offsets), line_color="yellow")
 
         # # Add hover tool for spikes
-        # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-        self._panel_create_toolbar()
+        self._panel_create_toolbars()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area
                 self.toolbar,
                 self.figure,
-                self.time_slider,
+                self.bottom_toolbar,
                 styles={"flex": "1"},
                 sizing_mode="stretch_both"
             ),
@@ -277,6 +272,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         )
 
     def _panel_refresh(self):
+        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
@@ -316,6 +312,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.x_range.end = t2
         self.figure.y_range.end = data_curves.shape[1]
 
+        self._panel_add_event_lines(t1, t2)
+
     def _panel_on_settings_changed(self):
         self.make_color_lut()
         self.refresh()
@@ -352,15 +350,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
         time, segment_index = self.controller.get_time()
-
         self._block_auto_refresh_and_notify = True
         self._panel_change_segment(segment_index)
-
-        # Update time slider value
-        self.time_slider.value = time
-
         self._block_auto_refresh_and_notify = False
-        # we don't need a refresh in panel because changing tab triggers a refresh
+        self.refresh()
+        # Update slider visually after refresh, blocking the callback to avoid
+        # a Bokeh round-trip loop (browser sends value_throttled back to server)
+        self._block_auto_refresh_and_notify = True
+        self.time_slider.value = time
+        self._block_auto_refresh_and_notify = False
 
     def _panel_on_use_times_updated(self):
         # Update time seeker
