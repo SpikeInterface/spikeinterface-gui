@@ -124,7 +124,7 @@ UX improvements
 * **Waveform overlap**: show overlapping waveforms with ``Ctrl+O``; ``Alt+Scroll`` to widen narrow waveforms
 * **Exclude deleted units from merge view**: option to hide already-deleted units in ``MergeView``
 * **Probe view**: better automatic ROI when multiple units are selected
-* **``with_traces=False``**: option to not show traces in the main window
+* ``with_traces=False`` **option**: option to not show traces in the main window
 
 Performance and bug fixes
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -141,10 +141,10 @@ Performance and bug fixes
 *Release date: February 12, 2025*
 
 * **Lasso selection in spike amplitude view**: visually select spikes with a lasso tool; enable/disable lasso button
-* **``--recording`` CLI option**: pass a recording path from the command line
-* **``--recording-base-folder`` option**: flexible recording path resolution
+* ``--recording`` **CLI option**: pass a recording path from the command line
+* ``--recording-base-folder`` **option**: flexible recording path resolution
 * **Unit list improvements**: column drag-and-drop reordering; fix string column sorting
-* **``compute_merge_unit_groups``**: now uses the function directly from SpikeInterface
+* ``compute_merge_unit_groups``: now uses the function directly from SpikeInterface
 * **Improved unit tables**: better column display
 
 
@@ -158,7 +158,7 @@ Performance and bug fixes
 * **ProbeGroup support**: handle multi-shank probes via ``ProbeGroup``
 * **Probe view**: second ROI with ``Ctrl``-click to add ROI for units
 * **Similarity view**: ``Ctrl``-click for append mode
-* **``--no-traces`` CLI option**: start the GUI without loading traces; small trace cache added
+* ``--no-traces`` **CLI option**: start the GUI without loading traces; small trace cache added
 * **Python version**: updated support for Python 3.9+ and 3.11
 * **Bug fixes**: spike list and visible spikes; documentation updates
 
@@ -174,7 +174,7 @@ New views
 ~~~~~~~~~
 
 * **TraceMapView**: new view showing a heatmap of traces on the probe
-* **``WaveformHeatMapView`` made optional**: avoid accidentally triggering expensive recomputation
+* ``WaveformHeatMapView`` **made optional**: avoid accidentally triggering expensive recomputation
 
 Curation
 ~~~~~~~~
@@ -188,7 +188,7 @@ Backend and architecture
 
 * **SortingAnalyzer support**: complete refactor to use the new ``SortingAnalyzer`` API from SpikeInterface (replaces ``WaveformExtractor``)
 * **View dependency on extensions**: views only shown/enabled if the required analyzer extension is computed
-* **``noise_levels`` optional**: noise display on spike amplitude view is optional if not computed
+* ``noise_levels`` **optional**: noise display on spike amplitude view is optional if not computed
 
 
 .. _release0.8.0:
