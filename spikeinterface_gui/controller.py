@@ -249,6 +249,12 @@ class Controller():
             pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
+        if analyzer.has_extension("valid_unit_periods"):
+            valid_periods_ext = analyzer.get_extension("valid_unit_periods")
+            self.valid_periods = valid_periods_ext.get_data(outputs="by_unit")
+        else:
+            self.valid_periods = None
+
         self._potential_merges = None
 
         t1 = time.perf_counter()

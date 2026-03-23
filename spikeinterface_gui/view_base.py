@@ -1,6 +1,8 @@
 import time
 from contextlib import contextmanager
 
+import numpy as np
+
 class ViewBase:
     id: str = None
     _supported_backend = []
@@ -159,7 +161,7 @@ class ViewBase:
             # Panel: asynchronous approach with callback
             self._panel_insert_warning_with_choice(warning_msg, action, *args)
 
-    def get_unit_color(self, unit_id):
+    def get_unit_color(self, unit_id, alpha=1.0):
         if self.backend == "qt":
             from .myqt import QT
 
@@ -170,14 +172,18 @@ class ViewBase:
                 color = self.controller.get_unit_color(unit_id)
                 r, g, b, a = color
                 qcolor = QT.QColor(int(r * 255), int(g * 255), int(b * 255))
+                # only cache
                 self.controller._cached_qcolors[unit_id] = qcolor
-
-            return self.controller._cached_qcolors[unit_id]
+            else:
+                qcolor = self.controller._cached_qcolors[unit_id]
+            qcolor.setAlpha(int(alpha * 255))
+            return qcolor
 
         elif self.backend == "panel":
             import matplotlib
 
             color = self.controller.get_unit_color(unit_id)
+            color = color[:3] + (np.float64(alpha),)
             html_color = matplotlib.colors.rgb2hex(color, keep_alpha=True)
             return html_color
 
