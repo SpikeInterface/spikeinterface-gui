@@ -185,8 +185,12 @@ class QtMainWindow(QT.QMainWindow):
     def make_views(self, user_settings):
         self.views = {}
         self.docks = {}
+        views_per_zone = list(self.layout_dict.values())
+        user_selected_views = [view for views_in_zone in views_per_zone for view in views_in_zone]
         possible_class_views = get_all_possible_views()
         for view_name, view_class in possible_class_views.items():
+            if view_name not in user_selected_views:
+                continue
             if 'qt' not in view_class._supported_backend:
                 continue
             if not self.controller.check_is_view_possible(view_name):
