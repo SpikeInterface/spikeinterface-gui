@@ -114,33 +114,6 @@ class Controller():
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
-
-        
-
-    def check_is_view_possible(self, view_name):
-        from .viewlist import get_all_possible_views
-        possible_class_views = get_all_possible_views()
-        view_class = possible_class_views[view_name]
-        if view_class._depend_on is not None:
-            depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
-            if not depencies_ok:
-                if self.verbose:
-                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
-                return False
-        return True
-
-    def declare_a_view(self, new_view):
-        assert new_view not in self.views, 'view already declared {}'.format(self)
-        self.views.append(new_view)
-        self.signal_handler.connect_view(new_view)
-        
-    @property
-    def channel_ids(self):
-        return self.analyzer.channel_ids
-
-    @property
-    def unit_ids(self):
-        return self.analyzer.unit_ids
     
     def set_analyzer_info(self, analyzer):
 
@@ -477,6 +450,31 @@ class Controller():
                     if self.verbose:
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
+
+    def check_is_view_possible(self, view_name):
+        from .viewlist import get_all_possible_views
+        possible_class_views = get_all_possible_views()
+        view_class = possible_class_views[view_name]
+        if view_class._depend_on is not None:
+            depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
+            if not depencies_ok:
+                if self.verbose:
+                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
+                return False
+        return True
+
+    def declare_a_view(self, new_view):
+        assert new_view not in self.views, 'view already declared {}'.format(self)
+        self.views.append(new_view)
+        self.signal_handler.connect_view(new_view)
+        
+    @property
+    def channel_ids(self):
+        return self.analyzer.channel_ids
+
+    @property
+    def unit_ids(self):
+        return self.analyzer.unit_ids
 
     def get_time(self):
         """
@@ -908,9 +906,6 @@ class Controller():
         ext = self.analyzer.compute("isi_histograms", save=self.save_on_compute, window_ms=window_ms, bin_ms=bin_ms)
         self.isi_histograms, self.isi_bins = ext.get_data()
         return self.isi_histograms, self.isi_bins
-
-    def get_units_table(self):
-        return self.units_table
 
     def compute_auto_merge(self, **params):
         
