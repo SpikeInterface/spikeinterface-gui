@@ -130,7 +130,7 @@ class UnitListView(ViewBase):
 
     def _qt_reinitialize(self):
 
-        self._qt_set_up_visible_columns()
+        #self._qt_set_up_visible_columns()
         self._qt_full_table_refresh()
         self._qt_refresh()
 
@@ -226,7 +226,6 @@ class UnitListView(ViewBase):
             self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
         
         self.table.clear()
-
 
         internal_column_names = ['unit_id', 'visible',  'channel_id']
 

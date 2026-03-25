@@ -68,9 +68,9 @@ def add_new_unit_ids_to_curation_dict(curation_dict, sorting, split_new_id_strat
     """
 
     from spikeinterface.core.sorting_tools import generate_unit_ids_for_split, generate_unit_ids_for_merge_group
-    from spikeinterface.curation.curation_model import CurationModel
+    from spikeinterface.curation.curation_model import Curation
 
-    curation_model = CurationModel(**curation_dict)
+    curation_model = Curation(**curation_dict)
     old_unit_ids = copy(curation_model.unit_ids)
 
     if len(curation_model.splits) > 0:

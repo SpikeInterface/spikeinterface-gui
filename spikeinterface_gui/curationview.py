@@ -4,7 +4,7 @@ from pathlib import Path
 from .view_base import ViewBase
 
 from spikeinterface.core.core_tools import check_json
-
+from spikeinterface.curation.curation_model import SequentialCuration
 
 class CurationView(ViewBase):
     id = "curation"
@@ -301,9 +301,6 @@ class CurationView(ViewBase):
                     f.write(curation_model.model_dump_json(indent=4))
                 self.controller.current_curation_saved = True
             else:
-                # Keep this here until `SeqentialCuration` in release of spikeinterface
-                from spikeinterface.curation.curation_model import SequentialCuration
-
                 current_curation_model = self.controller.construct_final_curation()
                 applied_curations = self.controller.applied_curations
                 current_and_applied_curations = applied_curations + [current_curation_model]
