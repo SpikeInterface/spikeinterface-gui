@@ -111,9 +111,6 @@ class Controller():
             displayed_unit_properties += self.extra_unit_properties_names
         displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
         self.displayed_unit_properties = displayed_unit_properties
-
-        # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
-        self.refresh_colors()
     
     def set_analyzer_info(self, analyzer):
 
@@ -309,6 +306,9 @@ class Controller():
         self._extremum_channel = get_template_extremum_channel(self.analyzer,
                                     mode="extremum", peak_sign='both', outputs='index')
 
+        # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
+        self.refresh_colors()
+
         # at init, we set the visible channels as the sparsity of the first unit
         if self.analyzer_sparsity is not None:
             self.visible_channel_inds = self.analyzer_sparsity.unit_id_to_channel_indices[self.unit_ids[0]].astype("int64")
@@ -374,13 +374,11 @@ class Controller():
 
 
     def set_curation_info(self, curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs):
-
         self.curation = curation
         self.curation_callback = curation_callback
         self.curation_callback_kwargs = curation_callback_kwargs
 
         self._potential_merges = None
-        self.curation = curation
         # TODO: Reload the dictionary if it already exists
         if self.curation:
             # rules:
@@ -390,6 +388,7 @@ class Controller():
 
             if curation_data is not None:
                 # validate the curation data
+                curation_data = deepcopy(curation_data)
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
                 if format_version is None:
