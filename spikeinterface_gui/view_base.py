@@ -1,6 +1,8 @@
 import time
 from contextlib import contextmanager
 
+import numpy as np
+
 class ViewBase:
     id: str = None
     _supported_backend = []
@@ -80,7 +82,7 @@ class ViewBase:
     def on_settings_changed(self, *params):
         # what to do when one settings is changed
         # optionally views can implement custom method
-        # but the general case is to refesh
+        # but the general case is to refresh
         if self.backend == "qt" and hasattr(self, "_qt_on_settings_changed"):
             return self._qt_on_settings_changed()
         elif self.backend == "panel" and hasattr(self, "_panel_on_settings_changed"):
@@ -133,7 +135,8 @@ class ViewBase:
         if self.backend == "qt":
             self._qt_refresh(**kwargs)
         elif self.backend == "panel":
-            self._panel_refresh(**kwargs)
+            import panel as pn
+            pn.state.execute(lambda: self._panel_refresh(**kwargs), schedule=True)
 
     def _reinitialize(self, **kwargs):
         if self.backend == "qt":
@@ -172,7 +175,7 @@ class ViewBase:
             # Panel: asynchronous approach with callback
             self._panel_insert_warning_with_choice(warning_msg, action, *args)
 
-    def get_unit_color(self, unit_id):
+    def get_unit_color(self, unit_id, alpha=1.0):
         if self.backend == "qt":
             from .myqt import QT
 
@@ -183,18 +186,22 @@ class ViewBase:
                 color = self.controller.get_unit_color(unit_id)
                 r, g, b, a = color
                 qcolor = QT.QColor(int(r * 255), int(g * 255), int(b * 255))
+                # only cache
                 self.controller._cached_qcolors[unit_id] = qcolor
-
-            return self.controller._cached_qcolors[unit_id]
+            else:
+                qcolor = self.controller._cached_qcolors[unit_id]
+            qcolor.setAlpha(int(alpha * 255))
+            return qcolor
 
         elif self.backend == "panel":
             import matplotlib
 
             color = self.controller.get_unit_color(unit_id)
+            color = color[:3] + (np.float64(alpha),)
             html_color = matplotlib.colors.rgb2hex(color, keep_alpha=True)
             return html_color
 
-    # Default behavior for all views : this can be changed view by view for perfs reaons
+    # Default behavior for all views : this can be changed view by view for perfs reasons
     def on_spike_selection_changed(self):
         if not self.is_view_visible():
             return
@@ -204,7 +211,6 @@ class ViewBase:
             self._panel_on_spike_selection_changed()
 
     def on_unit_visibility_changed(self):
-        # print(f"on_unit_visibility_changed {self.__class__.__name__} visible{self.is_view_visible()}", flush=True)
         if not self.is_view_visible():
             return
         if self.backend == "qt":
@@ -213,7 +219,6 @@ class ViewBase:
             self._panel_on_unit_visibility_changed()
 
     def on_channel_visibility_changed(self):
-        # print(f"on_channel_visibility_changed {self.__class__.__name__} visible{self.is_view_visible()}", flush=True)
         if not self.is_view_visible():
             return
         if self.backend == "qt":
@@ -255,6 +260,18 @@ class ViewBase:
         else:
             raise ValueError(f"Unknown backend: {self.backend}")
 
+    def is_warning_active(self):
+        if self.backend == "qt":
+            # we can check if a warning dialog is active
+            from .myqt import QT
+
+            active_window = QT.QApplication.activeWindow()
+            if active_window and isinstance(active_window, QT.QMessageBox):
+                return True
+            return False
+        elif self.backend == "panel":
+            return self._panel_warning_active
+
     ## Zone to be done per layout ##
 
     ## QT ##
@@ -271,7 +288,7 @@ class ViewBase:
         pass
 
     def _qt_on_unit_visibility_changed(self):
-        # most veiw need a refresh
+        # most view need a refresh
         self.refresh()
 
     def _qt_on_channel_visibility_changed(self):
@@ -334,7 +351,7 @@ class ViewBase:
         pass
 
     def _panel_on_unit_visibility_changed(self):
-        # most veiw need a refresh
+        # most view need a refresh
         self.refresh()
 
     def _panel_on_channel_visibility_changed(self):
@@ -428,7 +445,8 @@ class ViewBase:
         # Do nothing on cancel - just remove the dialog
 
     def _panel_clear_warning(self, event):
-        self.layout.pop(0)
+        if self._panel_warning_active:
+            self.layout.pop(0)
         self._panel_warning_active = False
 
     @contextmanager

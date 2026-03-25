@@ -172,7 +172,7 @@ class MetricsView(ViewBase):
         self.empty_plot_pane = pn.pane.Bokeh(empty_fig, sizing_mode="stretch_both")
 
         self.layout = pn.Column(
-            pn.Row(self.metrics_select, sizing_mode="stretch_width", height=160),
+            pn.Row(self.metrics_select, sizing_mode="stretch_width", height=100),
             self.empty_plot_pane,
             sizing_mode="stretch_both"
         )
@@ -221,6 +221,7 @@ class MetricsView(ViewBase):
                         outline_line_color="white",
                         toolbar_location=None
                     )
+                    plot.toolbar.logo = None
                     plot.grid.visible = False
 
                     if r == c:

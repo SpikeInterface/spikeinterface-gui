@@ -2,11 +2,12 @@ import sys
 import argparse
 import json
 from pathlib import Path
+from typing import Callable
 import numpy as np
 import warnings
 
 from spikeinterface import load_sorting_analyzer, load
-from spikeinterface.core.core_tools import is_path_remote
+from spikeinterface.core import BaseRecording, SortingAnalyzer, BaseEvent
 from spikeinterface.core.sortinganalyzer import get_available_analyzer_extensions
 from .utils_global import get_config_folder
 from spikeinterface_gui.layout_presets import get_layout_description
@@ -16,26 +17,30 @@ from spikeinterface_gui.controller import Controller
 from spikeinterface_gui.viewlist import get_all_possible_views
 
 def run_mainwindow(
-    analyzer,
-    mode="desktop",
-    with_traces=True,
-    curation=False,
-    curation_dict=None,
-    label_definitions=None,
-    displayed_unit_properties=None,
-    extra_unit_properties=None,
-    skip_extensions=None,
-    recording=None,
-    start_app=True,
-    layout_preset=None,
-    layout=None,
-    address="localhost",
-    port=0,
-    panel_start_server_kwargs=None,
-    panel_window_servable=True,
-    verbose=False,
-    user_settings=None,
-    disable_save_settings_button=False,
+    analyzer: SortingAnalyzer,
+    mode: str = "desktop",
+    with_traces: bool = True,
+    curation: bool = False,
+    curation_dict: dict | None = None,
+    label_definitions: dict | None = None,
+    displayed_unit_properties: list | None=None,
+    extra_unit_properties: list | None=None,
+    skip_extensions: list | None = None,
+    recording: BaseRecording | None = None,
+    events: BaseEvent | dict | None = None,
+    start_app: bool = True,
+    layout_preset: str | None = None,
+    layout: dict | None = None,
+    external_data: dict | None = None,
+    curation_callback: Callable | None = None,
+    curation_callback_kwargs: dict | None = None,
+    address: str = "localhost",
+    port: int = 0,
+    panel_start_server_kwargs: dict | None = None,
+    panel_window_servable: bool = True,
+    verbose: bool = False,
+    user_settings: dict | None = None,
+    disable_save_settings_button: bool = False,
 ):
     """
     Create the main window and start the QT app loop.
@@ -65,12 +70,24 @@ def run_mainwindow(
     recording: RecordingExtractor | None, default: None
         The recording object to display traces. This can be used when the 
         SortingAnalyzer is recordingless.
+    events: BaseEvent | dict | None, default: None
+        The events to display in the GUI. This can be a BaseEvent object or a dictionary
+        with keys as event names and another dictionary as values with "samples" or "times".
     start_qt_app: bool, default: True
         If True, the QT app loop is started
     layout_preset : str | None
         The name of the layout preset. None is default.
     layout : dict | None
         The layout dictionary to use instead of the preset.
+    external_data: object, default: None
+        Whatever is passed to `external_data` is attached to the controller as the attribute
+        `external_data`. Useful for custom views.
+    curation_callback: function, default: None
+        A function that is called when the curation is saved. It should take two arguments:
+        - `curation_data`: a dictionary containing the curation data (merges, splits, removed units)
+        - `curation_callback_kwargs`: a dictionary of additional keyword arguments specified in `curation_callback_kwargs`
+    curation_callback_kwargs: dict, default: None
+        A dictionary of additional keyword arguments to pass to the `curation_callback` when it is called.
     address: str, default : "localhost"
         For "web" mode only. By default it is "localhost".
         Use "auto-ip" to use the real IP address of the machine.
@@ -105,6 +122,10 @@ def run_mainwindow(
     #   1) User specified settings
     #   2) Settings in the config folder
     #   3) Default settings of each view 
+    user_main_settings = None
+    if user_settings is not None:
+        user_main_settings = user_settings.get('mainsettings')
+
     if user_settings is None:
         sigui_version = spikeinterface_gui.__version__
         config_version_folder = get_config_folder() / sigui_version
@@ -129,14 +150,22 @@ def run_mainwindow(
         skip_extensions = find_skippable_extensions(layout_dict)
 
     controller = Controller(
-        analyzer, backend=backend, verbose=verbose,
-        curation=curation, curation_data=curation_dict,
+        analyzer,
+        backend=backend,
+        verbose=verbose,
+        curation=curation,
+        curation_data=curation_dict,
         label_definitions=label_definitions,
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
-        disable_save_settings_button=disable_save_settings_button
+        disable_save_settings_button=disable_save_settings_button,
+        events=events,
+        external_data=external_data,
+        curation_callback=curation_callback,
+        curation_callback_kwargs=curation_callback_kwargs,
+        user_main_settings=user_main_settings
     )
     if verbose:
         t1 = time.perf_counter()

@@ -187,7 +187,7 @@ class SpikeRateView(ViewBase):
 
 
 SpikeRateView._gui_help_txt = """
-# SpikeRateView View
+## SpikeRateView View
 
 This view shows firing rate for spikes per `bin_s`.
 """

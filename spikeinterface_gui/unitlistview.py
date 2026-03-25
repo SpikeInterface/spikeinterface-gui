@@ -20,21 +20,17 @@ class UnitListView(ViewBase):
 
 
     ## common ##
-    def show_all(self):
-        self.controller.set_visible_unit_ids(self.controller.unit_ids)
-        self.notify_unit_visibility_changed()
-        self.refresh()
-    
-    def hide_all(self):
-        self.controller.set_all_unit_visibility_off()
-        self.notify_unit_visibility_changed()
-        self.refresh()
-
     def get_selected_unit_ids(self):
         if self.backend == 'qt':
             return self._qt_get_selected_unit_ids()
         elif self.backend == 'panel':
             return self._panel_get_selected_unit_ids()
+
+    def update_manual_labels(self):
+        if self.backend == 'qt':
+            self._qt_full_table_refresh()
+        elif self.backend == 'panel':
+            self._panel_update_labels()
 
     ## Qt ##
     def _qt_make_layout(self):
@@ -72,10 +68,6 @@ class UnitListView(ViewBase):
         self.column_order = None
         
         self.menu = QT.QMenu()
-        act = self.menu.addAction('Show all')
-        act.triggered.connect(self.show_all)
-        act = self.menu.addAction('Hide all')
-        act.triggered.connect(self.hide_all)
 
         self.shortcut_only_previous = QT.QShortcut(self.qt_widget)
         self.shortcut_only_previous.setKey(QT.QKeySequence(QT.CTRL | QT.Key_Up))
@@ -90,6 +82,8 @@ class UnitListView(ViewBase):
             act.triggered.connect(self._qt_delete_unit)
             act = self.menu.addAction('Merge selected')
             act.triggered.connect(self._qt_merge_selected)
+            act = self.menu.addAction('Remove from merge')
+            act.triggered.connect(self._qt_remove_from_merge)
             self.shortcut_delete = QT.QShortcut(self.qt_widget)
             self.shortcut_delete.setKey(QT.QKeySequence("ctrl+d"))
             self.shortcut_delete.activated.connect(self._qt_on_delete_shortcut)
@@ -101,6 +95,10 @@ class UnitListView(ViewBase):
             self.shortcut_mua = None
             self.shortcut_noise = None
             if self.controller.has_default_quality_labels:
+                self.shortcut_clear = QT.QShortcut(self.qt_widget)
+                self.shortcut_clear.setKey(QT.QKeySequence('c'))
+                self.shortcut_clear.activated.connect(lambda: self._qt_set_default_label(None))
+
                 self.shortcut_good = QT.QShortcut(self.qt_widget)
                 self.shortcut_good.setKey(QT.QKeySequence('g'))
                 self.shortcut_good.activated.connect(lambda: self._qt_set_default_label('good'))
@@ -162,11 +160,17 @@ class UnitListView(ViewBase):
         from .myqt import QT
 
         self.table.itemChanged.disconnect(self._qt_on_item_changed)
+
+        visible_unit_ids = self.controller.get_visible_unit_ids()
+
+        view_target_unit_id = visible_unit_ids[0] 
+        target_item = self.items_visibility[view_target_unit_id]
+        self.table.scrollToItem(target_item, QT.QAbstractItemView.PositionAtCenter)
         
         for unit_id in self.controller.unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Unchecked)
-        for unit_id in self.controller.get_visible_unit_ids():
+        for unit_id in visible_unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Checked)
         self._qt_refresh_color_icons()
@@ -224,7 +228,7 @@ class UnitListView(ViewBase):
         self.table.clear()
 
 
-        internal_column_names = ['unit_id', 'visible',  'channel_id', 'sparsity']
+        internal_column_names = ['unit_id', 'visible',  'channel_id']
 
         # internal labels
         column_labels = list(internal_column_names)
@@ -284,11 +288,6 @@ class UnitListView(ViewBase):
             item = CustomItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
             self.table.setItem(i, 2, item)
-            
-            num_chan = np.sum(self.controller.get_sparsity_mask()[i, :])
-            item = CustomItem(f'{num_chan}')
-            item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
-            self.table.setItem(i, 3, item)
 
             n_first = len(internal_column_names)
             self.label_columns = list(range(n_first, n_first + num_labels))
@@ -330,11 +329,11 @@ class UnitListView(ViewBase):
 
         col = item.column()
         if col == 1:
+            is_visible = item.checkState() == QT.Qt.Checked
             # visibility checkbox
             unit_id = item.unit_id
-            self.controller.set_unit_visibility(unit_id, bool(item.checkState()))
+            self.controller.set_unit_visibility(unit_id, is_visible)
             self.notify_unit_visibility_changed()
-            # self._qt_refresh_color_icons()
 
 
         elif col in self.label_columns:
@@ -441,9 +440,19 @@ class UnitListView(ViewBase):
                 "merged, or split already."
             )
             return
-        self.notify_manual_curation_updated()
+        else:
+            self.notify_manual_curation_updated()
 
-
+    def _qt_remove_from_merge(self):
+        merge_unit_ids = self.get_selected_unit_ids()
+        success = self.controller.remove_units_from_merge_if_possible(merge_unit_ids)
+        if not success:
+            self.warning(
+                "Could not remove units from a merge. Ensure all selected units are in a merge group, and that you are not leaving zero or one units in the merge group."
+            )
+            return
+        else:
+            self.notify_manual_curation_updated()
 
     ## panel zone ##
     def _panel_make_layout(self):
@@ -478,19 +487,14 @@ class UnitListView(ViewBase):
                 if label == "quality":
                     frozen_columns.append(label)
         data["channel_id"] = []
-        data["sparsity"] = []
 
         self.main_cols = list(data.keys())
-        sparsity_mask = self.controller.get_sparsity_mask()
         for unit_index, unit_id in enumerate(unit_ids):
             data["unit_id"].append(
                 {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
             )
             data["channel_id"].append(
                 self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
-            )
-            data["sparsity"].append(
-                np.sum(sparsity_mask[unit_index, :])
             )
         for col in self.controller.displayed_unit_properties:
             data[col] = self.controller.units_table[col]
@@ -526,41 +530,24 @@ class UnitListView(ViewBase):
             # SelectableTabulator functions
             skip_sort_columns=["unit_id"],
             parent_view=self,
-            refresh_table_function=self.refresh,
             conditional_shortcut=self.is_view_active,
             on_only_function=self._panel_on_only_selection,
             column_callbacks={"visible": self._panel_on_visible_checkbox_toggled},
         )
 
-        self.select_all_button = pn.widgets.Button(name="Select All", button_type="default")
-        self.unselect_all_button = pn.widgets.Button(name="Unselect All", button_type="default")
         self.refresh_button = pn.widgets.Button(name="↻", button_type="default")
 
-        button_list = [
-            self.select_all_button,
-            self.unselect_all_button,
-        ]
+        button_list = []
 
         if self.controller.curation:
             self.delete_button = pn.widgets.Button(name="Delete", button_type="default")
             self.merge_button = pn.widgets.Button(name="Merge", button_type="default")
-            # self.hide_noise = pn.widgets.Toggle(name="Show/Hide Noise", button_type="default")
-
-            # if "quality" in self.label_definitions:
-            #     self.show_only = pn.widgets.Select(
-            #         name="Show only",
-            #         options=["all"] + list(self.label_definitions["quality"]['label_options']),
-            #         sizing_mode="stretch_width",
-            #     )
-            # else:
-            #     self.show_only = None
-
-            # self.hide_noise.param.watch(self._panel_on_hide_noise, 'value')
-            # self.show_only.param.watch(self._panel_on_show_only, 'value')
+            self.unmerge_button = pn.widgets.Button(name="Unmerge", button_type="default")
             button_list.extend(
                 [
                     self.delete_button,
                     self.merge_button,
+                    self.unmerge_button,
                 ]
             )
 
@@ -582,6 +569,7 @@ class UnitListView(ViewBase):
             if self.controller.has_default_quality_labels:
                 shortcuts.extend(
                     [
+                        KeyboardShortcut(name="clear", key="c", ctrlKey=False),
                         KeyboardShortcut(name="good", key="g", ctrlKey=False),
                         KeyboardShortcut(name="mua", key="m", ctrlKey=False),
                         KeyboardShortcut(name="noise", key="n", ctrlKey=False),
@@ -608,14 +596,12 @@ class UnitListView(ViewBase):
             self.layout[3] = shortcuts_component
 
         self.table.tabulator.on_edit(self._panel_on_edit)
-
-        self.select_all_button.on_click(self._panel_select_all)
-        self.unselect_all_button.on_click(self._panel_unselect_all)
         self.refresh_button.on_click(self._panel_refresh_click)
 
         if self.controller.curation:
             self.delete_button.on_click(self._panel_delete_unit_callback)
             self.merge_button.on_click(self._panel_merge_units_callback)
+            self.unmerge_button.on_click(self._panel_remove_from_merge_callback)
 
     def _panel_refresh_click(self, event):
         self.table.reset()
@@ -674,20 +660,16 @@ class UnitListView(ViewBase):
         txt = f"<b>All units</b>: {n1} - <b>visible</b>: {n2} - <b>selected</b>: {n3}"
         self.info_text.object = txt
 
-    def _panel_select_all(self, event):
-        self.show_all()
-        self.notifier.notify_active_view_updated()
-
-    def _panel_unselect_all(self, event):
-        self.hide_all()
-        self.notifier.notify_active_view_updated()
-
     def _panel_delete_unit_callback(self, event):
         self._panel_delete_unit()
         self.notifier.notify_active_view_updated()
 
     def _panel_merge_units_callback(self, event):
         self._panel_merge_units()
+        self.notifier.notify_active_view_updated()
+
+    def _panel_remove_from_merge_callback(self, event):
+        self._panel_remove_from_merge()
         self.notifier.notify_active_view_updated()
 
     def _panel_on_visible_checkbox_toggled(self, row):
@@ -701,25 +683,34 @@ class UnitListView(ViewBase):
         self.refresh()
 
     def _panel_on_unit_visibility_changed(self):
+        import panel as pn
+
         # update selection to match visible units
         visible_units = self.controller.get_visible_unit_ids()
         unit_ids = list(self.table.value.index.values)
         rows_to_select = [unit_ids.index(unit_id) for unit_id in visible_units if unit_id in unit_ids]
-        self.table.selection = rows_to_select
+
+        def _do_update():
+            self.table.selection = rows_to_select
+
+        pn.state.execute(_do_update, schedule=True)
         self.refresh()
 
     def _panel_refresh_colors(self):
         import matplotlib.colors as mcolors
 
-        unit_ids_data = []
-        for unit_id in self.table.value.index.values:
-            unit_ids_data.append(
-                {
-                    "id": str(unit_id),
-                    "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))
-                }
-            )
-        self.table.value.loc[:, "unit_id"] = unit_ids_data
+        if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
+            self.controller.refresh_colors()
+            # in this mode the color is dynamic based on visibility, so we need to refresh all colors
+            unit_ids_data = []
+            for unit_id in self.table.value.index.values:
+                unit_ids_data.append(
+                    {
+                        "id": str(unit_id),
+                        "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))
+                    }
+                )
+            self.table.value.loc[:, "unit_id"] = unit_ids_data
 
     def _panel_on_unit_color_changed(self):
         # here we update the unit colors, since they are then fixed in the table
@@ -739,10 +730,22 @@ class UnitListView(ViewBase):
             self.notify_manual_curation_updated()
         self.notifier.notify_active_view_updated()
 
+    def _panel_update_labels(self):
+        # this is called after a label change to update the table values
+        for col in self.label_definitions:
+            for row in range(len(self.table.value)):
+                unit_id = self.table.value.index[row]
+                label_value = self.controller.get_unit_label(unit_id, col)
+                if label_value is None:
+                    label_value = ""
+                self.table.value.at[unit_id, col] = label_value
+        self.refresh()
+
     def _panel_on_only_selection(self):
         selected_unit = self.table.selection[0]
         unit_id = self.table.value.index.values[selected_unit]
         self.controller.set_visible_unit_ids([unit_id])
+        self._panel_refresh_colors()
         # update the visible column
         df = self.table.value
         df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
@@ -774,6 +777,18 @@ class UnitListView(ViewBase):
         self.notify_manual_curation_updated()
         self.refresh()
 
+    def _panel_remove_from_merge(self):
+        merge_unit_ids = self.get_selected_unit_ids()
+        success = self.controller.remove_units_from_merge_if_possible(merge_unit_ids)
+        if not success:
+            self.warning(
+                "Could not remove units from a merge. Ensure all selected units are in a merge "
+                "group, and that you are not leaving zero or one units in the merge group."
+            )
+            return
+        self.notify_manual_curation_updated()
+        self.refresh()
+
     def _panel_handle_shortcut(self, event):
         if self.is_view_active():
             selected_unit_ids = self._panel_get_selected_unit_ids()
@@ -788,6 +803,12 @@ class UnitListView(ViewBase):
             elif event.data == "visible":
                 self.controller.set_visible_unit_ids(selected_unit_ids)
                 self.notify_unit_visibility_changed()
+                self.refresh()
+            elif event.data == "clear":
+                for unit_id in selected_unit_ids:
+                    self.controller.set_label_to_unit(unit_id, "quality", None)
+                self.table.value.loc[selected_unit_ids, "quality"] = ""
+                self.notify_manual_curation_updated()
                 self.refresh()
             elif event.data == "good":
                 for unit_id in selected_unit_ids:
@@ -822,6 +843,7 @@ This view controls the visibility of units.
 * **ctrl + arrow up/down** : select next/previous unit and make it visible alone
 * **press 'ctrl+d'** : delete selected units (if curation=True)
 * **press 'ctrl+m'** : merge selected units (if curation=True)
+* **press 'c'** : clear label of selected units (if curation=True)
 * **press 'g'** : label selected units as good (if curation=True)
 * **press 'm'** : label selected units as mua (if curation=True)
 * **press 'n'** : label selected units as noise (if curation=True)

@@ -5,20 +5,23 @@ import numpy as np
 
 import json
 
+from copy import deepcopy
 
 from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
-from spikeinterface.core import get_template_extremum_channel
-import spikeinterface.postprocessing
-import spikeinterface.qualitymetrics
+from spikeinterface.core import get_template_extremum_channel, BaseEvent
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict, apply_curation
-from spikeinterface.curation.curation_model import CurationModel
+from spikeinterface.curation.curation_model import Curation
+from spikeinterface.widgets.utils import make_units_table_from_analyzer
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
-from .curation_tools import add_merge, default_label_definitions, empty_curation_data
 from .utils_global import add_new_unit_ids_to_curation_dict
+
+from .curation_tools import add_merge, default_label_definitions, empty_curation_data
+from .event_tools import parse_events
+
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -37,10 +40,27 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 class Controller():
-    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
+    def __init__(
+        self,
+        analyzer=None,
+        backend="qt",
+        parent=None,
+        verbose=False,
+        save_on_compute=False,
+        curation=False,
+        curation_data=None,
+        label_definitions=None,
+        with_traces=True,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        skip_extensions=None,
+        disable_save_settings_button=False,
+        events=None,
+        external_data=None,
+        curation_callback=None,
+        curation_callback_kwargs=None,
+        user_main_settings=None,
+    ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
 
@@ -52,6 +72,7 @@ class Controller():
 
         if extra_unit_properties is None:
             self.extra_unit_properties_names = []
+        self.external_data = external_data
 
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -186,8 +207,12 @@ class Controller():
         self.return_in_uV = self.analyzer.return_in_uV
         t0 = time.perf_counter()
 
+        self.main_settings = _default_main_settings.copy()
+        if user_main_settings is not None:
+            self.main_settings.update(user_main_settings)
+
         self.num_channels = self.analyzer.get_num_channels()
-        # this now private and shoudl be acess using function
+        # this now private and should be access using function
         self._visible_unit_ids = [self.unit_ids[0]]
 
         # sparsity
@@ -257,7 +282,20 @@ class Controller():
             else:
                 self.spike_amplitudes = None
 
-        if "spike_locations" in self.skip_extensions:
+        if "amplitude_scalings" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping amplitude_scalings')
+            self.amplitude_scalings = None
+        else:
+            if verbose:
+                print('\tLoading amplitude_scalings')
+            sa_ext = analyzer.get_extension('amplitude_scalings')
+            if sa_ext is not None:
+                self.amplitude_scalings = sa_ext.get_data()
+            else:
+                self.amplitude_scalings = None
+
+        if "spike_locations" in skip_extensions:
             if self.verbose:
                 print('\tSkipping spike_locations')
             self.spike_depths = None
@@ -339,17 +377,32 @@ class Controller():
             pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
+        if analyzer.has_extension("valid_unit_periods"):
+            valid_periods_ext = analyzer.get_extension("valid_unit_periods")
+            self.valid_periods = valid_periods_ext.get_data(outputs="by_unit")
+        else:
+            self.valid_periods = None
+
+        self._potential_merges = None
+        # some direct attribute
+        self.num_segments = self.analyzer.get_num_segments()
+        self.sampling_frequency = self.analyzer.sampling_frequency
+
+        # parse events
+        self.events = None
+        if events is not None:
+            self.events = parse_events(events, self, verbose=verbose)
+            if len(self.events) == 0:
+                self.events = None
+
         t1 = time.perf_counter()
         if self.verbose:
             print('Loading extensions took', t1 - t0)
 
         t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
-
-        # some direct attribute
-        self.num_segments = self.analyzer.get_num_segments()
-        self.sampling_frequency = self.analyzer.sampling_frequency
+        self._extremum_channel = get_template_extremum_channel(self.analyzer,
+                                    mode="extremum", peak_sign='both', outputs='index')
 
         # at init, we set the visible channels as the sparsity of the first unit
         if self.analyzer_sparsity is not None:
@@ -411,9 +464,99 @@ class Controller():
 
         self._traces_cached = {}
 
+        self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
+
+        if displayed_unit_properties is None:
+            displayed_unit_properties = list(_default_displayed_unit_properties)
+        if extra_unit_properties is not None:
+            displayed_unit_properties += list(extra_unit_properties.keys())
+        displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
+        self.displayed_unit_properties = displayed_unit_properties
+
         # set default time info
         self.update_time_info()
 
+        self.curation = curation
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
+
+        if self.curation:
+            # rules:
+            #  * if user sends curation_data, then it is used
+            #  * otherwise, if curation_data already exists in folder it is used
+            #  * otherwise create an empty one
+
+            if curation_data is not None:
+                # validate the curation data
+                curation_data = deepcopy(curation_data)
+                format_version = curation_data.get("format_version", None)
+                # assume version 2 if not present
+                if format_version is None:
+                    raise ValueError("Curation data format version is missing and is required in the curation data.")
+                try:
+                    validate_curation_dict(curation_data)
+                except Exception as e:
+                    raise ValueError(f"Invalid curation data.\nError: {e}")
+
+            elif self.analyzer.format == "binary_folder":
+                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
+                if json_file.exists():
+                    with open(json_file, "r") as f:
+                        curation_data = json.load(f)
+
+            elif self.analyzer.format == "zarr":
+                import zarr
+                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
+                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
+
+            if curation_data is None:
+                curation_data = deepcopy(empty_curation_data)
+                curation_data["unit_ids"] = self.unit_ids.tolist()
+
+            if "label_definitions" not in curation_data:
+                if label_definitions is not None:
+                    curation_data["label_definitions"] = label_definitions
+                else:
+                    curation_data["label_definitions"] = default_label_definitions.copy()
+
+            # This will enable the default shortcuts if has default quality labels
+            self.has_default_quality_labels = False
+            if "quality" in curation_data["label_definitions"]:
+                curation_dict_quality_labels = curation_data["label_definitions"]["quality"]["label_options"]
+                default_quality_labels = default_label_definitions["quality"]["label_options"]
+                if set(curation_dict_quality_labels) == set(default_quality_labels):
+                    if self.verbose:
+                        print('Curation quality labels are the default ones')
+                    self.has_default_quality_labels = True
+
+            curation_data = Curation(**curation_data).model_dump()
+            self.curation_data = curation_data
+
+    def check_is_view_possible(self, view_name):
+        from .viewlist import get_all_possible_views
+        possible_class_views = get_all_possible_views()
+        view_class = possible_class_views[view_name]
+        if view_class._depend_on is not None:
+            depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
+            if not depencies_ok:
+                if self.verbose:
+                    print(view_name, 'does not have all dependencies', view_class._depend_on)                
+                return False
+        return True
+
+    def declare_a_view(self, new_view):
+        assert new_view not in self.views, 'view already declared {}'.format(self)
+        self.views.append(new_view)
+        self.signal_handler.connect_view(new_view)
+        
+    @property
+    def channel_ids(self):
+        return self.analyzer.channel_ids
+
+    @property
+    def unit_ids(self):
+        return self.analyzer.unit_ids
 
     def get_time(self):
         """
@@ -456,9 +599,12 @@ class Controller():
         else:
             self.time_info['time_by_seg'] = time_by_seg
 
-    def get_t_start_t_stop(self):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def get_t_start_t_stop(self, use_times=None, segment_index=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             t_start = self.analyzer.recording.get_start_time(segment_index=segment_index)
             t_stop = self.analyzer.recording.get_end_time(segment_index=segment_index)
             return t_start, t_stop
@@ -496,13 +642,25 @@ class Controller():
         else:
             return sample_index / self.sampling_frequency
 
-    def time_to_sample_index(self, time):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def time_to_sample_index(self, time, segment_index=None, use_times=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             time = self.analyzer.recording.time_to_sample_index(time, segment_index=segment_index)
             return time
         else:
             return int(time * self.sampling_frequency)
+
+    def get_events(self, event_name, segment_index=None):
+        if self.events is None:
+            return None
+        if event_name not in self.events:
+            return None
+        if segment_index is None:
+            segment_index = self.time_info['segment_index']
+        return self.events[event_name][segment_index]
 
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()
@@ -575,7 +733,7 @@ class Controller():
         return self._visible_unit_ids
 
     def get_visible_unit_indices(self):
-        """Get list of indicies of visible units"""
+        """Get list of indices of visible units"""
         unit_ids = list(self.unit_ids)
         visible_unit_indices = [unit_ids.index(u) for u in self._visible_unit_ids]
         return visible_unit_indices
@@ -699,6 +857,12 @@ class Controller():
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
         return location
+
+    def get_channel_groups(self):
+        if self.has_extension("recording"):
+            return self.analyzer.recording.get_channel_groups()
+        else:
+            return np.zeros(self.analyzer.get_num_channels(), dtype=int)
     
     def get_waveform_sweep(self):
         return self.nbefore, self.nafter
@@ -710,11 +874,31 @@ class Controller():
         wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=False)
         if self.analyzer.sparsity is None:
             # dense waveforms
-            chan_inds = np.arange(self.analyzer.recording.get_num_channels(), dtype='int64')
+            chan_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
         else:
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
         return wfs, chan_inds
+    
+    def get_template_upsampling_factor(self):
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        if template_metrics_ext is None or template_metrics_ext.params.get('upsampling_factor') is None:
+            return 1
+        else:
+            return template_metrics_ext.params['upsampling_factor']
+ 
+    def get_upsampled_templates(self, unit_id):
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        unit_index = list(self.unit_ids).index(unit_id)
+        chan_ind = self.get_extremum_channel(unit_id)
+        template = self.templates_average[unit_index, :, chan_ind]
+        if template_metrics_ext is None or "peaks_data" not in template_metrics_ext.data:
+            return template, None, None
+        else:
+            peaks_data = template_metrics_ext.data['peaks_data']
+            template_high = template_metrics_ext.data['main_channel_templates'][unit_index]
+            return template, template_high, peaks_data.loc[unit_id]
+
 
     def get_common_sparse_channels(self, unit_ids):
         sparsity_mask = self.get_sparsity_mask()
@@ -737,6 +921,8 @@ class Controller():
     def has_extension(self, extension_name):
         if extension_name == 'recording':
             return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
+        elif extension_name == 'events':
+            return self.events is not None
         else:
             # extension needs to be loaded
             if extension_name in self.skip_extensions:
@@ -827,39 +1013,26 @@ class Controller():
         d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
-        if with_explicit_new_unit_ids:
-            split_new_id_strategy = self.main_settings.get('split_new_id_strategy')
-            merge_new_id_strategy = self.main_settings.get('merge_new_id_strategy')
-            d = add_new_unit_ids_to_curation_dict(d, self.analyzer.sorting, split_new_id_strategy=split_new_id_strategy, merge_new_id_strategy=merge_new_id_strategy)
-        model = CurationModel(**d)
+
+        model = Curation(**d)
         return model
 
-    def apply_curation(self):
+    def set_curation_data(self, curation_data):
+        print("Setting curation data")
+        new_curation_data = empty_curation_data.copy()
+        new_curation_data.update(curation_data)
 
-        if self.original_analyzer is None:
-            self.original_analyzer = deepcopy(self.analyzer)
-            self.original_analyzer.extensions = {}
+        if "unit_ids" not in curation_data:
+            print("Setting unit_ids from controller")
+            new_curation_data["unit_ids"] = self.unit_ids.tolist()
 
-        curation = self.construct_final_curation(with_explicit_new_unit_ids=True)
-        curated_analyzer = apply_curation(self.analyzer, curation)
-        self.applied_curations.append(curation)
-        self.remove_curation()
+        if "label_definitions" not in curation_data:
+            print("Setting default label definitions")
+            new_curation_data["label_definitions"] = default_label_definitions.copy()
 
-        self.set_analyzer_info(curated_analyzer)
-
-        # for now, don't show externally provided properties after curation
-        self.displayed_unit_properties = [displayed_property for displayed_property in self.displayed_unit_properties if displayed_property not in self.extra_unit_properties_names]
-        self.units_table = make_units_table_from_analyzer(self.analyzer)
-        self.refresh_colors(existing_colors=self.colors)
-
-        for view in self.views:
-            view.reinitialize()
-
-    def remove_curation(self):
-        label_definitioins = self.curation_data.get("label_definitions", None)
-        curation_data = deepcopy(empty_curation_data)
-        curation_data["label_definitions"] = label_definitioins
-        self.curation_data = curation_data
+        # validate the curation data
+        model = CurationModel(**new_curation_data)
+        self.curation_data = model.model_dump()
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
@@ -882,6 +1055,16 @@ class Controller():
             curation_model = self.construct_final_curation()
             sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
+
+    def save_curation_callback(self):
+        curation = self.construct_final_curation()
+        curation_data = curation.model_dump()
+        if self.curation_callback_kwargs is None:
+            curation_callback_kwargs = {}
+        else:
+            curation_callback_kwargs = self.curation_callback_kwargs
+        self.curation_callback(curation_data, **curation_callback_kwargs)
+        self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:
@@ -952,6 +1135,27 @@ class Controller():
         if self.verbose:
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
+
+
+    def remove_units_from_merge_if_possible(self, merge_unit_ids):
+        """
+        Check if selected units are in a merge group. If they are, remove them.
+        """
+        if not self.curation:
+            return False
+
+        merges = self.curation_data["merges"]
+        for i, merge in enumerate(merges):
+            if set(merge_unit_ids).issubset(set(merge['unit_ids'])):
+                merge_ids_with_removed_ids = list(set(merge['unit_ids']).difference(set(merge_unit_ids)))
+                if len(merge_ids_with_removed_ids) > 1:
+                    merges[i]['unit_ids'] = merge_ids_with_removed_ids
+                    return True
+                else:
+                    return False
+
+        return False
+
 
     def make_manual_split_if_possible(self, unit_id):
         """

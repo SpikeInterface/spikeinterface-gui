@@ -38,7 +38,7 @@ QSpinBox{
 
 
 def add_stretch_to_qtoolbar(tb):
-    # add an expending widget + a seprator
+    # add an expending widget + a separator
     empty = QT.QWidget()
     empty.setSizePolicy(QT.QSizePolicy.Expanding, QT.QSizePolicy.Preferred)
     tb.addWidget(empty)
@@ -470,9 +470,13 @@ class CustomItemUnitID(QT.QTableWidgetItem):
         self.unit_ids = [f"{u}" for u in unit_ids]
 
     def __lt__(self, other):
-        ind = self.unit_ids.index(self.text())
-        other_ind = self.unit_ids.index(other.text())
+        # since mergeview has "{unit_id} (n={n_spikes})" as name, we split and keep the first part
+        unit_id = self.text().split(' ')[0]
+        other_unit_id = other.text().split(' ')[0]
+        ind = self.unit_ids.index(unit_id)
+        other_ind = self.unit_ids.index(other_unit_id)
         return ind < other_ind
+
 
 class OrderableCheckItem(QT.QTableWidgetItem):
     # special case for checkbox
@@ -608,7 +612,23 @@ def find_category(categories, category):
     return None
 
 
+def qt_shortcut_is_setup(shortcut):
+    """
+    Checks the application to see if `shortcut`, e.g. "Ctrl+S", has already
+    been set by a widget.
+    """
+    from .myqt import QT
 
+    # Access the running application instance
+    app = QT.QApplication.instance()
+
+    # Loop through every top-level window (e.g., MainWindows, Dialogs)
+    for widget in app.allWidgets():
+        for sc in widget.findChildren(QT.QShortcut):
+            if sc.key().toString() == shortcut:
+                return True
+
+    return False
 
 
 if __name__=='__main__':

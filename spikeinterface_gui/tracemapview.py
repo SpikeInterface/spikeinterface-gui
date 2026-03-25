@@ -24,8 +24,14 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         pos = controller.get_contact_location()
-        self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], ))
+        channel_groups = controller.get_channel_groups()
+        self.channel_order = np.lexsort((-pos[:, 0], pos[:, 1], channel_groups))
         self.channel_order_reverse = np.argsort(self.channel_order, kind="stable")
+        if len(np.unique(channel_groups)) > 1:
+            self.chan_group_offsets, = np.nonzero(np.diff(np.sort(channel_groups)))
+            self.chan_group_offsets = self.chan_group_offsets + 1
+        else:
+            self.chan_group_offsets = None
         self.color_limit = None
         self.last_data_curves = None
         self.factor = None
@@ -72,8 +78,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
 
         self.layout = QT.QVBoxLayout()
         
-        self._qt_create_toolbar()
-        
+        self._qt_create_toolbars()
         
         # create graphic view and 2 scroll bar
         g = QT.QGridLayout()
@@ -87,14 +92,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.scatter = pg.ScatterPlotItem(size=10, pxMode = True)
         self.plot.addItem(self.scatter)
 
-
-        self.scroll_time = QT.QScrollBar(orientation=QT.Qt.Horizontal)
-        g.addWidget(self.scroll_time, 1,1)
-        self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)
-
-
-        # self.on_params_changed(do_refresh=False)
-        #this do refresh
+        self.layout.addWidget(self.bottom_toolbar)
         self._qt_change_segment(0)
 
     def _qt_on_settings_changed(self, do_refresh=True):
@@ -163,6 +161,15 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.plot.setXRange(t1, t2, padding=0.0)
         self.plot.setYRange(0, num_chans, padding=0.0)
 
+        # events
+        self._qt_add_event_lines(t1, t2)
+
+        # group separation lines
+        if self.chan_group_offsets is not None:
+            for ch in self.chan_group_offsets:
+                hline = pg.InfiniteLine(pos=ch, angle=0, movable=False, pen=pg.mkPen("black"))
+                self.plot.addItem(hline)
+
     def _qt_on_time_info_updated(self):
         # Update segment and time slider range
         time, segment_index = self.controller.get_time()
@@ -224,7 +231,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.xaxis.major_tick_line_color = "white"
         self.figure.yaxis.visible = False
         self.figure.x_range = Range1d(start=0, end=0.5)
-        self.figure.y_range = Range1d(start=0, end=1)
+        self.figure.y_range = Range1d(start=0, end=self.controller.num_channels)
 
 
         # Add data sources
@@ -245,16 +252,18 @@ class TraceMapView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
+        if self.chan_group_offsets is not None:
+            self.figure.hspan(y=list(self.chan_group_offsets), line_color="yellow")
+
         # # Add hover tool for spikes
-        # hover_spikes = HoverTool(renderers=[self.spike_renderer], tooltips=[("Unit", "@unit_id")])
         # self.figure.add_tools(hover_spikes)
-        self._panel_create_toolbar()
+        self._panel_create_toolbars()
 
         self.layout = pn.Column(
             pn.Column(  # Main content area
                 self.toolbar,
                 self.figure,
-                self.time_slider,
+                self.bottom_toolbar,
                 styles={"flex": "1"},
                 sizing_mode="stretch_both"
             ),
@@ -263,6 +272,7 @@ class TraceMapView(ViewBase, MixinViewTrace):
         )
 
     def _panel_refresh(self):
+        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
@@ -302,6 +312,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.x_range.end = t2
         self.figure.y_range.end = data_curves.shape[1]
 
+        self._panel_add_event_lines(t1, t2)
+
     def _panel_on_settings_changed(self):
         self.make_color_lut()
         self.refresh()
@@ -310,28 +322,43 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self._panel_seek_with_selected_spike()
 
     def _panel_gain_zoom(self, event):
+        import panel as pn
+
         factor_ratio = 1.3 if event.delta > 0 else 1 / 1.3
-        self.color_mapper.high = self.color_mapper.high * factor_ratio
-        self.color_mapper.low = -self.color_mapper.high
+        new_high = self.color_mapper.high * factor_ratio
+        new_low = -new_high
+
+        def _do_update():
+            self.color_mapper.high = new_high
+            self.color_mapper.low = new_low
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_auto_scale(self, event):
+        import panel as pn
+
         if self.last_data_curves is not None:
             self.color_limit = np.max(np.abs(self.last_data_curves))
-            self.color_mapper.high = self.color_limit
-            self.color_mapper.low = -self.color_limit
+            color_limit = self.color_limit
+
+            def _do_update():
+                self.color_mapper.high = color_limit
+                self.color_mapper.low = -color_limit
+
+            pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_time_info_updated(self):
         # Update segment and time slider range
         time, segment_index = self.controller.get_time()
-
         self._block_auto_refresh_and_notify = True
         self._panel_change_segment(segment_index)
-
-        # Update time slider value
-        self.time_slider.value = time
-
         self._block_auto_refresh_and_notify = False
-        # we don't need a refresh in panel because changing tab triggers a refresh
+        self.refresh()
+        # Update slider visually after refresh, blocking the callback to avoid
+        # a Bokeh round-trip loop (browser sends value_throttled back to server)
+        self._block_auto_refresh_and_notify = True
+        self.time_slider.value = time
+        self._block_auto_refresh_and_notify = False
 
     def _panel_on_use_times_updated(self):
         # Update time seeker

@@ -207,7 +207,7 @@ class PanelMainWindow:
         self.make_views(user_settings)
         self.create_main_layout()
         
-        # refresh all views wihtout notiying
+        # refresh all views without notiying
         self.controller.signal_handler.deactivate()
         self.controller.signal_handler.activate()
 
@@ -238,8 +238,6 @@ class PanelMainWindow:
             if view_name in ("trace", "tracemap") and not self.controller.with_traces:
                 continue
 
-            view = view_class(controller=self.controller, parent=None, backend='panel')
-            self.views[view_name] = view
 
             info = pn.Column(
                 pn.pane.Markdown(view_class._gui_help_txt),
@@ -247,12 +245,16 @@ class PanelMainWindow:
                 sizing_mode="stretch_both"
             )
 
-            if user_settings is not None and user_settings.get(view_name) is not None:
+            if user_settings is not None and view_name != 'mainsettings' and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
-                    if setting_name not in view.settings.keys():
+                    available_settings = [s["name"] for s in view_class._settings]
+                    if setting_name not in available_settings:
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    with param.parameterized.discard_events(view.settings._parameterized):
-                        view.settings[setting_name] = user_setting
+                    settings_index = available_settings.index(setting_name)
+                    view_class._settings[settings_index]["value"] = user_setting
+
+            view = view_class(controller=self.controller, parent=None, backend='panel')
+            self.views[view_name] = view
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
@@ -266,23 +268,25 @@ class PanelMainWindow:
 
             tabs.append(("ℹ️", info))
             view_layout = pn.Tabs(
-                    *tabs,
-                    sizing_mode="stretch_both",
-                    dynamic=True,
-                    tabs_location="left",
-                )
+                *tabs,
+                sizing_mode="stretch_both",
+                dynamic=True,
+                tabs_location="left",
+            )
             self.view_layouts[view_name] = view_layout
 
 
     def create_main_layout(self):
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts
 
         pn.extension("gridstack")
 
         preset = self.layout_dict
 
         layout_zone = {}
+        self.all_tabs = []
         for zone, view_names in preset.items():
-            # keep only instanciated views
+            # keep only instantiated views
             view_names = [view_name for view_name in view_names if view_name in self.view_layouts.keys()]
 
             if len(view_names) == 0:
@@ -297,6 +301,7 @@ class PanelMainWindow:
                 # Function to update visibility
                 tabs = layout_zone[zone]
                 tabs.param.watch(self.update_visibility, "active")
+                self.all_tabs.append(tabs)
                 # Simulate an event
                 self.update_visibility(
                     param.parameterized.Event(
@@ -314,7 +319,17 @@ class PanelMainWindow:
         gs = self.make_half_layout(gs, layout_zone, "left")
         gs = self.make_half_layout(gs, layout_zone, "right")
 
-        self.main_layout = gs
+        # Initialize keyboard shortcuts
+        self.focus_mode = False
+        shortcuts = [KeyboardShortcut(name="focus", key="f", ctrlKey=True),]
+        shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
+        shortcuts_component.on_msg(self._handle_shortcut)
+
+        self.main_layout = pn.Column(
+            gs,
+            shortcuts_component,
+            sizing_mode="stretch_both",
+        )
 
     def make_half_layout(self, gs, layout_zone, left_or_right):
         """
@@ -385,6 +400,45 @@ class PanelMainWindow:
                 view.refresh()
                 # we also set the current view as the panel active
                 view.notify_active_view_updated()
+
+    def _handle_shortcut(self, event):
+        if event.data == "focus":
+            self.focus_mode = not self.focus_mode
+
+            for tabs in self.all_tabs:
+                if self.focus_mode:
+                    tabs.stylesheets = [
+                        """
+                        .bk-header {
+                            display: none !important;
+                        }
+                        """
+                    ]
+                else:
+                    tabs.stylesheets = []
+
+
+    def set_external_curation(self, curation_data):
+        """Set external curation to controlled and triggers curation and unitlist refresh
+
+        Parameters
+        ----------
+        curation_data : dict
+            The external curation data to be set.
+        """
+        if "curation" not in self.views:
+            return
+
+        curation_view = self.views["curation"]
+        self.controller.set_curation_data(curation_data)
+        self.controller.current_curation_saved = True
+        curation_view.notify_manual_curation_updated()
+        curation_view.refresh()
+
+        # we also need to refresh the unit list view to update the unit visibility according to the new curation
+        if "unitlist" in self.views:
+            unitlist_view = self.views["unitlist"]
+            unitlist_view.update_manual_labels()
 
 
 def get_local_ip():

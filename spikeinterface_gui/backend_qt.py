@@ -48,7 +48,7 @@ class SignalNotifier(QT.QObject):
         self.unit_color_changed.emit()
 
 
-# Used by controler to handle/callback signals
+# Used by controller to handle/callback signals
 class SignalHandler(QT.QObject):
     def __init__(self, controller, parent=None):
         QT.QObject.__init__(self, parent=parent)
@@ -157,7 +157,13 @@ class QtMainWindow(QT.QMainWindow):
 
     def __init__(self, controller, parent=None, layout_dict=None, user_settings=None):
         QT.QMainWindow.__init__(self, parent)
-        
+
+        self.in_focus_mode = False
+        toggle_focus_mode = QT.QAction('Focus Mode', self)
+        toggle_focus_mode.setShortcut('Ctrl+F')
+        toggle_focus_mode.triggered.connect(self.toggle_focus_mode)
+        self.addAction(toggle_focus_mode)
+
         self.controller = controller
         self.verbose = controller.verbose
         self.layout_dict = layout_dict
@@ -165,13 +171,13 @@ class QtMainWindow(QT.QMainWindow):
         self.make_views(user_settings)
         self.create_main_layout()
 
-        # refresh all views wihtout notiying
+        # refresh all views without notiying
         self.controller.signal_handler.deactivate()
         for view in self.views.values():
             # refresh do not work because view are not yet visible at init
             view._refresh()
         self.controller.signal_handler.activate()
-        # TODO sam : all veiws are always refreshed at the moment so this is useless.
+        # TODO sam : all views are always refreshed at the moment so this is useless.
         # uncommen this when ViewBase.is_view_visible() work correctly
         # for view_name, dock in self.docks.items():
         #     dock.visibilityChanged.connect(self.views[view_name].refresh)
@@ -179,8 +185,12 @@ class QtMainWindow(QT.QMainWindow):
     def make_views(self, user_settings):
         self.views = {}
         self.docks = {}
+        views_per_zone = list(self.layout_dict.values())
+        user_selected_views = [view for views_in_zone in views_per_zone for view in views_in_zone]
         possible_class_views = get_all_possible_views()
         for view_name, view_class in possible_class_views.items():
+            if view_name not in user_selected_views:
+                continue
             if 'qt' not in view_class._supported_backend:
                 continue
             if not self.controller.check_is_view_possible(view_name):
@@ -195,7 +205,7 @@ class QtMainWindow(QT.QMainWindow):
             widget = ViewWidget(view_class)
             view = view_class(controller=self.controller, parent=widget, backend='qt')
 
-            if user_settings is not None and user_settings.get(view_name) is not None:
+            if user_settings is not None and view_name != 'mainsettings' and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     if setting_name not in view.settings.keys().keys():
                         raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
@@ -328,6 +338,33 @@ class QtMainWindow(QT.QMainWindow):
         self.main_window_closed.emit(self)
         event.accept()
 
+    def toggle_focus_mode(self, event):
+
+        if not self.in_focus_mode:
+
+            for view_name, view in self.views.items():
+                view.qt_widget.tb.setVisible(False)
+
+            self.setStyleSheet("QTabBar::tab { height: 0px; width: 0px; margin: 0px; padding: 0px; }")
+
+            for view_name, dock in self.docks.items():
+                empty_title_bar = QT.QWidget()
+                dock.setTitleBarWidget(empty_title_bar)
+
+            self.in_focus_mode = True
+
+        else:
+
+            for view_name, view in self.views.items():
+                view.qt_widget.tb.setVisible(True)
+
+            self.setStyleSheet("QTabBar::tab { }")
+
+            self.in_focus_mode = False
+
+            for view_name, dock in self.docks.items():
+                dock.setTitleBarWidget(None)
+
 
 class ViewWidget(QT.QWidget):
     def __init__(self, view_class, parent=None):
@@ -365,6 +402,8 @@ class ViewWidget(QT.QWidget):
         but.setToolTip(tooltip_html)
 
         add_stretch_to_qtoolbar(tb)
+
+        self.tb = tb
 
         # TODO: make _qt method for all existing methods that don't start with _qt or _panel
         # skip = ['__init__', 'set_view', 'open_settings', 'compute', 'refresh', 'open_help',
