@@ -433,9 +433,6 @@ class Controller():
                 curation_data["unit_ids"] = self.unit_ids.tolist()
                 curation_data["label_definitions"] = default_label_definitions.copy()
 
-            if curation_data.get("discard_spikes") is None:
-                curation_data["discard_spikes"] = []
-
             self.curation_data = curation_data
 
             if "label_definitions" not in self.curation_data:
