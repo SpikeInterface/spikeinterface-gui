@@ -73,7 +73,7 @@ class CurationView(ViewBase):
         elif self.controller.curation_can_be_saved():
             but = QT.QPushButton("Save in analyzer")
             tb.addWidget(but)
-            but.clicked.connect(self.save_curation_in_analyzer)
+            but.clicked.connect(self.controller.save_curation_in_analyzer)
 
             but_apply = QT.QPushButton("Apply curation")
             tb.addWidget(but_apply)

@@ -161,6 +161,7 @@ class MergeView(ViewBase):
         self.refresh()
 
     def _reinitialize(self):
+        self.proposed_merge_unit_groups_all = []
         self.proposed_merge_unit_groups = []
         self.merge_info = {}
         self._refresh()

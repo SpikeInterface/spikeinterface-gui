@@ -9,8 +9,8 @@ main_settings = [
     {'name': 'color_mode', 'type': 'list', 'value' : 'color_by_unit',
              'limits': ['color_by_unit', 'color_only_visible', 'color_by_visibility']},
     {'name': 'use_times', 'type': 'bool', 'value': False},
-    {'name': 'merge_new_id_strategy', 'type': 'list', 'limits' : ['take_first', 'append', 'join']},
-    {'name': 'split_new_id_strategy', 'type': 'list', 'limits' : ['append', 'split']},
+    {'name': 'merge_new_id_strategy', 'type': 'list', 'limits' : ['take_first', 'append', 'join'], 'value': 'take_first'},
+    {'name': 'split_new_id_strategy', 'type': 'list', 'limits' : ['append', 'split'], 'value': 'append'},
 ]
 
 

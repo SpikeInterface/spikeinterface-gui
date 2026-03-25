@@ -88,8 +88,20 @@ class Controller():
         self.verbose = verbose
 
         self.original_analyzer = None
+
+        self.main_settings = _default_main_settings.copy()
+        if user_main_settings is not None:
+            self.main_settings.update(user_main_settings)
+
         self.set_analyzer_info(analyzer)
         self.units_table = make_units_table_from_analyzer(self.analyzer, extra_properties=extra_unit_properties)
+
+        # parse events
+        self.events = None
+        if events is not None:
+            self.events = parse_events(events, self, verbose=verbose)
+            if len(self.events) == 0:
+                self.events = None
 
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
@@ -101,6 +113,10 @@ class Controller():
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
+
+        self.curation = curation
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
 
         self._potential_merges = None
         self.curation = curation
@@ -207,10 +223,6 @@ class Controller():
         self.return_in_uV = self.analyzer.return_in_uV
         t0 = time.perf_counter()
 
-        self.main_settings = _default_main_settings.copy()
-        if user_main_settings is not None:
-            self.main_settings.update(user_main_settings)
-
         self.num_channels = self.analyzer.get_num_channels()
         # this now private and should be access using function
         self._visible_unit_ids = [self.unit_ids[0]]
@@ -282,12 +294,12 @@ class Controller():
             else:
                 self.spike_amplitudes = None
 
-        if "amplitude_scalings" in skip_extensions:
+        if "amplitude_scalings" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping amplitude_scalings')
             self.amplitude_scalings = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading amplitude_scalings')
             sa_ext = analyzer.get_extension('amplitude_scalings')
             if sa_ext is not None:
@@ -295,7 +307,7 @@ class Controller():
             else:
                 self.amplitude_scalings = None
 
-        if "spike_locations" in skip_extensions:
+        if "spike_locations" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping spike_locations')
             self.spike_depths = None
@@ -388,13 +400,6 @@ class Controller():
         self.num_segments = self.analyzer.get_num_segments()
         self.sampling_frequency = self.analyzer.sampling_frequency
 
-        # parse events
-        self.events = None
-        if events is not None:
-            self.events = parse_events(events, self, verbose=verbose)
-            if len(self.events) == 0:
-                self.events = None
-
         t1 = time.perf_counter()
         if self.verbose:
             print('Loading extensions took', t1 - t0)
@@ -464,74 +469,9 @@ class Controller():
 
         self._traces_cached = {}
 
-        self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
-
-        if displayed_unit_properties is None:
-            displayed_unit_properties = list(_default_displayed_unit_properties)
-        if extra_unit_properties is not None:
-            displayed_unit_properties += list(extra_unit_properties.keys())
-        displayed_unit_properties = [v for v in displayed_unit_properties if v in self.units_table.columns]
-        self.displayed_unit_properties = displayed_unit_properties
-
         # set default time info
         self.update_time_info()
 
-        self.curation = curation
-        self.curation_callback = curation_callback
-        self.curation_callback_kwargs = curation_callback_kwargs
-
-        if self.curation:
-            # rules:
-            #  * if user sends curation_data, then it is used
-            #  * otherwise, if curation_data already exists in folder it is used
-            #  * otherwise create an empty one
-
-            if curation_data is not None:
-                # validate the curation data
-                curation_data = deepcopy(curation_data)
-                format_version = curation_data.get("format_version", None)
-                # assume version 2 if not present
-                if format_version is None:
-                    raise ValueError("Curation data format version is missing and is required in the curation data.")
-                try:
-                    validate_curation_dict(curation_data)
-                except Exception as e:
-                    raise ValueError(f"Invalid curation data.\nError: {e}")
-
-            elif self.analyzer.format == "binary_folder":
-                json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
-                if json_file.exists():
-                    with open(json_file, "r") as f:
-                        curation_data = json.load(f)
-
-            elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
-                if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
-                    curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
-
-            if curation_data is None:
-                curation_data = deepcopy(empty_curation_data)
-                curation_data["unit_ids"] = self.unit_ids.tolist()
-
-            if "label_definitions" not in curation_data:
-                if label_definitions is not None:
-                    curation_data["label_definitions"] = label_definitions
-                else:
-                    curation_data["label_definitions"] = default_label_definitions.copy()
-
-            # This will enable the default shortcuts if has default quality labels
-            self.has_default_quality_labels = False
-            if "quality" in curation_data["label_definitions"]:
-                curation_dict_quality_labels = curation_data["label_definitions"]["quality"]["label_options"]
-                default_quality_labels = default_label_definitions["quality"]["label_options"]
-                if set(curation_dict_quality_labels) == set(default_quality_labels):
-                    if self.verbose:
-                        print('Curation quality labels are the default ones')
-                    self.has_default_quality_labels = True
-
-            curation_data = Curation(**curation_data).model_dump()
-            self.curation_data = curation_data
 
     def check_is_view_possible(self, view_name):
         from .viewlist import get_all_possible_views
@@ -1014,8 +954,41 @@ class Controller():
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
 
+        if with_explicit_new_unit_ids:
+            split_new_id_strategy = self.main_settings.get('split_new_id_strategy')
+            merge_new_id_strategy = self.main_settings.get('merge_new_id_strategy')
+            d = add_new_unit_ids_to_curation_dict(d, self.analyzer.sorting, split_new_id_strategy=split_new_id_strategy, merge_new_id_strategy=merge_new_id_strategy)
+        
         model = Curation(**d)
         return model
+
+    def apply_curation(self):
+
+        if self.original_analyzer is None:
+            self.original_analyzer = deepcopy(self.analyzer)
+            self.original_analyzer.extensions = {}
+
+        curation = self.construct_final_curation(with_explicit_new_unit_ids=True)
+        curated_analyzer = apply_curation(self.analyzer, curation)
+
+        self.applied_curations.append(curation)
+        self.remove_curation()
+
+        self.set_analyzer_info(curated_analyzer)
+
+        # for now, don't show externally provided properties after curation
+        self.displayed_unit_properties = [displayed_property for displayed_property in self.displayed_unit_properties if displayed_property not in self.extra_unit_properties_names]
+        self.units_table = make_units_table_from_analyzer(self.analyzer)
+        self.refresh_colors(existing_colors=self.colors)
+
+        for view in self.views:
+            view.reinitialize()
+
+    def remove_curation(self):
+        label_definitioins = self.curation_data.get("label_definitions", None)
+        curation_data = deepcopy(empty_curation_data)
+        curation_data["label_definitions"] = label_definitioins
+        self.curation_data = curation_data
 
     def set_curation_data(self, curation_data):
         print("Setting curation data")
