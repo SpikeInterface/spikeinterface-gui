@@ -22,7 +22,6 @@ from .utils_global import add_new_unit_ids_to_curation_dict
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
 from .event_tools import parse_events
 
-
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
     ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
@@ -83,9 +82,10 @@ class Controller():
             self.signal_handler = SignalHandler(self, parent=parent)
 
         self.with_traces = with_traces
-        self.save_on_compute = save_on_compute
-        self.verbose = verbose
 
+        self.save_on_compute = save_on_compute
+
+        self.verbose = verbose
         self.original_analyzer = None
 
         self.main_settings = _default_main_settings.copy()
@@ -430,6 +430,7 @@ class Controller():
 
             if curation_data is None:
                 curation_data = deepcopy(empty_curation_data)
+                curation_data["unit_ids"] = self.unit_ids.tolist()
                 curation_data["label_definitions"] = default_label_definitions.copy()
 
             if curation_data.get("discard_spikes") is None:
