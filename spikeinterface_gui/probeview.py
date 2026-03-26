@@ -151,9 +151,12 @@ class ProbeView(ViewBase):
 
     def _qt_reinitialize(self):
         import pyqtgraph as pg
+        
+        self.plot.removeItem(self.scatter)
         unit_positions = self.controller.unit_positions
         brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
         self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
+        self.plot.addItem(self.scatter)
 
         self._qt_refresh()
 

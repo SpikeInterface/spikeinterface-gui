@@ -1,9 +1,7 @@
-import json
 from pathlib import Path
 
 from .view_base import ViewBase
 
-from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation.curation_model import SequentialCuration
 
 class CurationView(ViewBase):
@@ -75,9 +73,9 @@ class CurationView(ViewBase):
             tb.addWidget(but)
             but.clicked.connect(self.controller.save_curation_in_analyzer)
 
-            but_apply = QT.QPushButton("Apply curation")
-            tb.addWidget(but_apply)
-            but_apply.clicked.connect(self.apply_curation_to_analyzer)
+        but_apply = QT.QPushButton("Apply curation")
+        tb.addWidget(but_apply)
+        but_apply.clicked.connect(self.apply_curation_to_analyzer)
 
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)
