@@ -32,6 +32,13 @@ class UnitListView(ViewBase):
         elif self.backend == 'panel':
             self._panel_update_labels()
 
+    def notify_unit_visibility_changed(self):
+        selected_units = self.controller.get_visible_unit_ids()
+        visible_channel_inds = self.controller.get_common_sparse_channels(selected_units)
+        self.controller.set_channel_visibility(visible_channel_inds)
+        self.notify_channel_visibility_changed()
+        super().notify_unit_visibility_changed()
+
     ## Qt ##
     def _qt_make_layout(self):
         
