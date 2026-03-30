@@ -48,6 +48,10 @@ class CorrelogramView(ViewBase):
         self.grid = pg.GraphicsLayoutWidget()
         self.layout.addWidget(self.grid)
 
+    def _reinitialize(self):
+        self.ccg, self.bins = self.controller.get_correlograms()
+        self.figure_cache = {}
+        self._refresh()
 
     def _qt_refresh(self):
         import pyqtgraph as pg

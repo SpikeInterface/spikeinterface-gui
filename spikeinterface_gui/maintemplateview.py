@@ -92,19 +92,19 @@ class MainTemplateView(ViewBase):
 
             if peak_data is not None:
                 # trough
-                peak_inds =  peak_data[['trough_index']].values
+                peak_inds =  peak_data[['trough_index']].values.astype(int)
                 scatter = pg.ScatterPlotItem(x = times[peak_inds], y = template_high[peak_inds],
                                             size=10, pxMode = True, color="white", symbol="t")
                 plot.addItem(scatter)
                 
                 names = ('peak_before', 'peak_after')
-                peak_inds =  peak_data[[f'{k}_index' for k in names]].values
+                peak_inds =  peak_data[[f'{k}_index' for k in names]].values.astype(int)
                 scatter = pg.ScatterPlotItem(x = times[peak_inds], y = template_high[peak_inds],
                                             size=10, pxMode = True, color="white", symbol="t1")
                 plot.addItem(scatter)
 
                 all_names = ('trough', 'peak_before', 'peak_after')
-                peak_inds =  peak_data[[f'{k}_index' for k in all_names]].values
+                peak_inds =  peak_data[[f'{k}_index' for k in all_names]].values.astype(int)
                 # Vertical dotted lines from peak to zero
                 for ind in peak_inds:
                     x = [times[ind], times[ind]]

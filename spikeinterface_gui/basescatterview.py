@@ -56,7 +56,7 @@ class BaseScatterView(ViewBase):
             return spike_times, spike_data, np.array([1]), np.array([ymin, ymax]), ymin, ymax, inds
 
         # avoid clear outliers in the plot and histogram by using percentiles
-        ymin, ymax = np.percentile(spike_data, [self.settings['display_low_percentiles'], self.settings['display_high_percentiles']])
+        ymin, ymax = np.percentile(spike_data[~np.isnan(spike_data)], [self.settings['display_low_percentiles'], self.settings['display_high_percentiles']])
         min_bin_size = np.min(np.diff(np.unique(spike_data)))
         bins = np.linspace(ymin, ymax, self.settings['num_bins'])
         # if bins are too small, adjust the number of bins to ensure a minimum bin size and avoid jumps in the histogram
@@ -329,8 +329,8 @@ class BaseScatterView(ViewBase):
         # set x range to time range of the current segment for scatter, and max count for histogram
         # set y range to min and max of visible spike amplitudes
         if len(ymins) > 0 and (set_scatter_range or not self._first_refresh_done):
-            ymin = np.min(ymins)
-            ymax = np.max(ymaxs)
+            ymin = np.nanmin(ymins)
+            ymax = np.nanmax(ymaxs)
             t_start, t_stop = self.controller.get_t_start_t_stop()
             self.viewBox.setXRange(t_start, t_stop, padding = 0.0)
             self.viewBox.setYRange(ymin, ymax, padding = 0.0)

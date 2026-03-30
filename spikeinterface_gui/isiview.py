@@ -25,6 +25,10 @@ class ISIView(ViewBase):
         self.isi_histograms, self.isi_bins = None, None
         self.refresh()
 
+    def _reinitialize(self):
+        self.isi_histograms, self.isi_bins = self.controller.get_isi_histograms()
+        self._refresh()
+
     ## QT ##
 
     def _qt_make_layout(self):

@@ -149,6 +149,17 @@ class ProbeView(ViewBase):
 
         self.roi_units.sigRegionChangeFinished.connect(self._qt_on_roi_units_changed)
 
+    def _qt_reinitialize(self):
+        import pyqtgraph as pg
+        
+        self.plot.removeItem(self.scatter)
+        unit_positions = self.controller.unit_positions
+        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
+        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
+        self.plot.addItem(self.scatter)
+
+        self._qt_refresh()
+
     def _qt_refresh(self):
         current_unit_positions = self.controller.unit_positions
         # if not np.array_equal(current_unit_positions, self._unit_positions):
@@ -478,11 +489,14 @@ class ProbeView(ViewBase):
         self.should_resize_unit_circle = None
 
         # Main layout
-        self.layout = pn.Column(
-            self.figure,
-            styles={"display": "flex", "flex-direction": "column"},
-            sizing_mode="stretch_both",
-        )
+        if self.layout is None:
+            self.layout = pn.Column(
+                self.figure,
+                styles={"display": "flex", "flex-direction": "column"},
+                sizing_mode="stretch_both",
+            )
+        else:
+            self.layout.objects = [self.figure]
 
     def _panel_refresh(self):
         import panel as pn
@@ -554,6 +568,9 @@ class ProbeView(ViewBase):
             self.y_range.start = zoom_bounds[2]
             self.y_range.end = zoom_bounds[3]
 
+    def _panel_reinitialize(self):
+        self._panel_make_layout()
+        self._refresh()
 
     def _panel_compute_unit_glyph_patches(self):
         """Compute glyph patches without modifying Bokeh models."""

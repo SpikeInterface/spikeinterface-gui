@@ -36,8 +36,6 @@ class UnitListView(ViewBase):
     def _qt_make_layout(self):
         
         from .myqt import QT
-        import pyqtgraph as pg
-        
 
         self.menu = None
         self.layout = QT.QVBoxLayout()
@@ -47,21 +45,7 @@ class UnitListView(ViewBase):
         but.clicked.connect(self._qt_select_columns)
         tb.addWidget(but)
 
-
-        visible_cols = []
-        for col in self.controller.units_table.columns:
-            visible_cols.append(
-                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
-            )
-        self.visible_columns = pg.parametertree.Parameter.create( name='visible columns', type='group', children=visible_cols)
-        self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
-        self.tree_visible_columns.header().hide()
-        self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
-        # self.tree_visible_columns.setWindowTitle(u'visible columns')
-        # self.tree_visible_columns.setWindowFlags(QT.Qt.Window)
-        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_columns_changed)
-        self.layout.addWidget(self.tree_visible_columns)
-        self.tree_visible_columns.hide()
+        self._qt_set_up_visible_columns()
 
         # h = QT.QHBoxLayout()
         # self.layout.addLayout(h)
@@ -127,6 +111,28 @@ class UnitListView(ViewBase):
                 self.shortcut_noise.setKey(QT.QKeySequence('n'))
                 self.shortcut_noise.activated.connect(lambda: self._qt_set_default_label('noise'))
 
+    def _qt_set_up_visible_columns(self):
+
+        import pyqtgraph as pg
+        visible_cols = []
+        for col in self.controller.units_table.columns:
+            visible_cols.append(
+                {'name': str(col), 'type': 'bool', 'value': col in self.controller.displayed_unit_properties, 'default': True}
+            )
+        self.visible_columns = pg.parametertree.Parameter.create( name='visible columns', type='group', children=visible_cols)
+        self.tree_visible_columns = pg.parametertree.ParameterTree(parent=self.qt_widget)
+        self.tree_visible_columns.header().hide()
+        self.tree_visible_columns.setParameters(self.visible_columns, showTop=True)
+
+        self.visible_columns.sigTreeStateChanged.connect(self._qt_on_visible_columns_changed)
+        self.layout.addWidget(self.tree_visible_columns)
+        self.tree_visible_columns.hide()
+
+    def _qt_reinitialize(self):
+
+        self._qt_set_up_visible_columns()
+        self._qt_full_table_refresh()
+        self._qt_refresh()
 
     def _qt_on_column_moved(self, logical_index, old_visual_index, new_visual_index):
         # Update stored column order
@@ -220,7 +226,6 @@ class UnitListView(ViewBase):
             self.column_order = [self.table.horizontalHeader().logicalIndex(i) for i in range(self.table.columnCount())]
         
         self.table.clear()
-
 
         internal_column_names = ['unit_id', 'visible',  'channel_id']
 
@@ -572,16 +577,22 @@ class UnitListView(ViewBase):
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
 
-        self.layout = pn.Column(
-            pn.Row(
-                self.info_text,
-            ),
-            buttons,
-            sizing_mode="stretch_width",
-        )
+        if self.layout is None:
+            self.layout = pn.Column(
+                pn.Row(
+                    self.info_text,
+                ),
+                buttons,
+                sizing_mode="stretch_width",
+            )
 
-        self.layout.append(self.table)
-        self.layout.append(shortcuts_component)
+            self.layout.append(self.table)
+            self.layout.append(shortcuts_component)
+        else:
+            self.layout[0][0] = self.info_text
+            self.layout[1] = buttons
+            self.layout[2] = self.table
+            self.layout[3] = shortcuts_component
 
         self.table.tabulator.on_edit(self._panel_on_edit)
         self.refresh_button.on_click(self._panel_refresh_click)
@@ -635,6 +646,10 @@ class UnitListView(ViewBase):
 
         # refresh header
         self._panel_refresh_header()
+
+    def _panel_reinitialize(self):
+        self._panel_make_layout()
+        self._panel_refresh()
 
     def _panel_refresh_header(self):
         unit_ids = self.controller.unit_ids

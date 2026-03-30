@@ -1,6 +1,7 @@
 import numpy as np
 from pathlib import Path
 import os
+from copy import copy
 
 def get_config_folder() -> Path:
     """Get the config folder for spikeinterface-gui settings files.
@@ -58,3 +59,37 @@ def get_present_zones_in_half_of_layout(layout_zone, shift):
     is_present = [views is not None and len(views) > 0 for views in half_dict.values()]
     present_zones = set(np.array(list(half_dict.keys()))[np.array(is_present)])
     return present_zones
+
+    
+def add_new_unit_ids_to_curation_dict(curation_dict, sorting, split_new_id_strategy, merge_new_id_strategy):
+    """
+    Explicitly adds the new unit ids to `curation_dict` based on the split and merge new id strategies.
+    These *should* be the ids that would have been generated during `apply_curation` with these strategies.
+    """
+
+    from spikeinterface.core.sorting_tools import generate_unit_ids_for_split, generate_unit_ids_for_merge_group
+    from spikeinterface.curation.curation_model import Curation
+
+    curation_model = Curation(**curation_dict)
+    old_unit_ids = copy(curation_model.unit_ids)
+
+    if len(curation_model.splits) > 0:
+        unit_splits = {split.unit_id: split.get_full_spike_indices(sorting) for split in curation_model.splits}
+        new_split_unit_ids = generate_unit_ids_for_split(old_unit_ids, unit_splits, new_unit_ids=None, new_id_strategy=split_new_id_strategy)
+        
+        all_new_unit_ids = []
+        for split_index, new_unit_ids in enumerate(new_split_unit_ids):
+            curation_dict['splits'][split_index]['new_unit_ids'] = new_unit_ids
+            all_new_unit_ids = all_new_unit_ids + new_unit_ids
+
+        # update old unit ids with the newly split units
+        old_unit_ids = np.setdiff1d(old_unit_ids, np.array(list(unit_splits.keys())))
+        old_unit_ids = np.concat([old_unit_ids, all_new_unit_ids])
+
+    if len(curation_model.merges) > 0:
+        merge_unit_groups = [m.unit_ids for m in curation_model.merges]
+        new_merge_unit_ids = generate_unit_ids_for_merge_group(old_unit_ids, merge_unit_groups, new_unit_ids=None, new_id_strategy=merge_new_id_strategy)
+        for merge_index, new_unit_id in enumerate(new_merge_unit_ids):
+            curation_dict['merges'][merge_index]['new_unit_id'] = new_unit_id
+
+    return curation_dict

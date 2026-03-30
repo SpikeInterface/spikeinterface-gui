@@ -17,6 +17,9 @@ class SpikeDepthView(BaseScatterView):
             spike_data=spike_data,
         )
 
+    def _reinitialize(self):
+        self.spike_data = self.controller.spike_depths
+        self._refresh()
 
 
 SpikeDepthView._gui_help_txt = """
