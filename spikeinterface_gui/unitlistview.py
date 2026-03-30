@@ -130,7 +130,7 @@ class UnitListView(ViewBase):
 
     def _qt_reinitialize(self):
 
-        #self._qt_set_up_visible_columns()
+        self._qt_set_up_visible_columns()
         self._qt_full_table_refresh()
         self._qt_refresh()
 
