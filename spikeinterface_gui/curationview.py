@@ -405,7 +405,6 @@ class CurationView(ViewBase):
             save_button,
             download_button,
             apply_button,
-            submit_button,
             sizing_mode="stretch_width",
         )
         save_sections = pn.Column(
