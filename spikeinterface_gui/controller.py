@@ -1117,11 +1117,13 @@ class Controller():
         if label is None:
             self.remove_category_from_unit(unit_id, category)
             return
+        
+        label_types = self.curation_data['label_definitions'].keys()
 
         ix = self.find_unit_in_manual_labels(unit_id)
         if ix is not None:
             lbl = self.curation_data["manual_labels"][ix]
-            if "labels" in lbl and category in lbl["labels"]:
+            if "labels" in lbl and category in label_types:
                 # v2 format
                 lbl["labels"][category] = [label]
             elif category in lbl:
