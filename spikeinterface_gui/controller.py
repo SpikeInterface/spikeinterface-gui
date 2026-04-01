@@ -900,7 +900,7 @@ class Controller():
             new_curation_data["label_definitions"] = default_label_definitions.copy()
 
         # validate the curation data
-        model = CurationModel(**new_curation_data)
+        model = Curation(**new_curation_data)
         self.curation_data = model.model_dump()
 
     def save_curation_in_analyzer(self):
