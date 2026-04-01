@@ -32,6 +32,13 @@ class UnitListView(ViewBase):
         elif self.backend == 'panel':
             self._panel_update_labels()
 
+    def notify_unit_visibility_changed(self):
+        selected_units = self.controller.get_visible_unit_ids()
+        visible_channel_inds = self.controller.get_common_sparse_channels(selected_units)
+        self.controller.set_channel_visibility(visible_channel_inds)
+        self.notify_channel_visibility_changed()
+        super().notify_unit_visibility_changed()
+
     ## Qt ##
     def _qt_make_layout(self):
         
@@ -326,8 +333,11 @@ class UnitListView(ViewBase):
             is_visible = item.checkState() == QT.Qt.Checked
             # visibility checkbox
             unit_id = item.unit_id
+            current_visible_units = self.controller.get_visible_unit_ids()
             self.controller.set_unit_visibility(unit_id, is_visible)
-            self.notify_unit_visibility_changed()
+            updated_visibile_units = self.controller.get_visible_unit_ids()
+            if set(current_visible_units) != set(updated_visibile_units):
+                self.notify_unit_visibility_changed()
 
 
         elif col in self.label_columns:
@@ -342,12 +352,12 @@ class UnitListView(ViewBase):
 
     def _qt_on_double_clicked(self, row, col):
         unit_id = self.table.item(row, 1).unit_id
+        current_visible_units = self.controller.get_visible_unit_ids()
         self.controller.set_visible_unit_ids([unit_id])
-        # self.refresh()
-        
-
-        self.notify_unit_visibility_changed()
-        self._qt_refresh_visibility_items()
+        updated_visibile_units = self.controller.get_visible_unit_ids()
+        if set(current_visible_units) != set(updated_visibile_units):
+            self.notify_unit_visibility_changed()
+            self._qt_refresh_visibility_items()
     
     def _qt_on_open_context_menu(self):
         self.menu.popup(self.qt_widget.cursor().pos())
@@ -369,13 +379,15 @@ class UnitListView(ViewBase):
     def _qt_on_visible_shortcut(self):
         rows = self._qt_get_selected_rows()
 
+        current_visible_units = self.controller.get_visible_unit_ids()
         self.controller.set_visible_unit_ids(self.get_selected_unit_ids())
-        # self.refresh()
-        self.notify_unit_visibility_changed()
-        self._qt_refresh_visibility_items()
-        
-        for row in rows:
-            self.table.selectRow(row)
+        updated_visibile_units = self.controller.get_visible_unit_ids()
+        if set(current_visible_units) != set(updated_visibile_units):
+            self.notify_unit_visibility_changed()
+            self._qt_refresh_visibility_items()
+
+            for row in rows:
+                self.table.selectRow(row)
 
     def _qt_on_only_previous_shortcut(self):
         sel_rows = self._qt_get_selected_rows()
@@ -383,12 +395,14 @@ class UnitListView(ViewBase):
             sel_rows = [self.table.rowCount()]
         new_row = max(sel_rows[0] - 1, 0)
         unit_id = self.table.item(new_row, 1).unit_id
+        current_visible_units = self.controller.get_visible_unit_ids()
         self.controller.set_visible_unit_ids([unit_id])
-        self.notify_unit_visibility_changed()
-        self._qt_refresh_visibility_items()
-
-        self.table.clearSelection()
-        self.table.selectRow(new_row)
+        updated_visibile_units = self.controller.get_visible_unit_ids()
+        if set(current_visible_units) != set(updated_visibile_units):
+            self.notify_unit_visibility_changed()
+            self._qt_refresh_visibility_items()
+            self.table.clearSelection()
+            self.table.selectRow(new_row)
 
     def _qt_on_only_next_shortcut(self):
         sel_rows = self._qt_get_selected_rows()
@@ -396,11 +410,14 @@ class UnitListView(ViewBase):
             sel_rows = [-1]
         new_row = min(sel_rows[-1] + 1, self.table.rowCount() - 1)
         unit_id = self.table.item(new_row, 1).unit_id
+        current_visible_units = self.controller.get_visible_unit_ids()
         self.controller.set_visible_unit_ids([unit_id])
-        self.notify_unit_visibility_changed()
-        self._qt_refresh_visibility_items()
-        self.table.clearSelection()
-        self.table.selectRow(new_row)
+        updated_visibile_units = self.controller.get_visible_unit_ids()
+        if set(current_visible_units) != set(updated_visibile_units):
+            self.notify_unit_visibility_changed()
+            self._qt_refresh_visibility_items()
+            self.table.clearSelection()
+            self.table.selectRow(new_row)
 
     def _qt_on_delete_shortcut(self):
         sel_rows = self._qt_get_selected_rows()
@@ -728,13 +745,16 @@ class UnitListView(ViewBase):
     def _panel_on_only_selection(self):
         selected_unit = self.table.selection[0]
         unit_id = self.table.value.index.values[selected_unit]
+        current_visible_units = self.controller.get_visible_unit_ids()
         self.controller.set_visible_unit_ids([unit_id])
-        self._panel_refresh_colors()
-        # update the visible column
-        df = self.table.value
-        df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
-        self.table.value = df
-        self.notify_unit_visibility_changed()
+        updated_visibile_units = self.controller.get_visible_unit_ids()
+        if set(current_visible_units) != set(updated_visibile_units):
+            self._panel_refresh_colors()
+            # update the visible column
+            df = self.table.value
+            df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
+            self.table.value = df
+            self.notify_unit_visibility_changed()
 
     def _panel_get_selected_unit_ids(self):
         unit_ids = self.table.value.index.values
@@ -785,9 +805,12 @@ class UnitListView(ViewBase):
                 if self.controller.curation:
                     self._panel_merge_units()
             elif event.data == "visible":
+                current_visibile_units = self.controller.get_visible_unit_ids()
                 self.controller.set_visible_unit_ids(selected_unit_ids)
-                self.notify_unit_visibility_changed()
-                self.refresh()
+                updated_visibile_units = self.controller.get_visible_unit_ids()
+                if set(current_visibile_units) != set(updated_visibile_units):
+                    self.notify_unit_visibility_changed()
+                    self.refresh()
             elif event.data == "clear":
                 for unit_id in selected_unit_ids:
                     self.controller.set_label_to_unit(unit_id, "quality", None)
