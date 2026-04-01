@@ -431,8 +431,8 @@ class PanelMainWindow:
 
         curation_view = self.views["curation"]
         self.controller.set_curation_data(curation_data)
-        self.controller.current_curation_saved = True
         curation_view.notify_manual_curation_updated()
+        self.controller.current_curation_saved = True
         curation_view.refresh()
 
         # we also need to refresh the unit list view to update the unit visibility according to the new curation

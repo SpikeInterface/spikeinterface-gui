@@ -394,13 +394,11 @@ class MixinViewTrace:
 
         bottom_bar_items = [self.time_slider]
         if self.controller.has_extension("events"):
-            self.event_line = None
-            if self.controller.has_extension("events"):
-                self.event_source = ColumnDataSource({"xs": [], "ys": []})
-                self.event_line = self.figure.multi_line(
-                    source=self.event_source,
-                    xs="xs", ys="ys", line_color="yellow", line_dash="dashed", line_width=2, line_alpha=0.8
-                )
+            self.event_source = ColumnDataSource({"xs": [], "ys": []})
+            self.event_line = self.figure.multi_line(
+                source=self.event_source,
+                xs="xs", ys="ys", line_color="yellow", line_dash="dashed", line_width=2, line_alpha=0.8
+            )
             event_keys = list(self.controller.events.keys())
             if len(event_keys) > 1:
                 self.event_selector = pn.widgets.Select(
@@ -581,9 +579,6 @@ class MixinViewTrace:
         fig = self.figure
         yspan = [fig.y_range.start, fig.y_range.end]
         self.event_source.data = {"xs": [[evt_time, evt_time]], "ys": [yspan]}
-
-    def _panel_remove_event_line(self):
-        self.event_source.data = {"xs": [], "ys": []}
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
@@ -828,6 +823,10 @@ class TraceView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
+        # Placeholder for events
+        self.event_line = None
+        self.event_source = None
+
         self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         self._panel_create_toolbars()
@@ -842,7 +841,6 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
-        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
