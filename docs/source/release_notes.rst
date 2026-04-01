@@ -12,11 +12,13 @@ Release Notes
 
 Bug fixes
 ~~~~~~~~~
+
 * Fix quality curation when other labels are given by user (PR #260)
 * Update channel visibility when unit is changed in unitview (#259)
 
 Performance
 ~~~~~~~~~~~
+
 * Only init views in layout in desktop mode (PR #257)
 
 
