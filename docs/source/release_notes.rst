@@ -3,6 +3,23 @@
 Release Notes
 =============
 
+.. _release0.13.1:
+
+0.13.1
+------
+
+*Release date: April 1st, 2026*
+
+Bug fixes
+~~~~~~~~~
+* Fix quality curation when other labels are given by user (PR #260)
+* Update channel visibility when unit is changed in unitview (#259)
+
+Performance
+~~~~~~~~~~~
+* Only init views in layout in desktop mode (PR #257)
+
+
 .. _release0.13.0:
 
 0.13.0
