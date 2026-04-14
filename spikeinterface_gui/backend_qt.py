@@ -259,14 +259,12 @@ class QtMainWindow(QT.QMainWindow):
         super().showEvent(event)
         if not hasattr(self, '_splitters_equalized'):
             self._splitters_equalized = True
-            QT.QTimer.singleShot(100, self._equalize_splitters)
-
-    def _equalize_splitters(self):
-        all_docks = [dock for dock in self.docks.values() if dock.isVisible()]
-        if all_docks:
-            size_weight = 1
-            self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Horizontal)
-            self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Vertical)
+            QT.QApplication.processEvents()
+            all_docks = [dock for dock in self.docks.values() if dock.isVisible()]
+            if all_docks:
+                size_weight = 1
+                self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Horizontal)
+                self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Vertical)
 
     def make_half_layout(self, widgets_zone, left_or_right):
         """
