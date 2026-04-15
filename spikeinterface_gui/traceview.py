@@ -13,6 +13,9 @@ from .view_base import ViewBase
 #   * segment change
 #   * 
 
+INT32_MAX = 2147483647  # 2**31 - 1
+
+
 class MixinViewTrace:
 
     MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR = 0.5  # seconds
@@ -214,7 +217,7 @@ class MixinViewTrace:
     def _qt_update_scroll_step(self):
         segment_index = self.controller.get_time()[1]
         length = self.controller.get_num_samples(segment_index)
-        num_scrollbar_steps = max(2**16, length)
+        num_scrollbar_steps = min(INT32_MAX, length)
         self.scroll_step = length / num_scrollbar_steps
 
         t_start, t_stop = self.controller.get_t_start_t_stop()
