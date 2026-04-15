@@ -600,7 +600,7 @@ class Controller():
 
     def get_visible_unit_ids(self):
         """Get list of visible unit_ids"""
-        return self._visible_unit_ids
+        return list(self._visible_unit_ids)
 
     def get_visible_unit_indices(self):
         """Get list of indices of visible units"""
