@@ -32,12 +32,12 @@ class UnitListView(ViewBase):
         elif self.backend == 'panel':
             self._panel_update_labels()
 
-    def notify_unit_visibility_changed(self):
+    def notify_unit_and_channel_visibility_changed(self):
         selected_units = self.controller.get_visible_unit_ids()
         visible_channel_inds = self.controller.get_common_sparse_channels(selected_units)
         self.controller.set_channel_visibility(visible_channel_inds)
         self.notify_channel_visibility_changed()
-        super().notify_unit_visibility_changed()
+        self.notify_unit_visibility_changed()
 
     ## Qt ##
     def _qt_make_layout(self):
@@ -337,7 +337,7 @@ class UnitListView(ViewBase):
             self.controller.set_unit_visibility(unit_id, is_visible)
             updated_visibile_units = self.controller.get_visible_unit_ids()
             if set(current_visible_units) != set(updated_visibile_units):
-                self.notify_unit_visibility_changed()
+                self.notify_unit_and_channel_visibility_changed()
 
 
         elif col in self.label_columns:
@@ -356,7 +356,7 @@ class UnitListView(ViewBase):
         self.controller.set_visible_unit_ids([unit_id])
         updated_visibile_units = self.controller.get_visible_unit_ids()
         if set(current_visible_units) != set(updated_visibile_units):
-            self.notify_unit_visibility_changed()
+            self.notify_unit_and_channel_visibility_changed()
             self._qt_refresh_visibility_items()
     
     def _qt_on_open_context_menu(self):
@@ -383,7 +383,7 @@ class UnitListView(ViewBase):
         self.controller.set_visible_unit_ids(self.get_selected_unit_ids())
         updated_visibile_units = self.controller.get_visible_unit_ids()
         if set(current_visible_units) != set(updated_visibile_units):
-            self.notify_unit_visibility_changed()
+            self.notify_unit_and_channel_visibility_changed()
             self._qt_refresh_visibility_items()
 
             for row in rows:
@@ -414,7 +414,7 @@ class UnitListView(ViewBase):
         self.controller.set_visible_unit_ids([unit_id])
         updated_visibile_units = self.controller.get_visible_unit_ids()
         if set(current_visible_units) != set(updated_visibile_units):
-            self.notify_unit_visibility_changed()
+            self.notify_unit_and_channel_visibility_changed()
             self._qt_refresh_visibility_items()
             self.table.clearSelection()
             self.table.selectRow(new_row)
@@ -680,7 +680,7 @@ class UnitListView(ViewBase):
 
         # update the visible column
         self.table.value.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
-        self.notify_unit_visibility_changed()
+        self.notify_unit_and_channel_visibility_changed()
         self.refresh()
 
     def _panel_on_unit_visibility_changed(self):
@@ -754,7 +754,7 @@ class UnitListView(ViewBase):
             df = self.table.value
             df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
             self.table.value = df
-            self.notify_unit_visibility_changed()
+            self.notify_unit_and_channel_visibility_changed()
 
     def _panel_get_selected_unit_ids(self):
         unit_ids = self.table.value.index.values
@@ -809,7 +809,7 @@ class UnitListView(ViewBase):
                 self.controller.set_visible_unit_ids(selected_unit_ids)
                 updated_visibile_units = self.controller.get_visible_unit_ids()
                 if set(current_visibile_units) != set(updated_visibile_units):
-                    self.notify_unit_visibility_changed()
+                    self.notify_unit_and_channel_visibility_changed()
                     self.refresh()
             elif event.data == "clear":
                 for unit_id in selected_unit_ids:
