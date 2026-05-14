@@ -382,8 +382,8 @@ class Controller():
                         curation_data = json.load(f)
 
             elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                from spikeinterface.core.zarrextractors import super_zarr_open
+                zarr_root = super_zarr_open(self.analyzer.folder, mode='r')
                 if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
