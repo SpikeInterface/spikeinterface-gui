@@ -40,7 +40,6 @@ class MainSettingsView(ViewBase):
             self.notify_unit_visibility_changed()
     
     def on_change_color_mode(self):
-        
         self.controller.main_settings['color_mode'] = self.main_settings['color_mode']
         self.controller.refresh_colors()
         self.notify_unit_color_changed()
