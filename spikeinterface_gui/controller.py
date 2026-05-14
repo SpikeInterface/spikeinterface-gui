@@ -548,6 +548,25 @@ class Controller():
 
         return txt
 
+    def get_divergent_unit_colors(self, colormap="tab10"):
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import ListedColormap
+
+        unit_locations = self.analyzer.get_extension("unit_locations").get_data()
+        cmap = plt.get_cmap(colormap)
+        if not isinstance(cmap, ListedColormap):
+            raise ValueError(f"Colormap {colormap} is not a qualitative colormap")
+        num_entries = len(cmap.colors)
+        # lexsort by x and y
+        sorted_inds = np.lexsort((unit_locations[:, 0], unit_locations[:, 1]))
+        # now assign colors with sequentially to sorted units
+        colors = {}
+        for i, unit_ind in enumerate(sorted_inds):
+            unit_id = self.unit_ids[unit_ind]
+            colors[unit_id] = cmap.colors[i % num_entries]
+        return colors
+        
+
     def refresh_colors(self):
         if self.backend == "qt":
             self._cached_qcolors = {}
@@ -555,15 +574,13 @@ class Controller():
             pass
 
         if self.main_settings['color_mode'] == 'color_by_unit':
-            self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)
+            self.colors = self.get_divergent_unit_colors(colormap="tab10")
         elif  self.main_settings['color_mode'] == 'color_only_visible':
-            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)            
+            unit_colors = self.get_divergent_unit_colors(colormap="tab10")       
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             for unit_id in self.get_visible_unit_ids():
                 self.colors[unit_id] = unit_colors[unit_id]
-        elif  self.main_settings['color_mode'] == 'color_by_visibility':
+        elif self.main_settings['color_mode'] == 'color_by_visibility':
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             import matplotlib.pyplot as plt
             cmap = plt.colormaps['tab10']
