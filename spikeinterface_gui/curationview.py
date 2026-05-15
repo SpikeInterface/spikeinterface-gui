@@ -598,24 +598,15 @@ class CurationView(ViewBase):
 
     def _conditional_refresh_merge(self):
         # Check if the view is active before refreshing
-        if self.is_view_active() and self.active_table == "merge":
-            return True
-        else:
-            return False
+        return self.is_view_active() and self.active_table == "merge"
 
     def _conditional_refresh_delete(self):
         # Check if the view is active before refreshing
-        if self.is_view_active() and self.active_table == "delete":
-            return True
-        else:
-            return False
+        return self.is_view_active() and self.active_table == "delete"
 
     def _conditional_refresh_split(self):
         # Check if the view is active before refreshing
-        if self.is_view_active() and self.active_table == "split":
-            return True
-        else:
-            return False
+        return self.is_view_active() and self.active_table == "split"
 
 
 CurationView._gui_help_txt = """

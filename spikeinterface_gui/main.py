@@ -293,10 +293,7 @@ def check_folder_is_analyzer(folder):
         # Check if the folder contains the necessary files for a SortingAnalyzer
         with open(spikeinterface_info_file, 'r') as f:
             spikeinterface_info = json.load(f)
-        if spikeinterface_info.get("object") != "SortingAnalyzer":
-            return False
-        else:
-            return True
+        return spikeinterface_info.get("object") == "SortingAnalyzer"
     else:  #zarr folder
         import zarr
         # Check if the folder contains the necessary files for a SortingAnalyzer
@@ -304,10 +301,7 @@ def check_folder_is_analyzer(folder):
         spikeinterface_info = zarr_root.attrs.get('spikeinterface_info')
         if spikeinterface_info is None:
             return False
-        if spikeinterface_info.get("object") != "SortingAnalyzer":
-            return False
-        else:
-            return True
+        return spikeinterface_info.get("object") == "SortingAnalyzer"
         
 
 def run_mainwindow_cli():
