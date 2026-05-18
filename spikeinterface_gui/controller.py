@@ -563,7 +563,8 @@ class Controller():
         colors = {}
         for i, unit_ind in enumerate(sorted_inds):
             unit_id = self.unit_ids[unit_ind]
-            colors[unit_id] = cmap.colors[i % num_entries]
+            # Assign cmap color *and* alpha value to the colors dict
+            colors[unit_id] = cmap.colors[i % num_entries] + (1,)
         return colors
         
 
