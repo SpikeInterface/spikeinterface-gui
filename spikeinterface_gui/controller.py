@@ -726,7 +726,9 @@ class Controller():
     
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
-        return location
+        # for now, we only use information from the first two dimensions of channel location
+        location_2d = location[:,0:2]
+        return location_2d
 
     def get_channel_groups(self):
         if self.has_extension("recording"):
