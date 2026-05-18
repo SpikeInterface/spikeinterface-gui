@@ -255,6 +255,23 @@ class QtMainWindow(QT.QMainWindow):
             # make visible the first of each zone
             self.docks[view_name0].raise_()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not hasattr(self, '_splitters_equalized'):
+            self._splitters_equalized = True
+            # On macOS, the native Cocoa window system performs a layout pass after
+            # Qt's showEvent, overwriting any sizes set synchronously. A deferred
+            # call via QTimer.singleShot ensures resizeDocks runs after both Qt and
+            # the macOS window server have finished laying out the docks.
+            QT.QTimer.singleShot(0, self._equalize_dock_sizes)
+
+    def _equalize_dock_sizes(self):
+        all_docks = [dock for dock in self.docks.values() if dock.isVisible()]
+        if all_docks:
+            size_weight = 1
+            self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Horizontal)
+            self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Vertical)
+
     def make_half_layout(self, widgets_zone, left_or_right):
         """
         Function contains the logic for the greedy layout. Given the 2x2 box of zones
