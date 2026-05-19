@@ -158,7 +158,6 @@ class MergeView(ViewBase):
             )
             return
         self.notify_manual_curation_updated()
-        self.refresh()
 
     ### QT
     def _qt_get_selected_group_ids(self):

@@ -5,6 +5,7 @@ try:
 except ImportError:
     from typing_extensions import NotRequired
 
+import re
 import numpy as np
 import time
 import panel as pn
@@ -478,10 +479,18 @@ class SelectableTabulator(pn.viewable.Viewer):
                     ascending=(self.direction_dropdown.value == "↑")
                 )
             else:
-                df = self.tabulator.value.sort_values(
-                    by=self.sort_dropdown.value,
-                    ascending=(self.direction_dropdown.value == "↑")
+                import pandas.api.types as ptypes
+
+                col = self.sort_dropdown.value
+                sort_kwargs = dict(
+                    by=col,
+                    ascending=(self.direction_dropdown.value == "↑"),
                 )
+                if ptypes.is_string_dtype(self.tabulator.value[col]):
+                    sort_kwargs["key"] = lambda x: x.map(
+                        lambda v: [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', str(v))]
+                    )
+                df = self.tabulator.value.sort_values(**sort_kwargs)
         self.tabulator.value = df
 
     def _on_selection_change(self, event):
