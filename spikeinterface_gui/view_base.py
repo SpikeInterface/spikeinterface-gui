@@ -252,9 +252,7 @@ class ViewBase:
             from .myqt import QT
 
             active_window = QT.QApplication.activeWindow()
-            if active_window and isinstance(active_window, QT.QMessageBox):
-                return True
-            return False
+            return isinstance(active_window, QT.QMessageBox)
         elif self.backend == "panel":
             return self._panel_warning_active
 
