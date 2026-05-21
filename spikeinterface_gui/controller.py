@@ -47,6 +47,7 @@ class Controller():
         verbose=False,
         save_on_compute=False,
         curation=False,
+        iterative_curation=False,
         curation_data=None,
         label_definitions=None,
         with_traces=True,
@@ -95,7 +96,7 @@ class Controller():
         self.set_analyzer_info(analyzer)
         self.units_table = make_units_table_from_analyzer(self.analyzer, extra_properties=extra_unit_properties)
         
-        self.set_curation_info(curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs)
+        self.set_curation_info(curation, iterative_curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs)
 
         # parse events
         self.events = None
@@ -373,7 +374,10 @@ class Controller():
         self.update_time_info()
 
 
-    def set_curation_info(self, curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs):
+    def set_curation_info(self, curation, iterative_curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs):
+        self.iterative_curation = iterative_curation
+        if self.iterative_curation:
+            curation = True
         self.curation = curation
         self.curation_callback = curation_callback
         self.curation_callback_kwargs = curation_callback_kwargs

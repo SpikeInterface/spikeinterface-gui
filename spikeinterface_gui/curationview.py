@@ -68,14 +68,11 @@ class CurationView(ViewBase):
             but = QT.QPushButton("Save curation")
             tb.addWidget(but)
             but.clicked.connect(self.controller.save_curation_callback)
-        elif self.controller.curation_can_be_saved():
-            but = QT.QPushButton("Save in analyzer")
-            tb.addWidget(but)
-            but.clicked.connect(self.controller.save_curation_in_analyzer)
 
-        but_apply = QT.QPushButton("Apply curation")
-        tb.addWidget(but_apply)
-        but_apply.clicked.connect(self.apply_curation_to_analyzer)
+        if self.controller.iterative_curation:
+            but_apply = QT.QPushButton("Apply curation")
+            tb.addWidget(but_apply)
+            but_apply.clicked.connect(self.apply_curation_to_analyzer)
 
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)
