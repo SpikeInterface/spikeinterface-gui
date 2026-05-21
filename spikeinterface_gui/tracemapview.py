@@ -131,7 +131,8 @@ class TraceMapView(ViewBase, MixinViewTrace):
         sr = self.controller.sampling_frequency
 
         self.scroll_time.valueChanged.disconnect(self._qt_on_scroll_time)
-        value = self.controller.time_to_sample_index(t)
+        sample = self.controller.time_to_sample_index(t)
+        value = int(sample / self.scroll_step)
         self.scroll_time.setValue(value)
         self.scroll_time.setPageStep(int(sr*xsize))
         self.scroll_time.valueChanged.connect(self._qt_on_scroll_time)

@@ -1,6 +1,6 @@
 [project]
 name = "spikeinterface-gui"
-version = '0.13.0'
+version = '0.13.1'
 authors = [
   { name="Samuel Garcia", email="sam.garcia.die@gmail.com" },
   { name="Alessio Buccino", email="alessiop.buccino@gmail.com" },
@@ -71,4 +71,8 @@ docs = [
 skip = '.git*,pyproject.toml'
 check-hidden = true
 # ignore-regex = ''
-ignore-words-list = 'nd,gaus'
+# nd       - short for "2nd" (loop variable)
+# gaus     - short for "Gaussian"
+# sortings - plural of `Sorting` objects (variable name, not a typo for "sorting")
+# trough   - waveform trough; a real spike-sorting term (not a typo for "through")
+ignore-words-list = 'nd,gaus,sortings,trough'

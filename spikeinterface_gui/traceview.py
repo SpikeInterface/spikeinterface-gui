@@ -13,6 +13,9 @@ from .view_base import ViewBase
 #   * segment change
 #   * 
 
+INT32_MAX = 2147483647  # 2**31 - 1
+
+
 class MixinViewTrace:
 
     MAX_RETRIEVE_TIME_FOR_BUSY_CURSOR = 0.5  # seconds
@@ -214,7 +217,7 @@ class MixinViewTrace:
     def _qt_update_scroll_step(self):
         segment_index = self.controller.get_time()[1]
         length = self.controller.get_num_samples(segment_index)
-        num_scrollbar_steps = max(2**16, length)
+        num_scrollbar_steps = min(INT32_MAX, length)
         self.scroll_step = length / num_scrollbar_steps
 
         t_start, t_stop = self.controller.get_t_start_t_stop()
@@ -394,13 +397,11 @@ class MixinViewTrace:
 
         bottom_bar_items = [self.time_slider]
         if self.controller.has_extension("events"):
-            self.event_line = None
-            if self.controller.has_extension("events"):
-                self.event_source = ColumnDataSource({"xs": [], "ys": []})
-                self.event_line = self.figure.multi_line(
-                    source=self.event_source,
-                    xs="xs", ys="ys", line_color="yellow", line_dash="dashed", line_width=2, line_alpha=0.8
-                )
+            self.event_source = ColumnDataSource({"xs": [], "ys": []})
+            self.event_line = self.figure.multi_line(
+                source=self.event_source,
+                xs="xs", ys="ys", line_color="yellow", line_dash="dashed", line_width=2, line_alpha=0.8
+            )
             event_keys = list(self.controller.events.keys())
             if len(event_keys) > 1:
                 self.event_selector = pn.widgets.Select(
@@ -829,6 +830,10 @@ class TraceView(ViewBase, MixinViewTrace):
             x="x", y="y", size=10, fill_color="color", fill_alpha=self.settings['alpha'], source=self.spike_source
         )
 
+        # Placeholder for events
+        self.event_line = None
+        self.event_source = None
+
         self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
         self._panel_create_toolbars()
@@ -843,7 +848,6 @@ class TraceView(ViewBase, MixinViewTrace):
 
 
     def _panel_refresh(self):
-        self._panel_remove_event_line()
         t, segment_index = self.controller.get_time()
         xsize = self.xsize
         t1, t2 = t - xsize / 3.0, t + xsize * 2 / 3.0
