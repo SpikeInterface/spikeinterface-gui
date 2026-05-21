@@ -59,7 +59,7 @@ def run_mainwindow(
     curation: bool, default: False
         If True, the curation panel is displayed
     iterative_curation: bool, default: False
-        If True, a user can iterative curate their analyzer
+        If True, a user can iteratively curate their analyzer
     curation_dict: dict | None, default: None
         The curation dictionary to start from an existing curation
     label_definitions: dict | None, default: None

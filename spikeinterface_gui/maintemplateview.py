@@ -238,7 +238,7 @@ class MainTemplateView(ViewBase):
 
             if peak_data is not None:
                 # Trough (downward triangle)
-                trough_inds = peak_data[['trough_index']].values
+                trough_inds = peak_data[['trough_index']].values.astype(int)
                 fig.scatter(
                     x=times[trough_inds].tolist(),
                     y=template_high[trough_inds].tolist(),
@@ -249,7 +249,7 @@ class MainTemplateView(ViewBase):
 
                 # Peaks before/after (upward triangle)
                 names = ('peak_before', 'peak_after')
-                peak_inds = peak_data[[f'{k}_index' for k in names]].values
+                peak_inds = peak_data[[f'{k}_index' for k in names]].values.astype(int)
                 fig.scatter(
                     x=times[peak_inds].tolist(),
                     y=template_high[peak_inds].tolist(),
@@ -260,7 +260,7 @@ class MainTemplateView(ViewBase):
 
                 # Peaks before/after (upward triangle)
                 all_names = ('trough', 'peak_before', 'peak_after')
-                peak_inds = peak_data[[f'{k}_index' for k in all_names]].values
+                peak_inds = peak_data[[f'{k}_index' for k in all_names]].values.astype(int)
                 # Vertical dotted lines from peak to zero
                 for ind in peak_inds:
                     fig.line(

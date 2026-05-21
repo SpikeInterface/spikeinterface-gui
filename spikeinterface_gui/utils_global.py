@@ -3,6 +3,9 @@ from pathlib import Path
 import os
 from copy import copy
 
+from spikeinterface.core.sorting_tools import generate_unit_ids_for_split, generate_unit_ids_for_merge_group
+from spikeinterface.curation.curation_model import Curation
+
 def get_config_folder() -> Path:
     """Get the config folder for spikeinterface-gui settings files.
 
@@ -66,10 +69,6 @@ def add_new_unit_ids_to_curation_dict(curation_dict, sorting, split_new_id_strat
     Explicitly adds the new unit ids to `curation_dict` based on the split and merge new id strategies.
     These *should* be the ids that would have been generated during `apply_curation` with these strategies.
     """
-
-    from spikeinterface.core.sorting_tools import generate_unit_ids_for_split, generate_unit_ids_for_merge_group
-    from spikeinterface.curation.curation_model import Curation
-
     curation_model = Curation(**curation_dict)
     old_unit_ids = copy(curation_model.unit_ids)
 

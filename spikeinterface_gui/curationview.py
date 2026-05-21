@@ -364,29 +364,32 @@ class CurationView(ViewBase):
         )
 
         # Create buttons
+
+        save_buttons = []
         if self.controller.curation_callback is not None:
             save_button_name = "Save curation"
             save_button_callback = self._panel_save_curation_callback
-        else:
-            save_button_name = "Save in analyzer"
-            save_button_callback = self._panel_save_in_analyzer
-        save_button = pn.widgets.Button(
-            name=save_button_name,
-            button_type="primary",
-            height=30
-        )
-        save_button.on_click(save_button_callback)
-
-        apply_button = pn.widgets.Button(
-            name="Apply curation",
-            button_type="primary",
-            height=30
-        )
-        apply_button.on_click(self._panel_apply_curation_to_analyzer)
+            save_button = pn.widgets.Button(
+                name=save_button_name,
+                button_type="primary",
+                height=30
+            )
+            save_button.on_click(save_button_callback)
+            save_buttons.append(save_button)
+            
+        if self.controller.iterative_curation:
+            apply_button = pn.widgets.Button(
+                name="Apply curation",
+                button_type="primary",
+                height=30
+            )
+            apply_button.on_click(self._panel_apply_curation_to_analyzer)
+            save_buttons.append(apply_button)
 
         download_button = pn.widgets.FileDownload(
             button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
         )
+        save_buttons.append(download_button)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary", height=30)
         restore_button.on_click(self._panel_restore_units)
@@ -399,9 +402,7 @@ class CurationView(ViewBase):
 
         # Create layout
         buttons_save = pn.Row(
-            save_button,
-            download_button,
-            apply_button,
+            *save_buttons,
             sizing_mode="stretch_width",
         )
         save_sections = pn.Column(
@@ -472,7 +473,7 @@ class CurationView(ViewBase):
 
     def _panel_ensure_save_warning_message(self):
 
-        if self.layout[0].name == "curation_save_warning":
+        if self.layout[0].name == "curation_save_warning" or self.layout[0].name == "busy...":
             return
 
         import panel as pn
@@ -522,7 +523,6 @@ class CurationView(ViewBase):
 
     def _panel_unsplit(self, event):
         self.unsplit()
-
 
     def _panel_save_in_analyzer(self, event):
         self.controller.save_curation_in_analyzer()
