@@ -649,7 +649,7 @@ class Controller():
 
     def get_visible_unit_ids(self):
         """Get list of visible unit_ids"""
-        return self._visible_unit_ids
+        return list(self._visible_unit_ids)
 
     def get_visible_unit_indices(self):
         """Get list of indices of visible units"""
@@ -775,7 +775,9 @@ class Controller():
     
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
-        return location
+        # for now, we only use information from the first two dimensions of channel location
+        location_2d = location[:,0:2]
+        return location_2d
 
     def get_channel_groups(self):
         if self.has_extension("recording"):
@@ -990,7 +992,7 @@ class Controller():
             new_curation_data["label_definitions"] = default_label_definitions.copy()
 
         # validate the curation data
-        model = CurationModel(**new_curation_data)
+        model = Curation(**new_curation_data)
         self.curation_data = model.model_dump()
 
     def save_curation_in_analyzer(self):
@@ -1207,11 +1209,13 @@ class Controller():
         if label is None:
             self.remove_category_from_unit(unit_id, category)
             return
+        
+        label_types = self.curation_data['label_definitions'].keys()
 
         ix = self.find_unit_in_manual_labels(unit_id)
         if ix is not None:
             lbl = self.curation_data["manual_labels"][ix]
-            if "labels" in lbl and category in lbl["labels"]:
+            if "labels" in lbl and category in label_types:
                 # v2 format
                 lbl["labels"][category] = [label]
             elif category in lbl:

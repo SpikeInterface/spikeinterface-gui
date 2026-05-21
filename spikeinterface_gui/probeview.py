@@ -21,7 +21,8 @@ class ProbeView(ViewBase):
     _need_compute = True
 
     def __init__(self, controller=None, parent=None, backend="qt"):
-        self.contact_positions = controller.get_contact_location()
+        # for now, we only use information from the first two dimensions of contact location
+        self.contact_positions = controller.get_contact_location()[:,:2]
         self.probes = controller.get_probegroup().probes
         self._unit_positions = controller.unit_positions
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
