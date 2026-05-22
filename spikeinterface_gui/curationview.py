@@ -69,6 +69,11 @@ class CurationView(ViewBase):
             tb.addWidget(but)
             but.clicked.connect(self.controller.save_curation_callback)
 
+        elif self.controller.curation_can_be_saved() and not self.controller.iterative_curation:
+            but = QT.QPushButton("Save in analyzer")
+            tb.addWidget(but)
+            but.clicked.connect(self.controller.save_curation_in_analyzer)
+
         if self.controller.iterative_curation:
             but_apply = QT.QPushButton("Apply curation")
             tb.addWidget(but_apply)
@@ -366,6 +371,27 @@ class CurationView(ViewBase):
         # Create buttons
 
         save_buttons = []
+
+        if self.controller.iterative_curation:
+            apply_button = pn.widgets.Button(
+                name="Apply curation",
+                button_type="primary",
+                height=30
+            )
+            apply_button.on_click(self._panel_apply_curation_to_analyzer)
+            save_buttons.append(apply_button)
+
+        if not self.controller.iterative_curation and self.controller.curation_callback is None:
+            save_button_name = "Save in analyzer"
+            save_button_callback = self._panel_save_in_analyzer
+            save_button = pn.widgets.Button(
+                name=save_button_name,
+                button_type="primary",
+                height=30
+            )
+            save_button.on_click(save_button_callback)
+            save_buttons.append(save_button)
+
         if self.controller.curation_callback is not None:
             save_button_name = "Save curation"
             save_button_callback = self._panel_save_curation_callback
@@ -377,14 +403,6 @@ class CurationView(ViewBase):
             save_button.on_click(save_button_callback)
             save_buttons.append(save_button)
             
-        if self.controller.iterative_curation:
-            apply_button = pn.widgets.Button(
-                name="Apply curation",
-                button_type="primary",
-                height=30
-            )
-            apply_button.on_click(self._panel_apply_curation_to_analyzer)
-            save_buttons.append(apply_button)
 
         download_button = pn.widgets.FileDownload(
             button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
