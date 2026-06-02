@@ -55,6 +55,11 @@ pip install .
 
 You'll then need to install the appropriate backends yourself (`pyqtgraph` and `PySide6` or `PyQt5` for the desktop; `panel` and `bokeh` for web).
 
+To test that your installation works, you can run any script in our `test` directory. This will run the GUI on some synthetic test data. E.g. from the `spikeinterface-gui` folder, you could run
+
+```bash
+python spikeinterface_gui/tests/test_mainwindow_qt.py
+```
 
 # Main usage
 
