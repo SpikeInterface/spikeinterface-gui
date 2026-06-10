@@ -348,19 +348,23 @@ def run_mainwindow_cli():
             try:
                 if args.verbose:
                     print('Loading recording...')
-                recording_base_path = args.recording_base_path
-                recording = load(args.recording, base_folder=recording_base_path)
+                recording = load(args.recording, base_folder=args.recording_base_folder)
                 if args.verbose:
                     print('Recording loaded')
             except Exception as e:
-                print('Error when loading recording. Please check the path or the file format')
-            if recording is not None:
-                if analyzer.get_num_channels() != recording.get_num_channels():
-                    print('Recording and analyzer have different number of channels. Slicing recording')
-                    channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
-                    if np.sum(channel_mask) != analyzer.get_num_channels():
-                        raise ValueError('The recording does not have the same channel ids as the analyzer')
-                    recording = recording.select_channels(recording.channel_ids[channel_mask])
+                raise RuntimeError(
+                    f"Could not load recording from '{args.recording}' "
+                    f"(base folder: {args.recording_base_folder}). "
+                    "Check that the path exists and is readable by spikeinterface.load."
+                ) from e
+            # --recording loaded successfully here (a failure raises above), so the
+            # analyzer/recording channel counts can be reconciled directly.
+            if analyzer.get_num_channels() != recording.get_num_channels():
+                print('Recording and analyzer have different number of channels. Slicing recording')
+                channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
+                if np.sum(channel_mask) != analyzer.get_num_channels():
+                    raise ValueError('The recording does not have the same channel ids as the analyzer')
+                recording = recording.select_channels(recording.channel_ids[channel_mask])
 
         if args.curation_file is not None:
             with open(args.curation_file, "r") as f:
