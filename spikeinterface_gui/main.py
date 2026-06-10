@@ -348,8 +348,8 @@ def run_mainwindow_cli():
             try:
                 if args.verbose:
                     print('Loading recording...')
-                recording_base_path = args.recording_base_path
-                recording = load(args.recording, base_folder=recording_base_path)
+                recording_base_folder = args.recording_base_folder
+                recording = load(args.recording, base_folder=recording_base_folder)
                 if args.verbose:
                     print('Recording loaded')
             except Exception as e:
