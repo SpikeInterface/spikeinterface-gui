@@ -53,6 +53,8 @@ def get_qt_spike_model():
             
             abs_ind = self.visible_ind[row]
             spike = self.controller.spikes[abs_ind]
+            channel_index = self.controller.spike_channel_index[abs_ind]
+            rand_selected = self.controller.spike_rand_selected[abs_ind]
             unit_id = self.controller.unit_ids[spike['unit_index']]
             
             if role ==QT.Qt.DisplayRole :
@@ -65,9 +67,9 @@ def get_qt_spike_model():
                 elif col == 3:
                     return '{}'.format(spike['sample_index'])
                 elif col == 4:
-                    return '{}'.format(spike['channel_index'])
+                    return '{}'.format(channel_index)
                 elif col == 5:
-                    return '{}'.format(spike['rand_selected'])
+                    return '{}'.format(rand_selected)
                 else:
                     return None
             elif role == QT.Qt.DecorationRole :
@@ -309,6 +311,8 @@ class SpikeListView(ViewBase):
         visible_inds = self.controller.get_indices_spike_visible()
         unit_ids = self.controller.unit_ids
         spikes = self.controller.spikes[visible_inds]
+        channel_inds = self.controller.spike_channel_index
+        rand_selected = self.controller.spike_rand_selected
 
         spike_unit_ids = []
         for i, spike in enumerate(spikes):
@@ -322,8 +326,8 @@ class SpikeListView(ViewBase):
             'unit_id': spike_unit_ids,
             'segment_index': spikes['segment_index'],
             'sample_index': spikes['sample_index'],
-            'channel_index': spikes['channel_index'],
-            'rand_selected': spikes['rand_selected']
+            'channel_index': channel_inds,
+            'rand_selected': rand_selected
         }
 
         # Update table data without replacing entire dataframe

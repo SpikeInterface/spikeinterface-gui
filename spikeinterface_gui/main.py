@@ -41,6 +41,7 @@ def run_mainwindow(
     verbose: bool = False,
     user_settings: dict | None = None,
     disable_save_settings_button: bool = False,
+    lazy_load: bool = False
 ):
     """
     Create the main window and start the QT app loop.
@@ -109,6 +110,8 @@ def run_mainwindow(
         A dictionary of user settings for each view, which overwrite the default settings.
     disable_save_settings_button: bool, default: False
         If True, disables the "save default settings" button, so that user cannot do this.
+    lazy_load: bool, default : False
+        If True, arrays are lazy loaded to use less RAM
     """
 
     if mode == "desktop":
@@ -165,7 +168,8 @@ def run_mainwindow(
         external_data=external_data,
         curation_callback=curation_callback,
         curation_callback_kwargs=curation_callback_kwargs,
-        user_main_settings=user_main_settings
+        user_main_settings=user_main_settings,
+        lazy_load=lazy_load
     )
     if verbose:
         t1 = time.perf_counter()

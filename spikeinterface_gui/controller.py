@@ -52,6 +52,7 @@ class Controller():
         curation_callback=None,
         curation_callback_kwargs=None,
         user_main_settings=None,
+        lazy_load=False
     ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
@@ -100,7 +101,7 @@ class Controller():
         # Mandatory extensions: computation forced
         if verbose:
             print('\tLoading templates')
-        temp_ext = self.analyzer.get_extension("templates")
+        temp_ext = self.analyzer.get_extension("templates", lazy=lazy_load)
         if temp_ext is None:
             temp_ext = self.analyzer.compute_one_extension("templates")
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
@@ -150,9 +151,9 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading spike_amplitudes')
-            sa_ext = analyzer.get_extension('spike_amplitudes')
+            sa_ext = analyzer.get_extension('spike_amplitudes', lazy=lazy_load)
             if sa_ext is not None:
-                self.spike_amplitudes = sa_ext.get_data()
+                self.spike_amplitudes = sa_ext.get_data(copy=False)
             else:
                 self.spike_amplitudes = None
 
@@ -163,9 +164,9 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading amplitude_scalings')
-            sa_ext = analyzer.get_extension('amplitude_scalings')
+            sa_ext = analyzer.get_extension('amplitude_scalings', lazy=lazy_load)
             if sa_ext is not None:
-                self.amplitude_scalings = sa_ext.get_data()
+                self.amplitude_scalings = sa_ext.get_data(copy=False)
             else:
                 self.amplitude_scalings = None
 
@@ -176,9 +177,9 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading spike_locations')
-            sl_ext = analyzer.get_extension('spike_locations')
+            sl_ext = analyzer.get_extension('spike_locations', lazy=lazy_load)
             if sl_ext is not None:
-                self.spike_depths = sl_ext.get_data()["y"]
+                self.spike_depths = sl_ext.get_data(copy=False)["y"]
             else:
                 self.spike_depths = None
 
@@ -190,7 +191,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading correlograms')
-            ccg_ext = analyzer.get_extension('correlograms')
+            ccg_ext = analyzer.get_extension('correlograms', lazy=lazy_load)
             if ccg_ext is not None:
                 self.correlograms, self.correlograms_bins = ccg_ext.get_data()
             else:
@@ -235,7 +236,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading waveforms')
-            wf_ext = analyzer.get_extension('waveforms')
+            wf_ext = analyzer.get_extension('waveforms', lazy=lazy_load)
             if wf_ext is not None:
                 self.waveforms_ext = wf_ext
             else:
@@ -248,7 +249,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading principal_components')
-            pc_ext = analyzer.get_extension('principal_components')
+            pc_ext = analyzer.get_extension('principal_components', lazy=lazy_load)
             self.pc_ext = pc_ext
 
         if analyzer.has_extension("valid_unit_periods"):
@@ -295,22 +296,18 @@ class Controller():
         unit_ids = self.analyzer.unit_ids
         num_seg = self.analyzer.get_num_segments()
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
-        # print("self.num_spikes", self.num_spikes)
 
-        spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
-        # spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True)
+        self.spikes = self.analyzer.sorting.to_spike_vector()
+        print(f"spike vector: {type(self.spikes)}")
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
-        self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
-        self.spikes['sample_index'] = spike_vector['sample_index']
-        self.spikes['unit_index'] = spike_vector['unit_index']
-        self.spikes['segment_index'] = spike_vector['segment_index']
-        self.spikes['channel_index'] = spike_vector['channel_index']
-        self.spikes['rand_selected'][:] = False
-        self.spikes['rand_selected'][self.random_spikes_indices] = True
+        ext_channel_inds = np.array([self._extremum_channel[unit_id] for unit_id in self.unit_ids])
+        self.spike_channel_index = ext_channel_inds[self.spikes["unit_index"]]
+        self.spike_rand_selected = np.zeros(len(self.spikes), dtype=bool)
+        self.spike_rand_selected[self.random_spikes_indices] = True
 
-        # self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
+        # TODO: minimize memory here
         seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {segment_index: slice(seg_limits[segment_index], seg_limits[segment_index + 1]) for segment_index in range(num_seg)}
         
