@@ -494,7 +494,9 @@ class Controller():
         ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
         if self.main_settings["use_times"]:
             recording = self.analyzer.recording
-            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+            # Passing frame bounds slices lazily if the time vector supports it (e.g. zarr).
+            # Can save 10s of GB of RAM on long recordings.
+            times_chunk = recording.get_times(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
         else:
             times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.sampling_frequency + max(t1, 0)
         return times_chunk
