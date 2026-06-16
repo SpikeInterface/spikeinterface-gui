@@ -302,7 +302,9 @@ class Controller():
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
-        self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
+        # align=True is required for np.searchsorted (and therefore trace
+        # views) to be fast.
+        self.spikes = np.zeros(spike_vector.size, dtype=np.dtype(spike_dtype, align=True))
         self.spikes['sample_index'] = spike_vector['sample_index']
         self.spikes['unit_index'] = spike_vector['unit_index']
         self.spikes['segment_index'] = spike_vector['segment_index']
