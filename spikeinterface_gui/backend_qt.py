@@ -171,19 +171,11 @@ class QtMainWindow(QT.QMainWindow):
         self.make_views(user_settings)
         self.create_main_layout()
 
-        # refresh all views without notiying
-        self.controller.signal_handler.deactivate()
-        for view in self.views.values():
-            # refresh do not work because view are not yet visible at init
-            view._refresh()
-        self.controller.signal_handler.activate()
-        # Refresh a view when its dock becomes visible (e.g. its tab is raised) so a
-        # view obscured during earlier updates catches up. 
         for view_name, dock in self.docks.items():
             view = self.views[view_name]
             dock.visibilityChanged.connect(
                 lambda visible, v=view: visible and QT.QTimer.singleShot(0, v.refresh)
-            ) # Deferred so visibleRegion is populated before refresh() re-checks is_view_visible;
+            )  # Deferred so visibleRegion is populated before refresh() re-checks is_view_visible;
 
     def make_views(self, user_settings):
         self.views = {}
