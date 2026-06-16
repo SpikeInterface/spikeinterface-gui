@@ -177,10 +177,13 @@ class QtMainWindow(QT.QMainWindow):
             # refresh do not work because view are not yet visible at init
             view._refresh()
         self.controller.signal_handler.activate()
-        # TODO sam : all views are always refreshed at the moment so this is useless.
-        # uncommen this when ViewBase.is_view_visible() work correctly
-        # for view_name, dock in self.docks.items():
-        #     dock.visibilityChanged.connect(self.views[view_name].refresh)
+        # Refresh a view when its dock becomes visible (e.g. its tab is raised) so a
+        # view obscured during earlier updates catches up. 
+        for view_name, dock in self.docks.items():
+            view = self.views[view_name]
+            dock.visibilityChanged.connect(
+                lambda visible, v=view: visible and QT.QTimer.singleShot(0, v.refresh)
+            ) # Deferred so visibleRegion is populated before refresh() re-checks is_view_visible;
 
     def make_views(self, user_settings):
         self.views = {}
