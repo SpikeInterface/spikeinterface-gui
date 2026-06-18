@@ -1,4 +1,6 @@
+import gc
 import shutil
+import time
 from pathlib import Path
 
 import numpy as np
@@ -8,11 +10,23 @@ import probeinterface
 
 
 def clean_all(test_folder):
-    folders = [test_folder]
-    for folder in folders:
-        if Path(folder).exists():
+    folder = Path(test_folder)
+    if not folder.exists():
+        return
+    # Release lingering memmap handles (e.g. the binary_folder waveforms  extension) 
+    # before deleting. On NFS, unlinking a still-open file creates a ".nfs*" file, which 
+    # makes shutil.rmtree raise an error when it tries to rmdir the parent too quickly.
+    for attempt in range(5):
+        gc.collect() # force release of memmap handles
+        try:
             shutil.rmtree(folder)
-
+            return
+        except OSError:
+            if attempt < 4:
+                # retry after a short delay, to give the OS time to release the file handles
+                time.sleep(0.5)
+    # don't let a failure here cause an otherwise-passing test to fail
+    shutil.rmtree(folder, ignore_errors=True) 
 def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     clean_all(test_folder)
 
@@ -120,7 +134,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     sorting_analyzer.compute("templates", **job_kwargs)
     sorting_analyzer.compute("noise_levels", **job_kwargs)
     sorting_analyzer.compute("unit_locations")
-    ext = sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1., method="numba")
+    sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1., method="numba")
     sorting_analyzer.compute("correlograms", window_ms=50., bin_ms=1.)
     sorting_analyzer.compute("template_similarity", method="l1")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
