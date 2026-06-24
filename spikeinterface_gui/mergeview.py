@@ -432,6 +432,7 @@ class MergeView(ViewBase):
 
         df = pd.DataFrame(data=data)
         formatters = {label: unit_formatter for label in labels if label.startswith("unit_id")}
+
         self.table = pn.widgets.Tabulator(
             df,
             formatters=formatters,
@@ -441,7 +442,7 @@ class MergeView(ViewBase):
             hidden_columns=["group_ids"],
             disabled=True,
             selectable=1,
-            sortable=False
+            sortable=False,
         )
 
         # Add click handler with double click detection

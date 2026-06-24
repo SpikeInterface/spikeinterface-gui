@@ -57,6 +57,7 @@ class NDScatterView(ViewBase):
         self.auto_update_limit = True
         self._lasso_vertices = []
         self._current_selected = 0
+        self._best_mode = False
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
@@ -85,6 +86,7 @@ class NDScatterView(ViewBase):
         self._refresh(update_colors=False, update_components=False)
 
     def next_face(self):
+        self._best_mode = False
         self.n_face += 1
         self.n_face = self.n_face%len(self.hyper_faces)
         ndim = self.data.shape[1]
@@ -105,17 +107,71 @@ class NDScatterView(ViewBase):
         return projection
 
     def random_projection(self):
+        self._best_mode = False
         self.update_selected_components()
         self.projection = self.get_one_random_projection()
         self.tour_step = 0
         # here we don't want to update the components because it's been done already!
         self.refresh(update_components=False)
 
+    def best_projection(self):
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+        self.update_selected_components()
+
+        X_list, y_list = [], []
+        for unit_ind, unit_id in self.controller.iter_visible_units():
+            mask = np.flatnonzero(self.pc_unit_index == unit_ind)
+            if len(mask) > 0:
+                X_list.append(self.data[mask, :][:, self.selected_comp])
+                y_list.extend([unit_ind] * len(mask))
+
+        n_classes = len(np.unique(y_list))
+        if n_classes < 2:
+            return
+
+        X = np.vstack(X_list)
+        y = np.array(y_list)
+
+        n_lda = min(2, n_classes - 1)
+        lda = LinearDiscriminantAnalysis(n_components=n_lda)
+        lda.fit(X, y)
+
+        ndim = self.data.shape[1]
+        projection = np.zeros((ndim, 2))
+        projection[self.selected_comp, :n_lda] = lda.scalings_[:, :n_lda]
+
+        for j in range(n_lda):
+            norm = np.linalg.norm(projection[:, j])
+            if norm > 0:
+                projection[:, j] /= norm
+
+        # only 1 LDA component (2 units): fill second axis with random orthogonal direction
+        if n_lda < 2:
+            lda_dir = projection[self.selected_comp, 0]
+            rand_dir = np.random.randn(int(self.selected_comp.sum()))
+            rand_dir -= np.dot(rand_dir, lda_dir) * lda_dir
+            norm = np.linalg.norm(rand_dir)
+            if norm > 0:
+                rand_dir /= norm
+            projection[self.selected_comp, 1] = rand_dir
+
+        self._best_mode = True
+        self.projection = projection
+        self.tour_step = 0
+        self.refresh(update_components=False)
+
     def on_unit_visibility_changed(self):
-        self.random_projection()
-    
+        if self._best_mode:
+            self.best_projection()
+        else:
+            self.random_projection()
+
     def on_channel_visibility_changed(self):
-        self.random_projection()
+        if self._best_mode:
+            self.best_projection()
+        else:
+            self.random_projection()
 
     def apply_dot(self, data):
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
@@ -182,24 +238,34 @@ class NDScatterView(ViewBase):
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import ViewBoxHandlingLassoAndGain, add_stretch_to_qtoolbar
+        from .utils_qt import ViewBoxHandlingLassoAndGain, add_stretch_to_qtoolbar, qt_style
 
+        self.layout = QT.QVBoxLayout()
 
-        self.layout = QT.QHBoxLayout()
+        # Row 2 toolbar (Row 1 is the ViewWidget toolbar with settings/refresh/?)
+        tb = QT.QToolBar()
+        tb.setStyleSheet(qt_style)
+        self.layout.addWidget(tb)
 
-        # toolbar
-        tb = self.qt_widget.view_toolbar
+        but = QT.QPushButton('Next Face')
+        tb.addWidget(but)
+        but.clicked.connect(self._qt_on_next_face)
+
+        self._qt_best_but = QT.QPushButton('Best')
+        self._qt_best_but.setCheckable(True)
+        tb.addWidget(self._qt_best_but)
+        self._qt_best_but.clicked.connect(self._qt_on_best_projection)
+
         but = QT.QPushButton('Random')
         tb.addWidget(but)
-        but.clicked.connect(self.random_projection)
-        but = QT.QPushButton('Random tour', checkable = True)
-        tb.addWidget(but)
-        but.clicked.connect(self._qt_start_stop_tour)
+        but.clicked.connect(self._qt_on_random_projection)
 
-        but = QT.QPushButton('next face')
-        tb.addWidget(but)
-        but.clicked.connect(self.next_face)
+        self._qt_random_tour_but = QT.QPushButton('Random Tour')
+        self._qt_random_tour_but.setCheckable(True)
+        tb.addWidget(self._qt_random_tour_but)
+        self._qt_random_tour_but.clicked.connect(self._qt_start_stop_tour)
 
+        add_stretch_to_qtoolbar(tb)
 
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
@@ -341,9 +407,26 @@ class NDScatterView(ViewBase):
 
     def _qt_on_spike_selection_changed(self):
         self.refresh()
-    
+
+    def _qt_on_next_face(self):
+        self._qt_best_but.setChecked(False)
+        self.next_face()
+
+    def _qt_on_random_projection(self):
+        self._qt_best_but.setChecked(False)
+        self.random_projection()
+
+    def _qt_on_best_projection(self, checked):
+        if checked:
+            if self._qt_random_tour_but.isChecked():
+                self._qt_random_tour_but.setChecked(False)
+                self._qt_start_stop_tour(False)
+            if not self._best_mode:
+                self.best_projection()
+
     def _qt_start_stop_tour(self, checked):
         if checked:
+            self._qt_best_but.setChecked(False)
             self.tour_step = 0
             self.timer_tour.setInterval(int(self.settings['refresh_interval']))
             self.timer_tour.start()
@@ -435,7 +518,10 @@ class NDScatterView(ViewBase):
         self.random_button = pn.widgets.Button(name="Random", button_type="default", width=100)
         self.random_button.on_click(self._panel_random_projection)
 
-        self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
+        self.best_button = pn.widgets.Toggle(name="Best", button_type="default", width=100)
+        self.best_button.param.watch(self._panel_best_projection, "value")
+
+        self.random_tour_button = pn.widgets.Toggle(name="Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
         self.select_toggle_button = pn.widgets.Toggle(name="Select")
@@ -443,10 +529,23 @@ class NDScatterView(ViewBase):
 
         self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)
 
-        self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, 
+        first_row = pn.Row(
+            self.next_face_button,
+            self.select_toggle_button,
             sizing_mode="stretch_both",
-            styles={"flex": "0.15"}
+        )
+        second_row = pn.Row(
+            self.best_button,
+            self.random_button,
+            self.random_tour_button,
+            sizing_mode="stretch_both",
+        )
+
+        self.toolbar = pn.Column(
+            first_row,
+            second_row,
+            sizing_mode="stretch_both",
+            styles={"flex": "0.25"}
         )
 
         self.layout = pn.Column(
@@ -459,6 +558,8 @@ class NDScatterView(ViewBase):
         self.tour_timer = None
 
     def _panel_refresh(self, update_components=True, update_colors=True):
+        import panel as pn
+
         if update_components:
             self.update_selected_components()
         scatter_x, scatter_y, _, _, spike_indices = self.get_plotting_data(return_spike_indices=True)
@@ -475,17 +576,22 @@ class NDScatterView(ViewBase):
         if not update_colors:
             colors = self.scatter_source.data.get("color")
 
-        self.scatter_source.data = {
+        data = {
             "x": xs,
             "y": ys,
             "color": colors,
             "spike_indices": plotted_spike_indices
         }
+        limit = self.limit
 
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        def _do_update():
+            self.scatter_source.data = data
+            self.scatter_fig.x_range.start = -limit
+            self.scatter_fig.x_range.end = limit
+            self.scatter_fig.y_range.start = -limit
+            self.scatter_fig.y_range.end = limit
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_spike_selection_changed(self):
         import panel as pn
@@ -515,14 +621,24 @@ class NDScatterView(ViewBase):
         pn.state.execute(_do_update, schedule=True)
 
     def _panel_next_face(self, event):
+        self.best_button.value = False
         self.next_face()
 
     def _panel_random_projection(self, event):
+        self.best_button.value = False
         self.random_projection()
+
+    def _panel_best_projection(self, event):
+        if event.new:
+            if self.random_tour_button.value:
+                self.random_tour_button.value = False
+            if not self._best_mode:
+                self.best_projection()
 
     def _panel_start_stop_tour(self, event):
         import panel as pn
         if event.new:
+            self.best_button.value = False
             self.tour_step = 0
             self.tour_timer = pn.state.add_periodic_callback(self.new_tour_step, period=self.settings['refresh_interval'])
             self.auto_update_limit = False
