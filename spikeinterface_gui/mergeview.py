@@ -48,6 +48,7 @@ class MergeView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         self.include_deleted = False
+        self.exclude_noise = True
 
     def compute_potential_merges(self):
         preset = self.preset
@@ -82,14 +83,17 @@ class MergeView(ViewBase):
                     f"({len(potential_merges)} after filtering deleted units).")
 
     def get_potential_merges(self):
-        # return the potential merges, considering the include deleted option
-        unit_ids = list(self.controller.unit_ids)
+        # return the potential merges, considering the include deleted and exclude noise options
         proposed_merge_unit_groups = []
         for group_ids in self.proposed_merge_unit_groups_all:
-            if not self.include_deleted and self.controller.curation:
-                deleted_unit_ids = self.controller.curation_data["removed"]
-                if any(unit_id in deleted_unit_ids for unit_id in group_ids):
-                    continue
+            if self.controller.curation:
+                if not self.include_deleted:
+                    deleted_unit_ids = self.controller.curation_data["removed"]
+                    if any(unit_id in deleted_unit_ids for unit_id in group_ids):
+                        continue
+                if self.exclude_noise:
+                    if any(self.controller.get_unit_label(unit_id, "quality") == "noise" for unit_id in group_ids):
+                        continue
             proposed_merge_unit_groups.append(group_ids)
         return proposed_merge_unit_groups
 
@@ -204,6 +208,10 @@ class MergeView(ViewBase):
         self.include_deleted = self.include_deleted_checkbox.isChecked()
         self.refresh()
 
+    def _qt_on_exclude_noise_change(self):
+        self.exclude_noise = self.exclude_noise_checkbox.isChecked()
+        self.refresh()
+
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -245,10 +253,19 @@ class MergeView(ViewBase):
         row_layout.addWidget(but)
 
         if self.controller.curation:
+            checkbox_layout = QT.QVBoxLayout()
+
             self.include_deleted_checkbox = QT.QCheckBox("Include deleted units")
             self.include_deleted_checkbox.setChecked(False)
             self.include_deleted_checkbox.stateChanged.connect(self._qt_on_include_deleted_change)
-            row_layout.addWidget(self.include_deleted_checkbox)
+            checkbox_layout.addWidget(self.include_deleted_checkbox)
+
+            self.exclude_noise_checkbox = QT.QCheckBox("Exclude noise units")
+            self.exclude_noise_checkbox.setChecked(True)
+            self.exclude_noise_checkbox.stateChanged.connect(self._qt_on_exclude_noise_change)
+            checkbox_layout.addWidget(self.exclude_noise_checkbox)
+
+            row_layout.addLayout(checkbox_layout)
 
         self.layout.addLayout(row_layout)
 
@@ -373,7 +390,11 @@ class MergeView(ViewBase):
         if self.controller.curation:
             self.include_deleted = pn.widgets.Checkbox(name="Include deleted units", value=False)
             self.include_deleted.param.watch(self._panel_include_deleted_change, "value")
-            calculate_list.append(self.include_deleted)
+
+            self.exclude_noise_widget = pn.widgets.Checkbox(name="Exclude noise units", value=True)
+            self.exclude_noise_widget.param.watch(self._panel_exclude_noise_change, "value")
+
+            calculate_list.append(pn.Column(self.include_deleted, self.exclude_noise_widget))
         calculate_row = pn.Row(*calculate_list, sizing_mode="stretch_width")
 
         self.layout = pn.Column(
@@ -404,7 +425,8 @@ class MergeView(ViewBase):
             for label in labels:
                 if label.startswith("unit_id"):
                     unit_id = row[label]
-                    data[label].append({"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))})
+                    n = self.controller.num_spikes[unit_id]
+                    data[label].append({"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id)), "n": n})
                 else:
                     data[label].append(row[label])
 
@@ -451,6 +473,10 @@ class MergeView(ViewBase):
 
     def _panel_include_deleted_change(self, event):
         self.include_deleted = event.new
+        self.refresh()
+
+    def _panel_exclude_noise_change(self, event):
+        self.exclude_noise = event.new
         self.refresh()
 
     def _panel_update_visible_pair(self, row):

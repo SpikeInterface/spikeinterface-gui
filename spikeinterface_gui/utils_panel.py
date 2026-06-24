@@ -64,7 +64,7 @@ table_stylesheet = """
 unit_formatter = HTMLTemplateFormatter(
     template="""
     <div style="color: <%= value ? value.color : '#ffffff' %>;">
-        ● <%= value ? value.id : '' %>
+        ● <%= value ? value.id : '' %><%= value && value.n !== undefined ? ' n=' + value.n : '' %>
     </div>
 """
 )
