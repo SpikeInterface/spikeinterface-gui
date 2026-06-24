@@ -52,7 +52,6 @@ class Controller():
         curation_callback=None,
         curation_callback_kwargs=None,
         user_main_settings=None,
-        lazy_load=False
     ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
@@ -101,7 +100,7 @@ class Controller():
         # Mandatory extensions: computation forced
         if verbose:
             print('\tLoading templates')
-        temp_ext = self.analyzer.get_extension("templates", lazy=lazy_load)
+        temp_ext = self.analyzer.get_extension("templates")
         if temp_ext is None:
             temp_ext = self.analyzer.compute_one_extension("templates")
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
@@ -151,7 +150,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading spike_amplitudes')
-            sa_ext = analyzer.get_extension('spike_amplitudes', lazy=lazy_load)
+            sa_ext = analyzer.get_extension('spike_amplitudes')
             if sa_ext is not None:
                 self.spike_amplitudes = sa_ext.get_data(copy=False)
             else:
@@ -164,7 +163,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading amplitude_scalings')
-            sa_ext = analyzer.get_extension('amplitude_scalings', lazy=lazy_load)
+            sa_ext = analyzer.get_extension('amplitude_scalings')
             if sa_ext is not None:
                 self.amplitude_scalings = sa_ext.get_data(copy=False)
             else:
@@ -177,7 +176,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading spike_locations')
-            sl_ext = analyzer.get_extension('spike_locations', lazy=lazy_load)
+            sl_ext = analyzer.get_extension('spike_locations')
             if sl_ext is not None:
                 self.spike_depths = sl_ext.get_data(copy=False)["y"]
             else:
@@ -191,7 +190,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading correlograms')
-            ccg_ext = analyzer.get_extension('correlograms', lazy=lazy_load)
+            ccg_ext = analyzer.get_extension('correlograms')
             if ccg_ext is not None:
                 self.correlograms, self.correlograms_bins = ccg_ext.get_data()
             else:
@@ -236,7 +235,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading waveforms')
-            wf_ext = analyzer.get_extension('waveforms', lazy=lazy_load)
+            wf_ext = analyzer.get_extension('waveforms')
             if wf_ext is not None:
                 self.waveforms_ext = wf_ext
             else:
@@ -249,7 +248,7 @@ class Controller():
         else:
             if verbose:
                 print('\tLoading principal_components')
-            pc_ext = analyzer.get_extension('principal_components', lazy=lazy_load)
+            pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
         if analyzer.has_extension("valid_unit_periods"):
