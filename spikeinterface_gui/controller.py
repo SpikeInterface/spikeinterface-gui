@@ -297,7 +297,6 @@ class Controller():
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
 
         self.spikes = self.analyzer.sorting.to_spike_vector()
-        print(f"spike vector: {type(self.spikes)}")
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
