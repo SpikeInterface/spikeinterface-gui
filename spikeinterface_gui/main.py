@@ -165,7 +165,7 @@ def run_mainwindow(
         external_data=external_data,
         curation_callback=curation_callback,
         curation_callback_kwargs=curation_callback_kwargs,
-        user_main_settings=user_main_settings,
+        user_main_settings=user_main_settings
     )
     if verbose:
         t1 = time.perf_counter()
