@@ -305,10 +305,13 @@ class Controller():
         self.spike_rand_selected = np.zeros(len(self.spikes), dtype=bool)
         self.spike_rand_selected[self.random_spikes_indices] = True
 
-        # TODO: minimize memory here
-        seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
+        if self.analyzer.sorting._cached_spike_vector_segment_slices is not None:
+            seg_limits = self.analyzer.sorting._cached_spike_vector_segment_slices
+        else:
+            seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
         self.segment_slices = {segment_index: slice(seg_limits[segment_index], seg_limits[segment_index + 1]) for segment_index in range(num_seg)}
-        
+
+        # TODO: minimize memory here
         spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
         self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
         # this is dict of list because per segment spike_indices[segment_index][unit_id]
