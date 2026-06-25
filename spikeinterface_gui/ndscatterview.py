@@ -115,8 +115,6 @@ class NDScatterView(ViewBase):
         self.refresh(update_components=False)
 
     def best_projection(self):
-        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
         self.update_selected_components()
 
         X_list, y_list = [], []
@@ -126,31 +124,45 @@ class NDScatterView(ViewBase):
                 X_list.append(self.data[mask, :][:, self.selected_comp])
                 y_list.extend([unit_ind] * len(mask))
 
-        n_classes = len(np.unique(y_list))
-        if n_classes < 2:
+        if len(X_list) == 0:
             return
 
         X = np.vstack(X_list)
         y = np.array(y_list)
-
-        n_lda = min(2, n_classes - 1)
-        lda = LinearDiscriminantAnalysis(n_components=n_lda)
-        lda.fit(X, y)
+        n_classes = len(np.unique(y))
 
         ndim = self.data.shape[1]
         projection = np.zeros((ndim, 2))
-        projection[self.selected_comp, :n_lda] = lda.scalings_[:, :n_lda]
 
-        for j in range(n_lda):
+        if n_classes >= 2:
+            # multiple units: maximize class separation with LDA
+            from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+            n_proj = min(2, n_classes - 1)
+            lda = LinearDiscriminantAnalysis(n_components=n_proj)
+            lda.fit(X, y)
+            directions = lda.scalings_[:, :n_proj]
+        else:
+            # single unit: pick the directions with highest variance explained (PCA)
+            from sklearn.decomposition import PCA
+
+            n_proj = min(2, X.shape[1])
+            pca = PCA(n_components=n_proj)
+            pca.fit(X)
+            directions = pca.components_[:n_proj].T
+
+        projection[self.selected_comp, :n_proj] = directions
+
+        for j in range(n_proj):
             norm = np.linalg.norm(projection[:, j])
             if norm > 0:
                 projection[:, j] /= norm
 
-        # only 1 LDA component (2 units): fill second axis with random orthogonal direction
-        if n_lda < 2:
-            lda_dir = projection[self.selected_comp, 0]
+        # only 1 projection direction: fill second axis with random orthogonal direction
+        if n_proj < 2:
+            main_dir = projection[self.selected_comp, 0]
             rand_dir = np.random.randn(int(self.selected_comp.sum()))
-            rand_dir -= np.dot(rand_dir, lda_dir) * lda_dir
+            rand_dir -= np.dot(rand_dir, main_dir) * main_dir
             norm = np.linalg.norm(rand_dir)
             if norm > 0:
                 rand_dir /= norm
