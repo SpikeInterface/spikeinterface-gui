@@ -447,7 +447,8 @@ class MergeView(ViewBase):
 
         df = pd.DataFrame(data=data)
         formatters = {label: unit_formatter for label in labels if label.startswith("unit_id")}
-
+        skip_sort_columns = [label for label in labels if label.startswith("unit_id")]
+        skip_sort_columns.append("group_ids")
         self.table = SelectableTabulator(
             df,
             formatters=formatters,
@@ -457,7 +458,8 @@ class MergeView(ViewBase):
             hidden_columns=["group_ids"],
             disabled=True,
             selectable=1,
-            sortable=False,
+            sortable=True,
+            skip_sort_columns=skip_sort_columns,
             # SelectableTabulator functions
             parent_view=self,
             conditional_shortcut=self.is_view_active,

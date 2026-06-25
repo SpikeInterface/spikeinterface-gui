@@ -520,10 +520,20 @@ class ProbeView(ViewBase):
 
         # Pre-compute circle updates
         circle_update = None
-        if len(selected_unit_indices) == 1:
+        cx, cy = None, None
+        n = len(selected_unit_indices)
+        if n == 1:
+            # always refresh the channel ROI
             unit_index = selected_unit_indices[0]
-            unit_positions = self.controller.unit_positions
-            cx, cy = unit_positions[unit_index, 0], unit_positions[unit_index, 1]
+            cx, cy = self.controller.unit_positions[unit_index, :]
+        elif n > 1:
+            # change ROI only if all units are inside the radius
+            positions = self.controller.unit_positions[selected_unit_indices, :]
+            distances = np.linalg.norm(positions[:, np.newaxis] - positions[np.newaxis, :], axis=2)
+            if np.max(distances) < (self.settings['radius_units'] * 2):
+                cx, cy = np.mean(positions, axis=0)
+
+        if cx is not None:
             visible_channel_inds = self.update_channel_visibility(cx, cy, radius_channel)
             circle_update = (cx, cy, visible_channel_inds)
 

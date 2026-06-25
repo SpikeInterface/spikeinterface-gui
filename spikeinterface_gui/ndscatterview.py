@@ -3,6 +3,7 @@ This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
 """
 
 import itertools
+import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
 
@@ -115,13 +116,16 @@ class NDScatterView(ViewBase):
         self.refresh(update_components=False)
 
     def best_projection(self):
-        self.update_selected_components()
+        # Note: for best projection we don't restrict to the visible channels, because we want to find the
+        # best projection over all channels. We therefore mark all components as active so that the
+        # full projection is rendered (see apply_dot, which slices by selected_comp).
+        self.selected_comp[:] = True
 
         X_list, y_list = [], []
         for unit_ind, unit_id in self.controller.iter_visible_units():
             mask = np.flatnonzero(self.pc_unit_index == unit_ind)
             if len(mask) > 0:
-                X_list.append(self.data[mask, :][:, self.selected_comp])
+                X_list.append(self.data[mask, :])
                 y_list.extend([unit_ind] * len(mask))
 
         if len(X_list) == 0:
@@ -132,44 +136,58 @@ class NDScatterView(ViewBase):
         n_classes = len(np.unique(y))
 
         ndim = self.data.shape[1]
-        projection = np.zeros((ndim, 2))
+        projection = None
 
-        if n_classes >= 2:
-            # multiple units: maximize class separation with LDA
-            from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
-            n_proj = min(2, n_classes - 1)
-            lda = LinearDiscriminantAnalysis(n_components=n_proj)
-            lda.fit(X, y)
-            directions = lda.scalings_[:, :n_proj]
+        # For LDA, we need at least 2 samples per class and at least 2 classes.
+        # For PCA, we need at least 2 samples and at least 1 feature.
+        if X.shape[1] == 0 or X.shape[0] < 2:
+            pass
         else:
-            # single unit: pick the directions with highest variance explained (PCA)
-            from sklearn.decomposition import PCA
+            try:
+                projection = np.zeros((ndim, 2))
+                if n_classes >= 2:
+                    # multiple units: maximize class separation with LDA
+                    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-            n_proj = min(2, X.shape[1])
-            pca = PCA(n_components=n_proj)
-            pca.fit(X)
-            directions = pca.components_[:n_proj].T
+                    n_proj = min(2, n_classes - 1)
+                    lda = LinearDiscriminantAnalysis(n_components=n_proj)
+                    lda.fit(X, y)
+                    directions = lda.scalings_[:, :n_proj]
+                else:
+                    # single unit: pick the directions with highest variance explained (PCA)
+                    from sklearn.decomposition import PCA
 
-        projection[self.selected_comp, :n_proj] = directions
+                    n_proj = min(2, X.shape[1])
+                    pca = PCA(n_components=n_proj)
+                    pca.fit(X)
+                    directions = pca.components_[:n_proj].T
 
-        for j in range(n_proj):
-            norm = np.linalg.norm(projection[:, j])
-            if norm > 0:
-                projection[:, j] /= norm
+                projection[:, :n_proj] = directions
 
-        # only 1 projection direction: fill second axis with random orthogonal direction
-        if n_proj < 2:
-            main_dir = projection[self.selected_comp, 0]
-            rand_dir = np.random.randn(int(self.selected_comp.sum()))
-            rand_dir -= np.dot(rand_dir, main_dir) * main_dir
-            norm = np.linalg.norm(rand_dir)
-            if norm > 0:
-                rand_dir /= norm
-            projection[self.selected_comp, 1] = rand_dir
+                for j in range(n_proj):
+                    norm = np.linalg.norm(projection[:, j])
+                    if norm > 0:
+                        projection[:, j] /= norm
+
+                # only 1 projection direction: fill second axis with random orthogonal direction
+                if n_proj < 2:
+                    main_dir = projection[:, 0]
+                    rand_dir = np.random.randn(ndim)
+                    rand_dir -= np.dot(rand_dir, main_dir) * main_dir
+                    norm = np.linalg.norm(rand_dir)
+                    if norm > 0:
+                        rand_dir /= norm
+                    projection[:, 1] = rand_dir
+            except (ValueError, IndexError) as e:
+                # degenerate data (e.g. zero-rank / constant features): keep current projection
+                warnings.warn(f"NDScatter best_projection failed: {e}. Keeping current projection.")
+                projection = None
 
         self._best_mode = True
-        self.projection = projection
+        # if computing the best projection failed, keep the current one but still
+        # refresh so the newly selected units are shown
+        if projection is not None:
+            self.projection = projection
         self.tour_step = 0
         self.refresh(update_components=False)
 
@@ -240,6 +258,10 @@ class NDScatterView(ViewBase):
     
 
     def update_selected_components(self):
+        # in best projection mode all components are used (see best_projection)
+        if self._best_mode:
+            self.selected_comp[:] = True
+            return
         n_pc_per_chan = self.pc_data.shape[1]
         n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
         self.selected_comp[:] = False

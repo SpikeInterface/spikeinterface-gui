@@ -289,6 +289,8 @@ class SelectableTabulator(pn.viewable.Viewer):
     ----------
     *args, **kwargs
         Arguments passed to the Tabulator constructor.
+    skip_sort_columns: list[str]
+        Columns to exclude from the "Sort by" dropdown options.
     parent_view: ViewBase | None
         The parent view that will be notified of selection changes.
     on_selection_changed: Callable | None
@@ -315,6 +317,8 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._formatters = kwargs.get("formatters", {})
         self._editors = kwargs.get("editors", {})
         self._frozen_columns = kwargs.get("frozen_columns", [])
+        # columns to hide from the view but keep in the underlying dataframe
+        self._hidden_columns = list(kwargs.pop("hidden_columns", []))
         self._selectable = kwargs.get("selectable", True)
         if "sortable" in kwargs:
             self._sortable = kwargs.pop("sortable")
@@ -441,6 +445,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.tabulator.formatters = self._formatters
         self.tabulator.editors = self._editors
         self.tabulator.frozen_columns = self._frozen_columns
+        self.tabulator.hidden_columns = self._hidden_columns
         self.tabulator.selectable = self._selectable
         self.tabulator.sorters = []
 
