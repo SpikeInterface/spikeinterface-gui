@@ -369,6 +369,19 @@ class MergeView(ViewBase):
                                                             name=f"{preset.capitalize()} parameters")
         self.preset = list(self.preset_params.keys())[0]
 
+        # group the preset selector and its parameters into a collapsible accordion,
+        # so it can be hidden after merges are computed
+        self.preset_settings_column = pn.Column(
+            self.preset_selector,
+            self.preset_params_selectors[self.preset],
+            sizing_mode="stretch_width",
+        )
+        self.preset_accordion = pn.Accordion(
+            ("Preset & parameters", self.preset_settings_column),
+            active=[0],
+            sizing_mode="stretch_width",
+        )
+
         # shortcuts (row navigation is handled by SelectableTabulator; only accept here)
         shortcuts = [
             KeyboardShortcut(name="accept", key="a", ctrlKey=True),
@@ -396,9 +409,7 @@ class MergeView(ViewBase):
         calculate_row = pn.Row(*calculate_list, sizing_mode="stretch_width")
 
         self.layout = pn.Column(
-            # add params
-            self.preset_selector, 
-            self.preset_params_selectors[self.preset],
+            self.preset_accordion,
             calculate_row,
             self.table_area,
             shortcuts_component,
@@ -456,14 +467,13 @@ class MergeView(ViewBase):
 
     def _panel_compute_merges(self, event):
         self._compute_merges()
+        # collapse the preset accordion once merges have been computed
+        if self.table is not None:
+            self.preset_accordion.active = []
 
     def _panel_on_preset_change(self, event):
         self.preset = event.new
-        if self.is_warning_active():
-            layout_index = 2
-        else:
-            layout_index = 1
-        self.layout[layout_index] = self.preset_params_selectors[self.preset]
+        self.preset_settings_column[1] = self.preset_params_selectors[self.preset]
 
     def _panel_on_selection_changed(self):
         # called by SelectableTabulator whenever the selection changes (click or keyboard)
