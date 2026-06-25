@@ -29,7 +29,7 @@ yep_layout = dict(
 def setup_module():
     global test_folder
     case = test_folder.stem.split('_')[-1]
-    make_analyzer_folder(test_folder, case=case)
+    make_analyzer_folder(test_folder, case=case, unit_dtype="int")
 
 def teardown_module():
     clean_all(test_folder)

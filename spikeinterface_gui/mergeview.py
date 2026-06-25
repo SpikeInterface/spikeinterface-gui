@@ -369,11 +369,9 @@ class MergeView(ViewBase):
                                                             name=f"{preset.capitalize()} parameters")
         self.preset = list(self.preset_params.keys())[0]
 
-        # shortcuts
+        # shortcuts (row navigation is handled by SelectableTabulator; only accept here)
         shortcuts = [
             KeyboardShortcut(name="accept", key="a", ctrlKey=True),
-            KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
-            KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -414,11 +412,17 @@ class MergeView(ViewBase):
         import pandas as pd
         import panel as pn
         import matplotlib.colors as mcolors
-        from .utils_panel import unit_formatter
+        from .utils_panel import unit_formatter, SelectableTabulator
 
         pn.extension("tabulator")
         # Create table
         labels, rows = self.get_table_data()
+
+        if not rows:
+            self.table = None
+            self.table_area.update("No merges computed yet.")
+            return
+
         # set unmutable data
         data = {label: [] for label in labels}
         for row in rows:
@@ -433,7 +437,7 @@ class MergeView(ViewBase):
         df = pd.DataFrame(data=data)
         formatters = {label: unit_formatter for label in labels if label.startswith("unit_id")}
 
-        self.table = pn.widgets.Tabulator(
+        self.table = SelectableTabulator(
             df,
             formatters=formatters,
             height=400,
@@ -443,10 +447,11 @@ class MergeView(ViewBase):
             disabled=True,
             selectable=1,
             sortable=False,
+            # SelectableTabulator functions
+            parent_view=self,
+            conditional_shortcut=self.is_view_active,
+            on_selection_changed=self._panel_on_selection_changed,
         )
-
-        # Add click handler with double click detection
-        self.table.on_click(self._panel_on_click)
         self.table_area.update(self.table)
 
     def _panel_compute_merges(self, event):
@@ -460,17 +465,12 @@ class MergeView(ViewBase):
             layout_index = 1
         self.layout[layout_index] = self.preset_params_selectors[self.preset]
 
-    def _panel_on_click(self, event):
-        import panel as pn
-
-        # set unit visibility
-        row = event.row
-
-        def _do_update():
-            self.table.selection = [row]
-
-        pn.state.execute(_do_update, schedule=True)
-        self._panel_update_visible_pair(row)
+    def _panel_on_selection_changed(self):
+        # called by SelectableTabulator whenever the selection changes (click or keyboard)
+        selected = self.table.selection
+        if len(selected) == 0:
+            return
+        self._panel_update_visible_pair(selected[0])
 
     def _panel_include_deleted_change(self, event):
         self.include_deleted = event.new
@@ -491,41 +491,23 @@ class MergeView(ViewBase):
         self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):
-        import panel as pn
+        if event.data != "accept":
+            return
+        if not self.is_view_active():
+            return
+        if self.table is None:
+            return
+        selected = self.table.selection
+        if len(selected) == 0:
+            return
+        # selected is always 1
+        row = selected[0]
+        group_ids = self.table.value.iloc[row].group_ids
+        self.accept_group_merge(group_ids)
 
-        if event.data == "accept":
-            selected = self.table.selection
-            if len(selected) == 0:
-                return
-            # selected is always 1
-            row = selected[0]
-            group_ids = self.table.value.iloc[row].group_ids
-            self.accept_group_merge(group_ids)
-            self.notify_manual_curation_updated()
-
-            next_row = min(row + 1, len(self.table.value) - 1)
-
-            def _select_next():
-                self.table.selection = [next_row]
-
-            pn.state.execute(_select_next, schedule=True)
-            self._panel_update_visible_pair(next_row)
-        elif event.data == "next":
-            next_row = min(self.table.selection[0] + 1, len(self.table.value) - 1)
-
-            def _do_next():
-                self.table.selection = [next_row]
-
-            pn.state.execute(_do_next, schedule=True)
-            self._panel_update_visible_pair(next_row)
-        elif event.data == "previous":
-            previous_row = max(self.table.selection[0] - 1, 0)
-
-            def _do_prev():
-                self.table.selection = [previous_row]
-
-            pn.state.execute(_do_prev, schedule=True)
-            self._panel_update_visible_pair(previous_row)
+        # advance to the next row; the selection setter triggers _panel_on_selection_changed
+        next_row = min(row + 1, len(self.table.value) - 1)
+        self.table.selection = [next_row]
 
     def _panel_on_spike_selection_changed(self):
         pass
