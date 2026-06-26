@@ -37,7 +37,7 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
         num_channels = 32
         num_units = 16
     else:
-        raise ValueError()
+        raise ValueError(f"Wrong dataset type {case}")
 
 
     

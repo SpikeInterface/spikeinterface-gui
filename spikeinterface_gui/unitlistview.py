@@ -750,10 +750,13 @@ class UnitListView(ViewBase):
         updated_visibile_units = self.controller.get_visible_unit_ids()
         if set(current_visible_units) != set(updated_visibile_units):
             self._panel_refresh_colors()
-            # update the visible column
-            df = self.table.value
-            df.loc[self.controller.unit_ids, "visible"] = self.controller.get_units_visibility_mask()
-            self.table.value = df
+            # update the visible column in place (patch_column avoids resetting the
+            # table scroll position, which a full `self.table.value = df` would do)
+            self.table.patch_column(
+                "visible",
+                list(self.controller.get_units_visibility_mask()),
+                list(self.controller.unit_ids),
+            )
             self.notify_unit_and_channel_visibility_changed()
 
     def _panel_get_selected_unit_ids(self):
