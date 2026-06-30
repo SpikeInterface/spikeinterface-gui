@@ -284,7 +284,7 @@ class UnitListView(ViewBase):
             item.unit_id = unit_id
             self.items_visibility[unit_id] = item
             
-            channel_index = self.controller.get_extremum_channel(unit_id)
+            channel_index = self.controller.get_main_channel(unit_id)
             channel_id = self.controller.channel_ids[channel_index]
             item = CustomItem(f'{channel_id}')
             item.setFlags(QT.Qt.ItemIsEnabled|QT.Qt.ItemIsSelectable)
@@ -505,7 +505,7 @@ class UnitListView(ViewBase):
                 {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
             )
             data["channel_id"].append(
-                self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
+                self.controller.channel_ids[self.controller.get_main_channel(unit_id)]
             )
         for col in self.controller.displayed_unit_properties:
             data[col] = self.controller.units_table[col]
