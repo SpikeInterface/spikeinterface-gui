@@ -316,13 +316,13 @@ def run_mainwindow_cli():
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
     parser.add_argument('--recording-base-folder', help='Base folder path for the recording (if .json/.pkl)', default=None)
     parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
-    parser.add_argument('--skip_extensions', help='Choose which extensions not to load, comma separated (e.g. waveforms,principal_components)', default=None)
+    parser.add_argument('--skip-extensions', help='Choose which extensions not to load, comma separated (e.g. waveforms,principal_components)', default=None)
     parser.add_argument('--port', help='Port for web mode', default=0, type=int)
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
     parser.add_argument('--curation-file', help='Path to json file defining a curation', default=None)
     parser.add_argument('--settings-file', help='Path to json file specifying the settings of each view', default=None)
-    parser.add_argument('--disable_save_settings_button', help='Disables button allowing for user to save default settings', action='store_true', default=False)
+    parser.add_argument('--disable-save-settings-button', help='Disables button allowing for user to save default settings', action='store_true', default=False)
 
     args = parser.parse_args(argv)
 
@@ -348,19 +348,23 @@ def run_mainwindow_cli():
             try:
                 if args.verbose:
                     print('Loading recording...')
-                recording_base_path = args.recording_base_path
-                recording = load(args.recording, base_folder=recording_base_path)
+                recording = load(args.recording, base_folder=args.recording_base_folder)
                 if args.verbose:
                     print('Recording loaded')
             except Exception as e:
-                print('Error when loading recording. Please check the path or the file format')
-            if recording is not None:
-                if analyzer.get_num_channels() != recording.get_num_channels():
-                    print('Recording and analyzer have different number of channels. Slicing recording')
-                    channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
-                    if np.sum(channel_mask) != analyzer.get_num_channels():
-                        raise ValueError('The recording does not have the same channel ids as the analyzer')
-                    recording = recording.select_channels(recording.channel_ids[channel_mask])
+                raise RuntimeError(
+                    f"Could not load recording from '{args.recording}' "
+                    f"(base folder: {args.recording_base_folder}). "
+                    "Check that the path exists and is readable by spikeinterface.load."
+                ) from e
+            # --recording loaded successfully here (a failure raises above), so the
+            # analyzer/recording channel counts can be reconciled directly.
+            if analyzer.get_num_channels() != recording.get_num_channels():
+                print('Recording and analyzer have different number of channels. Slicing recording')
+                channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
+                if np.sum(channel_mask) != analyzer.get_num_channels():
+                    raise ValueError('The recording does not have the same channel ids as the analyzer')
+                recording = recording.select_channels(recording.channel_ids[channel_mask])
 
         if args.curation_file is not None:
             with open(args.curation_file, "r") as f:
