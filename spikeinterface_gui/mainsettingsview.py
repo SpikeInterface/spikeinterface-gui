@@ -8,6 +8,7 @@ main_settings = [
     {'name': 'max_visible_units', 'type': 'int', 'value' : 10 },
     {'name': 'color_mode', 'type': 'list', 'value' : 'color_by_unit',
              'limits': ['color_by_unit', 'color_only_visible', 'color_by_visibility']},
+    {'name': 'num_colors', 'type': 'int', 'value' : 20},
     {'name': 'use_times', 'type': 'bool', 'value': False}
 ]
 
@@ -30,7 +31,7 @@ class MainSettingsView(ViewBase):
 
 
     def on_max_visible_units_changed(self):
-        max_visible = self.main_settings['max_visible_units']
+        max_visible = self.main_settings_sync['max_visible_units']
         self.controller.main_settings['max_visible_units'] = max_visible
 
         visible_ids = self.controller.get_visible_unit_ids()
@@ -44,6 +45,10 @@ class MainSettingsView(ViewBase):
         self.controller.refresh_colors()
         self.notify_unit_color_changed()
 
+    def on_num_colors_changed(self):
+        self.controller.main_settings['num_colors'] = self.main_settings['num_colors']
+        self.controller.refresh_colors()
+        self.notify_unit_color_changed()
 
     def on_use_times(self):
         self.controller.main_settings['use_times'] = self.main_settings['use_times']
@@ -114,6 +119,7 @@ class MainSettingsView(ViewBase):
 
         self.main_settings.param('max_visible_units').sigValueChanged.connect(self.on_max_visible_units_changed)
         self.main_settings.param('color_mode').sigValueChanged.connect(self.on_change_color_mode)
+        self.main_settings.param('num_colors').sigValueChanged.connect(self.on_num_colors_changed)
         self.main_settings.param('use_times').sigValueChanged.connect(self.on_use_times)
 
     def qt_make_settings_dict(self, view):
@@ -149,6 +155,7 @@ class MainSettingsView(ViewBase):
                                              name=f"Main settings")
         self.main_settings._parameterized.param.watch(self._panel_on_max_visible_units_changed, 'max_visible_units')
         self.main_settings._parameterized.param.watch(self._panel_on_change_color_mode, 'color_mode')
+        self.main_settings._parameterized.param.watch(self._panel_on_num_colors_changed, 'num_colors')
         self.main_settings._parameterized.param.watch(self._panel_on_use_times, 'use_times')
         self.layout = pn.Column(self.save_setting_button, self.main_settings_layout, sizing_mode="stretch_both")
 
@@ -168,6 +175,9 @@ class MainSettingsView(ViewBase):
 
     def _panel_on_change_color_mode(self, event):
         self.on_change_color_mode()
+
+    def _panel_on_num_colors_changed(self, event):
+        self.on_num_colors_changed()
 
     def _panel_on_use_times(self, event):
         self.on_use_times()
