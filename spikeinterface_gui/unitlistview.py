@@ -466,19 +466,11 @@ class UnitListView(ViewBase):
             self.notify_manual_curation_updated()
 
     ## panel zone ##
-    def _panel_make_layout(self):
-        import panel as pn
+    def _panel_create_table(self):
         import pandas as pd
         import matplotlib.colors as mcolors
         from bokeh.models.widgets.tables import BooleanFormatter, SelectEditor
-        from .utils_panel import unit_formatter, KeyboardShortcut, KeyboardShortcuts, SelectableTabulator
-
-        pn.extension("tabulator")
-
-        if self.controller.curation:
-            self.label_definitions = self.controller.get_curation_label_definitions()
-        else:
-            self.label_definitions = None
+        from .utils_panel import unit_formatter, SelectableTabulator
 
         unit_ids = self.controller.unit_ids
 
@@ -494,7 +486,8 @@ class UnitListView(ViewBase):
                 # pre-populate labels with existing curation
                 for unit_index, unit_id in enumerate(unit_ids):
                     label_value = self.controller.get_unit_label(unit_id, label)
-                    data[label][unit_index] = label_value
+                    # use "" (not None) so empty cells stay blank instead of showing NaN
+                    data[label][unit_index] = label_value if label_value is not None else ""
                 if label == "quality":
                     frozen_columns.append(label)
         data["channel_id"] = []
@@ -545,6 +538,20 @@ class UnitListView(ViewBase):
             on_only_function=self._panel_on_only_selection,
             column_callbacks={"visible": self._panel_on_visible_checkbox_toggled},
         )
+        self.table.tabulator.on_edit(self._panel_on_edit)
+
+    def _panel_make_layout(self):
+        import panel as pn
+        from .utils_panel import KeyboardShortcut, KeyboardShortcuts
+
+        pn.extension("tabulator")
+
+        if self.controller.curation:
+            self.label_definitions = self.controller.get_curation_label_definitions()
+        else:
+            self.label_definitions = None
+
+        self._panel_create_table()
 
         self.refresh_button = pn.widgets.Button(name="↻", button_type="default")
 
@@ -600,13 +607,29 @@ class UnitListView(ViewBase):
         self.layout.append(self.table)
         self.layout.append(shortcuts_component)
 
-        self.table.tabulator.on_edit(self._panel_on_edit)
         self.refresh_button.on_click(self._panel_refresh_click)
 
         if self.controller.curation:
             self.delete_button.on_click(self._panel_delete_unit_callback)
             self.merge_button.on_click(self._panel_merge_units_callback)
             self.unmerge_button.on_click(self._panel_remove_from_merge_callback)
+
+    def _panel_on_settings_changed(self):
+        # a column checkbox was toggled in the settings: update the displayed
+        # properties and rebuild the table so columns are added/removed
+        new_displayed = [col for col in self.controller.units_table.columns if self.settings[col]]
+        self.controller.displayed_unit_properties = new_displayed
+
+        # rebuild the table in place (keeps its position in the layout even if a
+        # warning is currently inserted at index 0)
+        # the layout stores the table's rendered panel (its __panel__()), not the
+        # SelectableTabulator itself, so match on that to find its position
+        old_panel = self.table.__panel__()
+        table_index = next(i for i, obj in enumerate(self.layout.objects) if obj is old_panel)
+        self._panel_create_table()
+        self.layout[table_index] = self.table
+
+        self._panel_refresh_header()
 
     def _panel_refresh_click(self, event):
         self.table.reset()
@@ -628,24 +651,6 @@ class UnitListView(ViewBase):
         if self.controller.main_settings['color_mode'] in ('color_by_visibility', 'color_only_visible'):
             # in the mode color change dynamically but without notify to avoid double refresh
             self._panel_refresh_colors()
-
-        table_columns = list(self.table.value.columns)
-        columns_to_drop = [
-            col for col in table_columns
-            if col not in self.main_cols + self.controller.displayed_unit_properties
-        ]
-        columns_to_add = [
-            col for col in self.controller.displayed_unit_properties if col not in table_columns
-        ]
-
-        # Only do full refresh if columns changed (rare case)
-        if columns_to_drop or columns_to_add:
-            df = self.table.value.copy()
-            for col in columns_to_drop:
-                df.drop(columns=[col], inplace=True)
-            for col in columns_to_add:
-                df[col] = self.controller.units_table[col]
-                self.table.hidden_columns.append(col)
 
         # refresh visible column
         self.table.patch_column("visible", visible_values_changed, indices_changed)
