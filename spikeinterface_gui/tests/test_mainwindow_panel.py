@@ -14,13 +14,13 @@ import numpy as np
 def setup_module():
     global test_folder
     case = test_folder.stem.split('_')[-1]
-    make_analyzer_folder(test_folder, case=case, unit_dtype="int")
+    make_analyzer_folder(test_folder, case=case, unit_dtype="str")
 
 def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, port=0):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, iterative_curation=False, port=0):
 
 
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
@@ -81,7 +81,8 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         layout_preset='default',
         # address="10.69.168.40",
         port=port,
-        events=events_dict
+        events=events_dict,
+        iterative_curation=iterative_curation,
         # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
     return win
@@ -112,6 +113,7 @@ def test_launcher(verbose=True):
 parser = ArgumentParser()
 parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
+parser.add_argument('--iterative', action="store_true", help='Run iterative curation')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -123,7 +125,9 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, port=0)
+    iterative_curation = args.iterative
+
+    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, port=0, iterative_curation=iterative_curation)
 
     # test_launcher(verbose=True)
 

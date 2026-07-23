@@ -326,8 +326,9 @@ class Controller():
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
         # print("self.num_spikes", self.num_spikes)
 
-        spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True, extremum_channel_inds=self._extremum_channel)
-        # spike_vector = self.analyzer.sorting.to_spike_vector(concatenated=True)
+        spike_vector = self.analyzer.sorting.to_spike_vector(
+            concatenated=True, main_channel_indices=self.analyzer.get_main_channels(outputs="index", with_dict=False)
+        )
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
@@ -611,14 +612,20 @@ class Controller():
         return colors
         
 
-    def refresh_colors(self):
+    def refresh_colors(self, existing_colors=None):
         if self.backend == "qt":
             self._cached_qcolors = {}
         elif self.backend == "panel":
             pass
 
         if self.main_settings['color_mode'] == 'color_by_unit':
-            self.colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
+            unit_colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
+            if existing_colors is None:
+                self.colors = unit_colors
+            else:
+                for unit_id, unit_color in unit_colors.items():
+                    if unit_id not in self.colors.keys():
+                        self.colors[unit_id] = unit_color
         elif  self.main_settings['color_mode'] == 'color_only_visible':
             unit_colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
