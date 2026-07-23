@@ -17,8 +17,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "spikeinterface[full]>=0.104.0",
-    "markdown"
+    # "spikeinterface[full]>=0.104.0",
+    "spikeinterface @ git+https://github.com/SpikeInterface/spikeinterface.git",
+    "markdown",
+    "glasbey"
 ]
 
 [project.urls]
