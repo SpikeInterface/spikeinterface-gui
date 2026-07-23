@@ -79,14 +79,12 @@ class BaseScatterView(ViewBase):
 
     def get_selected_spikes_data(self, segment_index=0, visible_inds=None):
         sl = self.controller.segment_slices[segment_index]
-        spikes_in_seg = self.controller.spikes[sl]
         selected_indices = self.controller.get_indices_spike_selected()
         if visible_inds is not None:
             selected_indices = np.intersect1d(selected_indices, visible_inds)
-        mask = np.isin(sl.start + np.arange(len(spikes_in_seg)), selected_indices)
-        selected_spikes = spikes_in_seg[mask]
-        spike_times = self.controller.sample_index_to_time(selected_spikes['sample_index'])
-        spike_data = self.spike_data[sl][mask]
+        in_seg = selected_indices[(selected_indices >= sl.start) & (selected_indices < sl.stop)]
+        spike_times = self.controller.sample_index_to_time(self.controller.spikes['sample_index'][in_seg])
+        spike_data = self.spike_data[in_seg]
         return (spike_times, spike_data)
 
 
