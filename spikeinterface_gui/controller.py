@@ -493,7 +493,9 @@ class Controller():
         ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
         if self.main_settings["use_times"]:
             recording = self.analyzer.recording
-            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+            # Passing frame bounds slices lazily if the time vector supports it (e.g. zarr).
+            # Can save 10s of GB of RAM on long recordings.
+            times_chunk = recording.get_times(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
         else:
             times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.sampling_frequency + max(t1, 0)
         return times_chunk
@@ -1076,15 +1078,22 @@ class Controller():
         visible_unit_ids = self.get_visible_unit_ids()
         if unit_id not in visible_unit_ids:
             return False
-        indices = self.get_indices_spike_selected()
-        if len(indices) == 0:
+        indices = np.asarray(self.get_indices_spike_selected())
+        if indices.size == 0:
             return False
         spike_inds = self.get_spike_indices(unit_id, segment_index=None)
-        if not np.all(np.isin(indices, spike_inds)):
-            return False
 
-        # convert selected indices to indices within the spike train of the unit
-        indices = [np.where(spike_inds == ind)[0][0] for ind in indices]
+        # convert selected indices to indices within the spike train of the unit, 
+        # and validate that they all belong to the unit.
+        # np.searchsorted does both (because spike_inds is sorted ascending)
+        positions = np.searchsorted(spike_inds, indices)
+        # positions == spike_inds.size means the index sorts past the end (absent);
+        # otherwise the index belongs to the unit iff spike_inds[position] matches.
+        if np.any(positions >= spike_inds.size) or not np.array_equal(
+            spike_inds[np.minimum(positions, spike_inds.size - 1)], indices
+        ):
+            return False
+        indices = positions.tolist()
 
         new_split = {
             "unit_id": unit_id,
