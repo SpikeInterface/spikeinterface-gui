@@ -78,6 +78,9 @@ class CurationView(ViewBase):
             but_apply = QT.QPushButton("Apply curation")
             tb.addWidget(but_apply)
             but_apply.clicked.connect(self.apply_curation_to_analyzer)
+            but_restore = QT.QPushButton("Restore original")
+            tb.addWidget(but_restore)
+            but_restore.clicked.connect(self.restore_original_analyzer)
 
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)
@@ -286,6 +289,10 @@ class CurationView(ViewBase):
         with self.busy_cursor():
             self.controller.apply_curation()
 
+    def restore_original_analyzer(self):
+        with self.busy_cursor():
+            self.controller.restore_original_analyzer()
+
     def _qt_export_json(self):
         from .myqt import QT
 
@@ -380,6 +387,13 @@ class CurationView(ViewBase):
             )
             apply_button.on_click(self._panel_apply_curation_to_analyzer)
             save_buttons.append(apply_button)
+            restore_original = pn.widgets.Button(
+                name="Restore original",
+                button_type="primary",
+                height=30
+            )
+            restore_original.on_click(self._panel_restore_original_analyzer)
+            save_buttons.append(restore_original)
 
         if not self.controller.iterative_curation and self.controller.curation_callback is None:
             save_button_name = "Save in analyzer"
@@ -538,6 +552,9 @@ class CurationView(ViewBase):
 
     def _panel_apply_curation_to_analyzer(self, event):
         self.apply_curation_to_analyzer()
+
+    def _panel_restore_original_analyzer(self, event):
+        self.restore_original_analyzer()
 
     def _panel_unsplit(self, event):
         self.unsplit()

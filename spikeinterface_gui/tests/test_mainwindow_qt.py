@@ -9,27 +9,13 @@ from spikeinterface import load_sorting_analyzer
 from pathlib import Path
 
 import numpy as np
-import sys
-
-
-
-# yep is for testing
-yep_layout = dict(
-    zone1=['curation', 'spikelist'],
-    zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap', 'spikeamplitude'],
-    zone4=['similarity'],
-    zone5=['probe'],
-    zone6=['ndscatter', ],
-    zone7=['waveform', 'waveformheatmap', ],
-    zone8=['correlogram', 'isi'],
-)
 
 
 def setup_module():
     global test_folder
     case = test_folder.stem.split('_')[-1]
     make_analyzer_folder(test_folder, case=case, unit_dtype="str")
+
 
 def teardown_module():
     clean_all(test_folder)

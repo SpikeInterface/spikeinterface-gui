@@ -1,6 +1,3 @@
-import time
-import numpy as np
-
 from .view_base import ViewBase
 
 
@@ -52,7 +49,7 @@ class UnitListView(ViewBase):
         but.clicked.connect(self._qt_select_columns)
         tb.addWidget(but)
 
-        self._qt_set_up_visible_columns()
+        self._qt_setup_visible_columns()
 
         # h = QT.QHBoxLayout()
         # self.layout.addLayout(h)
@@ -118,7 +115,7 @@ class UnitListView(ViewBase):
                 self.shortcut_noise.setKey(QT.QKeySequence('n'))
                 self.shortcut_noise.activated.connect(lambda: self._qt_set_default_label('noise'))
 
-    def _qt_set_up_visible_columns(self):
+    def _qt_setup_visible_columns(self):
 
         import pyqtgraph as pg
         visible_cols = []
@@ -137,7 +134,7 @@ class UnitListView(ViewBase):
 
     def _qt_reinitialize(self):
 
-        self._qt_set_up_visible_columns()
+        self._qt_setup_visible_columns()
         self._qt_full_table_refresh()
         self._qt_refresh()
 
@@ -506,7 +503,8 @@ class UnitListView(ViewBase):
                 self.controller.channel_ids[self.controller.get_extremum_channel(unit_id)]
             )
         for col in self.controller.displayed_unit_properties:
-            data[col] = self.controller.units_table[col]
+            if col in self.controller.units_table.columns:
+                data[col] = self.controller.units_table[col]
 
         df = pd.DataFrame(
             data=data,
@@ -642,6 +640,44 @@ class UnitListView(ViewBase):
 
         self._panel_refresh_header()
 
+    def _panel_setup_visible_columns(self):
+        from .backend_panel import create_settings, listen_setting_changes
+
+        # Preserve existing column visibility preferences set by the user
+        existing_values = {}
+        if hasattr(self, "settings"):
+            for col in self.controller.units_table.columns:
+                try:
+                    existing_values[col] = self.settings[col]
+                except Exception:
+                    pass
+
+        # # Any column not in existing_values is new (added by curation).
+        # # Add new columns to displayed_unit_properties so they appear by default.
+        # for col in self.controller.units_table.columns:
+        #     if col not in existing_values:
+        #         self.controller.displayed_unit_properties.append(col)
+
+        # Rebuild the class-level _settings list for all current columns
+        UnitListView._settings = [
+            {
+                "name": str(col),
+                "type": "bool",
+                "value": existing_values.get(col, col in self.controller.displayed_unit_properties),
+                "default": True,
+            }
+            for col in self.controller.units_table.columns
+        ]
+        print(UnitListView._settings)
+
+        # Recreate the settings proxy and re-register watchers on the new proxy
+        create_settings(self)
+        listen_setting_changes(self)
+
+        # Update the gear-tab pn.Param widget so it reflects the new parameterized object
+        if hasattr(self, "_panel_settings_widget"):
+            self._panel_settings_widget.object = self.settings._parameterized
+
     def _panel_refresh_click(self, event):
         self.table.reset()
         self.refresh()
@@ -670,6 +706,7 @@ class UnitListView(ViewBase):
         self._panel_refresh_header()
 
     def _panel_reinitialize(self):
+        self._panel_setup_visible_columns()
         self._panel_make_layout()
         self._panel_refresh()
 

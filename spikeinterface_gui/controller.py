@@ -97,6 +97,7 @@ class Controller():
         self.units_table = make_units_table_from_analyzer(self.analyzer, extra_properties=extra_unit_properties)
         
         self.set_curation_info(curation, iterative_curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs)
+        self.original_curation_data = deepcopy(self.curation_data)
 
         # parse events
         self.events = None
@@ -959,7 +960,6 @@ class Controller():
         return model
 
     def apply_curation(self):
-
         if self.original_analyzer is None:
             self.original_analyzer = deepcopy(self.analyzer)
             self.original_analyzer.extensions = {}
@@ -971,6 +971,23 @@ class Controller():
         self.remove_curation(curated_analyzer)
 
         self.set_analyzer_info(curated_analyzer)
+
+        # for now, don't show externally provided properties after curation
+        self.displayed_unit_properties = [displayed_property for displayed_property in self.displayed_unit_properties if displayed_property not in self.extra_unit_properties_names]
+        self.units_table = make_units_table_from_analyzer(self.analyzer)
+        print(f"new units table columns: {self.units_table.columns}")
+        self.refresh_colors(existing_colors=self.colors)
+
+        for view in self.views:
+            view.reinitialize()
+
+    def restore_original_analyzer(self):
+        if self.original_analyzer is None or len(self.applied_curations) == 0:
+            return
+        self.curation_data = deepcopy(self.original_curation_data)
+        self.applied_curations = []
+
+        self.set_analyzer_info(self.original_analyzer)
 
         # for now, don't show externally provided properties after curation
         self.displayed_unit_properties = [displayed_property for displayed_property in self.displayed_unit_properties if displayed_property not in self.extra_unit_properties_names]
