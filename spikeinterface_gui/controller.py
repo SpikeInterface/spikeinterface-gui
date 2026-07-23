@@ -6,7 +6,6 @@ import json
 
 from copy import deepcopy
 
-from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel, BaseEvent
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
@@ -25,6 +24,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 _default_main_settings = dict(
     max_visible_units=10,
     color_mode='color_by_unit',
+    num_colors=20,
     use_times=False
 )
 
@@ -380,8 +380,8 @@ class Controller():
                         curation_data = json.load(f)
 
             elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                from spikeinterface.core.zarrextractors import super_zarr_open
+                zarr_root = super_zarr_open(self.analyzer.folder, mode='r')
                 if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
@@ -546,6 +546,23 @@ class Controller():
 
         return txt
 
+    def get_divergent_unit_colors(self, num_entries=20):
+        import glasbey
+        import matplotlib.colors as mcolors
+
+        unit_locations = self.analyzer.get_extension("unit_locations").get_data()
+        # lexsort by x and y
+        sorted_inds = np.lexsort((unit_locations[:, 0], unit_locations[:, 1]))
+
+        # now assign interleaved colors sequentially to the spatially sorted units
+        colors = {}
+        color_array = glasbey.create_palette(num_entries, lightness_bounds=(30, 100), chroma_bounds=(30, 100))
+        for i, unit_ind in enumerate(sorted_inds):
+            unit_id = self.unit_ids[unit_ind]
+            colors[unit_id] = mcolors.to_rgba(color_array[i % num_entries])
+        return colors
+        
+
     def refresh_colors(self):
         if self.backend == "qt":
             self._cached_qcolors = {}
@@ -553,15 +570,13 @@ class Controller():
             pass
 
         if self.main_settings['color_mode'] == 'color_by_unit':
-            self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)
+            self.colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
         elif  self.main_settings['color_mode'] == 'color_only_visible':
-            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)            
+            unit_colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             for unit_id in self.get_visible_unit_ids():
                 self.colors[unit_id] = unit_colors[unit_id]
-        elif  self.main_settings['color_mode'] == 'color_by_visibility':
+        elif self.main_settings['color_mode'] == 'color_by_visibility':
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             import matplotlib.pyplot as plt
             cmap = plt.colormaps['tab10']

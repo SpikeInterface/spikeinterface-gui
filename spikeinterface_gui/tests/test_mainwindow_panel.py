@@ -10,22 +10,11 @@ from pathlib import Path
 
 import numpy as np
 
-# import logging
-
-
-# logger = logging.getLogger('bokeh')
-# logger.setLevel(logging.DEBUG)
-# logging.basicConfig(level=logging.DEBUG)
-
-
-# test_folder = Path(__file__).parent / 'my_dataset_small'
-test_folder = Path(__file__).parent / 'my_dataset_big'
-# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
-
 
 def setup_module():
+    global test_folder
     case = test_folder.stem.split('_')[-1]
-    make_analyzer_folder(test_folder, case=case)
+    make_analyzer_folder(test_folder, case=case, unit_dtype="int")
 
 def teardown_module():
     clean_all(test_folder)
@@ -126,14 +115,10 @@ parser.add_argument('--events', action="store_true", help='Simulate and add even
 if __name__ == '__main__':
     args = parser.parse_args()
     dataset = args.dataset
-    if dataset == "small":
-        test_folder = Path(__file__).parent / 'my_dataset_small'
-    elif dataset == "big":
-        test_folder = Path(__file__).parent / 'my_dataset_big'
-    elif dataset == "multiprobe":
-        test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
-    else:
-        test_folder = Path(dataset)
+    global test_folder
+    if dataset is not None:
+        test_folder = Path(__file__).parents[2] / f"my_dataset_{dataset}"
+
     if not test_folder.is_dir():
         setup_module()
 
