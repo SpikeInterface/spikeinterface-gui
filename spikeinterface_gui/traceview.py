@@ -38,7 +38,7 @@ class MixinViewTrace:
             spikes_seg = self.controller.spikes[sl]
             i1, i2 = np.searchsorted(spikes_seg["sample_index"], [ind1, ind2])
             spikes_chunk = spikes_seg[i1:i2].copy()
-            spikes_channel_chunk = self.controller.spike_channel_index[sl]
+            spikes_channel_chunk = self.controller._ext_channel_inds[spikes_chunk["unit_index"]]
             spikes_chunk["sample_index"] -= ind1
 
             # for trace map view, this returns the channels ordered by depth

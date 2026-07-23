@@ -53,8 +53,8 @@ def get_qt_spike_model():
             
             abs_ind = self.visible_ind[row]
             spike = self.controller.spikes[abs_ind]
-            channel_index = self.controller.spike_channel_index[abs_ind]
-            rand_selected = self.controller.spike_rand_selected[abs_ind]
+            channel_index = self.controller._ext_channel_inds[spike['unit_index']]
+            rand_selected = int(abs_ind) in self.controller._random_spikes_set
             unit_id = self.controller.unit_ids[spike['unit_index']]
             
             if role ==QT.Qt.DisplayRole :
@@ -311,14 +311,15 @@ class SpikeListView(ViewBase):
         visible_inds = self.controller.get_indices_spike_visible()
         unit_ids = self.controller.unit_ids
         spikes = self.controller.spikes[visible_inds]
-        channel_inds = self.controller.spike_channel_index
-        rand_selected = self.controller.spike_rand_selected
 
         spike_unit_ids = []
         for i, spike in enumerate(spikes):
             unit_id = unit_ids[spike['unit_index']]
             color = mcolors.to_hex(self.controller.get_unit_color(unit_id))
             spike_unit_ids.append({"id": unit_id, "color": color})
+
+        channel_inds = self.controller._ext_channel_inds[spikes['unit_index']]
+        rand_selected = np.isin(visible_inds, self.controller.random_spikes_indices)
 
         # Prepare data for tabulator
         data = {
