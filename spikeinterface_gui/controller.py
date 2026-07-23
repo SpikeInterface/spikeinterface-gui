@@ -6,8 +6,8 @@ import json
 
 from copy import deepcopy
 
-from spikeinterface import compute_sparsity
-from spikeinterface.core import get_template_extremum_channel, BaseEvent
+from spikeinterface import compute_sparsity, get_template_extremum_channel
+from spikeinterface.core.base import minimum_spike_dtype
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import Curation
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
@@ -271,8 +271,12 @@ class Controller():
 
         t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(self.analyzer,
-                                    mode="extremum", peak_sign='both', outputs='index')
+        self._extremum_channel = get_template_extremum_channel(
+            self.analyzer,
+            mode="extremum",
+            peak_sign='both',
+            outputs='index'
+        )
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
@@ -292,7 +296,17 @@ class Controller():
         num_seg = self.analyzer.get_num_segments()
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
 
-        self.spikes = self.analyzer.sorting.to_spike_vector()
+        if self.analyzer._lazy:
+            # If the analyzer is lazy, avoid materializing the full spike vector, which can be very large.
+            self.spikes = self.analyzer.sorting.to_spike_vector()
+        else:
+            # In this case we make a copy with align=True, which is required for np.searchsorted
+            # (and therefore trace views) to be fast.
+            spike_vector = self.analyzer.sorting.to_spike_vector()
+            self.spikes = np.zeros(spike_vector.size, dtype=np.dtype(minimum_spike_dtype, align=True))
+            self.spikes['sample_index'] = spike_vector['sample_index']
+            self.spikes['unit_index'] = spike_vector['unit_index']
+            self.spikes['segment_index'] = spike_vector['segment_index']
 
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
         self._random_spikes_set = set(int(i) for i in self.random_spikes_indices)
