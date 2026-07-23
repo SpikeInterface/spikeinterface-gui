@@ -11,6 +11,7 @@ main_settings = [
     {'name': 'use_times', 'type': 'bool', 'value': False},
     {'name': 'merge_new_id_strategy', 'type': 'list', 'limits' : ['take_first', 'append', 'join'], 'value': 'take_first'},
     {'name': 'split_new_id_strategy', 'type': 'list', 'limits' : ['append', 'split'], 'value': 'append'},
+    {'name': 'num_colors', 'type': 'int', 'value' : 20},
 ]
 
 
@@ -32,7 +33,7 @@ class MainSettingsView(ViewBase):
 
 
     def on_max_visible_units_changed(self):
-        max_visible = self.main_settings['max_visible_units']
+        max_visible = self.main_settings_sync['max_visible_units']
         self.controller.main_settings['max_visible_units'] = max_visible
 
         visible_ids = self.controller.get_visible_unit_ids()
@@ -42,11 +43,14 @@ class MainSettingsView(ViewBase):
             self.notify_unit_visibility_changed()
     
     def on_change_color_mode(self):
-        
         self.controller.main_settings['color_mode'] = self.main_settings['color_mode']
         self.controller.refresh_colors()
         self.notify_unit_color_changed()
 
+    def on_num_colors_changed(self):
+        self.controller.main_settings['num_colors'] = self.main_settings['num_colors']
+        self.controller.refresh_colors()
+        self.notify_unit_color_changed()
 
     def on_use_times(self):
         self.controller.main_settings['use_times'] = self.main_settings['use_times']
@@ -123,6 +127,7 @@ class MainSettingsView(ViewBase):
 
         self.main_settings.param('max_visible_units').sigValueChanged.connect(self.on_max_visible_units_changed)
         self.main_settings.param('color_mode').sigValueChanged.connect(self.on_change_color_mode)
+        self.main_settings.param('num_colors').sigValueChanged.connect(self.on_num_colors_changed)
         self.main_settings.param('use_times').sigValueChanged.connect(self.on_use_times)
         self.main_settings.param('merge_new_id_strategy').sigValueChanged.connect(self.on_merge_new_id_strategy)
         self.main_settings.param('split_new_id_strategy').sigValueChanged.connect(self.on_split_new_id_strategy)
@@ -160,6 +165,7 @@ class MainSettingsView(ViewBase):
                                              name=f"Main settings")
         self.main_settings._parameterized.param.watch(self._panel_on_max_visible_units_changed, 'max_visible_units')
         self.main_settings._parameterized.param.watch(self._panel_on_change_color_mode, 'color_mode')
+        self.main_settings._parameterized.param.watch(self._panel_on_num_colors_changed, 'num_colors')
         self.main_settings._parameterized.param.watch(self._panel_on_use_times, 'use_times')
         self.main_settings._parameterized.param.watch(self._panel_on_merge_new_id_strategy, 'merge_new_id_strategy')
         self.main_settings._parameterized.param.watch(self._panel_on_split_new_id_strategy, 'split_new_id_strategy')
@@ -187,6 +193,9 @@ class MainSettingsView(ViewBase):
 
     def _panel_on_split_new_id_strategy(self, event):
         self.on_split_new_id_strategy()
+
+    def _panel_on_num_colors_changed(self, event):
+        self.on_num_colors_changed()
 
     def _panel_on_use_times(self, event):
         self.on_use_times()

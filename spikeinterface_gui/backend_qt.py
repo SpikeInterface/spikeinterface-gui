@@ -171,16 +171,11 @@ class QtMainWindow(QT.QMainWindow):
         self.make_views(user_settings)
         self.create_main_layout()
 
-        # refresh all views without notiying
-        self.controller.signal_handler.deactivate()
-        for view in self.views.values():
-            # refresh do not work because view are not yet visible at init
-            view._refresh()
-        self.controller.signal_handler.activate()
-        # TODO sam : all views are always refreshed at the moment so this is useless.
-        # uncommen this when ViewBase.is_view_visible() work correctly
-        # for view_name, dock in self.docks.items():
-        #     dock.visibilityChanged.connect(self.views[view_name].refresh)
+        for view_name, dock in self.docks.items():
+            view = self.views[view_name]
+            dock.visibilityChanged.connect(
+                lambda visible, v=view: visible and QT.QTimer.singleShot(0, v.refresh)
+            )  # Deferred so visibleRegion is populated before refresh() re-checks is_view_visible;
 
     def make_views(self, user_settings):
         self.views = {}
@@ -254,6 +249,23 @@ class QtMainWindow(QT.QMainWindow):
                 self.tabifyDockWidget(self.docks[view_name0], dock)
             # make visible the first of each zone
             self.docks[view_name0].raise_()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not hasattr(self, '_splitters_equalized'):
+            self._splitters_equalized = True
+            # On macOS, the native Cocoa window system performs a layout pass after
+            # Qt's showEvent, overwriting any sizes set synchronously. A deferred
+            # call via QTimer.singleShot ensures resizeDocks runs after both Qt and
+            # the macOS window server have finished laying out the docks.
+            QT.QTimer.singleShot(0, self._equalize_dock_sizes)
+
+    def _equalize_dock_sizes(self):
+        all_docks = [dock for dock in self.docks.values() if dock.isVisible()]
+        if all_docks:
+            size_weight = 1
+            self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Horizontal)
+            self.resizeDocks(all_docks, [size_weight] * len(all_docks), QT.Qt.Vertical)
 
     def make_half_layout(self, widgets_zone, left_or_right):
         """

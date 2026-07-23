@@ -48,6 +48,7 @@ class MergeView(ViewBase):
     def __init__(self, controller=None, parent=None, backend="qt"):
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
         self.include_deleted = False
+        self.exclude_noise = True
 
     def compute_potential_merges(self):
         preset = self.preset
@@ -82,14 +83,17 @@ class MergeView(ViewBase):
                     f"({len(potential_merges)} after filtering deleted units).")
 
     def get_potential_merges(self):
-        # return the potential merges, considering the include deleted option
-        unit_ids = list(self.controller.unit_ids)
+        # return the potential merges, considering the include deleted and exclude noise options
         proposed_merge_unit_groups = []
         for group_ids in self.proposed_merge_unit_groups_all:
-            if not self.include_deleted and self.controller.curation:
-                deleted_unit_ids = self.controller.curation_data["removed"]
-                if any(unit_id in deleted_unit_ids for unit_id in group_ids):
-                    continue
+            if self.controller.curation:
+                if not self.include_deleted:
+                    deleted_unit_ids = self.controller.curation_data["removed"]
+                    if any(unit_id in deleted_unit_ids for unit_id in group_ids):
+                        continue
+                if self.exclude_noise:
+                    if any(self.controller.get_unit_label(unit_id, "quality") == "noise" for unit_id in group_ids):
+                        continue
             proposed_merge_unit_groups.append(group_ids)
         return proposed_merge_unit_groups
 
@@ -158,7 +162,6 @@ class MergeView(ViewBase):
             )
             return
         self.notify_manual_curation_updated()
-        self.refresh()
 
     def _reinitialize(self):
         self.proposed_merge_unit_groups_all = []
@@ -211,6 +214,10 @@ class MergeView(ViewBase):
         self.include_deleted = self.include_deleted_checkbox.isChecked()
         self.refresh()
 
+    def _qt_on_exclude_noise_change(self):
+        self.exclude_noise = self.exclude_noise_checkbox.isChecked()
+        self.refresh()
+
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
@@ -252,10 +259,19 @@ class MergeView(ViewBase):
         row_layout.addWidget(but)
 
         if self.controller.curation:
+            checkbox_layout = QT.QVBoxLayout()
+
             self.include_deleted_checkbox = QT.QCheckBox("Include deleted units")
             self.include_deleted_checkbox.setChecked(False)
             self.include_deleted_checkbox.stateChanged.connect(self._qt_on_include_deleted_change)
-            row_layout.addWidget(self.include_deleted_checkbox)
+            checkbox_layout.addWidget(self.include_deleted_checkbox)
+
+            self.exclude_noise_checkbox = QT.QCheckBox("Exclude noise units")
+            self.exclude_noise_checkbox.setChecked(True)
+            self.exclude_noise_checkbox.stateChanged.connect(self._qt_on_exclude_noise_change)
+            checkbox_layout.addWidget(self.exclude_noise_checkbox)
+
+            row_layout.addLayout(checkbox_layout)
 
         self.layout.addLayout(row_layout)
 
@@ -359,11 +375,22 @@ class MergeView(ViewBase):
                                                             name=f"{preset.capitalize()} parameters")
         self.preset = list(self.preset_params.keys())[0]
 
-        # shortcuts
+        # group the preset selector and its parameters into a collapsible accordion,
+        # so it can be hidden after merges are computed
+        self.preset_settings_column = pn.Column(
+            self.preset_selector,
+            self.preset_params_selectors[self.preset],
+            sizing_mode="stretch_width",
+        )
+        self.preset_accordion = pn.Accordion(
+            ("Preset & parameters", self.preset_settings_column),
+            active=[0],
+            sizing_mode="stretch_width",
+        )
+
+        # shortcuts (row navigation is handled by SelectableTabulator; only accept here)
         shortcuts = [
             KeyboardShortcut(name="accept", key="a", ctrlKey=True),
-            KeyboardShortcut(name="next", key="ArrowDown", ctrlKey=False),
-            KeyboardShortcut(name="previous", key="ArrowUp", ctrlKey=False),
         ]
         shortcuts_component = KeyboardShortcuts(shortcuts=shortcuts)
         shortcuts_component.on_msg(self._panel_handle_shortcut)
@@ -380,13 +407,15 @@ class MergeView(ViewBase):
         if self.controller.curation:
             self.include_deleted = pn.widgets.Checkbox(name="Include deleted units", value=False)
             self.include_deleted.param.watch(self._panel_include_deleted_change, "value")
-            calculate_list.append(self.include_deleted)
+
+            self.exclude_noise_widget = pn.widgets.Checkbox(name="Exclude noise units", value=True)
+            self.exclude_noise_widget.param.watch(self._panel_exclude_noise_change, "value")
+
+            calculate_list.append(pn.Column(self.include_deleted, self.exclude_noise_widget))
         calculate_row = pn.Row(*calculate_list, sizing_mode="stretch_width")
 
         self.layout = pn.Column(
-            # add params
-            self.preset_selector, 
-            self.preset_params_selectors[self.preset],
+            self.preset_accordion,
             calculate_row,
             self.table_area,
             shortcuts_component,
@@ -400,24 +429,33 @@ class MergeView(ViewBase):
         import pandas as pd
         import panel as pn
         import matplotlib.colors as mcolors
-        from .utils_panel import unit_formatter
+        from .utils_panel import unit_formatter, SelectableTabulator
 
         pn.extension("tabulator")
         # Create table
         labels, rows = self.get_table_data()
+
+        if not rows:
+            self.table = None
+            self.table_area.update("No merges computed yet.")
+            return
+
         # set unmutable data
         data = {label: [] for label in labels}
         for row in rows:
             for label in labels:
                 if label.startswith("unit_id"):
                     unit_id = row[label]
-                    data[label].append({"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))})
+                    n = self.controller.num_spikes[unit_id]
+                    data[label].append({"id": unit_id, "color": mcolors.to_hex(self.controller.get_unit_color(unit_id)), "n": n})
                 else:
                     data[label].append(row[label])
 
         df = pd.DataFrame(data=data)
         formatters = {label: unit_formatter for label in labels if label.startswith("unit_id")}
-        self.table = pn.widgets.Tabulator(
+        skip_sort_columns = [label for label in labels if label.startswith("unit_id")]
+        skip_sort_columns.append("group_ids")
+        self.table = SelectableTabulator(
             df,
             formatters=formatters,
             height=400,
@@ -426,38 +464,38 @@ class MergeView(ViewBase):
             hidden_columns=["group_ids"],
             disabled=True,
             selectable=1,
-            sortable=False
+            sortable=True,
+            skip_sort_columns=skip_sort_columns,
+            # SelectableTabulator functions
+            parent_view=self,
+            conditional_shortcut=self.is_view_active,
+            on_selection_changed=self._panel_on_selection_changed,
         )
-
-        # Add click handler with double click detection
-        self.table.on_click(self._panel_on_click)
         self.table_area.update(self.table)
 
     def _panel_compute_merges(self, event):
         self._compute_merges()
+        # collapse the preset accordion once merges have been computed
+        if self.table is not None:
+            self.preset_accordion.active = []
 
     def _panel_on_preset_change(self, event):
         self.preset = event.new
-        if self.is_warning_active():
-            layout_index = 2
-        else:
-            layout_index = 1
-        self.layout[layout_index] = self.preset_params_selectors[self.preset]
+        self.preset_settings_column[1] = self.preset_params_selectors[self.preset]
 
-    def _panel_on_click(self, event):
-        import panel as pn
-
-        # set unit visibility
-        row = event.row
-
-        def _do_update():
-            self.table.selection = [row]
-
-        pn.state.execute(_do_update, schedule=True)
-        self._panel_update_visible_pair(row)
+    def _panel_on_selection_changed(self):
+        # called by SelectableTabulator whenever the selection changes (click or keyboard)
+        selected = self.table.selection
+        if len(selected) == 0:
+            return
+        self._panel_update_visible_pair(selected[0])
 
     def _panel_include_deleted_change(self, event):
         self.include_deleted = event.new
+        self.refresh()
+
+    def _panel_exclude_noise_change(self, event):
+        self.exclude_noise = event.new
         self.refresh()
 
     def _panel_update_visible_pair(self, row):
@@ -471,41 +509,23 @@ class MergeView(ViewBase):
         self.notify_unit_visibility_changed()
 
     def _panel_handle_shortcut(self, event):
-        import panel as pn
+        if event.data != "accept":
+            return
+        if not self.is_view_active():
+            return
+        if self.table is None:
+            return
+        selected = self.table.selection
+        if len(selected) == 0:
+            return
+        # selected is always 1
+        row = selected[0]
+        group_ids = self.table.value.iloc[row].group_ids
+        self.accept_group_merge(group_ids)
 
-        if event.data == "accept":
-            selected = self.table.selection
-            if len(selected) == 0:
-                return
-            # selected is always 1
-            row = selected[0]
-            group_ids = self.table.value.iloc[row].group_ids
-            self.accept_group_merge(group_ids)
-            self.notify_manual_curation_updated()
-
-            next_row = min(row + 1, len(self.table.value) - 1)
-
-            def _select_next():
-                self.table.selection = [next_row]
-
-            pn.state.execute(_select_next, schedule=True)
-            self._panel_update_visible_pair(next_row)
-        elif event.data == "next":
-            next_row = min(self.table.selection[0] + 1, len(self.table.value) - 1)
-
-            def _do_next():
-                self.table.selection = [next_row]
-
-            pn.state.execute(_do_next, schedule=True)
-            self._panel_update_visible_pair(next_row)
-        elif event.data == "previous":
-            previous_row = max(self.table.selection[0] - 1, 0)
-
-            def _do_prev():
-                self.table.selection = [previous_row]
-
-            pn.state.execute(_do_prev, schedule=True)
-            self._panel_update_visible_pair(previous_row)
+        # advance to the next row; the selection setter triggers _panel_on_selection_changed
+        next_row = min(row + 1, len(self.table.value) - 1)
+        self.table.selection = [next_row]
 
     def _panel_on_spike_selection_changed(self):
         pass

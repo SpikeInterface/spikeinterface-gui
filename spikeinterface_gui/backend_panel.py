@@ -134,8 +134,7 @@ class SignalHandler(param.Parameterized):
                 view._panel_view_is_active = False
     
     def on_unit_color_changed(self, param):
-        if not self._active:
-            return
+        # In this case we send it also if the view is not active, because we want to update colors anyways
         for view in self.controller.views:
             if param.obj.view == view:
                 continue

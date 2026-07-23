@@ -7,7 +7,6 @@ import json
 
 from copy import deepcopy
 
-from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel, BaseEvent
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
@@ -33,6 +32,7 @@ _default_main_settings = dict(
     use_times=False,
     merge_new_id_strategy = 'take_first',
     split_new_id_strategy = 'append',
+    num_colors=20,
 )
 
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
@@ -331,7 +331,9 @@ class Controller():
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
-        self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
+        # align=True is required for np.searchsorted (and therefore trace
+        # views) to be fast.
+        self.spikes = np.zeros(spike_vector.size, dtype=np.dtype(spike_dtype, align=True))
         self.spikes['sample_index'] = spike_vector['sample_index']
         self.spikes['unit_index'] = spike_vector['unit_index']
         self.spikes['segment_index'] = spike_vector['segment_index']
@@ -427,8 +429,8 @@ class Controller():
                         curation_data = json.load(f)
 
             elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                from spikeinterface.core.zarrextractors import super_zarr_open
+                zarr_root = super_zarr_open(self.analyzer.folder, mode='r')
                 if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
@@ -534,7 +536,9 @@ class Controller():
         ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
         if self.main_settings["use_times"]:
             recording = self.analyzer.recording
-            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+            # Passing frame bounds slices lazily if the time vector supports it (e.g. zarr).
+            # Can save 10s of GB of RAM on long recordings.
+            times_chunk = recording.get_times(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
         else:
             times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.sampling_frequency + max(t1, 0)
         return times_chunk
@@ -590,29 +594,37 @@ class Controller():
 
         return txt
 
-    def refresh_colors(self, existing_colors=None):
+    def get_divergent_unit_colors(self, num_entries=20):
+        import glasbey
+        import matplotlib.colors as mcolors
+
+        unit_locations = self.analyzer.get_extension("unit_locations").get_data()
+        # lexsort by x and y
+        sorted_inds = np.lexsort((unit_locations[:, 0], unit_locations[:, 1]))
+
+        # now assign interleaved colors sequentially to the spatially sorted units
+        colors = {}
+        color_array = glasbey.create_palette(num_entries, lightness_bounds=(30, 100), chroma_bounds=(30, 100))
+        for i, unit_ind in enumerate(sorted_inds):
+            unit_id = self.unit_ids[unit_ind]
+            colors[unit_id] = mcolors.to_rgba(color_array[i % num_entries])
+        return colors
+        
+
+    def refresh_colors(self):
         if self.backend == "qt":
             self._cached_qcolors = {}
         elif self.backend == "panel":
             pass
 
         if self.main_settings['color_mode'] == 'color_by_unit':
-            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                            shuffle=True, seed=42)
-            if existing_colors is None:
-                self.colors = unit_colors
-            else:
-                for unit_id, unit_color in unit_colors.items():
-                    if unit_id not in self.colors.keys():
-                        self.colors[unit_id] = unit_color
-
+            self.colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
         elif  self.main_settings['color_mode'] == 'color_only_visible':
-            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)            
+            unit_colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             for unit_id in self.get_visible_unit_ids():
                 self.colors[unit_id] = unit_colors[unit_id]
-        elif  self.main_settings['color_mode'] == 'color_by_visibility':
+        elif self.main_settings['color_mode'] == 'color_by_visibility':
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             import matplotlib.pyplot as plt
             cmap = plt.colormaps['tab10']
@@ -1148,15 +1160,22 @@ class Controller():
         visible_unit_ids = self.get_visible_unit_ids()
         if unit_id not in visible_unit_ids:
             return False
-        indices = self.get_indices_spike_selected()
-        if len(indices) == 0:
+        indices = np.asarray(self.get_indices_spike_selected())
+        if indices.size == 0:
             return False
         spike_inds = self.get_spike_indices(unit_id, segment_index=None)
-        if not np.all(np.isin(indices, spike_inds)):
-            return False
 
-        # convert selected indices to indices within the spike train of the unit
-        indices = [np.where(spike_inds == ind)[0][0] for ind in indices]
+        # convert selected indices to indices within the spike train of the unit, 
+        # and validate that they all belong to the unit.
+        # np.searchsorted does both (because spike_inds is sorted ascending)
+        positions = np.searchsorted(spike_inds, indices)
+        # positions == spike_inds.size means the index sorts past the end (absent);
+        # otherwise the index belongs to the unit iff spike_inds[position] matches.
+        if np.any(positions >= spike_inds.size) or not np.array_equal(
+            spike_inds[np.minimum(positions, spike_inds.size - 1)], indices
+        ):
+            return False
+        indices = positions.tolist()
 
         new_split = {
             "unit_id": unit_id,
