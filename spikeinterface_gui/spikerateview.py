@@ -77,7 +77,7 @@ class SpikeRateView(ViewBase):
         for r, unit_id in enumerate(visible_unit_ids):
 
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
-            spikes = self.controller.spikes[spike_inds]['sample_index']
+            spikes = self.controller.spikes['sample_index'][spike_inds]
 
             count, _ = np.histogram(spikes, bins=bin_edges)
             
@@ -161,7 +161,7 @@ class SpikeRateView(ViewBase):
         for unit_id in visible_unit_ids:
 
             spike_inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
-            spikes = self.controller.spikes[spike_inds]['sample_index']
+            spikes = self.controller.spikes['sample_index'][spike_inds]
 
             count, _ = np.histogram(spikes, bins=bin_edges)
             

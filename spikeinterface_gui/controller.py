@@ -15,9 +15,6 @@ from spikeinterface.widgets.utils import make_units_table_from_analyzer
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
 from .event_tools import parse_events
 
-spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
-    ('channel_index', 'int64'), ('segment_index', 'int64'),
-    ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
 
 
 _default_main_settings = dict(

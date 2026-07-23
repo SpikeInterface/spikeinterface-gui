@@ -934,14 +934,15 @@ def find_nearest_spike(controller, x, segment_index, max_distance_samples=None):
         max_distance_samples = controller.sampling_frequency // 30
 
     ind_click = controller.time_to_sample_index(x)
-    (in_seg,) = np.nonzero(controller.spikes["segment_index"] == segment_index)
+    sl = controller.segment_slices[segment_index]
 
-    if len(in_seg) == 0:
+    if sl.start == sl.stop:
         return None
 
-    nearest = np.argmin(np.abs(controller.spikes[in_seg]["sample_index"] - ind_click))
-    ind_spike_nearest = in_seg[nearest]
-    sample_index = controller.spikes[ind_spike_nearest]["sample_index"]
+    sample_index_seg = np.asarray(controller.spikes["sample_index"][sl])
+    nearest_in_seg = np.argmin(np.abs(sample_index_seg - ind_click))
+    ind_spike_nearest = sl.start + nearest_in_seg
+    sample_index = sample_index_seg[nearest_in_seg]
 
     if np.abs(ind_click - sample_index) > max_distance_samples:
         return None
