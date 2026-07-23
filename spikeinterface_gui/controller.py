@@ -152,7 +152,7 @@ class Controller():
                 print('\tLoading spike_amplitudes')
             sa_ext = analyzer.get_extension('spike_amplitudes')
             if sa_ext is not None:
-                self.spike_amplitudes = sa_ext.get_data(copy=False)
+                self.spike_amplitudes = sa_ext.get_data()
             else:
                 self.spike_amplitudes = None
 
@@ -165,7 +165,7 @@ class Controller():
                 print('\tLoading amplitude_scalings')
             sa_ext = analyzer.get_extension('amplitude_scalings')
             if sa_ext is not None:
-                self.amplitude_scalings = sa_ext.get_data(copy=False)
+                self.amplitude_scalings = sa_ext.get_data()
             else:
                 self.amplitude_scalings = None
 
@@ -178,7 +178,7 @@ class Controller():
                 print('\tLoading spike_locations')
             sl_ext = analyzer.get_extension('spike_locations')
             if sl_ext is not None:
-                self.spike_depths = sl_ext.get_data(copy=False)["y"]
+                self.spike_depths = sl_ext.get_data()["y"]
             else:
                 self.spike_depths = None
 
