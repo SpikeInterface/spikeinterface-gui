@@ -90,3 +90,17 @@ unit_focus_layout = dict(
     zone8=['correlogram', 'isi'],
 )
 _presets['unit_focus'] = unit_focus_layout
+
+merge_focus_layout = dict(
+    zone1=['merge', 'unitlist'],
+    zone2=['waveform'],
+    zone3=['spikeamplitude'],
+    zone4=['ndscatter'],
+    zone5=['probe'],
+    zone6=[],
+    zone7=['spikerate'],
+    zone8=['correlogram'],
+)
+
+_presets['merge_focus'] = merge_focus_layout
+
