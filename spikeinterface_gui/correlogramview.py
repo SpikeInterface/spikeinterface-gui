@@ -4,7 +4,8 @@ from .view_base import ViewBase
 
 
 
-class CrossCorrelogramView(ViewBase):
+class CorrelogramView(ViewBase):
+    id = "correlogram"
     _supported_backend = ['qt', 'panel']
     _depend_on = ["correlograms"]
     _settings = [
@@ -32,6 +33,11 @@ class CrossCorrelogramView(ViewBase):
         )
         # clear cache
         self.figure_cache = {}
+
+    def on_unit_color_changed(self):
+        # clear cache
+        self.figure_cache = {}
+        self.refresh()
 
     ## Qt ##
 
@@ -72,6 +78,15 @@ class CrossCorrelogramView(ViewBase):
                 unit_id2 = visible_unit_ids[c]
                 if (unit_id1, unit_id2) in self.figure_cache:
                     plot = self.figure_cache[(unit_id1, unit_id2)]
+                    if self.controller.main_settings["color_mode"] == 'color_by_visibility':
+                        # Update color in cached figure
+                        if r == c:
+                            unit_id = visible_unit_ids[r]
+                            color = colors[unit_id]
+                            for item in plot.items:
+                                if hasattr(item, 'setBrush') and hasattr(item, 'setPen'):
+                                    item.setBrush(color)
+                                    item.setPen(color)
                 else:
                     # create new plot
                     i = unit_ids.index(visible_unit_ids[r])
@@ -144,6 +159,16 @@ class CrossCorrelogramView(ViewBase):
 
                 if (unit1, unit2) in self.figure_cache:
                     fig = self.figure_cache[(unit1, unit2)]
+                    # for the color_by_visibility
+                    if self.controller.main_settings["color_mode"] == 'color_by_visibility':
+                        # Update color in cached figure
+                        if r == c:
+                            unit_id = visible_unit_ids[r]
+                            color = colors[unit_id]
+                            for renderer in fig.renderers:
+                                if hasattr(renderer, 'glyph') and hasattr(renderer.glyph, 'fill_color'):
+                                    renderer.glyph.fill_color = color
+                                    renderer.glyph.line_color = color
                 else:
                     # create new figure
                     i = unit_ids.index(unit1)
@@ -206,7 +231,7 @@ class CrossCorrelogramView(ViewBase):
 
 
 
-CrossCorrelogramView._gui_help_txt = """
+CorrelogramView._gui_help_txt = """
 ## Correlograms View
 
 This view shows the auto-correlograms and cross-correlograms of the selected units.

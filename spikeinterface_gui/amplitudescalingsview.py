@@ -1,13 +1,14 @@
 from .basescatterview import BaseScatterView
 
 
-class SpikeDepthView(BaseScatterView):
-    id = "spikedepth"
-    _depend_on = ["spike_locations"]
+class AmplitudeScalingsView(BaseScatterView):
+    id = "amplitudescalings"
+    _depend_on = ["amplitude_scalings"]
 
     def __init__(self, controller=None, parent=None, backend="qt"):
-        y_label = "Depth (um)"
-        spike_data = controller.spike_depths
+        y_label = "Amplitude scaling"
+        spike_data = controller.amplitude_scalings
+
         BaseScatterView.__init__(
             self,
             controller=controller,
@@ -18,11 +19,11 @@ class SpikeDepthView(BaseScatterView):
         )
 
 
+AmplitudeScalingsView._gui_help_txt = """
+## Amplitude Scalings View
 
-SpikeDepthView._gui_help_txt = """
-## Spike Depth View
-
-Check deppth of spikes across the recording time or in a histogram.
+Amplitude scalings measure the optimal scaling which should be applied to the template so that
+it best matches each spike waveform.
 
 ### Controls
 - **select** : activate lasso selection to select individual spikes

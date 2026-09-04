@@ -3,7 +3,7 @@ from spikeinterface_gui.tests.testingtools import clean_all, make_analyzer_folde
 
 from spikeinterface_gui.controller import Controller
 from spikeinterface_gui.myqt import mkQApp
-from spikeinterface_gui.viewlist import possible_class_views
+from spikeinterface_gui.viewlist import get_all_possible_views
 from spikeinterface_gui.backend_qt import ViewWidget
 
 
@@ -13,10 +13,9 @@ import spikeinterface.full as si
 
 from pathlib import Path
 
-
-test_folder = Path(__file__).parent / 'my_dataset_small'
-# test_folder = Path(__file__).parent / 'my_dataset_big'
-# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
+test_folder = Path(__file__).parents[2] / 'my_dataset_small'
+# test_folder = Path(__file__).parents[2] / 'my_dataset_big'
+# test_folder = Path(__file__).parents[2] / 'my_dataset_multiprobe'
 
 
 def debug_one_view():
@@ -32,17 +31,21 @@ def debug_one_view():
     controller = Controller(analyzer, verbose=True, curation=curation, curation_data=curation_dict, 
                             skip_extensions=['principal_components'],
                             )
-
+    
+    controller.set_visible_unit_ids(analyzer.unit_ids[:2])
+    
     # view_class = possible_class_views['unitlist']
     # view_class = possible_class_views['mainsettings']
     # view_class = possible_class_views['spikeamplitude']
-    view_class = possible_class_views['metrics']
+    possible_class_views = get_all_possible_views()
+    # view_class = possible_class_views['metrics']
+    view_class = possible_class_views['']
     widget = ViewWidget(view_class)
     view = view_class(controller=controller, parent=widget, backend='qt')
     widget.set_view(view)
     widget.show()
     view.refresh()
-
+    
     app.exec()
 
     

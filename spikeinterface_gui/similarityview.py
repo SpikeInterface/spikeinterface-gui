@@ -8,6 +8,7 @@ from .view_base import ViewBase
 
 
 class SimilarityView(ViewBase):
+    id = "similarity"
     _supported_backend = ['qt', 'panel']
     _depend_on = ["template_similarity"]
     _settings = [

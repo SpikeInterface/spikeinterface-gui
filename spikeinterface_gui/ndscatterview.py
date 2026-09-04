@@ -3,6 +3,7 @@ This try to mimic `RGGobi viewer package <http://www.ggobi.org/rggobi/>`_.
 """
 
 import itertools
+import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
 
@@ -10,6 +11,7 @@ from .view_base import ViewBase
 
 
 class NDScatterView(ViewBase):
+    id = "ndscatter"
     _supported_backend = ['qt', 'panel']
     _depend_on = ['principal_components']
     _settings = [
@@ -38,7 +40,7 @@ class NDScatterView(ViewBase):
         self.selected_comp = np.ones((ndim), dtype='bool')
         self.projection = self.get_one_random_projection()
 
-        #estimate limts
+        #estimate limits
         data = self.data
         if data.shape[0] > 1000:
             inds = np.random.choice(data.shape[0], 1000, replace=False)
@@ -56,6 +58,7 @@ class NDScatterView(ViewBase):
         self.auto_update_limit = True
         self._lasso_vertices = []
         self._current_selected = 0
+        self._best_mode = False
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
@@ -84,6 +87,7 @@ class NDScatterView(ViewBase):
         self._refresh(update_colors=False, update_components=False)
 
     def next_face(self):
+        self._best_mode = False
         self.n_face += 1
         self.n_face = self.n_face%len(self.hyper_faces)
         ndim = self.data.shape[1]
@@ -104,17 +108,100 @@ class NDScatterView(ViewBase):
         return projection
 
     def random_projection(self):
+        self._best_mode = False
         self.update_selected_components()
         self.projection = self.get_one_random_projection()
         self.tour_step = 0
         # here we don't want to update the components because it's been done already!
         self.refresh(update_components=False)
 
+    def best_projection(self):
+        # Note: for best projection we don't restrict to the visible channels, because we want to find the
+        # best projection over all channels. We therefore mark all components as active so that the
+        # full projection is rendered (see apply_dot, which slices by selected_comp).
+        self.selected_comp[:] = True
+
+        X_list, y_list = [], []
+        for unit_ind, unit_id in self.controller.iter_visible_units():
+            mask = np.flatnonzero(self.pc_unit_index == unit_ind)
+            if len(mask) > 0:
+                X_list.append(self.data[mask, :])
+                y_list.extend([unit_ind] * len(mask))
+
+        if len(X_list) == 0:
+            return
+
+        X = np.vstack(X_list)
+        y = np.array(y_list)
+        n_classes = len(np.unique(y))
+
+        ndim = self.data.shape[1]
+        projection = None
+
+        # For LDA, we need at least 2 samples per class and at least 2 classes.
+        # For PCA, we need at least 2 samples and at least 1 feature.
+        if X.shape[1] == 0 or X.shape[0] < 2:
+            pass
+        else:
+            try:
+                projection = np.zeros((ndim, 2))
+                if n_classes >= 2:
+                    # multiple units: maximize class separation with LDA
+                    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+
+                    n_proj = min(2, n_classes - 1)
+                    lda = LinearDiscriminantAnalysis(n_components=n_proj)
+                    lda.fit(X, y)
+                    directions = lda.scalings_[:, :n_proj]
+                else:
+                    # single unit: pick the directions with highest variance explained (PCA)
+                    from sklearn.decomposition import PCA
+
+                    n_proj = min(2, X.shape[1])
+                    pca = PCA(n_components=n_proj)
+                    pca.fit(X)
+                    directions = pca.components_[:n_proj].T
+
+                projection[:, :n_proj] = directions
+
+                for j in range(n_proj):
+                    norm = np.linalg.norm(projection[:, j])
+                    if norm > 0:
+                        projection[:, j] /= norm
+
+                # only 1 projection direction: fill second axis with random orthogonal direction
+                if n_proj < 2:
+                    main_dir = projection[:, 0]
+                    rand_dir = np.random.randn(ndim)
+                    rand_dir -= np.dot(rand_dir, main_dir) * main_dir
+                    norm = np.linalg.norm(rand_dir)
+                    if norm > 0:
+                        rand_dir /= norm
+                    projection[:, 1] = rand_dir
+            except (ValueError, IndexError) as e:
+                # degenerate data (e.g. zero-rank / constant features): keep current projection
+                warnings.warn(f"NDScatter best_projection failed: {e}. Keeping current projection.")
+                projection = None
+
+        self._best_mode = True
+        # if computing the best projection failed, keep the current one but still
+        # refresh so the newly selected units are shown
+        if projection is not None:
+            self.projection = projection
+        self.tour_step = 0
+        self.refresh(update_components=False)
+
     def on_unit_visibility_changed(self):
-        self.random_projection()
-    
+        if self._best_mode:
+            self.best_projection()
+        else:
+            self.random_projection()
+
     def on_channel_visibility_changed(self):
-        self.random_projection()
+        if self._best_mode:
+            self.best_projection()
+        else:
+            self.random_projection()
 
     def apply_dot(self, data):
         projected = np.dot(data[:, self.selected_comp], self.projection[self.selected_comp, :])
@@ -171,6 +258,10 @@ class NDScatterView(ViewBase):
     
 
     def update_selected_components(self):
+        # in best projection mode all components are used (see best_projection)
+        if self._best_mode:
+            self.selected_comp[:] = True
+            return
         n_pc_per_chan = self.pc_data.shape[1]
         n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
         self.selected_comp[:] = False
@@ -181,24 +272,34 @@ class NDScatterView(ViewBase):
     def _qt_make_layout(self):
         from .myqt import QT
         import pyqtgraph as pg
-        from .utils_qt import ViewBoxHandlingLassoAndGain, add_stretch_to_qtoolbar
+        from .utils_qt import ViewBoxHandlingLassoAndGain, add_stretch_to_qtoolbar, qt_style
 
+        self.layout = QT.QVBoxLayout()
 
-        self.layout = QT.QHBoxLayout()
+        # Row 2 toolbar (Row 1 is the ViewWidget toolbar with settings/refresh/?)
+        tb = QT.QToolBar()
+        tb.setStyleSheet(qt_style)
+        self.layout.addWidget(tb)
 
-        # toolbar
-        tb = self.qt_widget.view_toolbar
+        but = QT.QPushButton('Next Face')
+        tb.addWidget(but)
+        but.clicked.connect(self._qt_on_next_face)
+
+        self._qt_best_but = QT.QPushButton('Best')
+        self._qt_best_but.setCheckable(True)
+        tb.addWidget(self._qt_best_but)
+        self._qt_best_but.clicked.connect(self._qt_on_best_projection)
+
         but = QT.QPushButton('Random')
         tb.addWidget(but)
-        but.clicked.connect(self.random_projection)
-        but = QT.QPushButton('Random tour', checkable = True)
-        tb.addWidget(but)
-        but.clicked.connect(self._qt_start_stop_tour)
+        but.clicked.connect(self._qt_on_random_projection)
 
-        but = QT.QPushButton('next face')
-        tb.addWidget(but)
-        but.clicked.connect(self.next_face)
+        self._qt_random_tour_but = QT.QPushButton('Random Tour')
+        self._qt_random_tour_but.setCheckable(True)
+        tb.addWidget(self._qt_random_tour_but)
+        self._qt_random_tour_but.clicked.connect(self._qt_start_stop_tour)
 
+        add_stretch_to_qtoolbar(tb)
 
         self.graphicsview = pg.GraphicsView()
         self.layout.addWidget(self.graphicsview)
@@ -280,7 +381,7 @@ class NDScatterView(ViewBase):
             self.update_selected_components()
 
         #ndscatter
-        # TODO sam: I have the feeling taht it is a bit slow
+        # TODO sam: I have the feeling that it is a bit slow
         self.scatter.clear()
 
         # scatter_x, scatter_y, spike_indices, selected_scatter_x, selected_scatter_y = self.get_plotting_data(concatenated=True)
@@ -297,7 +398,7 @@ class NDScatterView(ViewBase):
         self.scatter_select.setData(selected_scatter_x, selected_scatter_y)
 
 
-        # TODO sam : kepp the old implementation in mind
+        # TODO sam : keep the old implementation in mind
         # for unit_index, unit_id in enumerate(self.controller.unit_ids):
         #     if not self.controller.get_unit_visibility(unit_id):
         #         continue
@@ -340,9 +441,26 @@ class NDScatterView(ViewBase):
 
     def _qt_on_spike_selection_changed(self):
         self.refresh()
-    
+
+    def _qt_on_next_face(self):
+        self._qt_best_but.setChecked(False)
+        self.next_face()
+
+    def _qt_on_random_projection(self):
+        self._qt_best_but.setChecked(False)
+        self.random_projection()
+
+    def _qt_on_best_projection(self, checked):
+        if checked:
+            if self._qt_random_tour_but.isChecked():
+                self._qt_random_tour_but.setChecked(False)
+                self._qt_start_stop_tour(False)
+            if not self._best_mode:
+                self.best_projection()
+
     def _qt_start_stop_tour(self, checked):
         if checked:
+            self._qt_best_but.setChecked(False)
             self.tour_step = 0
             self.timer_tour.setInterval(int(self.settings['refresh_interval']))
             self.timer_tour.start()
@@ -367,7 +485,7 @@ class NDScatterView(ViewBase):
         vertices = np.array(points)
         self._lasso_vertices.append(vertices)
         
-        # inside lasso and visibles
+        # inside lasso and visible
         ind_visibles,   = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
         projected = self.apply_dot(self.data[ind_visibles, :])
         inside = inside_poly(projected, vertices)
@@ -434,7 +552,10 @@ class NDScatterView(ViewBase):
         self.random_button = pn.widgets.Button(name="Random", button_type="default", width=100)
         self.random_button.on_click(self._panel_random_projection)
 
-        self.random_tour_button = pn.widgets.Toggle(name="Random Tour", button_type="default", width=100)
+        self.best_button = pn.widgets.Toggle(name="Best", button_type="default", width=100)
+        self.best_button.param.watch(self._panel_best_projection, "value")
+
+        self.random_tour_button = pn.widgets.Toggle(name="Tour", button_type="default", width=100)
         self.random_tour_button.param.watch(self._panel_start_stop_tour, "value")
 
         self.select_toggle_button = pn.widgets.Toggle(name="Select")
@@ -442,10 +563,23 @@ class NDScatterView(ViewBase):
 
         self.scatter_fig.on_event('selectiongeometry', self._on_panel_selection_geometry)
 
-        self.toolbar = pn.Row(
-            self.next_face_button, self.random_button, self.random_tour_button, self.select_toggle_button, 
+        first_row = pn.Row(
+            self.next_face_button,
+            self.select_toggle_button,
             sizing_mode="stretch_both",
-            styles={"flex": "0.15"}
+        )
+        second_row = pn.Row(
+            self.best_button,
+            self.random_button,
+            self.random_tour_button,
+            sizing_mode="stretch_both",
+        )
+
+        self.toolbar = pn.Column(
+            first_row,
+            second_row,
+            sizing_mode="stretch_both",
+            styles={"flex": "0.25"}
         )
 
         self.layout = pn.Column(
@@ -458,6 +592,8 @@ class NDScatterView(ViewBase):
         self.tour_timer = None
 
     def _panel_refresh(self, update_components=True, update_colors=True):
+        import panel as pn
+
         if update_components:
             self.update_selected_components()
         scatter_x, scatter_y, _, _, spike_indices = self.get_plotting_data(return_spike_indices=True)
@@ -474,43 +610,69 @@ class NDScatterView(ViewBase):
         if not update_colors:
             colors = self.scatter_source.data.get("color")
 
-        self.scatter_source.data = {
+        data = {
             "x": xs,
             "y": ys,
             "color": colors,
             "spike_indices": plotted_spike_indices
         }
+        limit = self.limit
 
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        def _do_update():
+            self.scatter_source.data = data
+            self.scatter_fig.x_range.start = -limit
+            self.scatter_fig.x_range.end = limit
+            self.scatter_fig.y_range.start = -limit
+            self.scatter_fig.y_range.end = limit
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_on_spike_selection_changed(self):
+        import panel as pn
+
         # handle selection with lasso
         plotted_spike_indices = self.scatter_source.data.get("spike_indices", [])
         ind_selected, = np.nonzero(np.isin(plotted_spike_indices, self.controller.get_indices_spike_selected()))
-        self.scatter_source.selected.indices = ind_selected
+
+        def _do_update():
+            self.scatter_source.selected.indices = ind_selected
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_gain_zoom(self, event):
-        from bokeh.models import Range1d
+        import panel as pn
 
         factor = 1.3 if event.delta > 0 else 1 / 1.3
         self.limit /= factor
-        self.scatter_fig.x_range.start = -self.limit
-        self.scatter_fig.x_range.end = self.limit
-        self.scatter_fig.y_range.start = -self.limit
-        self.scatter_fig.y_range.end = self.limit
+        limit = self.limit
+
+        def _do_update():
+            self.scatter_fig.x_range.start = -limit
+            self.scatter_fig.x_range.end = limit
+            self.scatter_fig.y_range.start = -limit
+            self.scatter_fig.y_range.end = limit
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _panel_next_face(self, event):
+        self.best_button.value = False
         self.next_face()
 
     def _panel_random_projection(self, event):
+        self.best_button.value = False
         self.random_projection()
+
+    def _panel_best_projection(self, event):
+        if event.new:
+            if self.random_tour_button.value:
+                self.random_tour_button.value = False
+            if not self._best_mode:
+                self.best_projection()
 
     def _panel_start_stop_tour(self, event):
         import panel as pn
         if event.new:
+            self.best_button.value = False
             self.tour_step = 0
             self.tour_timer = pn.state.add_periodic_callback(self.new_tour_step, period=self.settings['refresh_interval'])
             self.auto_update_limit = False
@@ -521,11 +683,18 @@ class NDScatterView(ViewBase):
                 self.auto_update_limit = True
 
     def _panel_on_select_button(self, event):
-        if self.select_toggle_button.value:
-            self.scatter_fig.toolbar.active_drag = self.lasso_tool
-        else:
-            self.scatter_fig.toolbar.active_drag = None
-            self.scatter_source.selected.indices = []
+        import panel as pn
+
+        value = self.select_toggle_button.value
+
+        def _do_update():
+            if value:
+                self.scatter_fig.toolbar.active_drag = self.lasso_tool
+            else:
+                self.scatter_fig.toolbar.active_drag = None
+                self.scatter_source.selected.indices = []
+
+        pn.state.execute(_do_update, schedule=True)
 
     def _on_panel_selection_geometry(self, event):
         """
@@ -550,7 +719,7 @@ class NDScatterView(ViewBase):
             else:
                 self._lasso_vertices = [polygon]
 
-            # inside lasso and visibles
+            # inside lasso and visible
             ind_visibles, = np.nonzero(np.isin(self.random_spikes_indices, self.controller.get_indices_spike_visible()))
             inds = self.random_spikes_indices[ind_visibles[selected]]
             self.controller.set_indices_spike_selected(inds)

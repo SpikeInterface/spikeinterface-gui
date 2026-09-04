@@ -51,7 +51,9 @@ This is a web app internally using Panel, useful when the data is remote
    launch
    usage
    custom_layout_settings
+   custom_views
    deployments
    views
    developers
    credits
+   release_notes

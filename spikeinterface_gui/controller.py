@@ -4,17 +4,17 @@ import numpy as np
 
 import json
 
+from copy import deepcopy
 
-from spikeinterface.widgets.utils import get_unit_colors
 from spikeinterface import compute_sparsity
 from spikeinterface.core import get_template_extremum_channel
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
-from spikeinterface.core.core_tools import check_json
 from spikeinterface.curation import validate_curation_dict
-from spikeinterface.curation.curation_model import CurationModel
+from spikeinterface.curation.curation_model import Curation
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
 
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
+from .event_tools import parse_events
 
 spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
     ('channel_index', 'int64'), ('segment_index', 'int64'),
@@ -24,6 +24,7 @@ spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'),
 _default_main_settings = dict(
     max_visible_units=10,
     color_mode='color_by_unit',
+    num_colors=20,
     use_times=False
 )
 
@@ -32,10 +33,27 @@ from spikeinterface.widgets.sorting_summary import _default_displayed_unit_prope
 
 
 class Controller():
-    def __init__(self, analyzer=None, backend="qt", parent=None, verbose=False, save_on_compute=False,
-                 curation=False, curation_data=None, label_definitions=None, with_traces=True,
-                 displayed_unit_properties=None,
-                 extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False):
+    def __init__(
+        self,
+        analyzer=None,
+        backend="qt",
+        parent=None,
+        verbose=False,
+        save_on_compute=False,
+        curation=False,
+        curation_data=None,
+        label_definitions=None,
+        with_traces=True,
+        displayed_unit_properties=None,
+        extra_unit_properties=None,
+        skip_extensions=None,
+        disable_save_settings_button=False,
+        events=None,
+        external_data=None,
+        curation_callback=None,
+        curation_callback_kwargs=None,
+        user_main_settings=None,
+    ):
         self.views = []
         skip_extensions = skip_extensions if skip_extensions is not None else []
 
@@ -43,6 +61,7 @@ class Controller():
         self.backend = backend
         self.disable_save_settings_button = disable_save_settings_button
         self.current_curation_saved = True
+        self.external_data = external_data
 
         if self.backend == "qt":
             from .backend_qt import SignalHandler
@@ -64,9 +83,11 @@ class Controller():
         t0 = time.perf_counter()
 
         self.main_settings = _default_main_settings.copy()
+        if user_main_settings is not None:
+            self.main_settings.update(user_main_settings)
 
         self.num_channels = self.analyzer.get_num_channels()
-        # this now private and shoudl be acess using function
+        # this now private and should be access using function
         self._visible_unit_ids = [self.unit_ids[0]]
 
         # sparsity
@@ -135,6 +156,19 @@ class Controller():
                 self.spike_amplitudes = sa_ext.get_data()
             else:
                 self.spike_amplitudes = None
+
+        if "amplitude_scalings" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping amplitude_scalings')
+            self.amplitude_scalings = None
+        else:
+            if verbose:
+                print('\tLoading amplitude_scalings')
+            sa_ext = analyzer.get_extension('amplitude_scalings')
+            if sa_ext is not None:
+                self.amplitude_scalings = sa_ext.get_data()
+            else:
+                self.amplitude_scalings = None
 
         if "spike_locations" in skip_extensions:
             if self.verbose:
@@ -218,7 +252,23 @@ class Controller():
             pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
+        if analyzer.has_extension("valid_unit_periods"):
+            valid_periods_ext = analyzer.get_extension("valid_unit_periods")
+            self.valid_periods = valid_periods_ext.get_data(outputs="by_unit")
+        else:
+            self.valid_periods = None
+
         self._potential_merges = None
+        # some direct attribute
+        self.num_segments = self.analyzer.get_num_segments()
+        self.sampling_frequency = self.analyzer.sampling_frequency
+
+        # parse events
+        self.events = None
+        if events is not None:
+            self.events = parse_events(events, self, verbose=verbose)
+            if len(self.events) == 0:
+                self.events = None
 
         t1 = time.perf_counter()
         if verbose:
@@ -226,11 +276,8 @@ class Controller():
 
         t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(self.analyzer, peak_sign='neg', outputs='index')
-
-        # some direct attribute
-        self.num_segments = self.analyzer.get_num_segments()
-        self.sampling_frequency = self.analyzer.sampling_frequency
+        self._extremum_channel = get_template_extremum_channel(self.analyzer,
+                                    mode="extremum", peak_sign='both', outputs='index')
 
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
@@ -256,7 +303,9 @@ class Controller():
         
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
 
-        self.spikes = np.zeros(spike_vector.size, dtype=spike_dtype)        
+        # align=True is required for np.searchsorted (and therefore trace
+        # views) to be fast.
+        self.spikes = np.zeros(spike_vector.size, dtype=np.dtype(spike_dtype, align=True))
         self.spikes['sample_index'] = spike_vector['sample_index']
         self.spikes['unit_index'] = spike_vector['unit_index']
         self.spikes['segment_index'] = spike_vector['segment_index']
@@ -299,6 +348,7 @@ class Controller():
         self._traces_cached = {}
 
         self.units_table = make_units_table_from_analyzer(analyzer, extra_properties=extra_unit_properties)
+
         if displayed_unit_properties is None:
             displayed_unit_properties = list(_default_displayed_unit_properties)
         if extra_unit_properties is not None:
@@ -310,7 +360,9 @@ class Controller():
         self.update_time_info()
 
         self.curation = curation
-        # TODO: Reload the dictionary if it already exists
+        self.curation_callback = curation_callback
+        self.curation_callback_kwargs = curation_callback_kwargs
+
         if self.curation:
             # rules:
             #  * if user sends curation_data, then it is used
@@ -319,6 +371,7 @@ class Controller():
 
             if curation_data is not None:
                 # validate the curation data
+                curation_data = deepcopy(curation_data)
                 format_version = curation_data.get("format_version", None)
                 # assume version 2 if not present
                 if format_version is None:
@@ -328,24 +381,6 @@ class Controller():
                 except Exception as e:
                     raise ValueError(f"Invalid curation data.\nError: {e}")
 
-                if curation_data.get("merges") is None:
-                    curation_data["merges"] = []
-                else:
-                    # here we reset the merges for better formatting (str)
-                    existing_merges = curation_data["merges"]
-                    new_merges = []
-                    for m in existing_merges:
-                        if "unit_ids" not in m:
-                            continue
-                        if len(m["unit_ids"]) < 2:
-                            continue
-                        new_merges = add_merge(new_merges, m["unit_ids"])
-                    curation_data["merges"] = new_merges
-                if curation_data.get("splits") is None:
-                    curation_data["splits"] = []
-                if curation_data.get("removed") is None:
-                    curation_data["removed"] = []
-
             elif self.analyzer.format == "binary_folder":
                 json_file = self.analyzer.folder / "spikeinterface_gui" / "curation_data.json"
                 if json_file.exists():
@@ -353,33 +388,37 @@ class Controller():
                         curation_data = json.load(f)
 
             elif self.analyzer.format == "zarr":
-                import zarr
-                zarr_root = zarr.open(self.analyzer.folder, mode='r')
+                from spikeinterface.core.zarrextractors import super_zarr_open
+                zarr_root = super_zarr_open(self.analyzer.folder, mode='r')
                 if "spikeinterface_gui" in zarr_root.keys() and "curation_data" in zarr_root["spikeinterface_gui"].attrs.keys():
                     curation_data = zarr_root["spikeinterface_gui"].attrs["curation_data"]
 
             if curation_data is None:
-                curation_data = empty_curation_data.copy()
+                curation_data = deepcopy(empty_curation_data)
+                curation_data["unit_ids"] = self.unit_ids.tolist()
 
-            self.curation_data = curation_data
-
-            self.has_default_quality_labels = False
-            if "label_definitions" not in self.curation_data:
+            if "label_definitions" not in curation_data:
                 if label_definitions is not None:
-                    self.curation_data["label_definitions"] = label_definitions
+                    curation_data["label_definitions"] = label_definitions
                 else:
-                    self.curation_data["label_definitions"] = default_label_definitions.copy()
+                    curation_data["label_definitions"] = default_label_definitions.copy()
 
-            if "quality" in self.curation_data["label_definitions"]:
-                curation_dict_quality_labels = self.curation_data["label_definitions"]["quality"]["label_options"]
+            # This will enable the default shortcuts if has default quality labels
+            self.has_default_quality_labels = False
+            if "quality" in curation_data["label_definitions"]:
+                curation_dict_quality_labels = curation_data["label_definitions"]["quality"]["label_options"]
                 default_quality_labels = default_label_definitions["quality"]["label_options"]
                 if set(curation_dict_quality_labels) == set(default_quality_labels):
                     if self.verbose:
                         print('Curation quality labels are the default ones')
                     self.has_default_quality_labels = True
 
+            curation_data = Curation(**curation_data).model_dump()
+            self.curation_data = curation_data
+
     def check_is_view_possible(self, view_name):
-        from .viewlist import possible_class_views
+        from .viewlist import get_all_possible_views
+        possible_class_views = get_all_possible_views()
         view_class = possible_class_views[view_name]
         if view_class._depend_on is not None:
             depencies_ok = all(self.has_extension(k) for k in view_class._depend_on)
@@ -443,9 +482,12 @@ class Controller():
         else:
             self.time_info['time_by_seg'] = time_by_seg
 
-    def get_t_start_t_stop(self):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def get_t_start_t_stop(self, use_times=None, segment_index=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             t_start = self.analyzer.recording.get_start_time(segment_index=segment_index)
             t_stop = self.analyzer.recording.get_end_time(segment_index=segment_index)
             return t_start, t_stop
@@ -456,7 +498,9 @@ class Controller():
         ind1, ind2 = self.get_chunk_indices(t1, t2, segment_index)
         if self.main_settings["use_times"]:
             recording = self.analyzer.recording
-            times_chunk = recording.get_times(segment_index=segment_index)[ind1:ind2]
+            # Passing frame bounds slices lazily if the time vector supports it (e.g. zarr).
+            # Can save 10s of GB of RAM on long recordings.
+            times_chunk = recording.get_times(segment_index=segment_index, start_frame=ind1, end_frame=ind2)
         else:
             times_chunk = np.arange(ind2 - ind1, dtype='float64') / self.sampling_frequency + max(t1, 0)
         return times_chunk
@@ -483,13 +527,25 @@ class Controller():
         else:
             return sample_index / self.sampling_frequency
 
-    def time_to_sample_index(self, time):
-        segment_index = self.time_info["segment_index"]
-        if self.main_settings["use_times"] and self.has_extension("recording"):
+    def time_to_sample_index(self, time, segment_index=None, use_times=None):
+        if segment_index is None:
+            segment_index = self.time_info["segment_index"]
+        if use_times is None:
+            use_times = self.main_settings["use_times"]
+        if use_times and self.has_extension("recording"):
             time = self.analyzer.recording.time_to_sample_index(time, segment_index=segment_index)
             return time
         else:
             return int(time * self.sampling_frequency)
+
+    def get_events(self, event_name, segment_index=None):
+        if self.events is None:
+            return None
+        if event_name not in self.events:
+            return None
+        if segment_index is None:
+            segment_index = self.time_info['segment_index']
+        return self.events[event_name][segment_index]
 
     def get_information_txt(self):
         nseg = self.analyzer.get_num_segments()
@@ -500,6 +556,23 @@ class Controller():
 
         return txt
 
+    def get_divergent_unit_colors(self, num_entries=20):
+        import glasbey
+        import matplotlib.colors as mcolors
+
+        unit_locations = self.analyzer.get_extension("unit_locations").get_data()
+        # lexsort by x and y
+        sorted_inds = np.lexsort((unit_locations[:, 0], unit_locations[:, 1]))
+
+        # now assign interleaved colors sequentially to the spatially sorted units
+        colors = {}
+        color_array = glasbey.create_palette(num_entries, lightness_bounds=(30, 100), chroma_bounds=(30, 100))
+        for i, unit_ind in enumerate(sorted_inds):
+            unit_id = self.unit_ids[unit_ind]
+            colors[unit_id] = mcolors.to_rgba(color_array[i % num_entries])
+        return colors
+        
+
     def refresh_colors(self):
         if self.backend == "qt":
             self._cached_qcolors = {}
@@ -507,15 +580,13 @@ class Controller():
             pass
 
         if self.main_settings['color_mode'] == 'color_by_unit':
-            self.colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)
+            self.colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
         elif  self.main_settings['color_mode'] == 'color_only_visible':
-            unit_colors = get_unit_colors(self.analyzer.sorting, color_engine='matplotlib', map_name='gist_ncar', 
-                                        shuffle=True, seed=42)            
+            unit_colors = self.get_divergent_unit_colors(num_entries=self.main_settings['num_colors'])
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             for unit_id in self.get_visible_unit_ids():
                 self.colors[unit_id] = unit_colors[unit_id]
-        elif  self.main_settings['color_mode'] == 'color_by_visibility':
+        elif self.main_settings['color_mode'] == 'color_by_visibility':
             self.colors = {unit_id: (0.3, 0.3, 0.3, 1.) for unit_id in self.unit_ids}
             import matplotlib.pyplot as plt
             cmap = plt.colormaps['tab10']
@@ -552,10 +623,10 @@ class Controller():
 
     def get_visible_unit_ids(self):
         """Get list of visible unit_ids"""
-        return self._visible_unit_ids
+        return list(self._visible_unit_ids)
 
     def get_visible_unit_indices(self):
-        """Get list of indicies of visible units"""
+        """Get list of indices of visible units"""
         unit_ids = list(self.unit_ids)
         visible_unit_indices = [unit_ids.index(u) for u in self._visible_unit_ids]
         return visible_unit_indices
@@ -678,7 +749,15 @@ class Controller():
     
     def get_contact_location(self):
         location = self.analyzer.get_channel_locations()
-        return location
+        # for now, we only use information from the first two dimensions of channel location
+        location_2d = location[:,0:2]
+        return location_2d
+
+    def get_channel_groups(self):
+        if self.has_extension("recording"):
+            return self.analyzer.recording.get_channel_groups()
+        else:
+            return np.zeros(self.analyzer.get_num_channels(), dtype=int)
     
     def get_waveform_sweep(self):
         return self.nbefore, self.nafter
@@ -695,6 +774,26 @@ class Controller():
             # sparse waveforms
             chan_inds = self.analyzer.sparsity.unit_id_to_channel_indices[unit_id]
         return wfs, chan_inds
+    
+    def get_template_upsampling_factor(self):
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        if template_metrics_ext is None or template_metrics_ext.params.get('upsampling_factor') is None:
+            return 1
+        else:
+            return template_metrics_ext.params['upsampling_factor']
+ 
+    def get_upsampled_templates(self, unit_id):
+        template_metrics_ext = self.analyzer.get_extension("template_metrics")
+        unit_index = list(self.unit_ids).index(unit_id)
+        chan_ind = self.get_extremum_channel(unit_id)
+        template = self.templates_average[unit_index, :, chan_ind]
+        if template_metrics_ext is None or "peaks_data" not in template_metrics_ext.data:
+            return template, None, None
+        else:
+            peaks_data = template_metrics_ext.data['peaks_data']
+            template_high = template_metrics_ext.data['main_channel_templates'][unit_index]
+            return template, template_high, peaks_data.loc[unit_id]
+
 
     def get_common_sparse_channels(self, unit_ids):
         sparsity_mask = self.get_sparsity_mask()
@@ -717,6 +816,8 @@ class Controller():
     def has_extension(self, extension_name):
         if extension_name == 'recording':
             return self.analyzer.has_recording() or self.analyzer.has_temporary_recording()
+        elif extension_name == 'events':
+            return self.events is not None
         else:
             # extension needs to be loaded
             if extension_name in self.skip_extensions:
@@ -798,7 +899,7 @@ class Controller():
         )
 
         return merge_unit_groups, extra
-    
+
     def curation_can_be_saved(self):
         return self.analyzer.format != "memory"
 
@@ -807,8 +908,25 @@ class Controller():
         d["format_version"] = "2"
         d["unit_ids"] = self.unit_ids.tolist()
         d.update(self.curation_data.copy())
-        model = CurationModel(**d)
+        model = Curation(**d)
         return model
+
+    def set_curation_data(self, curation_data):
+        print("Setting curation data")
+        new_curation_data = empty_curation_data.copy()
+        new_curation_data.update(curation_data)
+
+        if "unit_ids" not in curation_data:
+            print("Setting unit_ids from controller")
+            new_curation_data["unit_ids"] = self.unit_ids.tolist()
+
+        if "label_definitions" not in curation_data:
+            print("Setting default label definitions")
+            new_curation_data["label_definitions"] = default_label_definitions.copy()
+
+        # validate the curation data
+        model = Curation(**new_curation_data)
+        self.curation_data = model.model_dump()
 
     def save_curation_in_analyzer(self):
         if self.analyzer.format == "memory":
@@ -831,6 +949,16 @@ class Controller():
             curation_model = self.construct_final_curation()
             sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
             self.current_curation_saved = True
+
+    def save_curation_callback(self):
+        curation = self.construct_final_curation()
+        curation_data = curation.model_dump()
+        if self.curation_callback_kwargs is None:
+            curation_callback_kwargs = {}
+        else:
+            curation_callback_kwargs = self.curation_callback_kwargs
+        self.curation_callback(curation_data, **curation_callback_kwargs)
+        self.current_curation_saved = True
 
     def get_split_unit_ids(self):
         if not self.curation:
@@ -902,6 +1030,27 @@ class Controller():
             print(f"Merged unit group: {[str(u) for u in merge_unit_ids]}")
         return True
 
+
+    def remove_units_from_merge_if_possible(self, merge_unit_ids):
+        """
+        Check if selected units are in a merge group. If they are, remove them.
+        """
+        if not self.curation:
+            return False
+
+        merges = self.curation_data["merges"]
+        for i, merge in enumerate(merges):
+            if set(merge_unit_ids).issubset(set(merge['unit_ids'])):
+                merge_ids_with_removed_ids = list(set(merge['unit_ids']).difference(set(merge_unit_ids)))
+                if len(merge_ids_with_removed_ids) > 1:
+                    merges[i]['unit_ids'] = merge_ids_with_removed_ids
+                    return True
+                else:
+                    return False
+
+        return False
+
+
     def make_manual_split_if_possible(self, unit_id):
         """
         Check if the a unit_id can be split into a new split in the curation_data.
@@ -932,15 +1081,22 @@ class Controller():
         visible_unit_ids = self.get_visible_unit_ids()
         if unit_id not in visible_unit_ids:
             return False
-        indices = self.get_indices_spike_selected()
-        if len(indices) == 0:
+        indices = np.asarray(self.get_indices_spike_selected())
+        if indices.size == 0:
             return False
         spike_inds = self.get_spike_indices(unit_id, segment_index=None)
-        if not np.all(np.isin(indices, spike_inds)):
-            return False
 
-        # convert selected indices to indices within the spike train of the unit
-        indices = [np.where(spike_inds == ind)[0][0] for ind in indices]
+        # convert selected indices to indices within the spike train of the unit, 
+        # and validate that they all belong to the unit.
+        # np.searchsorted does both (because spike_inds is sorted ascending)
+        positions = np.searchsorted(spike_inds, indices)
+        # positions == spike_inds.size means the index sorts past the end (absent);
+        # otherwise the index belongs to the unit iff spike_inds[position] matches.
+        if np.any(positions >= spike_inds.size) or not np.array_equal(
+            spike_inds[np.minimum(positions, spike_inds.size - 1)], indices
+        ):
+            return False
+        indices = positions.tolist()
 
         new_split = {
             "unit_id": unit_id,
@@ -993,11 +1149,13 @@ class Controller():
         if label is None:
             self.remove_category_from_unit(unit_id, category)
             return
+        
+        label_types = self.curation_data['label_definitions'].keys()
 
         ix = self.find_unit_in_manual_labels(unit_id)
         if ix is not None:
             lbl = self.curation_data["manual_labels"][ix]
-            if "labels" in lbl and category in lbl["labels"]:
+            if "labels" in lbl and category in label_types:
                 # v2 format
                 lbl["labels"][category] = [label]
             elif category in lbl:
