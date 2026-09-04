@@ -16,6 +16,7 @@ class SignalNotifier(param.Parameterized):
     use_times_updated = param.Event()
     active_view_updated = param.Event()
     unit_color_changed = param.Event()
+    agreement_threshold_changed = param.Event()
 
     def __init__(self, view=None):
         param.Parameterized.__init__(self)
@@ -50,6 +51,9 @@ class SignalNotifier(param.Parameterized):
     def notify_unit_color_changed(self):
         self.param.trigger("unit_color_changed")
 
+    def notify_agreement_threshold_changed(self):
+        self.param.trigger("agreement_threshold_changed")
+
 
 class SignalHandler(param.Parameterized):
     def __init__(self, controller, parent=None):
@@ -72,6 +76,7 @@ class SignalHandler(param.Parameterized):
         view.notifier.param.watch(self.on_use_times_updated, "use_times_updated")
         view.notifier.param.watch(self.on_active_view_updated, "active_view_updated")
         view.notifier.param.watch(self.on_unit_color_changed, "unit_color_changed")
+        view.notifier.param.watch(self.on_agreement_threshold_changed, "agreement_threshold_changed")
 
     def on_spike_selection_changed(self, param):
         if not self._active:
@@ -139,6 +144,15 @@ class SignalHandler(param.Parameterized):
             if param.obj.view == view:
                 continue
             view.on_unit_color_changed()
+
+    def on_agreement_threshold_changed(self, param):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if param.obj.view == view:
+                continue
+            view.on_agreement_threshold_changed()
+
 
 param_type_map = {
     "float": param.Number,

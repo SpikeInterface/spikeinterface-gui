@@ -63,6 +63,7 @@ Controls
 * **ctrl + arrow up/down** : select next/previous unit and make it visible alone
 * **press 'ctrl+d'** : delete selected units (if curation=True)
 * **press 'ctrl+m'** : merge selected units (if curation=True)
+* **press 'c'** : clear label of selected units (if curation=True)
 * **press 'g'** : label selected units as good (if curation=True)
 * **press 'm'** : label selected units as mua (if curation=True)
 * **press 'n'** : label selected units as noise (if curation=True)
@@ -393,11 +394,12 @@ revert, and export the curation data.
 
 Controls
 ~~~~~~~~
-- **save in analyzer**: Save the current curation state in the analyzer.
+- **save in analyzer**/**save data**: Save the current curation state in the analyzer.
+If a custom save callback is provided, it will be used instead.
 - **export/download JSON**: Export the current curation state to a JSON file.
 - **restore**: Restore the selected unit from the deleted units table.
 - **unmerge**: Unmerge the selected merges from the merged units table.
-- **submit to parent**: Submit the current curation state to the parent window (for use in web applications).
+- **unsplit**: Unsplit the selected split groups from the split units table.
 - **press 'ctrl+r'**: Restore the selected units from the deleted units table.
 - **press 'ctrl+u'**: Unmerge the selected merges from the merged units table.
 - **press 'ctrl+x'**: Unsplit the selected split groups from the split units table.
@@ -485,6 +487,10 @@ positions and widths.
 - troughs are negative extrema and are displayed with a downward triangle symbol
 - peaks are positive extrema and are displayed with an upward triangle symbol
 
+x-axis represents time and is in units of milliseconds.
+y-axis represents the electrical signal. The units depend on your preprocessing
+steps, but is usually in uV.
+
 Screenshots
 ~~~~~~~~~~~
 
@@ -497,5 +503,121 @@ Screenshots
    * - .. image:: images/views/desktop/maintemplate.png
           :width: 100%
      - .. image:: images/views/web/maintemplate.png
+          :width: 100%
+
+No help text available.
+
+*Screenshots not available for this view.*
+
+Compare Unit List View
+----------------------
+
+The unit list in comparison mode. One row per pair of matched units, plus one row per unit
+that only one of the two sorters found.
+
+The rows are sorted by decreasing agreement score, so the best matches come first and the
+units that only one sorter found (score 0) come last.
+
+The matching is done at the agreement threshold shared with the other comparison views
+(set it with the slider of the Venn view). The table is read only: there is no curation in
+comparison mode.
+
+Settings
+~~~~~~~~
+- **matching_mode** : "hungarian" gives a one to one matching, "best_match" simply takes
+the best candidate for each unit of the first sorter, so a unit of the second sorter can
+appear on several rows.
+
+Controls
+~~~~~~~~
+- **left click on a row** : make the units of this row visible in the other views.
+
+Screenshots
+~~~~~~~~~~~
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Desktop (Qt)
+     - Web (Panel)
+   * - .. image:: images/views/desktop/compareunitlist.png
+          :width: 100%
+     - .. image:: images/views/web/compareunitlist.png
+          :width: 100%
+
+Agreement Matrix View
+---------------------
+
+Agreement scores between the units of the two compared sorting outputs.
+
+Rows (horizontal axis) are the units of the first analyzer, columns (vertical axis) the
+units of the second one. The score is the number of matched spikes divided by the total
+number of spikes of both units, so it is 1 for two identical spike trains and 0 when no
+spike matches.
+
+Settings
+~~~~~~~~
+- **ordered** : reorder rows and columns so that the best matches are on the diagonal.
+- **show_all** : when off, only the currently visible units are displayed.
+- **max_labels** : hide the unit id labels when the matrix is bigger than this.
+
+Controls
+~~~~~~~~
+- **left click** : select the pair of units of this cell, and make only those visible.
+- **ctrl + left click** : add the pair of units to the visible ones.
+
+Screenshots
+~~~~~~~~~~~
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Desktop (Qt)
+     - Web (Panel)
+   * - .. image:: images/views/desktop/agreementmatrix.png
+          :width: 100%
+     - .. image:: images/views/web/agreementmatrix.png
+          :width: 100%
+
+Venn View
+---------
+
+Venn diagram of the two compared sorting outputs. The area of each disc is proportional to
+the number of units of that sorter, and the area of the intersection is proportional to the
+number of units matched between the two, so the picture is quantitatively honest.
+
+The matching is one to one (hungarian) at the agreement threshold set with the slider.
+That threshold is shared with the other comparison views: moving it also re-orders the
+agreement matrix and re-categorizes the rows of the comparison unit table.
+
+Settings
+~~~~~~~~
+- **num_units_to_select** : how many units of a region a click makes visible. In the
+intersection this is a number of pairs, and both units of each pair are selected.
+
+Controls
+~~~~~~~~
+- **slider** : the agreement threshold above which two units are considered matched.
+- **left click on a region** : make a random sample of that region visible. Clicking again
+draws another sample, which is a quick way to walk through a region.
+- **ctrl + left click on a region** : add the sample to the units already visible.
+
+Note that `max_visible_units` (see the main settings) still caps how many units can be
+visible at once.
+
+Screenshots
+~~~~~~~~~~~
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Desktop (Qt)
+     - Web (Panel)
+   * - .. image:: images/views/desktop/venn.png
+          :width: 100%
+     - .. image:: images/views/web/venn.png
           :width: 100%
 

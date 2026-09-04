@@ -213,6 +213,11 @@ class TraceMapView(ViewBase, MixinViewTrace):
         self.figure.on_event(MouseWheel, self._panel_gain_zoom)
         self.figure.on_event(DoubleTap, self._panel_on_double_tap)
 
+        # Placeholder for events, set by the bottom bar when the analyzer has some.
+        # MixinViewTrace._panel_add_event_lines() reads it on every refresh.
+        self.event_line = None
+        self.event_source = None
+
         # Add selection line
         self.selection_line = self.figure.line(
             x=[], y=[], line_color="purple", line_width=2, line_dash="dashed", visible=False

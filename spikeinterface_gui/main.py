@@ -260,11 +260,16 @@ def run_launcher(mode="desktop", analyzer_folders=None, root_folder=None, addres
         raise ValueError(f"spikeinterface-gui wrong mode {mode}")
 
 
+# curation is off in comparison mode, and these views need extensions that cannot be
+# shared between two different sortings
+_comparison_incompatible_views = ("merge", "curation", "similarity", "correlogram", "isi")
+
+
 def run_mainwindow_comparison(
     analyzer1,
     analyzer2,
-    analyzer1_name=None,
-    analyzer2_name=None,
+    analyzer1_name="1",
+    analyzer2_name="2",
     mode="desktop",
     with_traces=True,
     displayed_unit_properties=None,
@@ -291,9 +296,9 @@ def run_mainwindow_comparison(
         The first sorting analyzer object
     analyzer2: SortingAnalyzer
         The second sorting analyzer object
-    analyzer1_name: str | None, default: None
+    analyzer1_name: str, default: "1"
         The name to display for the first analyzer
-    analyzer2_name: str | None, default: None
+    analyzer2_name: str, default: "2"
         The name to display for the second analyzer
     mode: 'desktop' | 'web'
         The GUI mode to use.
@@ -301,12 +306,6 @@ def run_mainwindow_comparison(
         'web' will run a Panel app.
     with_traces: bool, default: True
         If True, traces are displayed
-    curation: bool, default: False
-        If True, the curation panel is displayed
-    curation_dict: dict | None, default: None
-        The curation dictionary to start from an existing curation
-    label_definitions: dict | None, default: None
-        The label definitions to provide to the curation panel
     displayed_unit_properties: list | None, default: None
         The displayed unit properties in the unit table
     extra_unit_properties: list | None, default: None
@@ -316,10 +315,10 @@ def run_mainwindow_comparison(
     recording: RecordingExtractor | None, default: None
         The recording object to display traces. This can be used when the 
         SortingAnalyzer is recordingless.
-    start_qt_app: bool, default: True
-        If True, the QT app loop is started
+    start_app: bool, default: True
+        If True, the app loop is started
     layout_preset : str | None
-        The name of the layout preset. None is default.
+        The name of the layout preset. None uses the 'comparison' preset.
     layout : dict | None
         The layout dictionary to use instead of the preset.
     address: str, default : "localhost"
@@ -349,7 +348,7 @@ def run_mainwindow_comparison(
     if mode == "desktop":
         backend = "qt"
     elif mode == "web":
-        raise NotImplementedError
+        backend = "panel"
     else:
         raise ValueError(f"spikeinterface-gui wrong mode {mode}")
 
@@ -357,6 +356,10 @@ def run_mainwindow_comparison(
     #   1) User specified settings
     #   2) Settings in the config folder
     #   3) Default settings of each view 
+    user_main_settings = None
+    if user_settings is not None:
+        user_main_settings = user_settings.get('mainsettings')
+
     if user_settings is None:
         sigui_version = spikeinterface_gui.__version__
         config_version_folder = get_config_folder() / sigui_version
@@ -377,21 +380,25 @@ def run_mainwindow_comparison(
         import time
         t0 = time.perf_counter()
 
-    views_to_remove = ["merge", "correlograms", "isi"]
+    if layout_preset is None and layout is None:
+        # the 'comparison' preset already swaps in the comparison views and drops the
+        # ones that make no sense when comparing two analyzers
+        layout_preset = "comparison"
 
     layout_dict = get_layout_description(layout_preset, layout)
     if skip_extensions is None:
         skip_extensions = find_skippable_extensions(layout_dict)
 
-    for zone in layout_dict:
-        views_in_zone = layout_dict[zone]
-        if 'unitlist' in views_in_zone:
-            # substitute unitlist with compareunitlist
-            layout_dict[zone] = ['compareunitlist' if view == 'unitlist' else view for view in layout_dict[zone]]
-        for view in views_to_remove:
-            if view in layout_dict[zone]:
-                layout_dict[zone].remove(view)
-    print(layout_dict)
+    # a user given preset/layout can still hold views that cannot work in comparison mode,
+    # so filter them out whatever the layout. get_layout_description returns a copy, so
+    # this does not touch the shared presets.
+    for zone, views_in_zone in layout_dict.items():
+        views_in_zone = [
+            'compareunitlist' if view_name == 'unitlist' else view_name
+            for view_name in views_in_zone
+            if view_name not in _comparison_incompatible_views
+        ]
+        layout_dict[zone] = views_in_zone
 
     controller =  ControllerComparison(
         analyzer1, analyzer2, analyzer1_name=analyzer1_name, analyzer2_name=analyzer2_name, 
@@ -400,7 +407,8 @@ def run_mainwindow_comparison(
         displayed_unit_properties=displayed_unit_properties,
         extra_unit_properties=extra_unit_properties,
         skip_extensions=skip_extensions,
-        disable_save_settings_button=disable_save_settings_button
+        disable_save_settings_button=disable_save_settings_button,
+        user_main_settings=user_main_settings,
     )
     if verbose:
         t1 = time.perf_counter()
@@ -426,16 +434,16 @@ def run_mainwindow_comparison(
         if start_app:
             app.exec()
     
-    # elif backend == "panel":
-    #     from .backend_panel import PanelMainWindow, start_server
-    #     win = PanelMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
+    elif backend == "panel":
+        from .backend_panel import PanelMainWindow, start_server
+        win = PanelMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
 
-    #     if start_app or panel_window_servable:
-    #         win.main_layout.servable(title='SpikeInterface GUI')
+        if start_app or panel_window_servable:
+            win.main_layout.servable(title='SpikeInterface GUI')
 
-    #     if start_app:
-    #         panel_start_server_kwargs = panel_start_server_kwargs or {}
-    #         _ = start_server(win, address=address, port=port, **panel_start_server_kwargs)
+        if start_app:
+            panel_start_server_kwargs = panel_start_server_kwargs or {}
+            _ = start_server(win, address=address, port=port, **panel_start_server_kwargs)
 
     return win
 

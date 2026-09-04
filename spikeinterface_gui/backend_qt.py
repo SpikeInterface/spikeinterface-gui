@@ -21,6 +21,7 @@ class SignalNotifier(QT.QObject):
     time_info_updated = QT.pyqtSignal()
     use_times_updated = QT.pyqtSignal()
     unit_color_changed = QT.pyqtSignal()
+    agreement_threshold_changed = QT.pyqtSignal()
 
     def __init__(self, parent=None, view=None):
         QT.QObject.__init__(self, parent=parent)
@@ -47,6 +48,9 @@ class SignalNotifier(QT.QObject):
     def notify_unit_color_changed(self):
         self.unit_color_changed.emit()
 
+    def notify_agreement_threshold_changed(self):
+        self.agreement_threshold_changed.emit()
+
 
 # Used by controller to handle/callback signals
 class SignalHandler(QT.QObject):
@@ -69,6 +73,7 @@ class SignalHandler(QT.QObject):
         view.notifier.time_info_updated.connect(self.on_time_info_updated)
         view.notifier.use_times_updated.connect(self.on_use_times_updated)
         view.notifier.unit_color_changed.connect(self.on_unit_color_changed)
+        view.notifier.agreement_threshold_changed.connect(self.on_agreement_threshold_changed)
 
     def on_spike_selection_changed(self):
         if not self._active:
@@ -133,6 +138,15 @@ class SignalHandler(QT.QObject):
                 # do not refresh it self
                 continue
             view.on_unit_color_changed()
+
+    def on_agreement_threshold_changed(self):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if view.qt_widget == self.sender().parent():
+                # do not refresh it self
+                continue
+            view.on_agreement_threshold_changed()
 
 
 def create_settings(view, parent):
