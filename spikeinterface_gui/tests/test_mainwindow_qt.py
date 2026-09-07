@@ -9,41 +9,24 @@ from spikeinterface import load_sorting_analyzer
 from pathlib import Path
 
 import numpy as np
-import sys
-
-
-
-# yep is for testing
-yep_layout = dict(
-    zone1=['curation', 'spikelist'],
-    zone2=['unitlist', 'mergelist'],
-    zone3=['trace', 'tracemap', 'spikeamplitude'],
-    zone4=['similarity'],
-    zone5=['probe'],
-    zone6=['ndscatter', ],
-    zone7=['waveform', 'waveformheatmap', ],
-    zone8=['correlogram', 'isi'],
-)
 
 
 def setup_module():
     global test_folder
     case = test_folder.stem.split('_')[-1]
-    make_analyzer_folder(test_folder, case=case, unit_dtype="int")
+    make_analyzer_folder(test_folder, case=case, unit_dtype="str")
+
 
 def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, layout="default"):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, iterative_curation=False, layout="default"):
 
 
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
-    tm = analyzer.get_extension("template_metrics").get_data().iloc[0, :]
-    # print(tm)
-    # return
 
     print(analyzer)
 
@@ -105,7 +88,9 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         mode="desktop",
         start_app=start_app,
         verbose=verbose,
-        curation=curation, curation_dict=curation_dict, 
+        curation=curation,
+        curation_dict=curation_dict,
+        iterative_curation=iterative_curation,
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
         layout_preset=layout,
@@ -144,6 +129,8 @@ def test_launcher(verbose=True):
 parser = ArgumentParser()
 parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
+parser.add_argument('--iterative', action="store_true", help='Run iterative curation')
+
 parser.add_argument('--layout', default="default", help='Enable layout preset')
 
 if __name__ == '__main__':
@@ -156,7 +143,9 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, layout=args.layout)
+    iterative_curation = args.iterative
+
+    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, iterative_curation=iterative_curation, layout=args.layout)
     # win = test_mainwindow(start_app=True, verbose=True, curation=False)
 
     # test_launcher(verbose=True)

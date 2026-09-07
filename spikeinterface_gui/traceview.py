@@ -458,7 +458,7 @@ class MixinViewTrace:
         self.refresh()
 
     def _panel_add_event_lines(self, t1, t2):
-        if self.event_line is not None:
+        if self.controller.has_extension("events") and self.event_line is not None:
             event_samples = self.controller.get_events(self.event_key)
             segment_index = self.controller.get_time()[1]
             start_sample, end_sample = self.controller.get_chunk_indices(t1, t2, segment_index)
@@ -582,6 +582,10 @@ class MixinViewTrace:
         fig = self.figure
         yspan = [fig.y_range.start, fig.y_range.end]
         self.event_source.data = {"xs": [[evt_time, evt_time]], "ys": [yspan]}
+
+    def _panel_remove_event_line(self):
+        if self.controller.has_extension("events"):
+            self.event_source.data = {"xs": [], "ys": []}
 
     # TODO: pan behavior like Qt?
     # def _panel_on_pan_start(self, event):
