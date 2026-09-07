@@ -140,9 +140,9 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     sorting_analyzer.compute("correlograms", window_ms=50., bin_ms=1.)
     sorting_analyzer.compute("template_similarity", method="l1")
     sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
+    sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
     sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
     sorting_analyzer.compute("template_metrics")
-    sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
 
 
 def make_curation_dict(analyzer):
