@@ -734,6 +734,8 @@ class UnitListView(ViewBase):
                 new_label = None
             self.controller.set_label_to_unit(unit_id, column, new_label)
             self.notify_manual_curation_updated()
+            # like in Qt, move to the next unit and make it visible alone
+            self.table.select_next_row(only=True, from_row=row)
         self.notifier.notify_active_view_updated()
 
     def _panel_update_labels(self):
@@ -801,6 +803,18 @@ class UnitListView(ViewBase):
         self.notify_manual_curation_updated()
         self.refresh()
 
+    def _panel_set_default_label(self, label):
+        selected_unit_ids = self._panel_get_selected_unit_ids()
+        if len(selected_unit_ids) == 0:
+            return
+        for unit_id in selected_unit_ids:
+            self.controller.set_label_to_unit(unit_id, "quality", label)
+        self.table.value.loc[selected_unit_ids, "quality"] = label if label is not None else ""
+        self.notify_manual_curation_updated()
+        self.refresh()
+        # like in Qt, move to the next unit and make it visible alone
+        self.table.select_next_row(only=True)
+
     def _panel_handle_shortcut(self, event):
         if self.is_view_active():
             selected_unit_ids = self._panel_get_selected_unit_ids()
@@ -820,29 +834,13 @@ class UnitListView(ViewBase):
                     self.notify_unit_and_channel_visibility_changed()
                     self.refresh()
             elif event.data == "clear":
-                for unit_id in selected_unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", None)
-                self.table.value.loc[selected_unit_ids, "quality"] = ""
-                self.notify_manual_curation_updated()
-                self.refresh()
+                self._panel_set_default_label(None)
             elif event.data == "good":
-                for unit_id in selected_unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", "good")
-                self.table.value.loc[selected_unit_ids, "quality"] = "good"
-                self.notify_manual_curation_updated()
-                self.refresh()
+                self._panel_set_default_label("good")
             elif event.data == "mua":
-                for unit_id in selected_unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", "MUA")
-                self.table.value.loc[selected_unit_ids, "quality"] = "MUA"
-                self.notify_manual_curation_updated()
-                self.refresh()
+                self._panel_set_default_label("MUA")
             elif event.data == "noise":
-                for unit_id in selected_unit_ids:
-                    self.controller.set_label_to_unit(unit_id, "quality", "noise")
-                self.table.value.loc[selected_unit_ids, "quality"] = "noise"
-                self.notify_manual_curation_updated()
-                self.refresh()
+                self._panel_set_default_label("noise")
 
 
 UnitListView._gui_help_txt = """

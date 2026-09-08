@@ -1,3 +1,5 @@
+import warnings
+
 from .myqt import QT
 import pyqtgraph as pg
 import markdown
@@ -203,10 +205,11 @@ class QtMainWindow(QT.QMainWindow):
             if user_settings is not None and view_name != 'mainsettings' and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     if setting_name not in view.settings.keys().keys():
-                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    stop_listen_setting_changes(view)
-                    view.settings[setting_name] = user_setting
-                    listen_setting_changes(view)
+                        warnings.warn(f"Setting {setting_name} is not a valid setting for View {view_name}. Ignoring setting. Check your settings file.")
+                    else:
+                        stop_listen_setting_changes(view)
+                        view.settings[setting_name] = user_setting
+                        listen_setting_changes(view)
 
 
             widget.set_view(view)

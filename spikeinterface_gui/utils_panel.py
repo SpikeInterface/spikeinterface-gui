@@ -556,6 +556,27 @@ class SelectableTabulator(pn.viewable.Viewer):
         previous_row = max(0, previous_row)
         return previous_row
 
+    def select_next_row(self, only=False, from_row=None):
+        """
+        Move the selection to the next row.
+
+        Parameters
+        ----------
+        only: bool
+            If True, the "only" callback is triggered (make the new row the only visible one).
+        from_row: int | None
+            The row to move from. By default the current selection is used.
+        """
+        if from_row is None:
+            next_row = self._get_next_row()
+        else:
+            next_row = min(from_row + 1, len(self.value) - 1)
+        self.selection = [next_row]
+        if only and self._on_only_function is not None:
+            self._on_only_function()
+        self._last_selected_row = next_row
+        return next_row
+
     def _handle_shortcut(self, event):
         if self._conditional_shortcut():
             if event.data == "first":
@@ -567,21 +588,13 @@ class SelectableTabulator(pn.viewable.Viewer):
                 self.selection = [last_row]
                 self._last_selected_row = last_row
             elif event.data == "next":
-                next_row = self._get_next_row()
-                self.selection = [next_row]
-                self._last_selected_row = next_row
+                self.select_next_row()
             elif event.data == "previous":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
                 self._last_selected_row = previous_row
             elif event.data == "next_only":
-                next_row = self._get_next_row()
-                # this should go in self._on_only_function()
-                self.selection = [next_row]
-                # self.notify_unit_visibility_changed()
-                if self._on_only_function is not None:
-                    self._on_only_function()
-                self._last_selected_row = next_row
+                self.select_next_row(only=True)
             elif event.data == "previous_only":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
