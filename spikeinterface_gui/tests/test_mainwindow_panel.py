@@ -22,8 +22,7 @@ def teardown_module():
 
 def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, port=0, layout="default"):
 
-
-    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False)
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
     print(analyzer)
