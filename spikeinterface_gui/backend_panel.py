@@ -1,3 +1,5 @@
+import warnings
+
 import param
 import panel as pn
 import numpy as np
@@ -248,9 +250,10 @@ class PanelMainWindow:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     available_settings = [s["name"] for s in view_class._settings]
                     if setting_name not in available_settings:
-                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    settings_index = available_settings.index(setting_name)
-                    view_class._settings[settings_index]["value"] = user_setting
+                        warnings.warn(f"Setting {setting_name} is not a valid setting for View {view_name}. Ignoring setting. Check your settings file.")
+                    else:
+                        settings_index = available_settings.index(setting_name)
+                        view_class._settings[settings_index]["value"] = user_setting
 
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
