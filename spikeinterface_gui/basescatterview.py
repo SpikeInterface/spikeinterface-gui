@@ -66,10 +66,13 @@ class BaseScatterView(ViewBase):
                 warnings.warn("range_max cannot be greater than 100. Setting it to 100.")
                 self.settings["range_max"] = 100.0
             if self.settings["range_min"] > self.settings["range_max"]:
-                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max.")
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max - 1.")
                 self.settings["range_min"] = self.settings["range_max"] - 1
             ymin, ymax = np.percentile(spike_data, [self.settings['range_min'], self.settings['range_max']])
         else:
+            if self.settings["range_min"] > self.settings["range_max"]:
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max - 1.")
+                self.settings["range_min"] = self.settings["range_max"] - 1
             ymin, ymax = self.settings['range_min'], self.settings['range_max']
         min_bin_size = np.min(np.diff(np.unique(spike_data)))
         bins = np.linspace(ymin, ymax, self.settings['num_bins'])
