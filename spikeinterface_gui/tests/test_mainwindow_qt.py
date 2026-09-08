@@ -37,7 +37,6 @@ def teardown_module():
 
 def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, layout="default", lazy_load=False):
 
-
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False, lazy=lazy_load)
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
@@ -143,7 +142,6 @@ parser = ArgumentParser()
 parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
 parser.add_argument('--lazy', action="store_true", help='Lazy load')
-
 parser.add_argument('--layout', default="default", help='Enable layout preset')
 
 if __name__ == '__main__':
