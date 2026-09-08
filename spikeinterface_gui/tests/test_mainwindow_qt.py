@@ -34,9 +34,7 @@ def setup_module():
 def teardown_module():
     clean_all(test_folder)
 
-
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, lazy_load=False):
-
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, layout="default", lazy_load=False):
 
     analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False, lazy=lazy_load)
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
@@ -108,6 +106,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         layout_preset='default',
         events=events_dict,
         lazy_load=lazy_load
+        events=events_dict
         # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
 
@@ -143,7 +142,7 @@ parser = ArgumentParser()
 parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
 parser.add_argument('--lazy', action="store_true", help='Lazy load')
-
+parser.add_argument('--layout', default="default", help='Enable layout preset')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -155,7 +154,7 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, lazy_load=args.lazy)
+    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, layout=args.layout, lazy_load=args.lazy)
     # win = test_mainwindow(start_app=True, verbose=True, curation=False)
 
     # test_launcher(verbose=True)
