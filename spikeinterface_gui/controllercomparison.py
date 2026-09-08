@@ -36,7 +36,7 @@ class ControllerComparison(Controller):
 
     def __init__(
         self, analyzer1=None, analyzer2=None,
-        analyzer1_name="1", analyzer2_name="2",
+        analyzer1_name="1", analyzer2_name="2", match_score=0.5,
         backend="qt", parent=None, verbose=False, with_traces=True,
         displayed_unit_properties=None,
         extra_unit_properties=None, skip_extensions=None, disable_save_settings_button=False,
@@ -106,7 +106,10 @@ class ControllerComparison(Controller):
         if user_main_settings is not None:
             self.main_settings.update(user_main_settings)
 
+        # some direct attribute
         self.num_channels = self.analyzer1.get_num_channels()
+        self.num_segments = self.analyzer1.get_num_segments()
+        self.sampling_frequency = self.analyzer1.sampling_frequency
 
         # the combined unit_id namespace and the mappings back to the original ids.
         # computed once: unit_ids is read inside loops all over the views.
@@ -134,7 +137,8 @@ class ControllerComparison(Controller):
             print("Comparing spike sorting outputs")
         t0 = time.perf_counter()
         self.comp = compare_two_sorters(self.analyzer1.sorting, self.analyzer2.sorting,
-                                        sorting1_name=self.analyzer1_name, sorting2_name=self.analyzer2_name)
+                                        sorting1_name=self.analyzer1_name, sorting2_name=self.analyzer2_name,
+                                        match_score=match_score)
         if verbose:
             print("Comparing took", time.perf_counter() - t0)
         # agreement threshold shared by all the comparison views
@@ -287,10 +291,13 @@ class ControllerComparison(Controller):
         if self.analyzer1.has_extension("valid_unit_periods") and self.analyzer2.has_extension("valid_unit_periods"):
             valid_periods1 = self.analyzer1.get_extension("valid_unit_periods").get_data(outputs="by_unit")
             valid_periods2 = self.analyzer2.get_extension("valid_unit_periods").get_data(outputs="by_unit")
-            self.valid_periods = {}
-            for unit_id in self.unit_ids:
-                valid_periods = valid_periods1 if self.get_analyzer_index(unit_id) == 1 else valid_periods2
-                self.valid_periods[unit_id] = valid_periods[self.get_original_unit_id(unit_id)]
+            self.valid_periods = []
+            for seg_index in range(self.num_segments):
+                valid_periods_dict = {}
+                for unit_id in self.unit_ids:
+                    valid_periods = valid_periods1 if self.get_analyzer_index(unit_id) == 1 else valid_periods2
+                    valid_periods_dict[unit_id] = valid_periods[seg_index][self.get_original_unit_id(unit_id)]
+                self.valid_periods.append(valid_periods_dict)
         else:
             self.valid_periods = None
 
@@ -307,9 +314,6 @@ class ControllerComparison(Controller):
 
         t0 = time.perf_counter()
 
-        # some direct attribute
-        self.num_segments = self.analyzer1.get_num_segments()
-        self.sampling_frequency = self.analyzer1.sampling_frequency
         num_spikes1 = self.analyzer1.sorting.count_num_spikes_per_unit(outputs="dict")
         num_spikes2 = self.analyzer2.sorting.count_num_spikes_per_unit(outputs="dict")
         self.num_spikes = {}

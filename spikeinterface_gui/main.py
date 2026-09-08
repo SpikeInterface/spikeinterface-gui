@@ -270,6 +270,7 @@ def run_mainwindow_comparison(
     analyzer2,
     analyzer1_name="1",
     analyzer2_name="2",
+    match_score=0.5,
     mode="desktop",
     with_traces=True,
     displayed_unit_properties=None,
@@ -401,7 +402,7 @@ def run_mainwindow_comparison(
         layout_dict[zone] = views_in_zone
 
     controller =  ControllerComparison(
-        analyzer1, analyzer2, analyzer1_name=analyzer1_name, analyzer2_name=analyzer2_name, 
+        analyzer1, analyzer2, analyzer1_name=analyzer1_name, analyzer2_name=analyzer2_name, match_score=match_score,
         backend=backend, verbose=verbose,
         with_traces=with_traces,
         displayed_unit_properties=displayed_unit_properties,
