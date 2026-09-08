@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
 
@@ -14,8 +15,9 @@ class BaseScatterView(ViewBase):
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05},
             {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5},
             {'name': 'num_bins', 'type': 'int', 'value' : 30, 'step': 1},
-            {'name': 'display_low_percentiles', 'type': 'float', 'value' : 2.0, 'limits':(0, 50), 'step':0.5},
-            {'name': 'display_high_percentiles', 'type': 'float', 'value' : 98.0, 'limits':(50, 100), 'step':0.5},
+            {'name': 'range_type', 'type': 'list', 'limits': ['percentiles', 'absolute']},
+            {'name': 'range_min', 'type': 'float', 'value' : 1.0},
+            {'name': 'range_max', 'type': 'float', 'value' : 99.0},
         ]
     _need_compute = False
 
@@ -56,7 +58,22 @@ class BaseScatterView(ViewBase):
             return spike_times, spike_data, np.array([1]), np.array([ymin, ymax]), ymin, ymax, inds
 
         # avoid clear outliers in the plot and histogram by using percentiles
-        ymin, ymax = np.percentile(spike_data, [self.settings['display_low_percentiles'], self.settings['display_high_percentiles']])
+        if self.settings['range_type'] == 'percentiles':
+            if self.settings["range_min"] < 0:
+                warnings.warn("range_min cannot be less than 0. Setting it to 0.")
+                self.settings["range_min"] = 0.0
+            if self.settings["range_max"] > 100:
+                warnings.warn("range_max cannot be greater than 100. Setting it to 100.")
+                self.settings["range_max"] = 100.0
+            if self.settings["range_min"] > self.settings["range_max"]:
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max - 1.")
+                self.settings["range_min"] = self.settings["range_max"] - 1
+            ymin, ymax = np.percentile(spike_data, [self.settings['range_min'], self.settings['range_max']])
+        else:
+            if self.settings["range_min"] > self.settings["range_max"]:
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max - 1.")
+                self.settings["range_min"] = self.settings["range_max"] - 1
+            ymin, ymax = self.settings['range_min'], self.settings['range_max']
         min_bin_size = np.min(np.diff(np.unique(spike_data)))
         bins = np.linspace(ymin, ymax, self.settings['num_bins'])
         # if bins are too small, adjust the number of bins to ensure a minimum bin size and avoid jumps in the histogram
