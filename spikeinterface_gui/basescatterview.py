@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
 
@@ -58,6 +59,15 @@ class BaseScatterView(ViewBase):
 
         # avoid clear outliers in the plot and histogram by using percentiles
         if self.settings['range_type'] == 'percentiles':
+            if self.settings["range_min"] < 0:
+                warnings.warn("range_min cannot be less than 0. Setting it to 0.")
+                self.settings["range_min"] = 0.0
+            if self.settings["range_max"] > 100:
+                warnings.warn("range_max cannot be greater than 100. Setting it to 100.")
+                self.settings["range_max"] = 100.0
+            if self.settings["range_min"] > self.settings["range_max"]:
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max.")
+                self.settings["range_min"] = self.settings["range_max"] - 1
             ymin, ymax = np.percentile(spike_data, [self.settings['range_min'], self.settings['range_max']])
         else:
             ymin, ymax = self.settings['range_min'], self.settings['range_max']
