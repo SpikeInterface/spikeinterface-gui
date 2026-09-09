@@ -143,6 +143,100 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     sorting_analyzer.compute("template_metrics")
 
 
+def make_comparison_analyzer_folders(test_folder, case="small", unit_dtype="str",
+                                     fraction_shared=0.7, fraction_dropped_spikes=0.1):
+    """
+    Two analyzer folders to compare, in test_folder / "sorting_analyzer_1" and "_2".
+
+    One ground truth sorting is split in three: `fraction_shared` of the units go to both
+    sortings, and half of the rest goes to each one only. So the comparison has units in
+    the three regions of the Venn diagram.
+
+    To add some variability, `fraction_dropped_spikes` of the spikes of the second sorting
+    are then dropped at random. The shared units therefore agree strongly but not
+    perfectly, which is closer to a real comparison than an agreement of exactly 1.
+    """
+    clean_all(test_folder)
+
+    if case == 'small':
+        durations = [300.0, 100.0]
+        num_channels = 32
+        num_units = 30
+    elif case == 'medium':
+        durations = [600.0,]
+        num_channels = 128
+        num_units = 100
+    else:
+        raise ValueError(f"Wrong dataset type {case}")
+
+    job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
+
+    recording, sorting = si.generate_ground_truth_recording(
+        durations=durations,
+        num_channels=num_channels,
+        num_units=num_units,
+
+        sampling_frequency=30000.0,
+
+        generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
+        generate_unit_locations_kwargs=dict(
+            margin_um=5.0,
+            minimum_z=5.0,
+            maximum_z=20.0,
+        ),
+        generate_templates_kwargs=dict(
+            unit_params=dict(
+                alpha=(100.0, 500.0),
+            )
+        ),
+        noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
+        seed=2205,
+    )
+
+    rng = np.random.default_rng(seed=2205)
+
+    # split the units: shared / only in sorting1 / only in sorting2
+    shuffled_unit_ids = sorting.unit_ids.copy()
+    rng.shuffle(shuffled_unit_ids)
+    num_shared = int(fraction_shared * num_units)
+    num_only = (num_units - num_shared) // 2
+    shared_unit_ids = set(shuffled_unit_ids[:num_shared])
+    only1_unit_ids = set(shuffled_unit_ids[num_shared:num_shared + num_only])
+    only2_unit_ids = set(shuffled_unit_ids[num_shared + num_only:num_shared + 2 * num_only])
+
+    # keep the original unit order, so that the unit ids of both analyzers stay sorted
+    sorting1 = sorting.select_units([u for u in sorting.unit_ids if u in shared_unit_ids | only1_unit_ids])
+    sorting2 = sorting.select_units([u for u in sorting.unit_ids if u in shared_unit_ids | only2_unit_ids])
+
+    # drop some spikes of sorting2, so that the shared units do not agree perfectly
+    spikes2 = sorting2.to_spike_vector()
+    keep = rng.random(spikes2.size) >= fraction_dropped_spikes
+    sorting2 = si.NumpySorting(spikes2[keep], sorting2.sampling_frequency, sorting2.unit_ids)
+
+    folders = []
+    for i, sorting_i in enumerate([sorting1, sorting2]):
+        sorting_i = sorting_i.rename_units(sorting_i.unit_ids.astype(unit_dtype))
+        sorting_i.set_property(key='my_own_property',
+                               values=np.array([f"yep{i}" for i in range(sorting_i.unit_ids.size)]))
+
+        folder = test_folder / f"sorting_analyzer_{i + 1}"
+        sorting_analyzer = si.create_sorting_analyzer(sorting_i, recording,
+                                                      format="binary_folder",
+                                                      folder=folder,
+                                                      **job_kwargs)
+        sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
+        sorting_analyzer.compute("waveforms", **job_kwargs)
+        sorting_analyzer.compute("templates", **job_kwargs)
+        sorting_analyzer.compute("noise_levels", **job_kwargs)
+        sorting_analyzer.compute("unit_locations")
+        sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
+        sorting_analyzer.compute("template_metrics")
+        sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
+        folders.append(folder)
+
+    return folders
+
+
 def make_curation_dict(analyzer):
     unit_ids = analyzer.unit_ids.tolist()
     curation_dict = {

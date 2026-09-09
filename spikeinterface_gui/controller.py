@@ -7,7 +7,7 @@ import json
 from copy import deepcopy
 
 from spikeinterface import compute_sparsity
-from spikeinterface.core import get_template_extremum_channel, BaseEvent
+from spikeinterface.core import get_template_extremum_channel
 from spikeinterface.core.sorting_tools import spike_vector_to_indices
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import Curation
@@ -29,6 +29,7 @@ _default_main_settings = dict(
 )
 
 from spikeinterface.widgets.sorting_summary import _default_displayed_unit_properties
+        
 
 
 class Controller():
@@ -313,25 +314,7 @@ class Controller():
         self.spikes['rand_selected'][self.random_spikes_indices] = True
 
         # self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
-        seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
-        self.segment_slices = {segment_index: slice(seg_limits[segment_index], seg_limits[segment_index + 1]) for segment_index in range(num_seg)}
-        
-        spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
-        self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
-        # this is dict of list because per segment spike_indices[segment_index][unit_id]
-        spike_indices_abs = spike_vector_to_indices(spike_vector2, unit_ids, absolute_index=True)
-        spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
-        # this is flatten
-        spike_per_seg = [s.size for s in spike_vector2]
-        # dict[unit_id] -> all indices for this unit across segments
-        self._spike_index_by_units = {}
-        # dict[segment_index][unit_id] -> all indices for this unit for one segment
-        self._spike_index_by_segment_and_units = spike_indices_abs
-        for unit_id in unit_ids:
-            inds = []
-            for seg_ind in range(num_seg):
-                inds.append(spike_indices[seg_ind][unit_id] + int(np.sum(spike_per_seg[:seg_ind])))
-            self._spike_index_by_units[unit_id] = np.concatenate(inds)
+        self._build_spike_indices(num_seg)
 
         t1 = time.perf_counter()
         if verbose:
@@ -411,6 +394,37 @@ class Controller():
 
             curation_data = Curation(**curation_data).model_dump()
             self.curation_data = curation_data
+
+    def _build_spike_indices(self, num_seg):
+        """
+        Build the per-segment and per-unit spike index bookkeeping from `self.spikes`.
+
+        `self.spikes` must already be filled and sorted by sample_index within each segment.
+        Sets `segment_slices`, `final_spike_samples`, `_spike_index_by_units` and
+        `_spike_index_by_segment_and_units`. Shared with ControllerComparison.
+        """
+        seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
+        self.segment_slices = {segment_index: slice(seg_limits[segment_index], seg_limits[segment_index + 1]) for segment_index in range(num_seg)}
+
+        spike_vector2 = []
+        for segment_index in range(num_seg):
+            seg_slice = self.segment_slices[segment_index]
+            spike_vector2.append(self.spikes[seg_slice])
+        self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
+        # this is dict of list because per segment spike_indices[segment_index][unit_id]
+        spike_indices_abs = spike_vector_to_indices(spike_vector2, self.unit_ids, absolute_index=True)
+        spike_indices = spike_vector_to_indices(spike_vector2, self.unit_ids)
+        # this is flatten
+        spike_per_seg = [s.size for s in spike_vector2]
+        # dict[unit_id] -> all indices for this unit across segments
+        self._spike_index_by_units = {}
+        # dict[segment_index][unit_id] -> all indices for this unit for one segment
+        self._spike_index_by_segment_and_units = spike_indices_abs
+        for unit_id in self.unit_ids:
+            inds = []
+            for seg_ind in range(num_seg):
+                inds.append(spike_indices[seg_ind][unit_id] + int(np.sum(spike_per_seg[:seg_ind])))
+            self._spike_index_by_units[unit_id] = np.concatenate(inds)
 
     def check_is_view_possible(self, view_name):
         from .viewlist import get_all_possible_views
@@ -556,7 +570,9 @@ class Controller():
         import glasbey
         import matplotlib.colors as mcolors
 
-        unit_locations = self.analyzer.get_extension("unit_locations").get_data()
+        # self.unit_positions is the 2D unit locations, already stacked for both
+        # analyzers in comparison mode
+        unit_locations = self.unit_positions
         # lexsort by x and y
         sorted_inds = np.lexsort((unit_locations[:, 0], unit_locations[:, 1]))
 
@@ -761,9 +777,9 @@ class Controller():
     def get_waveforms_range(self):
         return np.nanmin(self.templates_average), np.nanmax(self.templates_average)
     
-    def get_waveforms(self, unit_id):
-        wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=False)
-        if self.analyzer.sparsity is None:
+    def get_waveforms(self, unit_id, force_dense=False):
+        wfs = self.waveforms_ext.get_waveforms_one_unit(unit_id, force_dense=force_dense)
+        if self.analyzer.sparsity is None or force_dense:
             # dense waveforms
             chan_inds = np.arange(self.analyzer.get_num_channels(), dtype='int64')
         else:
@@ -1182,3 +1198,5 @@ class Controller():
         elif lbl.get('labels') is not None and category in lbl.get('labels'):
             lbl['labels'].pop(category)
             self.curation_data["manual_labels"][ix] = lbl
+
+

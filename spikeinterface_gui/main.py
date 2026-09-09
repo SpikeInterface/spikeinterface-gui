@@ -110,7 +110,6 @@ def run_mainwindow(
     disable_save_settings_button: bool, default: False
         If True, disables the "save default settings" button, so that user cannot do this.
     """
-
     if mode == "desktop":
         backend = "qt"
     elif mode == "web":
@@ -259,6 +258,197 @@ def run_launcher(mode="desktop", analyzer_folders=None, root_folder=None, addres
         server.io_loop.start()
     else:
         raise ValueError(f"spikeinterface-gui wrong mode {mode}")
+
+
+# curation is off in comparison mode, and these views need extensions that cannot be
+# shared between two different sortings
+_comparison_incompatible_views = ("merge", "curation", "similarity", "correlogram", "isi")
+
+
+def run_mainwindow_comparison(
+    analyzer1,
+    analyzer2,
+    analyzer1_name="1",
+    analyzer2_name="2",
+    match_score=0.5,
+    mode="desktop",
+    with_traces=True,
+    displayed_unit_properties=None,
+    extra_unit_properties=None,
+    skip_extensions=None,
+    recording=None,
+    start_app=True,
+    layout_preset=None,
+    layout=None,
+    address="localhost",
+    port=0,
+    panel_start_server_kwargs=None,
+    panel_window_servable=True,
+    verbose=False,
+    user_settings=None,
+    disable_save_settings_button=False,
+):
+    """
+    Create the main window and start the QT app loop.
+
+    Parameters
+    ----------
+    analyzer1: SortingAnalyzer
+        The first sorting analyzer object
+    analyzer2: SortingAnalyzer
+        The second sorting analyzer object
+    analyzer1_name: str, default: "1"
+        The name to display for the first analyzer
+    analyzer2_name: str, default: "2"
+        The name to display for the second analyzer
+    mode: 'desktop' | 'web'
+        The GUI mode to use.
+        'desktop' will run a Qt app.
+        'web' will run a Panel app.
+    with_traces: bool, default: True
+        If True, traces are displayed
+    displayed_unit_properties: list | None, default: None
+        The displayed unit properties in the unit table
+    extra_unit_properties: list | None, default: None
+        The extra unit properties in the unit table
+    skip_extensions: list | None, default: None
+        The list of extensions to skip when loading the sorting analyzer
+    recording: RecordingExtractor | None, default: None
+        The recording object to display traces. This can be used when the 
+        SortingAnalyzer is recordingless.
+    start_app: bool, default: True
+        If True, the app loop is started
+    layout_preset : str | None
+        The name of the layout preset. None uses the 'comparison' preset.
+    layout : dict | None
+        The layout dictionary to use instead of the preset.
+    address: str, default : "localhost"
+        For "web" mode only. By default it is "localhost".
+        Use "auto-ip" to use the real IP address of the machine.
+    port: int, default: 0
+        For "web" mode only. If 0 then the port is automatic.
+    panel_start_server_kwargs: dict, default: None
+        For "web" mode only. Additional arguments to pass to the Panel server
+        - `{'show': True}` to automatically open the browser (default is True).
+        - `{'dev': True}` to enable development mode (default is False).
+        - `{'autoreload': True}` to enable autoreload of the server when files change
+          (default is False).
+    panel_window_servable: bool, default: True
+        For "web" mode only. If True, the Panel app is made servable.
+        This is useful when embedding the GUI in another Panel app. In that case,
+        the `panel_window_servable` should be set to False.
+    verbose: bool, default: False
+        If True, print some information in the console
+    user_settings: dict, default: None
+        A dictionary of user settings for each view, which overwrite the default settings.
+    disable_save_settings_button: bool, default: False
+        If True, disables the "save default settings" button, so that user cannot do this.
+    """
+    from .controllercomparison import ControllerComparison
+
+    if mode == "desktop":
+        backend = "qt"
+    elif mode == "web":
+        backend = "panel"
+    else:
+        raise ValueError(f"spikeinterface-gui wrong mode {mode}")
+
+    # Order of preference for settings is set here:
+    #   1) User specified settings
+    #   2) Settings in the config folder
+    #   3) Default settings of each view 
+    user_main_settings = None
+    if user_settings is not None:
+        user_main_settings = user_settings.get('mainsettings')
+
+    if user_settings is None:
+        sigui_version = spikeinterface_gui.__version__
+        config_version_folder = get_config_folder() / sigui_version
+        settings_file = config_version_folder / "settings.json"
+        if settings_file.is_file():
+            try:
+                with open(settings_file) as f:
+                    user_settings = json.load(f)
+            except json.JSONDecodeError as e:
+                print(f"Config file at {settings_file} is not decodable. Error: {e}")
+                print("Using default settings.")
+
+    if recording is not None:
+        analyzer1.set_temporary_recording(recording)
+        analyzer2.set_temporary_recording(recording)
+
+    if verbose:
+        import time
+        t0 = time.perf_counter()
+
+    if layout_preset is None and layout is None:
+        # the 'comparison' preset already swaps in the comparison views and drops the
+        # ones that make no sense when comparing two analyzers
+        layout_preset = "comparison"
+
+    layout_dict = get_layout_description(layout_preset, layout)
+    if skip_extensions is None:
+        skip_extensions = find_skippable_extensions(layout_dict)
+
+    # a user given preset/layout can still hold views that cannot work in comparison mode,
+    # so filter them out whatever the layout. get_layout_description returns a copy, so
+    # this does not touch the shared presets.
+    for zone, views_in_zone in layout_dict.items():
+        views_in_zone = [
+            'compareunitlist' if view_name == 'unitlist' else view_name
+            for view_name in views_in_zone
+            if view_name not in _comparison_incompatible_views
+        ]
+        layout_dict[zone] = views_in_zone
+
+    controller =  ControllerComparison(
+        analyzer1, analyzer2, analyzer1_name=analyzer1_name, analyzer2_name=analyzer2_name, match_score=match_score,
+        backend=backend, verbose=verbose,
+        with_traces=with_traces,
+        displayed_unit_properties=displayed_unit_properties,
+        extra_unit_properties=extra_unit_properties,
+        skip_extensions=skip_extensions,
+        disable_save_settings_button=disable_save_settings_button,
+        user_main_settings=user_main_settings,
+    )
+    if verbose:
+        t1 = time.perf_counter()
+        print('controller init time', t1 - t0)
+
+    if backend == "qt":
+        from spikeinterface_gui.myqt import QT, mkQApp
+        from spikeinterface_gui.backend_qt import QtMainWindow
+
+        # Suppress a known pyqtgraph warning
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="pyqtgraph")
+        warnings.filterwarnings('ignore', category=UserWarning, message=".*QObject::connect.*")
+
+        app = mkQApp()
+
+        win = QtMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
+        win.setWindowTitle('SpikeInterface GUI')
+        # Set window icon
+        icon_file = Path(__file__).absolute().parent / 'img' / 'si.png'
+        if icon_file.exists():
+            app.setWindowIcon(QT.QIcon(str(icon_file)))
+        win.show()
+        if start_app:
+            app.exec()
+    
+    elif backend == "panel":
+        from .backend_panel import PanelMainWindow, start_server
+        win = PanelMainWindow(controller, layout_dict=layout_dict, user_settings=user_settings)
+
+        if start_app or panel_window_servable:
+            win.main_layout.servable(title='SpikeInterface GUI')
+
+        if start_app:
+            panel_start_server_kwargs = panel_start_server_kwargs or {}
+            _ = start_server(win, address=address, port=port, **panel_start_server_kwargs)
+
+    return win
+
+
 
 def check_folder_is_analyzer(folder):
     """
