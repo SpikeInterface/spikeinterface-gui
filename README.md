@@ -27,17 +27,42 @@ This viewer has 2 modes:
 
 # Installation
 
-For beginners users, please see our [installation tips](https://github.com/SpikeInterface/spikeinterface/tree/main/installation_tips)
-where we provide a yaml for Mac/Windows/Linux to help properly install `spikeinterface` and `spikeinterface-gui` for you in a dedicated
-`uv` environment.
+## Using `uv`
 
-In your environment, if you wish to use the Desktop version of the GUI, you can do:
+Using `uv`, you can use SpikeInterface-GUI like an app. First [install uv](https://docs.astral.sh/uv/getting-started/installation/). Then download (clone) the source code from github and change directory into the SpikeInterface-GUI folder:
+
+```bash
+git clone https://github.com/SpikeInterface/spikeinterface-gui.git
+cd spikeinterface-gui
+```
+
+Now you can run the desktop or web version of the GUI, without having to explicitly create a new environment, by running
+
+```bash
+uv run --with '.[desktop]' sigui
+```
+
+or
+
+```bash
+uv run --with '.[web]' --mode web sigui
+```
+
+The first time you run this, `uv` will install all the required dependencies. This might take a few minutes. The next 
+time you run the GUI, the dependencies will already be installed.
+
+## Using python environments
+
+For beginners users, please see our [installation tips](https://github.com/SpikeInterface/spikeinterface/tree/main/installation_tips)
+where for tips to properly install `spikeinterface` and `spikeinterface-gui` in a dedicated environment.
+
+In your environment, if you wish to use the Desktop version of the GUI, you can run:
 
 ```bash
 pip install 'spikeinterface-gui[desktop]'
 ```
 
-Note: this installs `PySide6`. You can use the `PyQt5` backend instead by uninstalling `PySide6` and then installing `PyQt5`.
+Note: this installs `PyQt5`. You can use the `PySide6` backend instead by uninstalling `PyQt5` and then installing `PySide6`.
 
 If you wish to use the Web version of the GUI, you can do:
 
