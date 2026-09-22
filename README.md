@@ -45,7 +45,7 @@ uv run --with '.[desktop]' sigui
 or
 
 ```bash
-uv run --with '.[web]' --mode web sigui
+uv run --with '.[web]' sigui --mode web 
 ```
 
 The first time you run this, `uv` will install all the required dependencies. This might take a few minutes. The next 
