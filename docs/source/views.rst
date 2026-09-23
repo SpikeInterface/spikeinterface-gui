@@ -592,20 +592,15 @@ The matching is one to one (hungarian) at the agreement threshold set with the s
 That threshold is shared with the other comparison views: moving it also re-orders the
 agreement matrix and re-categorizes the rows of the comparison unit table.
 
-Settings
-~~~~~~~~
-- **num_units_to_select** : how many units of a region a click makes visible. In the
-intersection this is a number of pairs, and both units of each pair are selected.
-
 Controls
 ~~~~~~~~
 - **slider** : the agreement threshold above which two units are considered matched.
-- **left click on a region** : make a random sample of that region visible. Clicking again
-draws another sample, which is a quick way to walk through a region.
-- **ctrl + left click on a region** : add the sample to the units already visible.
+- **left click on a region** : make one random unit of that region visible. Clicking again
+picks another one, which is a quick way to walk through a region. Clicking the
+intersection selects the two units of one matched pair, so that they can be compared.
 
-Note that `max_visible_units` (see the main settings) still caps how many units can be
-visible at once.
+Only one unit (or one matched pair) is selected per click, so that the selection always
+matches a single row of the comparison unit table.
 
 Screenshots
 ~~~~~~~~~~~

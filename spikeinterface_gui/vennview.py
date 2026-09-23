@@ -67,9 +67,6 @@ class VennView(ViewBase):
     id = "venn"
     _supported_backend = ['qt', 'panel']
     _depend_on = ['comparison']
-    _settings = [
-        {'name': 'num_units_to_select', 'type': 'int', 'value': 1, 'step': 1},
-    ]
 
     _color1 = "#1f77b4"
     _color2 = "#ff7f0e"
@@ -82,11 +79,15 @@ class VennView(ViewBase):
 
     def select_units_on_click(self, x, y, reset=True):
         """
-        Make visible a random sample of the clicked region.
+        Make visible one random entry of the clicked region.
 
-        A region can hold hundreds of units, and what one wants is to inspect a few of
-        them, so `num_units_to_select` of them are drawn at random. Clicking the same
-        region again draws another sample.
+        A region can hold hundreds of units, so a click picks one of them at random and
+        clicking the same region again picks another: that is how one walks a region.
+
+        Exactly one entry is selected, never more, so that the selection always matches a
+        single row of the comparison unit table, which is single selection. In the
+        intersection an entry is a matched *pair*, so both of its units become visible,
+        which is still that one row.
         """
         venn, (radius1, radius2, center_x1, center_x2) = self.get_venn_data()
 
@@ -94,7 +95,6 @@ class VennView(ViewBase):
         inside2 = (x - center_x2) ** 2 + y ** 2 <= radius2 ** 2
 
         if inside1 and inside2:
-            # in the intersection an entry is a pair, and both of its units are selected
             candidates = venn['matched']
         elif inside1:
             candidates = venn['only1']
@@ -106,23 +106,16 @@ class VennView(ViewBase):
         if len(candidates) == 0:
             return
 
-        num_to_select = max(int(self.settings['num_units_to_select']), 1)
-        num_to_select = min(num_to_select, len(candidates))
         rng = np.random.default_rng()
-        selected = rng.choice(len(candidates), size=num_to_select, replace=False)
+        candidate = candidates[rng.integers(len(candidates))]
+        if isinstance(candidate, tuple):
+            # a matched pair, both units so that they can be compared
+            unit_ids = list(candidate)
+        else:
+            unit_ids = [candidate]
 
-        unit_ids = []
-        for index in selected:
-            candidate = candidates[index]
-            if isinstance(candidate, tuple):
-                # a matched pair, keep both units so that they can be compared
-                unit_ids.extend(candidate)
-            else:
-                unit_ids.append(candidate)
-
-        if not reset:
-            unit_ids = list(self.controller.get_visible_unit_ids()) + unit_ids
-        # set_visible_unit_ids still truncates to main_settings['max_visible_units']
+        # note that `reset` is ignored on purpose: accumulating entries would put several
+        # rows of the comparison unit table in the visible set, which it cannot show
         self.controller.set_visible_unit_ids(unit_ids)
         self.notify_unit_and_channel_visibility_changed()
         self.refresh()
@@ -397,16 +390,12 @@ The matching is one to one (hungarian) at the agreement threshold set with the s
 That threshold is shared with the other comparison views: moving it also re-orders the
 agreement matrix and re-categorizes the rows of the comparison unit table.
 
-### Settings
-- **num_units_to_select** : how many units of a region a click makes visible. In the
-  intersection this is a number of pairs, and both units of each pair are selected.
-
 ### Controls
 - **slider** : the agreement threshold above which two units are considered matched.
-- **left click on a region** : make a random sample of that region visible. Clicking again
-  draws another sample, which is a quick way to walk through a region.
-- **ctrl + left click on a region** : add the sample to the units already visible.
+- **left click on a region** : make one random unit of that region visible. Clicking again
+  picks another one, which is a quick way to walk through a region. Clicking the
+  intersection selects the two units of one matched pair, so that they can be compared.
 
-Note that `max_visible_units` (see the main settings) still caps how many units can be
-visible at once.
+Only one unit (or one matched pair) is selected per click, so that the selection always
+matches a single row of the comparison unit table.
 """
