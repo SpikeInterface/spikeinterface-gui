@@ -56,3 +56,4 @@ This is a web app internally using Panel, useful when the data is remote
    views
    developers
    credits
+   release_notes

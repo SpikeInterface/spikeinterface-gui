@@ -56,12 +56,12 @@ def get_layout_description(preset_name, layout=None):
 default_layout = dict(
     zone1=['curation', 'spikelist'],
     zone2=['unitlist', 'merge'],
-    zone3=['trace', 'tracemap',  'spikeamplitude', 'spikedepth', 'spikerate'],
+    zone3=['trace', 'tracemap',  'spikeamplitude', 'amplitudescalings', 'spikedepth', 'spikerate', 'event'],
     zone4=[],
     zone5=['probe'],
     zone6=['ndscatter', 'similarity'],
     zone7=['waveform', 'waveformheatmap', ],
-    zone8=['correlogram', 'isi', 'metrics', 'mainsettings'],
+    zone8=['correlogram', 'isi', 'metrics', 'maintemplate', 'mainsettings'],
 )
 _presets['default'] = default_layout
 
@@ -90,3 +90,17 @@ unit_focus_layout = dict(
     zone8=['correlogram', 'isi'],
 )
 _presets['unit_focus'] = unit_focus_layout
+
+merge_focus_layout = dict(
+    zone1=['merge', 'unitlist'],
+    zone2=['curation'],
+    zone3=['spikeamplitude'],
+    zone4=['ndscatter'],
+    zone5=['probe'],
+    zone6=[],
+    zone7=['waveform'],
+    zone8=['correlogram'],
+)
+
+_presets['merge_focus'] = merge_focus_layout
+
