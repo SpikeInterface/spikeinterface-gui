@@ -106,7 +106,6 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         extra_unit_properties=extra_unit_properties,
         layout_preset=layout,
         events=events_dict,
-        lazy_load=lazy_load
         # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
 

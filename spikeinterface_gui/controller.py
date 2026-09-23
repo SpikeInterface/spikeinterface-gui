@@ -6,7 +6,7 @@ import json
 
 from copy import deepcopy
 
-from spikeinterface import compute_sparsity, get_template_extremum_channel
+from spikeinterface import compute_sparsity
 from spikeinterface.core.base import minimum_spike_dtype
 from spikeinterface.curation import validate_curation_dict
 from spikeinterface.curation.curation_model import Curation
@@ -271,13 +271,7 @@ class Controller():
 
         t0 = time.perf_counter()
 
-        self._extremum_channel = get_template_extremum_channel(
-            self.analyzer,
-            mode="extremum",
-            peak_sign='both',
-            outputs='index'
-        )
-
+        self._main_channels = self.analyzer.get_main_channels(outputs="index", with_dict=True)
         # spikeinterface handle colors in matplotlib style tuple values in range (0,1)
         self.refresh_colors()
 
@@ -311,7 +305,7 @@ class Controller():
         self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
         self._random_spikes_set = set(int(i) for i in self.random_spikes_indices)
 
-        self._ext_channel_inds = np.array([self._extremum_channel[unit_id] for unit_id in self.unit_ids])
+        self._ext_channel_inds = np.array([self._main_channels[unit_id] for unit_id in self.unit_ids])
 
         cached = self.analyzer.sorting._cached_spike_vector_segment_slices
         if cached is not None:
@@ -618,8 +612,8 @@ class Controller():
         return colors
 
     
-    def get_extremum_channel(self, unit_id):
-        chan_ind = self._extremum_channel[unit_id]
+    def get_main_channel(self, unit_id):
+        chan_ind = self._main_channels[unit_id]
         return chan_ind
     
     # unit visibility zone
@@ -796,7 +790,7 @@ class Controller():
     def get_upsampled_templates(self, unit_id):
         template_metrics_ext = self.analyzer.get_extension("template_metrics")
         unit_index = list(self.unit_ids).index(unit_id)
-        chan_ind = self.get_extremum_channel(unit_id)
+        chan_ind = self.get_main_channel(unit_id)
         template = self.templates_average[unit_index, :, chan_ind]
         if template_metrics_ext is None or "peaks_data" not in template_metrics_ext.data:
             return template, None, None
