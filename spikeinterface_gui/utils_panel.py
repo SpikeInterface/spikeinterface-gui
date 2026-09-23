@@ -5,6 +5,7 @@ try:
 except ImportError:
     from typing_extensions import NotRequired
 
+import re
 import numpy as np
 import time
 import panel as pn
@@ -63,7 +64,7 @@ table_stylesheet = """
 unit_formatter = HTMLTemplateFormatter(
     template="""
     <div style="color: <%= value ? value.color : '#ffffff' %>;">
-        ● <%= value ? value.id : '' %>
+        ● <%= value ? value.id : '' %><%= value && value.n !== undefined ? ' n=' + value.n : '' %>
     </div>
 """
 )
@@ -288,6 +289,8 @@ class SelectableTabulator(pn.viewable.Viewer):
     ----------
     *args, **kwargs
         Arguments passed to the Tabulator constructor.
+    skip_sort_columns: list[str]
+        Columns to exclude from the "Sort by" dropdown options.
     parent_view: ViewBase | None
         The parent view that will be notified of selection changes.
     on_selection_changed: Callable | None
@@ -314,6 +317,8 @@ class SelectableTabulator(pn.viewable.Viewer):
         self._formatters = kwargs.get("formatters", {})
         self._editors = kwargs.get("editors", {})
         self._frozen_columns = kwargs.get("frozen_columns", [])
+        # columns to hide from the view but keep in the underlying dataframe
+        self._hidden_columns = list(kwargs.pop("hidden_columns", []))
         self._selectable = kwargs.get("selectable", True)
         if "sortable" in kwargs:
             self._sortable = kwargs.pop("sortable")
@@ -440,6 +445,7 @@ class SelectableTabulator(pn.viewable.Viewer):
         self.tabulator.formatters = self._formatters
         self.tabulator.editors = self._editors
         self.tabulator.frozen_columns = self._frozen_columns
+        self.tabulator.hidden_columns = self._hidden_columns
         self.tabulator.selectable = self._selectable
         self.tabulator.sorters = []
 
@@ -478,10 +484,18 @@ class SelectableTabulator(pn.viewable.Viewer):
                     ascending=(self.direction_dropdown.value == "↑")
                 )
             else:
-                df = self.tabulator.value.sort_values(
-                    by=self.sort_dropdown.value,
-                    ascending=(self.direction_dropdown.value == "↑")
+                import pandas.api.types as ptypes
+
+                col = self.sort_dropdown.value
+                sort_kwargs = dict(
+                    by=col,
+                    ascending=(self.direction_dropdown.value == "↑"),
                 )
+                if ptypes.is_string_dtype(self.tabulator.value[col]):
+                    sort_kwargs["key"] = lambda x: x.map(
+                        lambda v: [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', str(v))]
+                    )
+                df = self.tabulator.value.sort_values(**sort_kwargs)
         self.tabulator.value = df
 
     def _on_selection_change(self, event):
@@ -542,6 +556,27 @@ class SelectableTabulator(pn.viewable.Viewer):
         previous_row = max(0, previous_row)
         return previous_row
 
+    def select_next_row(self, only=False, from_row=None):
+        """
+        Move the selection to the next row.
+
+        Parameters
+        ----------
+        only: bool
+            If True, the "only" callback is triggered (make the new row the only visible one).
+        from_row: int | None
+            The row to move from. By default the current selection is used.
+        """
+        if from_row is None:
+            next_row = self._get_next_row()
+        else:
+            next_row = min(from_row + 1, len(self.value) - 1)
+        self.selection = [next_row]
+        if only and self._on_only_function is not None:
+            self._on_only_function()
+        self._last_selected_row = next_row
+        return next_row
+
     def _handle_shortcut(self, event):
         if self._conditional_shortcut():
             if event.data == "first":
@@ -553,21 +588,13 @@ class SelectableTabulator(pn.viewable.Viewer):
                 self.selection = [last_row]
                 self._last_selected_row = last_row
             elif event.data == "next":
-                next_row = self._get_next_row()
-                self.selection = [next_row]
-                self._last_selected_row = next_row
+                self.select_next_row()
             elif event.data == "previous":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]
                 self._last_selected_row = previous_row
             elif event.data == "next_only":
-                next_row = self._get_next_row()
-                # this should go in self._on_only_function()
-                self.selection = [next_row]
-                # self.notify_unit_visibility_changed()
-                if self._on_only_function is not None:
-                    self._on_only_function()
-                self._last_selected_row = next_row
+                self.select_next_row(only=True)
             elif event.data == "previous_only":
                 previous_row = self._get_previous_row()
                 self.selection = [previous_row]

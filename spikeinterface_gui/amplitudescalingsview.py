@@ -9,6 +9,15 @@ class AmplitudeScalingsView(BaseScatterView):
         y_label = "Amplitude scaling"
         spike_data = controller.amplitude_scalings
 
+        # Overwrite "range_type", "range_min", and "range_max"so that default range is 0 - 2
+        for setting in AmplitudeScalingsView._settings:
+            if setting['name'] == 'range_type':
+                setting['value'] = 'absolute'
+            elif setting['name'] == 'range_min':
+                setting['value'] = 0.0
+            elif setting['name'] == 'range_max':
+                setting['value'] = 2.0
+
         BaseScatterView.__init__(
             self,
             controller=controller,

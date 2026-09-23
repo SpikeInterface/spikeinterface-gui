@@ -94,8 +94,9 @@ class ViewBase:
 
     def is_view_visible(self):
         if self.backend == "qt":
-            # a widget is visible even is it is hidden under another tab!! TODO fix this
-            return self.qt_widget.isVisible()
+            # isVisible() (confusingly) stays True for a view tabbed behind another dock.
+            # But an obscured widget paints nothing, so its visibleRegion is empty.
+            return self.qt_widget.isVisible() and not self.qt_widget.visibleRegion().isEmpty()
         elif self.backend == "panel":
             return self._panel_view_is_visible
 

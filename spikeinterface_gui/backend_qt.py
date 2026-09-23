@@ -1,3 +1,5 @@
+import warnings
+
 from .myqt import QT
 import pyqtgraph as pg
 import markdown
@@ -171,16 +173,11 @@ class QtMainWindow(QT.QMainWindow):
         self.make_views(user_settings)
         self.create_main_layout()
 
-        # refresh all views without notiying
-        self.controller.signal_handler.deactivate()
-        for view in self.views.values():
-            # refresh do not work because view are not yet visible at init
-            view._refresh()
-        self.controller.signal_handler.activate()
-        # TODO sam : all views are always refreshed at the moment so this is useless.
-        # uncommen this when ViewBase.is_view_visible() work correctly
-        # for view_name, dock in self.docks.items():
-        #     dock.visibilityChanged.connect(self.views[view_name].refresh)
+        for view_name, dock in self.docks.items():
+            view = self.views[view_name]
+            dock.visibilityChanged.connect(
+                lambda visible, v=view: visible and QT.QTimer.singleShot(0, v.refresh)
+            )  # Deferred so visibleRegion is populated before refresh() re-checks is_view_visible;
 
     def make_views(self, user_settings):
         self.views = {}
@@ -208,10 +205,11 @@ class QtMainWindow(QT.QMainWindow):
             if user_settings is not None and view_name != 'mainsettings' and user_settings.get(view_name) is not None:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     if setting_name not in view.settings.keys().keys():
-                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    stop_listen_setting_changes(view)
-                    view.settings[setting_name] = user_setting
-                    listen_setting_changes(view)
+                        warnings.warn(f"Setting {setting_name} is not a valid setting for View {view_name}. Ignoring setting. Check your settings file.")
+                    else:
+                        stop_listen_setting_changes(view)
+                        view.settings[setting_name] = user_setting
+                        listen_setting_changes(view)
 
 
             widget.set_view(view)

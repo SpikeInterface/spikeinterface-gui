@@ -18,7 +18,8 @@ classifiers = [
 
 dependencies = [
     "spikeinterface[full]>=0.105.0",
-    "markdown"
+    "markdown",
+    "glasbey"
 ]
 
 [project.urls]
