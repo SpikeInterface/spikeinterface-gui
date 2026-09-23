@@ -26,7 +26,9 @@ def clean_all(test_folder):
                 # retry after a short delay, to give the OS time to release the file handles
                 time.sleep(0.5)
     # don't let a failure here cause an otherwise-passing test to fail
-    shutil.rmtree(folder, ignore_errors=True) 
+    shutil.rmtree(folder, ignore_errors=True)
+
+
 def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     clean_all(test_folder)
 
