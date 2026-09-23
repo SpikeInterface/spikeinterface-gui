@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from spikeinterface_gui.viewlist import get_all_possible_views
 import numpy as np
 
@@ -51,7 +52,8 @@ def get_layout_description(preset_name, layout=None):
     else:
         if preset_name is None:
             preset_name = 'default'
-        return _presets[preset_name]
+        # deepcopy so that a caller mutating the returned dict does not corrupt the preset
+        return deepcopy(_presets[preset_name])
 
 default_layout = dict(
     zone1=['curation', 'spikelist'],
@@ -104,3 +106,18 @@ merge_focus_layout = dict(
 
 _presets['merge_focus'] = merge_focus_layout
 
+
+# comparison mode: the unit list is replaced by the comparison table and the
+# comparison specific views take the place of similarity/ndscatter.
+# merge, curation, correlogram and isi are not available when comparing two analyzers.
+comparison_layout = dict(
+    zone1=['spikelist'],
+    zone2=['compareunitlist'],
+    zone3=['trace', 'tracemap', 'spikeamplitude', 'amplitudescalings', 'spikedepth', 'spikerate', 'event'],
+    zone4=[],
+    zone5=['probe'],
+    zone6=['venn', 'agreementmatrix'],
+    zone7=['waveform', 'waveformheatmap'],
+    zone8=['metrics', 'maintemplate', 'mainsettings'],
+)
+_presets['comparison'] = comparison_layout

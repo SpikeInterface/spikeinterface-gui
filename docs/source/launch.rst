@@ -106,6 +106,57 @@ The `curation_dict` can be saved inside the folder of the analyzer (for "binary_
 Then it is auto-reloaded when the gui is re-opened.
 
 
+Comparing two sorting outputs
+-----------------------------
+
+To compare the output of two sorters on the same recording, use ``run_mainwindow_comparison``
+with two ``SortingAnalyzer`` computed on that recording.
+
+.. code-block:: python
+
+   from spikeinterface_gui import run_mainwindow_comparison
+
+   run_mainwindow_comparison(
+       analyzer1,
+       analyzer2,
+       analyzer1_name="kilosort4",
+       analyzer2_name="tridesclous2",
+   )
+
+The two analyzers are virtually concatenated into a single unit list, so that all the usual
+views (probe, waveforms, traces, amplitudes, ...) can display units of both sorters side by
+side. Unit ids are made unique across the two: integer ids are offset, and other ids get the
+analyzer name as a suffix (``5_kilosort4``).
+
+On top of that, ``spikeinterface.comparison.compare_two_sorters`` is run and three dedicated
+views are available:
+
+* the **compare unit list** replaces the usual unit list, with one row per pair of matched
+  units and one row per unit found by only one of the two sorters,
+* the **agreement matrix** shows the agreement score of every pair of units, and clicking a
+  cell selects that pair,
+* the **venn** view summarizes how many units are matched and how many are specific to each
+  sorter, with a slider for the agreement threshold.
+
+That agreement threshold is shared: moving the slider of the venn view also re-orders the
+agreement matrix and re-categorizes the rows of the compare unit list.
+
+Both modes are supported, so the comparison can also be served as a web app:
+
+.. code-block:: python
+
+   run_mainwindow_comparison(analyzer1, analyzer2, mode="web")
+
+Some things are not available in comparison mode:
+
+* curation, and therefore merging and splitting,
+* the views that rely on extensions that cannot be shared between two sortings:
+  ``template_similarity``, ``correlograms``, ``isi_histograms`` and ``principal_components``.
+
+Only the recording of the first analyzer is used to display traces, and the two analyzers must
+have matching recording attributes for the trace views to be shown at all.
+
+
 Open the GUI launcher
 ---------------------
 
