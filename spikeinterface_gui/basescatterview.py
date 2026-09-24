@@ -242,6 +242,9 @@ class BaseScatterView(ViewBase):
     def on_use_times_updated(self):
         self.refresh(set_scatter_range=True)
 
+    def _on_settings_changed(self):
+        self.refresh(set_scatter_range=True)
+
     ## QT zone ##
     def _qt_make_layout(self):
         from .myqt import QT
