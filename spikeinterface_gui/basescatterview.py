@@ -1,7 +1,6 @@
 import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
-from tqdm.auto import tqdm
 
 from .view_base import ViewBase
 
@@ -64,7 +63,9 @@ class BaseScatterView(ViewBase):
         all_sample_indices = np.asarray(self.controller.spikes["sample_index"])
         all_spike_data = np.asarray(self.spike_data)
 
-        for unit_id in tqdm(self.controller.unit_ids, f"Caching data for units {self.__class__.__name__}"):
+        if self.controller.verbose:
+            print(f"Caching data scatter data in: {self.__class__.__name__}")
+        for unit_id in self.controller.unit_ids:
             self._cache_data[unit_id] = []
             for segment_index in range(self.controller.num_segments):
                 inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
