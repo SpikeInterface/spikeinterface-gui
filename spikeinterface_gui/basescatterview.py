@@ -59,8 +59,6 @@ class BaseScatterView(ViewBase):
         if not self.settings['cache_data']:
             return
 
-        print(f"Building cache for {self.__class__.__name__}")
-
         for unit_id in self.controller.unit_ids:
             self._cache_data[unit_id] = []
             for segment_index in range(self.controller.num_segments):
