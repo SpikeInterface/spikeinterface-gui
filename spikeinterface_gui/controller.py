@@ -307,7 +307,8 @@ class Controller():
             self.spikes['unit_index'] = spike_vector['unit_index']
             self.spikes['segment_index'] = spike_vector['segment_index']
 
-        self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
+        # bounded by max_spikes_per_unit * num_units, so safe to materialize even in lazy mode
+        self.random_spikes_indices = np.asarray(self.analyzer.get_extension("random_spikes").get_data())
         self._random_spikes_set = set(int(i) for i in self.random_spikes_indices)
 
         self._ext_channel_inds = np.array([self._main_channels[unit_id] for unit_id in self.unit_ids])

@@ -107,14 +107,14 @@ class ViewBase:
             return self._panel_view_is_active
 
     def refresh(self, **kwargs):
-        if self.controller.verbose:
-            t0 = time.perf_counter()
         if not self.is_view_visible():
             return
-        self._refresh(**kwargs)
-        if self.controller.verbose:
-            t1 = time.perf_counter()
-            print(f"Refresh {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
+        if self.controller.verbose and self.backend == "qt":
+            t0 = time.perf_counter()
+            self._refresh(**kwargs)
+            print(f"Refresh {self.__class__.__name__} took {time.perf_counter() - t0:.3f} seconds", flush=True)
+        else:
+            self._refresh(**kwargs)
 
     def compute(self, event=None):
         with self.busy_cursor():
@@ -129,7 +129,15 @@ class ViewBase:
             self._qt_refresh(**kwargs)
         elif self.backend == "panel":
             import panel as pn
-            pn.state.execute(lambda: self._panel_refresh(**kwargs), schedule=True)
+            pn.state.execute(lambda: self._timed_panel_refresh(**kwargs), schedule=True)
+
+    def _timed_panel_refresh(self, **kwargs):
+        # panel refresh is scheduled, so it must be timed where it actually runs
+        if not self.controller.verbose:
+            return self._panel_refresh(**kwargs)
+        t0 = time.perf_counter()
+        self._panel_refresh(**kwargs)
+        print(f"Refresh {self.__class__.__name__} took {time.perf_counter() - t0:.3f} seconds", flush=True)
 
     def warning(self, warning_msg):
         if self.backend == "qt":
