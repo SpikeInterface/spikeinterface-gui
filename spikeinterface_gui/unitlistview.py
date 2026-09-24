@@ -170,8 +170,6 @@ class UnitListView(ViewBase):
 
         self._qt_refresh_visibility_items()
 
-
-
     def _qt_refresh_visibility_items(self):
         from .myqt import QT
 
@@ -179,16 +177,23 @@ class UnitListView(ViewBase):
 
         visible_unit_ids = self.controller.get_visible_unit_ids()
 
-        view_target_unit_id = visible_unit_ids[0] 
+        view_target_unit_id = visible_unit_ids[0]
         target_item = self.items_visibility[view_target_unit_id]
         self.table.scrollToItem(target_item, QT.QAbstractItemView.PositionAtCenter)
-        
+
+        unit_ids_list = list(self.controller.unit_ids)
         for unit_id in self.controller.unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Unchecked)
         for unit_id in visible_unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Checked)
+
+        self.table.clearSelection()
+        for unit_id in visible_unit_ids:
+            row = unit_ids_list.index(unit_id)
+            self.table.selectRow(row)
+
         self._qt_refresh_color_icons()
 
     def _qt_refresh_color_icons(self):

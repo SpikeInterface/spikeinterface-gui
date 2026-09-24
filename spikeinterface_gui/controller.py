@@ -260,7 +260,7 @@ class Controller():
                 if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
                     # precompute similarity when low channel/units count
                     method = 'l1'
-                    ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=save_on_compute)
+                    ts_ext = analyzer.compute_one_extension('template_similarity', method=method, save=self.save_on_compute)
                     self._similarity_by_method[method] = ts_ext.get_data()
 
         if "waveforms" in self.skip_extensions:
@@ -955,15 +955,16 @@ class Controller():
         model = Curation(**d)
         return model
 
-    def apply_curation(self):
+    def apply_curation(self, **apply_kwargs):
         if self.original_analyzer is None:
             self.original_analyzer = deepcopy(self.analyzer)
             self.original_analyzer.extensions = {}
 
         curation = self.construct_final_curation(with_explicit_new_unit_ids=True)
         try:
-            curated_analyzer = apply_curation(self.analyzer, curation)
+            curated_analyzer = apply_curation(self.analyzer, curation, **apply_kwargs)
         except Exception as e:
+            raise
             return False, str(e)
 
         self.applied_curations.append(curation)
@@ -1034,28 +1035,6 @@ class Controller():
         # validate the curation data
         model = Curation(**new_curation_data)
         self.curation_data = model.model_dump()
-
-    def save_curation_in_analyzer(self):
-        if self.analyzer.format == "memory":
-            print("Analyzer is an in-memory object. Cannot save curation file in it.")
-            pass
-        elif self.analyzer.format == "binary_folder":
-            folder = self.analyzer.folder / "spikeinterface_gui"
-            folder.mkdir(exist_ok=True, parents=True)
-            json_file = folder / f"curation_data.json"
-            curation_model = self.construct_final_curation()
-            with open(json_file, "w") as f:
-                f.write(curation_model.model_dump_json(indent=4))
-            self.current_curation_saved = True
-        elif self.analyzer.format == "zarr":
-            import zarr
-            zarr_root = zarr.open(self.analyzer.folder, mode='r+')
-            if "spikeinterface_gui" not in zarr_root.keys():
-                sigui_group = zarr_root.create_group("spikeinterface_gui", overwrite=True)
-            sigui_group = zarr_root["spikeinterface_gui"]
-            curation_model = self.construct_final_curation()
-            sigui_group.attrs["curation_data"] = curation_model.model_dump(mode="json")
-            self.current_curation_saved = True
 
     def save_curation_callback(self):
         curation = self.construct_final_curation()

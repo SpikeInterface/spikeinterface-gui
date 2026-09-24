@@ -8,9 +8,17 @@ class CurationView(ViewBase):
     id = "curation"
     _supported_backend = ["qt", "panel"]
     _need_compute = False
+    _settings = [
+        {'name': 'sparsity_overlap', 'type': 'float', 'value' : 0.75 },
+        {'name': 'censor_ms', 'type': 'float', 'value' : 0},
+        {'name': 'merging_mode', 'type': 'list', 'limits': ['soft', 'hard'], 'value' : 'soft' },
+        {'name': 'raise_error_if_overlap_fails', 'type': 'bool', 'value' : True },
+    ]
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         self.active_table = "merge"
+        if not controller.iterative_curation:
+            self.settings = []
         ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
     # TODO: Cast unit ids to the correct type here
@@ -56,6 +64,27 @@ class CurationView(ViewBase):
         self.controller.set_indices_spike_selected(spike_inds[split_indices])
         self.notify_spike_selection_changed()
 
+    def on_manual_curation_updated(self):
+            self.refresh()
+
+    def apply_curation_to_analyzer(self):
+        with self.busy_cursor():
+            success, error = self.controller.apply_curation(
+                sparsity_overlap=self.settings["sparsity_overlap"],
+                censor_ms=self.settings["censor_ms"],
+                merging_mode=self.settings["merging_mode"],
+                raise_error_if_overlap_fails=self.settings["raise_error_if_overlap_fails"],
+            )
+        if not success:
+            self.warning(
+                f"Apply curation failed with error:\n{error}"
+            )
+            return
+
+    def restore_original_analyzer(self):
+        with self.busy_cursor():
+            self.controller.restore_original_analyzer()
+
     ## Qt
     def _qt_make_layout(self):
         from .myqt import QT
@@ -68,11 +97,6 @@ class CurationView(ViewBase):
             but = QT.QPushButton("Save curation")
             tb.addWidget(but)
             but.clicked.connect(self.controller.save_curation_callback)
-
-        elif self.controller.curation_can_be_saved() and not self.controller.iterative_curation:
-            but = QT.QPushButton("Save in analyzer")
-            tb.addWidget(but)
-            but.clicked.connect(self.controller.save_curation_in_analyzer)
 
         if self.controller.iterative_curation:
             but_apply = QT.QPushButton("Apply curation")
@@ -282,22 +306,6 @@ class CurationView(ViewBase):
     def _qt_on_unit_visibility_changed(self):
         self._qt_clear_selection()
 
-    def on_manual_curation_updated(self):
-        self.refresh()
-
-    def apply_curation_to_analyzer(self):
-        with self.busy_cursor():
-            success, error = self.controller.apply_curation()
-        if not success:
-            self.warning(
-                f"Apply curation failed with error: {error}"
-            )
-            return
-
-    def restore_original_analyzer(self):
-        with self.busy_cursor():
-            self.controller.restore_original_analyzer()
-
     def _qt_export_json(self):
         from .myqt import QT
 
@@ -399,17 +407,6 @@ class CurationView(ViewBase):
             )
             restore_original.on_click(self._panel_restore_original_analyzer)
             save_buttons.append(restore_original)
-
-        if not self.controller.iterative_curation and self.controller.curation_callback is None:
-            save_button_name = "Save in analyzer"
-            save_button_callback = self._panel_save_in_analyzer
-            save_button = pn.widgets.Button(
-                name=save_button_name,
-                button_type="primary",
-                height=30
-            )
-            save_button.on_click(save_button_callback)
-            save_buttons.append(save_button)
 
         if self.controller.curation_callback is not None:
             save_button_name = "Save curation"
@@ -563,10 +560,6 @@ class CurationView(ViewBase):
 
     def _panel_unsplit(self, event):
         self.unsplit()
-
-    def _panel_save_in_analyzer(self, event):
-        self.controller.save_curation_in_analyzer()
-        self.refresh()
 
     def _panel_save_curation_callback(self, event):
         self.controller.save_curation_callback()
