@@ -101,10 +101,10 @@ class Controller():
             temp_ext = self.analyzer.compute_one_extension("templates")
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
 
-        self.templates_average = temp_ext.get_templates(operator='average')
+        self.templates_average = np.asarray(temp_ext.get_templates(operator='average'))
         
         if 'std' in temp_ext.params['operators']:
-            self.templates_std = temp_ext.get_templates(operator='std')
+            self.templates_std = np.asarray(temp_ext.get_templates(operator='std'))
         else:
             self.templates_std = None
 
@@ -124,7 +124,7 @@ class Controller():
         if ext is None and self.has_extension('recording'):
             print('Force compute "noise_levels" is needed')
             ext = analyzer.compute_one_extension('noise_levels')
-        self.noise_levels = ext.get_data() if ext is not None else None
+        self.noise_levels = np.asarray(ext.get_data()) if ext is not None else None
 
         if "quality_metrics" in skip_extensions:
             if self.verbose:
@@ -188,7 +188,8 @@ class Controller():
                 print('\tLoading correlograms')
             ccg_ext = analyzer.get_extension('correlograms')
             if ccg_ext is not None:
-                self.correlograms, self.correlograms_bins = ccg_ext.get_data()
+                # materialize: views index these per selection, which is slow on lazy (remote) arrays
+                self.correlograms, self.correlograms_bins = (np.asarray(d) for d in ccg_ext.get_data())
             else:
                 self.correlograms, self.correlograms_bins = None, None
 
@@ -202,7 +203,7 @@ class Controller():
                 print('\tLoading isi_histograms')
             isi_ext = analyzer.get_extension('isi_histograms')
             if isi_ext is not None:
-                self.isi_histograms, self.isi_bins = isi_ext.get_data()
+                self.isi_histograms, self.isi_bins = (np.asarray(d) for d in isi_ext.get_data())
             else:
                 self.isi_histograms, self.isi_bins = None, None
 
@@ -216,7 +217,7 @@ class Controller():
             ts_ext = analyzer.get_extension('template_similarity')
             if ts_ext is not None:
                 method = ts_ext.params["method"]
-                self._similarity_by_method[method] = ts_ext.get_data()
+                self._similarity_by_method[method] = np.asarray(ts_ext.get_data())
             else:
                 if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
                     # precompute similarity when low channel/units count
