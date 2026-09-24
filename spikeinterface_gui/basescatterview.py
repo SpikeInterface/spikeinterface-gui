@@ -75,7 +75,6 @@ class BaseScatterView(ViewBase):
 
     def get_unit_data(self, unit_id, segment_index=0):
         if unit_id in self._cache_data:
-            print(f"Using cached data for unit {unit_id}, segment {segment_index}")
             cached = self._cache_data[unit_id][segment_index]
             spike_times = cached['times']
             spike_data = cached['spike_data']
