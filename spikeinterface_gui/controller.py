@@ -229,7 +229,7 @@ class Controller():
                 print('\tSkipping waveforms')
             self.waveforms_ext = None
         else:
-            if verbose:
+            if self.verbose:
                 print('\tLoading waveforms')
             wf_ext = analyzer.get_extension('waveforms')
             if wf_ext is not None:
@@ -247,11 +247,15 @@ class Controller():
             pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
-        if analyzer.has_extension("valid_unit_periods"):
+        self.valid_periods = None
+        if "valid_unit_periods" in skip_extensions:
+            if self.verbose:
+                print('\tSkipping valid_unit_periods')
+        elif analyzer.has_extension("valid_unit_periods"):
+            if verbose:
+                print('\tLoading valid unit periods')
             valid_periods_ext = analyzer.get_extension("valid_unit_periods")
             self.valid_periods = valid_periods_ext.get_data(outputs="by_unit")
-        else:
-            self.valid_periods = None
 
         self._potential_merges = None
         # some direct attribute

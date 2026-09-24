@@ -1,6 +1,7 @@
 import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
+from tqdm.auto import tqdm
 
 from .view_base import ViewBase
 
@@ -59,17 +60,21 @@ class BaseScatterView(ViewBase):
         if not self.settings['cache_data']:
             return
 
-        for unit_id in self.controller.unit_ids:
+        # load once: per-unit fancy indexing on lazy (zarr) arrays re-fetches every chunk for each unit
+        all_sample_indices = np.asarray(self.controller.spikes["sample_index"])
+        all_spike_data = np.asarray(self.spike_data)
+
+        for unit_id in tqdm(self.controller.unit_ids, f"Caching data for units {self.__class__.__name__}"):
             self._cache_data[unit_id] = []
             for segment_index in range(self.controller.num_segments):
                 inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
-                spike_indices = self.controller.spikes["sample_index"][inds]
+                spike_indices = all_sample_indices[inds]
                 spike_times = self.controller.sample_index_to_time(spike_indices)
                 if self.settings["auto_decimate"]:
                     decimate_factor = max(1, len(inds) // self.settings['max_spikes_per_unit'])
                     spike_times = spike_times[::decimate_factor]
                     inds = inds[::decimate_factor]
-                spike_data = self.spike_data[inds]
+                spike_data = all_spike_data[inds]
                 self._cache_data[unit_id].append(dict(times=spike_times, spike_data=spike_data, inds=inds))
 
 
