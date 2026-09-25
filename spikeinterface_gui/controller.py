@@ -285,11 +285,11 @@ class Controller():
             self.pc_ext = pc_ext
 
         self.valid_periods = None
-        if "valid_unit_periods" in skip_extensions:
+        if "valid_unit_periods" in self.skip_extensions:
             if self.verbose:
                 print('\tSkipping valid_unit_periods')
         elif analyzer.has_extension("valid_unit_periods"):
-            if verbose:
+            if self.verbose:
                 print('\tLoading valid unit periods')
             valid_periods_ext = analyzer.get_extension("valid_unit_periods")
             self.valid_periods = valid_periods_ext.get_data(outputs="by_unit")
