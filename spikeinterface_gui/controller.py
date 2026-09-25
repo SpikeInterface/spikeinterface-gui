@@ -8,7 +8,7 @@ import json
 from copy import deepcopy
 
 from spikeinterface import compute_sparsity
-from spikeinterface.core.sorting_tools import spike_vector_to_indices
+from spikeinterface.core.base import minimum_spike_dtype
 from spikeinterface.curation import validate_curation_dict, apply_curation
 from spikeinterface.curation.curation_model import Curation
 from spikeinterface.widgets.utils import make_units_table_from_analyzer
@@ -19,9 +19,6 @@ from .utils_global import add_new_unit_ids_to_curation_dict
 from .curation_tools import add_merge, default_label_definitions, empty_curation_data
 from .event_tools import parse_events
 
-spike_dtype =[('sample_index', 'int64'), ('unit_index', 'int64'), 
-    ('channel_index', 'int64'), ('segment_index', 'int64'),
-    ('visible', 'bool'), ('selected', 'bool'), ('rand_selected', 'bool')]
 
 
 _default_main_settings = dict(
@@ -140,10 +137,10 @@ class Controller():
             temp_ext = self.analyzer.compute_one_extension("templates")
         self.nbefore, self.nafter = temp_ext.nbefore, temp_ext.nafter
 
-        self.templates_average = temp_ext.get_templates(operator='average')
+        self.templates_average = np.asarray(temp_ext.get_templates(operator='average'))
         
         if 'std' in temp_ext.params['operators']:
-            self.templates_std = temp_ext.get_templates(operator='std')
+            self.templates_std = np.asarray(temp_ext.get_templates(operator='std'))
         else:
             self.templates_std = None
 
@@ -163,7 +160,7 @@ class Controller():
         if ext is None and self.has_extension('recording'):
             print('Force compute "noise_levels" is needed')
             ext = analyzer.compute_one_extension('noise_levels')
-        self.noise_levels = ext.get_data() if ext is not None else None
+        self.noise_levels = np.asarray(ext.get_data()) if ext is not None else None
 
         if "quality_metrics" in self.skip_extensions:
             if self.verbose:
@@ -227,7 +224,8 @@ class Controller():
                 print('\tLoading correlograms')
             ccg_ext = analyzer.get_extension('correlograms')
             if ccg_ext is not None:
-                self.correlograms, self.correlograms_bins = ccg_ext.get_data()
+                # materialize: views index these per selection, which is slow on lazy (remote) arrays
+                self.correlograms, self.correlograms_bins = (np.asarray(d) for d in ccg_ext.get_data())
             else:
                 self.correlograms, self.correlograms_bins = None, None
 
@@ -241,7 +239,7 @@ class Controller():
                 print('\tLoading isi_histograms')
             isi_ext = analyzer.get_extension('isi_histograms')
             if isi_ext is not None:
-                self.isi_histograms, self.isi_bins = isi_ext.get_data()
+                self.isi_histograms, self.isi_bins = (np.asarray(d) for d in isi_ext.get_data())
             else:
                 self.isi_histograms, self.isi_bins = None, None
 
@@ -255,7 +253,7 @@ class Controller():
             ts_ext = analyzer.get_extension('template_similarity')
             if ts_ext is not None:
                 method = ts_ext.params["method"]
-                self._similarity_by_method[method] = ts_ext.get_data()
+                self._similarity_by_method[method] = np.asarray(ts_ext.get_data())
             else:
                 if len(self.unit_ids) <= 64 and len(self.channel_ids) <= 64:
                     # precompute similarity when low channel/units count
@@ -286,11 +284,15 @@ class Controller():
             pc_ext = analyzer.get_extension('principal_components')
             self.pc_ext = pc_ext
 
-        if analyzer.has_extension("valid_unit_periods"):
+        self.valid_periods = None
+        if "valid_unit_periods" in self.skip_extensions:
+            if self.verbose:
+                print('\tSkipping valid_unit_periods')
+        elif analyzer.has_extension("valid_unit_periods"):
+            if self.verbose:
+                print('\tLoading valid unit periods')
             valid_periods_ext = analyzer.get_extension("valid_unit_periods")
             self.valid_periods = valid_periods_ext.get_data(outputs="by_unit")
-        else:
-            self.valid_periods = None
 
         self._potential_merges = None
         # some direct attribute
@@ -321,44 +323,57 @@ class Controller():
         unit_ids = self.analyzer.unit_ids
         num_seg = self.analyzer.get_num_segments()
         self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
-        # print("self.num_spikes", self.num_spikes)
 
-        spike_vector = self.analyzer.sorting.to_spike_vector(
-            concatenated=True, main_channel_indices=self.analyzer.get_main_channels(outputs="index", with_dict=False)
-        )
-        
-        self.random_spikes_indices = self.analyzer.get_extension("random_spikes").get_data()
+        if self.analyzer._lazy:
+            # If the analyzer is lazy, avoid materializing the full spike vector, which can be very large.
+            self.spikes = self.analyzer.sorting.to_spike_vector()
+        else:
+            # In this case we make a copy with align=True, which is required for np.searchsorted
+            # (and therefore trace views) to be fast.
+            spike_vector = self.analyzer.sorting.to_spike_vector()
+            self.spikes = np.zeros(spike_vector.size, dtype=np.dtype(minimum_spike_dtype, align=True))
+            self.spikes['sample_index'] = spike_vector['sample_index']
+            self.spikes['unit_index'] = spike_vector['unit_index']
+            self.spikes['segment_index'] = spike_vector['segment_index']
 
-        # align=True is required for np.searchsorted (and therefore trace
-        # views) to be fast.
-        self.spikes = np.zeros(spike_vector.size, dtype=np.dtype(spike_dtype, align=True))
-        self.spikes['sample_index'] = spike_vector['sample_index']
-        self.spikes['unit_index'] = spike_vector['unit_index']
-        self.spikes['segment_index'] = spike_vector['segment_index']
-        self.spikes['channel_index'] = spike_vector['channel_index']
-        self.spikes['rand_selected'][:] = False
-        self.spikes['rand_selected'][self.random_spikes_indices] = True
+        # bounded by max_spikes_per_unit * num_units, so safe to materialize even in lazy mode
+        self.random_spikes_indices = np.asarray(self.analyzer.get_extension("random_spikes").get_data())
+        self._random_spikes_set = set(int(i) for i in self.random_spikes_indices)
 
-        # self.num_spikes = self.analyzer.sorting.count_num_spikes_per_unit(outputs="dict")
-        seg_limits = np.searchsorted(self.spikes["segment_index"], np.arange(num_seg + 1))
-        self.segment_slices = {segment_index: slice(seg_limits[segment_index], seg_limits[segment_index + 1]) for segment_index in range(num_seg)}
-        
-        spike_vector2 = self.analyzer.sorting.to_spike_vector(concatenated=False)
-        self.final_spike_samples = [segment_spike_vector[-1][0] for segment_spike_vector in spike_vector2]
-        # this is dict of list because per segment spike_indices[segment_index][unit_id]
-        spike_indices_abs = spike_vector_to_indices(spike_vector2, unit_ids, absolute_index=True)
-        spike_indices = spike_vector_to_indices(spike_vector2, unit_ids)
-        # this is flatten
-        spike_per_seg = [s.size for s in spike_vector2]
-        # dict[unit_id] -> all indices for this unit across segments
-        self._spike_index_by_units = {}
-        # dict[segment_index][unit_id] -> all indices for this unit for one segment
-        self._spike_index_by_segment_and_units = spike_indices_abs
-        for unit_id in unit_ids:
-            inds = []
-            for seg_ind in range(num_seg):
-                inds.append(spike_indices[seg_ind][unit_id] + int(np.sum(spike_per_seg[:seg_ind])))
-            self._spike_index_by_units[unit_id] = np.concatenate(inds)
+        self._ext_channel_inds = np.array([self._main_channels[unit_id] for unit_id in self.unit_ids])
+
+        cached = self.analyzer.sorting._cached_spike_vector_segment_slices
+        if cached is not None:
+            # shape (num_seg, 2): columns are [start, stop]
+            self.segment_slices = {seg: slice(int(cached[seg, 0]), int(cached[seg, 1])) for seg in range(num_seg)}
+        else:
+            bounds = np.searchsorted(np.asarray(self.spikes["segment_index"]), np.arange(num_seg + 1))
+            self.segment_slices = {seg: slice(int(bounds[seg]), int(bounds[seg + 1])) for seg in range(num_seg)}
+
+        # Load unit_index once to build per-unit lookup structures, avoiding a
+        # second to_spike_vector() call that would materialise full structured
+        # arrays from zarr for every segment.
+        unit_index_all = np.asarray(self.spikes["unit_index"])
+
+        # last sample per segment: one cheap element read instead of full materialisation
+        sample_index_arr = self.spikes["sample_index"]
+        self.final_spike_samples = [int(sample_index_arr[self.segment_slices[seg].stop - 1]) for seg in range(num_seg)]
+
+        # dict[segment_index][unit_id] -> absolute spike indices for that unit in that segment
+        num_units = len(unit_ids)
+        self._spike_index_by_segment_and_units = {}
+        for seg_ind in range(num_seg):
+            sl = self.segment_slices[seg_ind]
+            seg_unit_idx = unit_index_all[sl]
+            abs_offset = sl.start
+            order = np.argsort(seg_unit_idx, stable=True)
+            sorted_unit = seg_unit_idx[order]
+            sorted_abs = (order + abs_offset).astype(np.int64)
+            boundaries = np.searchsorted(sorted_unit, np.arange(num_units + 1, dtype=np.int64))
+            self._spike_index_by_segment_and_units[seg_ind] = {
+                uid: sorted_abs[boundaries[u]:boundaries[u + 1]].copy()
+                for u, uid in enumerate(unit_ids)
+            }
 
         t1 = time.perf_counter()
         if self.verbose:
@@ -710,9 +725,10 @@ class Controller():
 
     def update_visible_spikes(self):
         inds = []
-        for unit_index, unit_id in self.iter_visible_units():
-            inds.append(self._spike_index_by_units[unit_id])
-        
+        for _, unit_id in self.iter_visible_units():
+            for seg_ind in self._spike_index_by_segment_and_units:
+                inds.append(self._spike_index_by_segment_and_units[seg_ind][unit_id])
+
         if len(inds) > 0:
             inds = np.concatenate(inds)
             inds = np.sort(inds)
@@ -739,10 +755,11 @@ class Controller():
 
     def get_spike_indices(self, unit_id, segment_index=None):
         if segment_index is None:
-            # dict[unit_id] -> all indices for this unit across segments
-            return self._spike_index_by_units[unit_id]
+            return np.concatenate([
+                self._spike_index_by_segment_and_units[seg][unit_id]
+                for seg in sorted(self._spike_index_by_segment_and_units)
+            ])
         else:
-            # dict[segment_index][unit_id] -> all indices for this unit for one segment
             return self._spike_index_by_segment_and_units[segment_index][unit_id]
 
     def get_num_samples(self, segment_index):

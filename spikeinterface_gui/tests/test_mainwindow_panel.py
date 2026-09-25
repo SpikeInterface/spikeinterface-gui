@@ -20,9 +20,9 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, iterative_curation=False, layout="default", port=0):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, port=0, iterative_curation=False, layout="default", lazy_load=False):
 
-    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False, lazy=lazy_load)
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
     print(analyzer)
@@ -114,6 +114,7 @@ parser.add_argument('--dataset', default="small", help='Path to the dataset fold
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
 parser.add_argument('--iterative', action="store_true", help='Run iterative curation')
 parser.add_argument('--layout', default="default", help='Layout of the GUI, default is "default"')
+parser.add_argument('--lazy', action="store_true", help='Lazy load')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -125,9 +126,16 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    iterative_curation = args.iterative
-
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, iterative_curation=iterative_curation, layout=args.layout, port=0)
+    win = test_mainwindow(
+        start_app=True,
+        verbose=True,
+        curation=True,
+        events=args.events,
+        port=0,
+        layout=args.layout,
+        iterative_curation=args.iterative,
+        lazy_load=args.lazy
+    )
 
     # test_launcher(verbose=True)
 

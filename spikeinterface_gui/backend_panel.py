@@ -2,12 +2,11 @@ import warnings
 
 import param
 import panel as pn
-import numpy as np
-from copy import copy
 
 from .viewlist import get_all_possible_views
-from .layout_presets import get_layout_description
 from .utils_global import fill_unnecessary_space, get_present_zones_in_half_of_layout
+
+
 # Used by views to emit/trigger signals
 class SignalNotifier(param.Parameterized):
     spike_selection_changed = param.Event()

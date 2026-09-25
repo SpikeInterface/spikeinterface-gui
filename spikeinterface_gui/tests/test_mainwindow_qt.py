@@ -21,10 +21,9 @@ def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, iterative_curation=False, layout="default"):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, iterative_curation=False, layout="default", lazy_load=False):
 
-
-    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False, lazy=lazy_load)
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
 
@@ -94,7 +93,7 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
         layout_preset=layout,
-        events=events_dict
+        events=events_dict,
         # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
 
@@ -131,6 +130,7 @@ parser.add_argument('--dataset', default="small", help='Path to the dataset fold
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
 parser.add_argument('--iterative', action="store_true", help='Run iterative curation')
 parser.add_argument('--layout', default="default", help='Enable layout preset')
+parser.add_argument('--lazy', action="store_true", help='Lazy load')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -142,9 +142,15 @@ if __name__ == '__main__':
     if not test_folder.is_dir():
         setup_module()
 
-    iterative_curation = args.iterative
-
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, iterative_curation=iterative_curation, layout=args.layout)
+    win = test_mainwindow(
+        start_app=True,
+        verbose=True,
+        curation=True,
+        events=args.events,
+        layout=args.layout,
+        iterative_curation=args.iterative,
+        lazy_load=args.lazy
+    )
     # win = test_mainwindow(start_app=True, verbose=True, curation=False)
 
     # test_launcher(verbose=True)
