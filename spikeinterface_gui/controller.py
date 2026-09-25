@@ -891,16 +891,42 @@ class Controller():
         return self.units_table
 
     def get_all_pcs(self):
-
         if self._pc_projections is None and self.pc_ext is not None:
-            self._pc_projections, self._pc_indices = self.pc_ext.get_some_projections(
-                channel_ids=self.analyzer.channel_ids,
-                unit_ids=self.analyzer.unit_ids
-            )
-
-            return self._pc_indices, self._pc_projections
-        else:
+            self._pc_indices, self._pc_projections = self._get_dense_pcs_channel_major()
+        if self._pc_projections is None:
             return None, None
+        return self._pc_indices, self._pc_projections
+
+    def _get_dense_pcs_channel_major(self):
+        """Dense PCs of the random spikes as (num_spikes, num_channels, num_components), C-contiguous.
+
+        Channel-major so that NDScatterView can flatten it with a free reshape
+        (column = channel_index * num_components + component) instead of holding a
+        second full copy. Built directly from the sparse projections, so the peak is
+        one dense array + the sparse one.
+        """
+        sparsity = self.analyzer.sparsity
+        if sparsity is None:
+            pcs, unit_indices = self.pc_ext.get_some_projections(
+                channel_ids=self.analyzer.channel_ids, unit_ids=self.analyzer.unit_ids
+            )
+            return unit_indices, np.ascontiguousarray(pcs.swapaxes(1, 2))
+
+        # read all rows at once: per-unit reads on a lazy zarr array re-fetch the same chunks
+        sparse_pcs = np.asarray(self.pc_ext.data["pca_projection"])
+        num_spikes, num_components, _ = sparse_pcs.shape
+        unit_indices = np.asarray(self.analyzer.get_extension("random_spikes").get_random_spikes()["unit_index"])
+
+        dense = np.zeros((num_spikes, self.num_channels, num_components), dtype=sparse_pcs.dtype)
+        order = np.argsort(unit_indices, kind="stable")
+        bounds = np.searchsorted(unit_indices[order], np.arange(len(self.analyzer.unit_ids) + 1))
+        for unit_index, unit_id in enumerate(self.analyzer.unit_ids):
+            rows = order[bounds[unit_index]:bounds[unit_index + 1]]
+            if rows.size == 0:
+                continue
+            chan_inds = sparsity.unit_id_to_channel_indices[unit_id]
+            dense[rows[:, None], chan_inds[None, :], :] = sparse_pcs[rows, :, : chan_inds.size].swapaxes(1, 2)
+        return unit_indices.copy(), dense
 
     def get_sparsity_mask(self):
         if self.external_sparsity is not None:
