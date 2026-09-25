@@ -1,18 +1,24 @@
-import json
 from pathlib import Path
 
 from .view_base import ViewBase
 
-from spikeinterface.core.core_tools import check_json
-
+from spikeinterface.curation.curation_model import SequentialCuration
 
 class CurationView(ViewBase):
     id = "curation"
     _supported_backend = ["qt", "panel"]
     _need_compute = False
+    _settings = [
+        {'name': 'sparsity_overlap', 'type': 'float', 'value' : 0.75 },
+        {'name': 'censor_ms', 'type': 'float', 'value' : 0},
+        {'name': 'merging_mode', 'type': 'list', 'limits': ['soft', 'hard'], 'value' : 'soft' },
+        {'name': 'raise_error_if_overlap_fails', 'type': 'bool', 'value' : True },
+    ]
 
     def __init__(self, controller=None, parent=None, backend="qt"):
         self.active_table = "merge"
+        if not controller.iterative_curation:
+            self.settings = []
         ViewBase.__init__(self, controller=controller, parent=parent, backend=backend)
 
     # TODO: Cast unit ids to the correct type here
@@ -58,6 +64,27 @@ class CurationView(ViewBase):
         self.controller.set_indices_spike_selected(spike_inds[split_indices])
         self.notify_spike_selection_changed()
 
+    def on_manual_curation_updated(self):
+            self.refresh()
+
+    def apply_curation_to_analyzer(self):
+        with self.busy_cursor():
+            success, error = self.controller.apply_curation(
+                sparsity_overlap=self.settings["sparsity_overlap"],
+                censor_ms=self.settings["censor_ms"],
+                merging_mode=self.settings["merging_mode"],
+                raise_error_if_overlap_fails=self.settings["raise_error_if_overlap_fails"],
+            )
+        if not success:
+            self.warning(
+                f"Apply curation failed with error:\n{error}"
+            )
+            return
+
+    def restore_original_analyzer(self):
+        with self.busy_cursor():
+            self.controller.restore_original_analyzer()
+
     ## Qt
     def _qt_make_layout(self):
         from .myqt import QT
@@ -70,10 +97,15 @@ class CurationView(ViewBase):
             but = QT.QPushButton("Save curation")
             tb.addWidget(but)
             but.clicked.connect(self.controller.save_curation_callback)
-        elif self.controller.curation_can_be_saved():
-            but = QT.QPushButton("Save in analyzer")
-            tb.addWidget(but)
-            but.clicked.connect(self.controller.save_curation_in_analyzer)
+
+        if self.controller.iterative_curation:
+            but_apply = QT.QPushButton("Apply curation")
+            tb.addWidget(but_apply)
+            but_apply.clicked.connect(self.apply_curation_to_analyzer)
+            but_restore = QT.QPushButton("Restore original")
+            tb.addWidget(but_restore)
+            but_restore.clicked.connect(self.restore_original_analyzer)
+
         but = QT.QPushButton("Export JSON")
         but.clicked.connect(self._qt_export_json)
         tb.addWidget(but)
@@ -274,9 +306,6 @@ class CurationView(ViewBase):
     def _qt_on_unit_visibility_changed(self):
         self._qt_clear_selection()
 
-    def on_manual_curation_updated(self):
-        self.refresh()
-
     def _qt_export_json(self):
         from .myqt import QT
 
@@ -286,10 +315,20 @@ class CurationView(ViewBase):
         fd.setViewMode(QT.QFileDialog.Detail)
         if fd.exec_():
             json_file = Path(fd.selectedFiles()[0])
-            curation_model = self.controller.construct_final_curation()
-            with json_file.open("w") as f:
-                f.write(curation_model.model_dump_json(indent=4))
-            self.controller.current_curation_saved = True
+            if len(self.controller.applied_curations) == 0:
+                curation_model = self.controller.construct_final_curation()
+                with json_file.open("w") as f:
+                    f.write(curation_model.model_dump_json(indent=4))
+                self.controller.current_curation_saved = True
+            else:
+                current_curation_model = self.controller.construct_final_curation()
+                applied_curations = self.controller.applied_curations
+                current_and_applied_curations = applied_curations + [current_curation_model]
+
+                sequential_curation_model = SequentialCuration(curation_steps=current_and_applied_curations)
+                with json_file.open("w") as f:
+                    f.write(sequential_curation_model.model_dump_json(indent=4))
+                self.controller.current_curation_saved = True
 
     # PANEL
     def _panel_make_layout(self):
@@ -350,22 +389,41 @@ class CurationView(ViewBase):
         )
 
         # Create buttons
+
+        save_buttons = []
+
+        if self.controller.iterative_curation:
+            apply_button = pn.widgets.Button(
+                name="Apply curation",
+                button_type="primary",
+                height=30
+            )
+            apply_button.on_click(self._panel_apply_curation_to_analyzer)
+            save_buttons.append(apply_button)
+            restore_original = pn.widgets.Button(
+                name="Restore original",
+                button_type="primary",
+                height=30
+            )
+            restore_original.on_click(self._panel_restore_original_analyzer)
+            save_buttons.append(restore_original)
+
         if self.controller.curation_callback is not None:
             save_button_name = "Save curation"
             save_button_callback = self._panel_save_curation_callback
-        else:
-            save_button_name = "Save in analyzer"
-            save_button_callback = self._panel_save_in_analyzer
-        save_button = pn.widgets.Button(
-            name=save_button_name,
-            button_type="primary",
-            height=30
-        )
-        save_button.on_click(save_button_callback)
+            save_button = pn.widgets.Button(
+                name=save_button_name,
+                button_type="primary",
+                height=30
+            )
+            save_button.on_click(save_button_callback)
+            save_buttons.append(save_button)
+            
 
         download_button = pn.widgets.FileDownload(
             button_type="primary", filename="curation.json", callback=self._panel_generate_json, height=30
         )
+        save_buttons.append(download_button)
 
         restore_button = pn.widgets.Button(name="Restore", button_type="primary", height=30)
         restore_button.on_click(self._panel_restore_units)
@@ -378,8 +436,7 @@ class CurationView(ViewBase):
 
         # Create layout
         buttons_save = pn.Row(
-            save_button,
-            download_button,
+            *save_buttons,
             sizing_mode="stretch_width",
         )
         save_sections = pn.Column(
@@ -450,7 +507,7 @@ class CurationView(ViewBase):
 
     def _panel_ensure_save_warning_message(self):
 
-        if self.layout[0].name == "curation_save_warning":
+        if self.layout[0].name == "curation_save_warning" or self.layout[0].name == "busy...":
             return
 
         import panel as pn
@@ -495,12 +552,14 @@ class CurationView(ViewBase):
     def _panel_unmerge(self, event):
         self.unmerge()
 
+    def _panel_apply_curation_to_analyzer(self, event):
+        self.apply_curation_to_analyzer()
+
+    def _panel_restore_original_analyzer(self, event):
+        self.restore_original_analyzer()
+
     def _panel_unsplit(self, event):
         self.unsplit()
-
-    def _panel_save_in_analyzer(self, event):
-        self.controller.save_curation_in_analyzer()
-        self.refresh()
 
     def _panel_save_curation_callback(self, event):
         self.controller.save_curation_callback()

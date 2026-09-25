@@ -382,8 +382,8 @@ class BaseScatterView(ViewBase):
         # set x range to time range of the current segment for scatter, and max count for histogram
         # set y range to min and max of visible spike amplitudes
         if len(ymins) > 0 and (set_scatter_range or not self._first_refresh_done):
-            ymin = np.min(ymins)
-            ymax = np.max(ymaxs)
+            ymin = np.nanmin(ymins)
+            ymax = np.nanmax(ymaxs)
             t_start, t_stop = self.controller.get_t_start_t_stop()
             self.viewBox.setXRange(t_start, t_stop, padding = 0.0)
             self.viewBox.setYRange(ymin, ymax, padding = 0.0)
