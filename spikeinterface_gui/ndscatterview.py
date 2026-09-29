@@ -26,7 +26,9 @@ class NDScatterView(ViewBase):
         assert controller.has_extension('principal_components')
 
         self.pc_unit_index, self.pc_data = controller.get_all_pcs()
-        self.data = self.pc_data.swapaxes(1,2).reshape(self.pc_data.shape[0], -1)
+        # pc_data is (num_spikes, num_channels, num_components) and C-contiguous, so this is a view
+        # column = channel_index * num_components + component (see update_selected_components)
+        self.data = self.pc_data.reshape(self.pc_data.shape[0], -1)
         self.random_spikes_indices = controller.random_spikes_indices
         
         if self.data.shape[1] == 1:
@@ -262,7 +264,7 @@ class NDScatterView(ViewBase):
         if self._best_mode:
             self.selected_comp[:] = True
             return
-        n_pc_per_chan = self.pc_data.shape[1]
+        n_pc_per_chan = self.pc_data.shape[2]
         n = min(self.settings['num_pc_per_channel'], n_pc_per_chan)
         self.selected_comp[:] = False
         for i in range(n):
@@ -367,7 +369,7 @@ class NDScatterView(ViewBase):
         
         # self.graphicsview2.setMaximumSize(200, 200)
         
-        self.settings.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[1]))
+        self.settings.param('num_pc_per_channel').setLimits((1, self.pc_data.shape[2]))
 
         # the color vector is precomputed
         # spike_colors = self.controller.get_spike_colors(self.pc_unit_index)
