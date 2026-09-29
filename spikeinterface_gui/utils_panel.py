@@ -22,6 +22,34 @@ from bokeh.models import ColumnDataSource, Patches, HTMLTemplateFormatter
 from .view_base import ViewBase
 
 
+def schedule_curation_change(apply_change):
+    """
+    Run a curation change serialized on the server event loop.
+
+    When Panel runs with ``pn.config.nthreads``, client events (table edits,
+    shortcuts, button clicks) are dispatched concurrently on a thread pool, so
+    handlers that read the table state and mutate ``controller.curation_data``
+    can race with each other and with "Save curation". Scheduling the change on
+    the event loop runs these changes one at a time, in the order they were
+    received.
+
+    Parameters
+    ----------
+    apply_change : callable
+        Cheap function that reads the current state and applies the curation
+        change. It can return a callable with follow-up (heavy) work, which is
+        run on the thread pool (if available) so it does not block the event
+        loop shared by all sessions.
+    """
+
+    def _apply():
+        follow_up = apply_change()
+        if follow_up is not None:
+            pn.state.execute(follow_up, schedule="thread" if pn.state._thread_pool else True)
+
+    pn.state.execute(_apply, schedule=True)
+
+
 
 _bg_color = "#181818"
 

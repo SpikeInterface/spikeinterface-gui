@@ -433,11 +433,18 @@ class PanelMainWindow:
         if "curation" not in self.views:
             return
 
+        from .utils_panel import schedule_curation_change
+
         curation_view = self.views["curation"]
-        self.controller.set_curation_data(curation_data)
-        curation_view.notify_manual_curation_updated()
-        self.controller.current_curation_saved = True
-        curation_view.refresh()
+
+        # scheduled like the other curation changes, so it is not interleaved with them
+        def _apply():
+            self.controller.set_curation_data(curation_data)
+            curation_view.notify_manual_curation_updated()
+            self.controller.current_curation_saved = True
+            curation_view.refresh()
+
+        schedule_curation_change(_apply)
 
         # we also need to refresh the unit list view to update the unit visibility according to the new curation
         if "unitlist" in self.views:
