@@ -793,17 +793,26 @@ class UnitListView(ViewBase):
         self.refresh()
 
     def _panel_on_edit(self, event):
+        from .utils_panel import schedule_curation_change
+
         column = event.column
         if self.label_definitions is not None and column in self.label_definitions:
             row = event.row
-            unit_id = self.table.value.index[row]
-            new_label = event.value
-            if new_label == "":
-                new_label = None
-            self.controller.set_label_to_unit(unit_id, column, new_label)
-            self.notify_manual_curation_updated()
-            # like in Qt, move to the next unit and make it visible alone
-            self.table.select_next_row(only=True, from_row=row)
+
+            def _apply():
+                unit_id = self.table.value.index[row]
+                # event.value is filled from the table data on a worker thread and can be stale
+                # when events are processed concurrently: read it again here
+                new_label = self.table.value[column].iloc[row]
+                if new_label == "":
+                    new_label = None
+                self.controller.set_label_to_unit(unit_id, column, new_label)
+                self.notify_manual_curation_updated()
+                # like in Qt, move to the next unit and make it visible alone
+                self.table.select_next_row(only=False, from_row=row)
+                return self._panel_on_only_selection
+
+            schedule_curation_change(_apply)
         self.notifier.notify_active_view_updated()
 
     def _panel_update_labels(self):
@@ -839,49 +848,72 @@ class UnitListView(ViewBase):
         return unit_ids[self.table.selection]
 
     def _panel_delete_unit(self):
-        removed_unit_ids = self.get_selected_unit_ids()
-        success = self.controller.make_manual_delete_if_possible(removed_unit_ids)
-        if not success:
-            self.warning("Delete could not be performed. Ensure unit ids are not removed or merged already.")
-            return
-        self.notify_manual_curation_updated()
-        self.refresh()
+        from .utils_panel import schedule_curation_change
+
+        def _apply():
+            removed_unit_ids = self.get_selected_unit_ids()
+            success = self.controller.make_manual_delete_if_possible(removed_unit_ids)
+            if not success:
+                self.warning("Delete could not be performed. Ensure unit ids are not removed or merged already.")
+                return
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+        schedule_curation_change(_apply)
 
     def _panel_merge_units(self):
-        merge_unit_ids = self.get_selected_unit_ids()
-        success = self.controller.make_manual_merge_if_possible(merge_unit_ids)
-        if not success:
-            self.warning(
-                "Merge could not be performed. Ensure unit ids are not removed "
-                "merged, or split already."
-            )
-            return
-        self.notify_manual_curation_updated()
-        self.refresh()
+        from .utils_panel import schedule_curation_change
+
+        def _apply():
+            merge_unit_ids = self.get_selected_unit_ids()
+            success = self.controller.make_manual_merge_if_possible(merge_unit_ids)
+            if not success:
+                self.warning(
+                    "Merge could not be performed. Ensure unit ids are not removed "
+                    "merged, or split already."
+                )
+                return
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+        schedule_curation_change(_apply)
 
     def _panel_remove_from_merge(self):
-        merge_unit_ids = self.get_selected_unit_ids()
-        success = self.controller.remove_units_from_merge_if_possible(merge_unit_ids)
-        if not success:
-            self.warning(
-                "Could not remove units from a merge. Ensure all selected units are in a merge "
-                "group, and that you are not leaving zero or one units in the merge group."
-            )
-            return
-        self.notify_manual_curation_updated()
-        self.refresh()
+        from .utils_panel import schedule_curation_change
+
+        def _apply():
+            merge_unit_ids = self.get_selected_unit_ids()
+            success = self.controller.remove_units_from_merge_if_possible(merge_unit_ids)
+            if not success:
+                self.warning(
+                    "Could not remove units from a merge. Ensure all selected units are in a merge "
+                    "group, and that you are not leaving zero or one units in the merge group."
+                )
+                return
+            self.notify_manual_curation_updated()
+            self.refresh()
+
+        schedule_curation_change(_apply)
 
     def _panel_set_default_label(self, label):
-        selected_unit_ids = self._panel_get_selected_unit_ids()
-        if len(selected_unit_ids) == 0:
-            return
-        for unit_id in selected_unit_ids:
-            self.controller.set_label_to_unit(unit_id, "quality", label)
-        self.table.value.loc[selected_unit_ids, "quality"] = label if label is not None else ""
-        self.notify_manual_curation_updated()
-        self.refresh()
-        # like in Qt, move to the next unit and make it visible alone
-        self.table.select_next_row(only=True)
+        from .utils_panel import schedule_curation_change
+
+        def _apply():
+            # the selection is read here (on the event loop), so it reflects the
+            # select_next_row of the previous label change
+            selected_unit_ids = self._panel_get_selected_unit_ids()
+            if len(selected_unit_ids) == 0:
+                return
+            for unit_id in selected_unit_ids:
+                self.controller.set_label_to_unit(unit_id, "quality", label)
+            self.table.value.loc[selected_unit_ids, "quality"] = label if label is not None else ""
+            self.notify_manual_curation_updated()
+            self.refresh()
+            # like in Qt, move to the next unit and make it visible alone
+            self.table.select_next_row(only=False)
+            return self._panel_on_only_selection
+
+        schedule_curation_change(_apply)
 
     def _panel_handle_shortcut(self, event):
         if self.is_view_active():
