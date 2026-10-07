@@ -21,6 +21,7 @@ def run_mainwindow(
     mode: str = "desktop",
     with_traces: bool = True,
     curation: bool = False,
+    iterative_curation: bool = False,
     curation_dict: dict | None = None,
     label_definitions: dict | None = None,
     displayed_unit_properties: list | None=None,
@@ -57,6 +58,8 @@ def run_mainwindow(
         If True, traces are displayed
     curation: bool, default: False
         If True, the curation panel is displayed
+    iterative_curation: bool, default: False
+        If True, a user can iteratively curate their analyzer
     curation_dict: dict | None, default: None
         The curation dictionary to start from an existing curation
     label_definitions: dict | None, default: None
@@ -154,6 +157,7 @@ def run_mainwindow(
         backend=backend,
         verbose=verbose,
         curation=curation,
+        iterative_curation=iterative_curation,
         curation_data=curation_dict,
         label_definitions=label_definitions,
         with_traces=with_traces,
@@ -293,10 +297,7 @@ def check_folder_is_analyzer(folder):
         # Check if the folder contains the necessary files for a SortingAnalyzer
         with open(spikeinterface_info_file, 'r') as f:
             spikeinterface_info = json.load(f)
-        if spikeinterface_info.get("object") != "SortingAnalyzer":
-            return False
-        else:
-            return True
+        return spikeinterface_info.get("object") == "SortingAnalyzer"
     else:  #zarr folder
         import zarr
         # Check if the folder contains the necessary files for a SortingAnalyzer
@@ -304,10 +305,7 @@ def check_folder_is_analyzer(folder):
         spikeinterface_info = zarr_root.attrs.get('spikeinterface_info')
         if spikeinterface_info is None:
             return False
-        if spikeinterface_info.get("object") != "SortingAnalyzer":
-            return False
-        else:
-            return True
+        return spikeinterface_info.get("object") == "SortingAnalyzer"
         
 
 def run_mainwindow_cli():
@@ -319,16 +317,17 @@ def run_mainwindow_cli():
     parser.add_argument('--mode', help='Mode desktop or web', default='desktop')
     parser.add_argument('--no-traces', help='Do not show traces', action='store_true', default=False)
     parser.add_argument('--curation', help='Enable curation panel', action='store_true', default=False)
+    parser.add_argument('--iterative_curation', help='Enable iterative curation', action='store_true', default=False)
     parser.add_argument('--recording', help='Path to a recording file (.json/.pkl) or folder that can be loaded with spikeinterface.load', default=None)
     parser.add_argument('--recording-base-folder', help='Base folder path for the recording (if .json/.pkl)', default=None)
     parser.add_argument('--verbose', help='Make the output verbose', action='store_true', default=False)
-    parser.add_argument('--skip_extensions', help='Choose which extensions not to load, comma separated (e.g. waveforms,principal_components)', default=None)
+    parser.add_argument('--skip-extensions', help='Choose which extensions not to load, comma separated (e.g. waveforms,principal_components)', default=None)
     parser.add_argument('--port', help='Port for web mode', default=0, type=int)
     parser.add_argument('--address', help='Address for web mode', default='localhost')
     parser.add_argument('--layout-file', help='Path to json file defining layout', default=None)
     parser.add_argument('--curation-file', help='Path to json file defining a curation', default=None)
     parser.add_argument('--settings-file', help='Path to json file specifying the settings of each view', default=None)
-    parser.add_argument('--disable_save_settings_button', help='Disables button allowing for user to save default settings', action='store_true', default=False)
+    parser.add_argument('--disable-save-settings-button', help='Disables button allowing for user to save default settings', action='store_true', default=False)
 
     args = parser.parse_args(argv)
 
@@ -354,19 +353,23 @@ def run_mainwindow_cli():
             try:
                 if args.verbose:
                     print('Loading recording...')
-                recording_base_path = args.recording_base_path
-                recording = load(args.recording, base_folder=recording_base_path)
+                recording = load(args.recording, base_folder=args.recording_base_folder)
                 if args.verbose:
                     print('Recording loaded')
             except Exception as e:
-                print('Error when loading recording. Please check the path or the file format')
-            if recording is not None:
-                if analyzer.get_num_channels() != recording.get_num_channels():
-                    print('Recording and analyzer have different number of channels. Slicing recording')
-                    channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
-                    if np.sum(channel_mask) != analyzer.get_num_channels():
-                        raise ValueError('The recording does not have the same channel ids as the analyzer')
-                    recording = recording.select_channels(recording.channel_ids[channel_mask])
+                raise RuntimeError(
+                    f"Could not load recording from '{args.recording}' "
+                    f"(base folder: {args.recording_base_folder}). "
+                    "Check that the path exists and is readable by spikeinterface.load."
+                ) from e
+            # --recording loaded successfully here (a failure raises above), so the
+            # analyzer/recording channel counts can be reconciled directly.
+            if analyzer.get_num_channels() != recording.get_num_channels():
+                print('Recording and analyzer have different number of channels. Slicing recording')
+                channel_mask = np.isin(recording.channel_ids, analyzer.channel_ids)
+                if np.sum(channel_mask) != analyzer.get_num_channels():
+                    raise ValueError('The recording does not have the same channel ids as the analyzer')
+                recording = recording.select_channels(recording.channel_ids[channel_mask])
 
         if args.curation_file is not None:
             with open(args.curation_file, "r") as f:
@@ -390,6 +393,7 @@ def run_mainwindow_cli():
             mode=args.mode,
             with_traces=not(args.no_traces),
             curation=args.curation,
+            iterative_curation = args.iterative_curation,
             recording=recording,
             skip_extensions=skip_extensions_list,
             verbose=args.verbose,

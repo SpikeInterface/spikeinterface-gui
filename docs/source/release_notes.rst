@@ -3,6 +3,70 @@
 Release Notes
 =============
 
+.. _release0.14.0:
+
+0.14.0
+------
+
+*Release date: October 7th, 2026*
+
+
+Bug fixes
+~~~~~~~~~
+
+* Fix unit visibility change not propagating to other views (PR #264)
+* Fix sigui CLI --recording to reference correct args.recording_base_folder (PR #274)
+* Only set original_curation_data if in curation mode (PR #284)
+* Fix: serialize panel curation changes on the event loop (PR #285)
+
+
+Improvements
+~~~~~~~~~~~~
+
+* Add apply curation to gui-panel (PR #224)
+* Equalize dock zone sizes on startup (PR #265)
+* Remove notify_unit_visibility_changed from unitlistview (PR #266)
+* Some fixes from AIND feedback (PR #267)
+* Allow for 3D probes (PR#272)
+* Add merge focus (PR #278)
+* Adding curation panel during merge focus (PR #279)
+* Panel: move to next unit after manual label (PR #280)
+* Extend scatter range behavior (PR #281)
+* Add new install instructions (PR #282)
+
+
+Performance
+~~~~~~~~~~~
+
+* Improve desktop mode performance (PR #275)
+* Support analyzer in lazy mode (PR #276)
+* Avoid duplication of PCA array with reshape (PR #283)
+
+
+Dependencies
+~~~~~~~~~~~~
+
+* Update for new main_channel PR on SpikeInterface v0.105.0 (PR #277)
+
+.. _release0.13.1:
+
+0.13.1
+------
+
+*Release date: April 1st, 2026*
+
+Bug fixes
+~~~~~~~~~
+
+* Fix quality curation when other labels are given by user (PR #260)
+* Update channel visibility when unit is changed in unitview (PR #259)
+
+Performance
+~~~~~~~~~~~
+
+* Only init views in layout in desktop mode (PR #257)
+
+
 .. _release0.13.0:
 
 0.13.0

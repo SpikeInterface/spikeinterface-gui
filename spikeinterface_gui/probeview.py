@@ -21,7 +21,8 @@ class ProbeView(ViewBase):
     _need_compute = True
 
     def __init__(self, controller=None, parent=None, backend="qt"):
-        self.contact_positions = controller.get_contact_location()
+        # for now, we only use information from the first two dimensions of contact location
+        self.contact_positions = controller.get_contact_location()[:,:2]
         self.probes = controller.get_probegroup().probes
         self._unit_positions = controller.unit_positions
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
@@ -148,6 +149,17 @@ class ProbeView(ViewBase):
         # self.roi_channel.sigRegionChangeFinished.connect(self._qt_on_roi_channel_changed)
 
         self.roi_units.sigRegionChangeFinished.connect(self._qt_on_roi_units_changed)
+
+    def _qt_reinitialize(self):
+        import pyqtgraph as pg
+        
+        self.plot.removeItem(self.scatter)
+        unit_positions = self.controller.unit_positions
+        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
+        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
+        self.plot.addItem(self.scatter)
+
+        self._qt_refresh()
 
     def _qt_refresh(self):
         current_unit_positions = self.controller.unit_positions
@@ -478,11 +490,14 @@ class ProbeView(ViewBase):
         self.should_resize_unit_circle = None
 
         # Main layout
-        self.layout = pn.Column(
-            self.figure,
-            styles={"display": "flex", "flex-direction": "column"},
-            sizing_mode="stretch_both",
-        )
+        if self.layout is None:
+            self.layout = pn.Column(
+                self.figure,
+                styles={"display": "flex", "flex-direction": "column"},
+                sizing_mode="stretch_both",
+            )
+        else:
+            self.layout.objects = [self.figure]
 
     def _panel_refresh(self):
         import panel as pn
@@ -519,10 +534,20 @@ class ProbeView(ViewBase):
 
         # Pre-compute circle updates
         circle_update = None
-        if len(selected_unit_indices) == 1:
+        cx, cy = None, None
+        n = len(selected_unit_indices)
+        if n == 1:
+            # always refresh the channel ROI
             unit_index = selected_unit_indices[0]
-            unit_positions = self.controller.unit_positions
-            cx, cy = unit_positions[unit_index, 0], unit_positions[unit_index, 1]
+            cx, cy = self.controller.unit_positions[unit_index, :]
+        elif n > 1:
+            # change ROI only if all units are inside the radius
+            positions = self.controller.unit_positions[selected_unit_indices, :]
+            distances = np.linalg.norm(positions[:, np.newaxis] - positions[np.newaxis, :], axis=2)
+            if np.max(distances) < (self.settings['radius_units'] * 2):
+                cx, cy = np.mean(positions, axis=0)
+
+        if cx is not None:
             visible_channel_inds = self.update_channel_visibility(cx, cy, radius_channel)
             circle_update = (cx, cy, visible_channel_inds)
 
@@ -554,6 +579,9 @@ class ProbeView(ViewBase):
             self.y_range.start = zoom_bounds[2]
             self.y_range.end = zoom_bounds[3]
 
+    def _panel_reinitialize(self):
+        self._panel_make_layout()
+        self._refresh()
 
     def _panel_compute_unit_glyph_patches(self):
         """Compute glyph patches without modifying Bokeh models."""

@@ -16,6 +16,11 @@ QPushButton {
     font-size: 10px;
 }
 
+QPushButton:checked {
+    background-color: #3a6ea5;
+    color: white;
+}
+
 QComboBox{
     min-width: 100px;
     max-width: 120px;

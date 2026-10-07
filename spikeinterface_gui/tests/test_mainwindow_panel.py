@@ -10,31 +10,19 @@ from pathlib import Path
 
 import numpy as np
 
-# import logging
-
-
-# logger = logging.getLogger('bokeh')
-# logger.setLevel(logging.DEBUG)
-# logging.basicConfig(level=logging.DEBUG)
-
-
-# test_folder = Path(__file__).parent / 'my_dataset_small'
-test_folder = Path(__file__).parent / 'my_dataset_big'
-# test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
-
 
 def setup_module():
+    global test_folder
     case = test_folder.stem.split('_')[-1]
-    make_analyzer_folder(test_folder, case=case)
+    make_analyzer_folder(test_folder, case=case, unit_dtype="str")
 
 def teardown_module():
     clean_all(test_folder)
 
 
-def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, port=0):
+def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_extensions=False, events=False, port=0, iterative_curation=False, layout="default", lazy_load=False):
 
-
-    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer")
+    analyzer = load_sorting_analyzer(test_folder / "sorting_analyzer", load_extensions=False, lazy=lazy_load)
     # analyzer = load_analyzer(test_folder / "sorting_analyzer.zarr")
 
     print(analyzer)
@@ -89,10 +77,11 @@ def test_mainwindow(start_app=False, verbose=True, curation=False, only_some_ext
         curation=curation, curation_dict=curation_dict, 
         displayed_unit_properties=None,
         extra_unit_properties=extra_unit_properties,
-        layout_preset='default',
+        layout_preset=layout,
         # address="10.69.168.40",
         port=port,
-        events=events_dict
+        events=events_dict,
+        iterative_curation=iterative_curation,
         # user_settings={"mainsettings": {"color_mode": "color_by_visibility", "max_visible_units": 5}}
     )
     return win
@@ -123,22 +112,30 @@ def test_launcher(verbose=True):
 parser = ArgumentParser()
 parser.add_argument('--dataset', default="small", help='Path to the dataset folder')
 parser.add_argument('--events', action="store_true", help='Simulate and add events')
+parser.add_argument('--iterative', action="store_true", help='Run iterative curation')
+parser.add_argument('--layout', default="default", help='Layout of the GUI, default is "default"')
+parser.add_argument('--lazy', action="store_true", help='Lazy load')
 
 if __name__ == '__main__':
     args = parser.parse_args()
     dataset = args.dataset
-    if dataset == "small":
-        test_folder = Path(__file__).parent / 'my_dataset_small'
-    elif dataset == "big":
-        test_folder = Path(__file__).parent / 'my_dataset_big'
-    elif dataset == "multiprobe":
-        test_folder = Path(__file__).parent / 'my_dataset_multiprobe'
-    else:
-        test_folder = Path(dataset)
+    global test_folder
+    if dataset is not None:
+        test_folder = Path(__file__).parents[2] / f"my_dataset_{dataset}"
+
     if not test_folder.is_dir():
         setup_module()
 
-    win = test_mainwindow(start_app=True, verbose=True, curation=True, events=args.events, port=0)
+    win = test_mainwindow(
+        start_app=True,
+        verbose=True,
+        curation=True,
+        events=args.events,
+        port=0,
+        layout=args.layout,
+        iterative_curation=args.iterative,
+        lazy_load=args.lazy
+    )
 
     # test_launcher(verbose=True)
 

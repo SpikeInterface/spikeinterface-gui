@@ -1,11 +1,12 @@
+import warnings
+
 import param
 import panel as pn
-import numpy as np
-from copy import copy
 
 from .viewlist import get_all_possible_views
-from .layout_presets import get_layout_description
 from .utils_global import fill_unnecessary_space, get_present_zones_in_half_of_layout
+
+
 # Used by views to emit/trigger signals
 class SignalNotifier(param.Parameterized):
     spike_selection_changed = param.Event()
@@ -134,8 +135,7 @@ class SignalHandler(param.Parameterized):
                 view._panel_view_is_active = False
     
     def on_unit_color_changed(self, param):
-        if not self._active:
-            return
+        # In this case we send it also if the view is not active, because we want to update colors anyways
         for view in self.controller.views:
             if param.obj.view == view:
                 continue
@@ -249,21 +249,25 @@ class PanelMainWindow:
                 for setting_name, user_setting in user_settings.get(view_name).items():
                     available_settings = [s["name"] for s in view_class._settings]
                     if setting_name not in available_settings:
-                        raise KeyError(f"Setting {setting_name} is not a valid setting for View {view_name}. Check your settings file.")
-                    settings_index = available_settings.index(setting_name)
-                    view_class._settings[settings_index]["value"] = user_setting
+                        warnings.warn(f"Setting {setting_name} is not a valid setting for View {view_name}. Ignoring setting. Check your settings file.")
+                    else:
+                        settings_index = available_settings.index(setting_name)
+                        view_class._settings[settings_index]["value"] = user_setting
 
             view = view_class(controller=self.controller, parent=None, backend='panel')
             self.views[view_name] = view
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
-                settings = pn.Param(view.settings._parameterized, sizing_mode="stretch_height", 
+                settings_param = pn.Param(view.settings._parameterized, sizing_mode="stretch_height",
                                     name=f"{view_name.capitalize()} settings")
+                view._panel_settings_widget = settings_param
                 if view_class._need_compute:
                     compute_button = pn.widgets.Button(name="Compute", button_type="primary")
                     compute_button.on_click(view.compute)
-                    settings = pn.Row(settings, compute_button)
+                    settings = pn.Row(settings_param, compute_button)
+                else:
+                    settings = settings_param
                 tabs.append(("⚙️", settings))
 
             tabs.append(("ℹ️", info))
@@ -429,11 +433,18 @@ class PanelMainWindow:
         if "curation" not in self.views:
             return
 
+        from .utils_panel import schedule_curation_change
+
         curation_view = self.views["curation"]
-        self.controller.set_curation_data(curation_data)
-        self.controller.current_curation_saved = True
-        curation_view.notify_manual_curation_updated()
-        curation_view.refresh()
+
+        # scheduled like the other curation changes, so it is not interleaved with them
+        def _apply():
+            self.controller.set_curation_data(curation_data)
+            curation_view.notify_manual_curation_updated()
+            self.controller.current_curation_saved = True
+            curation_view.refresh()
+
+        schedule_curation_change(_apply)
 
         # we also need to refresh the unit list view to update the unit visibility according to the new curation
         if "unitlist" in self.views:

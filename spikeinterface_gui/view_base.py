@@ -41,6 +41,7 @@ class ViewBase:
             self.notifier = SignalNotifier(view=self)
             self.busy = pn.indicators.LoadingSpinner(value=True, size=20, name='busy...')
 
+        self.layout = None
         make_layout()
         if self._settings is not None:
             listen_setting_changes(self)
@@ -94,8 +95,9 @@ class ViewBase:
 
     def is_view_visible(self):
         if self.backend == "qt":
-            # a widget is visible even is it is hidden under another tab!! TODO fix this
-            return self.qt_widget.isVisible()
+            # isVisible() (confusingly) stays True for a view tabbed behind another dock.
+            # But an obscured widget paints nothing, so its visibleRegion is empty.
+            return self.qt_widget.isVisible() and not self.qt_widget.visibleRegion().isEmpty()
         elif self.backend == "panel":
             return self._panel_view_is_visible
 
@@ -106,14 +108,22 @@ class ViewBase:
             return self._panel_view_is_active
 
     def refresh(self, **kwargs):
-        if self.controller.verbose:
-            t0 = time.perf_counter()
         if not self.is_view_visible():
             return
-        self._refresh(**kwargs)
+        if self.controller.verbose and self.backend == "qt":
+            t0 = time.perf_counter()
+            self._refresh(**kwargs)
+            print(f"Refresh {self.__class__.__name__} took {time.perf_counter() - t0:.3f} seconds", flush=True)
+        else:
+            self._refresh(**kwargs)
+
+    def reinitialize(self, **kwargs):
+        if self.controller.verbose:
+            t0 = time.perf_counter()
+        self._reinitialize(**kwargs)
         if self.controller.verbose:
             t1 = time.perf_counter()
-            print(f"Refresh {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
+            print(f"Reinitialize {self.__class__.__name__} took {t1 - t0:.3f} seconds", flush=True)
 
     def compute(self, event=None):
         with self.busy_cursor():
@@ -128,7 +138,21 @@ class ViewBase:
             self._qt_refresh(**kwargs)
         elif self.backend == "panel":
             import panel as pn
-            pn.state.execute(lambda: self._panel_refresh(**kwargs), schedule=True)
+            pn.state.execute(lambda: self._timed_panel_refresh(**kwargs), schedule=True)
+
+    def _timed_panel_refresh(self, **kwargs):
+        # panel refresh is scheduled, so it must be timed where it actually runs
+        if not self.controller.verbose:
+            return self._panel_refresh(**kwargs)
+        t0 = time.perf_counter()
+        self._panel_refresh(**kwargs)
+        print(f"Refresh {self.__class__.__name__} took {time.perf_counter() - t0:.3f} seconds", flush=True)
+
+    def _reinitialize(self, **kwargs):
+        if self.backend == "qt":
+            self._qt_reinitialize(**kwargs)
+        elif self.backend == "panel":
+            self._panel_reinitialize(**kwargs)
 
     def warning(self, warning_msg):
         if self.backend == "qt":
@@ -252,9 +276,7 @@ class ViewBase:
             from .myqt import QT
 
             active_window = QT.QApplication.activeWindow()
-            if active_window and isinstance(active_window, QT.QMessageBox):
-                return True
-            return False
+            return isinstance(active_window, QT.QMessageBox)
         elif self.backend == "panel":
             return self._panel_warning_active
 
@@ -266,6 +288,9 @@ class ViewBase:
 
     def _qt_refresh(self):
         raise (NotImplementedError)
+    
+    def _qt_reinitialize(self):
+        self._qt_refresh()
 
     def _qt_on_spike_selection_changed(self):
         pass
@@ -326,6 +351,9 @@ class ViewBase:
 
     def _panel_refresh(self):
         raise (NotImplementedError)
+    
+    def _panel_reinitialize(self):
+        self._panel_refresh()
 
     def _panel_on_spike_selection_changed(self):
         pass

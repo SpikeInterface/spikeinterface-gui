@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from matplotlib.path import Path as mpl_path
 
@@ -14,8 +15,10 @@ class BaseScatterView(ViewBase):
             {'name': 'alpha', 'type': 'float', 'value' : 0.7, 'limits':(0, 1.), 'step':0.05},
             {'name': 'scatter_size', 'type': 'float', 'value' : 2., 'step':0.5},
             {'name': 'num_bins', 'type': 'int', 'value' : 30, 'step': 1},
-            {'name': 'display_low_percentiles', 'type': 'float', 'value' : 2.0, 'limits':(0, 50), 'step':0.5},
-            {'name': 'display_high_percentiles', 'type': 'float', 'value' : 98.0, 'limits':(50, 100), 'step':0.5},
+            {'name': 'range_type', 'type': 'list', 'limits': ['percentiles', 'absolute']},
+            {'name': 'range_min', 'type': 'float', 'value' : 1.0},
+            {'name': 'range_max', 'type': 'float', 'value' : 99.0},
+            {'name': 'cache_data', 'type': 'bool', 'value' : False}
         ]
     _need_compute = False
 
@@ -37,17 +40,62 @@ class BaseScatterView(ViewBase):
         self._current_selected = 0
         self._block_auto_refresh_and_notify = False
         self._first_refresh_done = False
+        self._cache_data = {}
 
         ViewBase.__init__(self, controller=controller, parent=parent,  backend=backend)
 
         self.valid_period_regions = []
 
+        # settings are only available after ViewBase.__init__()
+        self.on_decimate_or_cache_change()
+
+    def on_decimate_or_cache_change(self, *args):
+        if self.settings["cache_data"]:
+            self.cache_data()
+        else:
+            self._cache_data = {}
+
+    def cache_data(self):
+        if not self.settings['cache_data']:
+            return
+
+        # load once: per-unit fancy indexing on lazy (zarr) arrays re-fetches every chunk for each unit
+        all_sample_indices = np.asarray(self.controller.spikes["sample_index"])
+        all_spike_data = np.asarray(self.spike_data)
+
+        if self.controller.verbose:
+            print(f"Caching data scatter data in: {self.__class__.__name__}")
+        for unit_id in self.controller.unit_ids:
+            self._cache_data[unit_id] = []
+            for segment_index in range(self.controller.num_segments):
+                inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
+                spike_indices = all_sample_indices[inds]
+                spike_times = self.controller.sample_index_to_time(spike_indices)
+                if self.settings["auto_decimate"]:
+                    decimate_factor = max(1, len(inds) // self.settings['max_spikes_per_unit'])
+                    spike_times = spike_times[::decimate_factor]
+                    inds = inds[::decimate_factor]
+                spike_data = all_spike_data[inds]
+                self._cache_data[unit_id].append(dict(times=spike_times, spike_data=spike_data, inds=inds))
+
 
     def get_unit_data(self, unit_id, segment_index=0):
-        inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
-        spike_indices = self.controller.spikes["sample_index"][inds]
-        spike_times = self.controller.sample_index_to_time(spike_indices)
-        spike_data = self.spike_data[inds]
+        if unit_id in self._cache_data:
+            cached = self._cache_data[unit_id][segment_index]
+            spike_times = cached['times']
+            spike_data = cached['spike_data']
+            inds = cached['inds']
+        else:
+            inds = self.controller.get_spike_indices(unit_id, segment_index=segment_index)
+            spike_indices = self.controller.spikes["sample_index"][inds]
+            spike_times = self.controller.sample_index_to_time(spike_indices)
+            spike_data = self.spike_data[inds]
+
+            if self.settings["auto_decimate"] and spike_times.size > self.settings['max_spikes_per_unit']:
+                step = spike_times.size // self.settings['max_spikes_per_unit']
+                spike_times = spike_times[::step]
+                spike_data = spike_data[::step]
+                inds = inds[::step]
 
         if len(spike_data) == 1:
             spike_data_value = spike_data[0]
@@ -56,7 +104,22 @@ class BaseScatterView(ViewBase):
             return spike_times, spike_data, np.array([1]), np.array([ymin, ymax]), ymin, ymax, inds
 
         # avoid clear outliers in the plot and histogram by using percentiles
-        ymin, ymax = np.percentile(spike_data, [self.settings['display_low_percentiles'], self.settings['display_high_percentiles']])
+        if self.settings['range_type'] == 'percentiles':
+            if self.settings["range_min"] < 0:
+                warnings.warn("range_min cannot be less than 0. Setting it to 0.")
+                self.settings["range_min"] = 0.0
+            if self.settings["range_max"] > 100:
+                warnings.warn("range_max cannot be greater than 100. Setting it to 100.")
+                self.settings["range_max"] = 100.0
+            if self.settings["range_min"] > self.settings["range_max"]:
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max - 1.")
+                self.settings["range_min"] = self.settings["range_max"] - 1
+            ymin, ymax = np.percentile(spike_data, [self.settings['range_min'], self.settings['range_max']])
+        else:
+            if self.settings["range_min"] > self.settings["range_max"]:
+                warnings.warn("range_min cannot be greater than range_max. Setting range_min to range_max - 1.")
+                self.settings["range_min"] = self.settings["range_max"] - 1
+            ymin, ymax = self.settings['range_min'], self.settings['range_max']
         min_bin_size = np.min(np.diff(np.unique(spike_data)))
         bins = np.linspace(ymin, ymax, self.settings['num_bins'])
         # if bins are too small, adjust the number of bins to ensure a minimum bin size and avoid jumps in the histogram
@@ -68,27 +131,17 @@ class BaseScatterView(ViewBase):
 
         hist_count, hist_bins = np.histogram(spike_data, bins=bins)
 
-        if self.settings["auto_decimate"] and spike_times.size > self.settings['max_spikes_per_unit']:
-            step = spike_times.size // self.settings['max_spikes_per_unit']
-            spike_times = spike_times[::step]
-            spike_data = spike_data[::step]
-            inds = inds[::step]
-
-
         return spike_times, spike_data, hist_count, hist_bins, ymin, ymax, inds
 
     def get_selected_spikes_data(self, segment_index=0, visible_inds=None):
         sl = self.controller.segment_slices[segment_index]
-        spikes_in_seg = self.controller.spikes[sl]
         selected_indices = self.controller.get_indices_spike_selected()
         if visible_inds is not None:
             selected_indices = np.intersect1d(selected_indices, visible_inds)
-        mask = np.isin(sl.start + np.arange(len(spikes_in_seg)), selected_indices)
-        selected_spikes = spikes_in_seg[mask]
-        spike_times = self.controller.sample_index_to_time(selected_spikes['sample_index'])
-        spike_data = self.spike_data[sl][mask]
+        in_seg = selected_indices[(selected_indices >= sl.start) & (selected_indices < sl.stop)]
+        spike_times = self.controller.sample_index_to_time(self.controller.spikes['sample_index'][in_seg])
+        spike_data = self.spike_data[in_seg]
         return (spike_times, spike_data)
-
 
     def select_all_spikes_from_lasso(self, keep_already_selected=False):
         """
@@ -178,11 +231,6 @@ class BaseScatterView(ViewBase):
         self._lasso_vertices = {segment_index: None for segment_index in range(self.controller.num_segments)}
         self.refresh()
         self.notify_manual_curation_updated()
-        
-
-    def _on_settings_changed(self):
-        self.refresh(set_scatter_range=True)
-
 
     def on_unit_visibility_changed(self):
         self._lasso_vertices = {segment_index: None for segment_index in range(self.controller.num_segments)}
@@ -198,6 +246,9 @@ class BaseScatterView(ViewBase):
         self.refresh()
 
     def on_use_times_updated(self):
+        self.refresh(set_scatter_range=True)
+
+    def _on_settings_changed(self):
         self.refresh(set_scatter_range=True)
 
     ## QT zone ##
@@ -247,6 +298,8 @@ class BaseScatterView(ViewBase):
         self.plot.addItem(self.scatter_select)
         self.scatter_select.setZValue(1000)
 
+        for setting_name in ('cache_data', 'max_spikes_per_unit', 'auto_decimate'):
+            self.settings.param(setting_name).sigValueChanged.connect(self.on_decimate_or_cache_change)
 
     def _qt_initialize_plot(self):
         import pyqtgraph as pg
@@ -329,8 +382,8 @@ class BaseScatterView(ViewBase):
         # set x range to time range of the current segment for scatter, and max count for histogram
         # set y range to min and max of visible spike amplitudes
         if len(ymins) > 0 and (set_scatter_range or not self._first_refresh_done):
-            ymin = np.min(ymins)
-            ymax = np.max(ymaxs)
+            ymin = np.nanmin(ymins)
+            ymax = np.nanmax(ymaxs)
             t_start, t_stop = self.controller.get_t_start_t_stop()
             self.viewBox.setXRange(t_start, t_stop, padding = 0.0)
             self.viewBox.setYRange(ymin, ymax, padding = 0.0)
@@ -531,6 +584,9 @@ class BaseScatterView(ViewBase):
         )
         self.plotted_inds = []
 
+        for setting_name in ('cache_data', 'max_spikes_per_unit', 'auto_decimate'):
+            self.settings._parameterized.param.watch(self.on_decimate_or_cache_change, setting_name)
+
     def _panel_refresh(self, set_scatter_range=False):
         import panel as pn
         from bokeh.models import FixedTicker
@@ -626,7 +682,6 @@ class BaseScatterView(ViewBase):
             self._first_refresh_done = True
         self.hist_fig.x_range.end = max_count
         self.hist_fig.xaxis.ticker = FixedTicker(ticks=[0, max_count // 2, max_count])
-
 
     def _panel_on_select_button(self, event):
         import panel as pn
