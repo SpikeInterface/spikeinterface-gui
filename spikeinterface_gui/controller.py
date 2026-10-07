@@ -92,7 +92,8 @@ class Controller():
         self.units_table = make_units_table_from_analyzer(self.analyzer, extra_properties=extra_unit_properties)
         
         self.set_curation_info(curation, iterative_curation, curation_data, label_definitions, curation_callback, curation_callback_kwargs)
-        self.original_curation_data = deepcopy(self.curation_data)
+        if curation or iterative_curation:
+            self.original_curation_data = deepcopy(self.curation_data)
 
         # parse events
         self.events = None

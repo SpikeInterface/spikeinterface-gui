@@ -547,10 +547,14 @@ class CurationView(ViewBase):
 
 
     def _panel_restore_units(self, event):
-        self.restore_units()
+        from .utils_panel import schedule_curation_change
+
+        schedule_curation_change(self.restore_units)
 
     def _panel_unmerge(self, event):
-        self.unmerge()
+        from .utils_panel import schedule_curation_change
+
+        schedule_curation_change(self.unmerge)
 
     def _panel_apply_curation_to_analyzer(self, event):
         self.apply_curation_to_analyzer()
@@ -559,11 +563,20 @@ class CurationView(ViewBase):
         self.restore_original_analyzer()
 
     def _panel_unsplit(self, event):
-        self.unsplit()
+        from .utils_panel import schedule_curation_change
+
+        schedule_curation_change(self.unsplit)
 
     def _panel_save_curation_callback(self, event):
-        self.controller.save_curation_callback()
-        self.refresh()
+        from .utils_panel import schedule_curation_change
+
+        # scheduled like the other curation changes, so that all the changes
+        # received before the click are applied when the curation is saved
+        def _apply():
+            self.controller.save_curation_callback()
+            self.refresh()
+
+        schedule_curation_change(_apply)
 
     def _panel_generate_json(self):
         # Get the path from the text input
@@ -601,12 +614,14 @@ class CurationView(ViewBase):
             return selected_items
 
     def _panel_handle_shortcut(self, event):
+        from .utils_panel import schedule_curation_change
+
         if event.data == "restore":
-            self.restore_units()
+            schedule_curation_change(self.restore_units)
         elif event.data == "unmerge":
-            self.unmerge()
+            schedule_curation_change(self.unmerge)
         elif event.data == "unsplit":
-            self.unsplit()
+            schedule_curation_change(self.unsplit)
 
     def _panel_on_unit_visibility_changed(self):
         for table in [self.table_delete, self.table_merge, self.table_split]:
