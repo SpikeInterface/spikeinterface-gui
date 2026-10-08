@@ -8,7 +8,7 @@ Release Notes
 0.14.0
 ------
 
-*Release date: October 7th, 2026*
+*Release date: October 8th, 2026*
 
 
 Bug fixes
