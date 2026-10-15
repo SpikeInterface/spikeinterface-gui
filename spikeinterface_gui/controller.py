@@ -618,7 +618,7 @@ class Controller():
 
         # now assign interleaved colors sequentially to the spatially sorted units
         colors = {}
-        color_array = glasbey.create_palette(num_entries, lightness_bounds=(30, 100), chroma_bounds=(30, 100))
+        color_array = glasbey.create_palette(num_entries, lightness_bounds=(30, 100), chroma_bounds=(30, 100), optimize_palette=False)
         for i, unit_ind in enumerate(sorted_inds):
             unit_id = self.unit_ids[unit_ind]
             colors[unit_id] = mcolors.to_rgba(color_array[i % num_entries])
