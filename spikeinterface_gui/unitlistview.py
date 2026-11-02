@@ -174,7 +174,6 @@ class UnitListView(ViewBase):
         target_item = self.items_visibility[view_target_unit_id]
         self.table.scrollToItem(target_item, QT.QAbstractItemView.PositionAtCenter)
 
-        unit_ids_list = list(self.controller.unit_ids)
         for unit_id in self.controller.unit_ids:
             item = self.items_visibility[unit_id]
             item.setCheckState(QT.Qt.Unchecked)
@@ -184,7 +183,8 @@ class UnitListView(ViewBase):
 
         self.table.clearSelection()
         for unit_id in visible_unit_ids:
-            row = unit_ids_list.index(unit_id)
+            # This accounts for row ordering when table sorted by e.g. a metric value
+            row = self.items_visibility[unit_id].row()
             # selectRow would replace the selection in ExtendedSelection mode, keeping only the last unit
             self.table.selectionModel().select(
                 self.table.model().index(row, 0), QT.QItemSelectionModel.Select | QT.QItemSelectionModel.Rows
@@ -205,14 +205,10 @@ class UnitListView(ViewBase):
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
     def _qt_refresh(self):
-        # # TODO sam change this bad hack after speedup the combox
-        # if hasattr(self, 'items_visibility'):
-        #     self._qt_refresh_visibility_items()
-        # else:
-        #     # the time at startup
-        #     self._qt_full_table_refresh()
-        
-        self._qt_full_table_refresh()
+        if hasattr(self, 'items_visibility'):
+            self._qt_refresh_visibility_items()
+        else:
+            self._qt_full_table_refresh()
         
 
     def _qt_set_default_label(self, label):
@@ -330,6 +326,20 @@ class UnitListView(ViewBase):
         for i in range(5):
             self.table.resizeColumnToContents(i)
         self.table.setSortingEnabled(True)
+
+        # re-select the appropriate unit on a full refresh
+        self.table.clearSelection()
+        for unit_id in visible_unit_ids:
+            item = self.items_visibility[unit_id]
+            # this logic is needed when table is sorted by e.g. a metric
+            self.table.selectionModel().select(
+                self.table.model().index(item.row(), 0),
+                QT.QItemSelectionModel.Select | QT.QItemSelectionModel.Rows
+            )
+        if len(visible_unit_ids) > 0:
+            target_item = self.items_visibility[visible_unit_ids[0]]
+            self.table.scrollToItem(target_item, QT.QAbstractItemView.PositionAtCenter)
+
         self.table.itemChanged.connect(self._qt_on_item_changed)
         
         # Restore column order if it exists
