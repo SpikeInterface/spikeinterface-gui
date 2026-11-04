@@ -125,6 +125,7 @@ class CompareUnitListView(ViewBase):
         self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QT.QAbstractItemView.SingleSelection)
         self.table.itemSelectionChanged.connect(self._qt_on_selection_changed)
+        self.table.cellClicked.connect(self._qt_on_row_clicked)
 
         self.table.setSortingEnabled(True)
         # Sort by Agreement Score column (index 2) by default
@@ -190,6 +191,9 @@ class CompareUnitListView(ViewBase):
         self.table.resizeColumnsToContents()
         self._qt_select_visible_row()
 
+    def _qt_on_row_clicked(self):
+        self._qt_on_selection_changed()
+
     def _qt_on_selection_changed(self):
         """Handle row selection and update unit visibility"""
         selected_rows = {item.row() for item in self.table.selectedItems()}
@@ -223,7 +227,7 @@ class CompareUnitListView(ViewBase):
                 item = self.table.item(row_idx, col)
                 if item is not None and item.unit_id is not None:
                     row_unit_ids.add(item.unit_id)
-            if row_unit_ids == visible_unit_ids:
+            if visible_unit_ids.issubset(row_unit_ids):
                 self.table.blockSignals(True)
                 self.table.selectRow(row_idx)
                 self.table.blockSignals(False)
