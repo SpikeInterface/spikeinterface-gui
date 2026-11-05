@@ -174,6 +174,8 @@ class CorrelogramView(ViewBase):
             outline_line_color="white",
         )
         self.empty_plot_pane = pn.pane.Bokeh(empty_fig, sizing_mode="stretch_both")
+        # ids of the figures in the grid currently shown
+        self._panel_shown_figure_ids = set()
 
         self.layout = pn.Column(
             self.empty_plot_pane,
@@ -207,8 +209,11 @@ class CorrelogramView(ViewBase):
                 unit1 = visible_unit_ids[r]
                 unit2 = visible_unit_ids[c]
 
-                if (unit1, unit2) in self.figure_cache:
-                    fig = self.figure_cache[(unit1, unit2)]
+                # a cached figure still in the shown grid cannot be moved to the new grid
+                # (bokeh renders it blank), so it is re-created
+                cached_fig = self.figure_cache.get((unit1, unit2))
+                if cached_fig is not None and id(cached_fig) not in self._panel_shown_figure_ids:
+                    fig = cached_fig
                     # for the color_by_visibility
                     if self.controller.main_settings["color_mode"] == 'color_by_visibility':
                         # Update color in cached figure
@@ -288,6 +293,7 @@ class CorrelogramView(ViewBase):
 
         grid = gridplot(figures, toolbar_location="right", sizing_mode="stretch_both")
         grid.toolbar.logo = None
+        self._panel_shown_figure_ids = {id(fig) for row in figures for fig in row if fig is not None}
         self.layout[0] = pn.Column(
             grid,
             styles={'background-color': f'{_bg_color}'}

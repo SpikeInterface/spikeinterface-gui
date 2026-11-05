@@ -196,11 +196,7 @@ class UnitListView(ViewBase):
         from .myqt import QT
         # refresh colors
         for i, unit_id in enumerate(self.controller.unit_ids):
-            color = self.get_unit_color(unit_id)
-            pix = QT.QPixmap(16,16)
-            pix.fill(color)
-            icon = QT.QIcon(pix)
-            self.items_icon[unit_id].setIcon(icon)
+            self.items_icon[unit_id].setIcon(self.get_unit_icon(unit_id))
 
         self.table.itemChanged.connect(self._qt_on_item_changed)
 
@@ -275,10 +271,7 @@ class UnitListView(ViewBase):
         self.items_visibility = {}
         self.items_icon = {}
         for i, unit_id in enumerate(unit_ids):
-            color = self.get_unit_color(unit_id)
-            pix = QT.QPixmap(16,16)
-            pix.fill(color)
-            icon = QT.QIcon(pix)
+            icon = self.get_unit_icon(unit_id)
             
             # item = QT.QTableWidgetItem( f'{unit_id}')
             item = CustomItemUnitID(unit_ids, f'{unit_id}')
@@ -520,7 +513,8 @@ class UnitListView(ViewBase):
         self.main_cols = list(data.keys())
         for unit_index, unit_id in enumerate(unit_ids):
             data["unit_id"].append(
-                {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))}
+                {"id": str(unit_id), "color": mcolors.to_hex(self.controller.get_unit_color(unit_id)),
+                 "shape": self.controller.get_unit_shape(unit_id)}
             )
             data["channel_id"].append(
                 self.controller.channel_ids[self.controller.get_main_channel(unit_id)]
@@ -787,7 +781,8 @@ class UnitListView(ViewBase):
                 unit_ids_data.append(
                     {
                         "id": str(unit_id),
-                        "color": mcolors.to_hex(self.controller.get_unit_color(unit_id))
+                        "color": mcolors.to_hex(self.controller.get_unit_color(unit_id)),
+                        "shape": self.controller.get_unit_shape(unit_id),
                     }
                 )
             self.table.value.loc[:, "unit_id"] = unit_ids_data

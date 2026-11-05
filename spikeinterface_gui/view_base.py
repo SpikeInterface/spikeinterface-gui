@@ -197,6 +197,23 @@ class ViewBase:
             # Panel: asynchronous approach with callback
             self._panel_insert_warning_with_choice(warning_msg, action, *args)
 
+    def get_unit_icon(self, unit_id):
+        """Qt icon with the unit color and shape"""
+        from .myqt import QT
+
+        pix = QT.QPixmap(16, 16)
+        pix.fill(QT.Qt.transparent)
+        painter = QT.QPainter(pix)
+        painter.setRenderHint(QT.QPainter.Antialiasing)
+        painter.setPen(QT.Qt.NoPen)
+        painter.setBrush(self.get_unit_color(unit_id))
+        if self.controller.get_unit_shape(unit_id) == "square":
+            painter.drawRect(1, 1, 14, 14)
+        else:
+            painter.drawEllipse(1, 1, 14, 14)
+        painter.end()
+        return QT.QIcon(pix)
+
     def get_unit_color(self, unit_id, alpha=1.0):
         if self.backend == "qt":
             from .myqt import QT

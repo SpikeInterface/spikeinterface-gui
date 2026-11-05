@@ -10,6 +10,8 @@ from spikeinterface.postprocessing.unit_locations import possible_localization_m
 class ProbeView(ViewBase):
     id = "probe"
     _supported_backend = ['qt', 'panel']
+    alpha_selected = 0.8
+    alpha_unselected = 0.5
     _settings = [
             {'name': 'show_channel_id', 'type': 'bool', 'value': False},
             {'name': 'radius_channel', 'type': 'float', 'value': 50.},
@@ -136,8 +138,8 @@ class ProbeView(ViewBase):
 
         # units
         unit_positions = self.controller.unit_positions
-        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
-        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
+        brush = self._qt_unit_brushes()
+        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush, symbol=self._qt_unit_symbols())
         self.plot.addItem(self.scatter)
 
         # range
@@ -155,11 +157,21 @@ class ProbeView(ViewBase):
         
         self.plot.removeItem(self.scatter)
         unit_positions = self.controller.unit_positions
-        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
-        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush)
+        brush = self._qt_unit_brushes()
+        self.scatter = pg.ScatterPlotItem(pos=unit_positions, pxMode=False, size=10, brush=brush, symbol=self._qt_unit_symbols())
         self.plot.addItem(self.scatter)
 
         self._qt_refresh()
+
+    def _qt_unit_brushes(self):
+        return [
+            self.get_unit_color(u, alpha=self.alpha_selected if self.controller.get_unit_visibility(u) else self.alpha_unselected)
+            for u in self.controller.unit_ids
+        ]
+
+    def _qt_unit_symbols(self):
+        symbol_lookup = {"circle": "o", "square": "s"}
+        return [symbol_lookup[shape] for shape in self.controller.unit_shapes]
 
     def _qt_refresh(self):
         current_unit_positions = self.controller.unit_positions
@@ -167,8 +179,9 @@ class ProbeView(ViewBase):
         if True:
         
             self._unit_positions = current_unit_positions
-            brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
-            self.scatter.setData(pos=current_unit_positions, pxMode=False, size=10, brush=brush)
+            brush = self._qt_unit_brushes()
+            # setData resets all point attributes, so symbols must be passed again
+            self.scatter.setData(pos=current_unit_positions, pxMode=False, size=10, brush=brush, symbol=self._qt_unit_symbols())
         
         r, x, y = circle_from_roi(self.roi_channel)
         radius = self.settings['radius_channel']
@@ -279,7 +292,7 @@ class ProbeView(ViewBase):
                     if self.controller.get_unit_visibility(u) else pg.mkPen('black', width=4)
                     for u in self.controller.unit_ids]
         self.scatter.setPen(pen)
-        brush = [self.get_unit_color(u) for u in self.controller.unit_ids]
+        brush = self._qt_unit_brushes()
         self.scatter.setBrush(brush)
         
         # auto zoom
@@ -335,7 +348,7 @@ class ProbeView(ViewBase):
     def _panel_make_layout(self):
         import panel as pn
         import bokeh.plotting as bpl
-        from bokeh.models import ColumnDataSource, HoverTool, Label, PanTool, Range1d
+        from bokeh.models import ColumnDataSource, CustomJS, HoverTool, Label, PanTool, Range1d
         from bokeh.events import Tap, PanStart, PanEnd
         from .utils_panel import CustomCircle, _bg_color
 
@@ -390,10 +403,8 @@ class ProbeView(ViewBase):
             if contour is not None:
                 self.figure.line(contour[:, 0], contour[:, 1], line_color="#7FFF00")
 
-        self.alpha_selected = 1
-        self.alpha_unselected = 0.3
-        self.unit_marker_size_unselected = 15
-        self.unit_marker_size_selected = 20
+        self.unit_marker_size_unselected = 25
+        self.unit_marker_size_selected = 40
 
         # Initialize unit glyphs
         unit_positions = self.controller.unit_positions
@@ -426,11 +437,12 @@ class ProbeView(ViewBase):
                 "alpha": alphas,
                 "size": sizes,
                 "unit_id": [str(u) for u in self.controller.unit_ids],
+                "marker": list(self.controller.unit_shapes),
             }
         )
         self.unit_glyphs = self.figure.scatter(
             "x", "y", source=self.glyphs_data_source, size="size", fill_color="color",
-            line_color="line_color", alpha="alpha"
+            line_color="line_color", alpha="alpha", marker="marker"
         )
 
         # Add hover tool to new glyph
@@ -478,7 +490,22 @@ class ProbeView(ViewBase):
         # Add pan tool for dragging
         pan_tool = PanTool()
         self.figure.add_tools(pan_tool)
-        self.figure.toolbar.active_drag = None
+        self.figure.toolbar.active_drag = pan_tool
+        # shift + drag moves/resizes the circles: the pan tool is switched off in the browser for
+        # that drag, since the python PanStart callback arrives too late to stop the panning
+        toolbar = self.figure.toolbar
+        self.figure.js_on_event(PanStart, CustomJS(args=dict(toolbar=toolbar), code="""
+            if (cb_obj.modifiers.shift && toolbar.active_drag != null) {
+                toolbar._paused_drag = toolbar.active_drag;
+                toolbar.active_drag = null;
+            }
+        """))
+        self.figure.js_on_event(PanEnd, CustomJS(args=dict(toolbar=toolbar), code="""
+            if (toolbar._paused_drag != null) {
+                toolbar.active_drag = toolbar._paused_drag;
+                toolbar._paused_drag = null;
+            }
+        """))
 
         # Connect pan events for circle dragging
         self.figure.on_event(PanStart, self._panel_on_pan_start)
@@ -635,20 +662,15 @@ class ProbeView(ViewBase):
             pn.state.execute(lambda: self.glyphs_data_source.patch(patch_dict), schedule=True)
 
     def _panel_on_pan_start(self, event):
-        import panel as pn
-
+        # a plain drag pans the plot, shift + drag acts on the circles
+        if not event.modifiers["shift"]:
+            return
         x, y = event.x, event.y
-
-        def _do_update():
-            self.figure.toolbar.active_drag = None
-
-        pn.state.execute(_do_update, schedule=True)
 
         if self.unit_circle.is_close_to_diamond(x, y):
             self.should_resize_unit_circle = [x, y]
             self.unit_circle.select()
         elif self.unit_circle.is_position_inside(x, y, skip_other_positions=self._unit_positions):
-            self.figure.toolbar.active_drag = None
             # Update unit circle
             self.should_move_unit_circle = [x, y]
             self.unit_circle.select()
@@ -656,7 +678,6 @@ class ProbeView(ViewBase):
             self.should_resize_channel_circle = [x, y]
             self.channel_circle.select()
         elif self.channel_circle.is_position_inside(x, y, skip_other_positions=self._unit_positions):
-            self.figure.toolbar.active_drag = None
             # Update channel circle
             self.should_move_channel_circle = [x, y]
             self.channel_circle.select()
@@ -791,4 +812,5 @@ Units are color coded.
 - **ctrl + left click** : add unit to selection
 - **mouse drag from within circle** : change channel visibility and unit visibility on other views
 - **mouse drag from "diamond"** : change channel / unit radii size
+- **panel only** : a plain drag pans the plot, use **shift + drag** on the circles / diamonds
 """

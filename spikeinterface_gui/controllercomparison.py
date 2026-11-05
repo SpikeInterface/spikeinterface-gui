@@ -434,6 +434,13 @@ class ControllerComparison(Controller):
         return self._unit_ids
 
     @property
+    def unit_shapes(self):
+        return ["circle"] * len(self.unit_ids1) + ["square"] * len(self.unit_ids2)
+
+    def get_unit_shape(self, unit_id):
+        return "circle" if self._analyzer_index_by_id[unit_id] == 1 else "square"
+
+    @property
     def unit_ids1(self):
         return self._unit_ids[:self._num_units1]
 

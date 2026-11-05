@@ -497,6 +497,13 @@ class Controller():
     def unit_ids(self):
         return self.analyzer.unit_ids
 
+    @property
+    def unit_shapes(self):
+        return ["circle"] * len(self.unit_ids)
+
+    def get_unit_shape(self, unit_id):
+        return "circle"
+
     def get_time(self):
         """
         Returns selected time and segment index

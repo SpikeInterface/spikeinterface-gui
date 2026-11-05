@@ -125,7 +125,7 @@ class CompareUnitListView(ViewBase):
         self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QT.QAbstractItemView.SingleSelection)
         self.table.itemSelectionChanged.connect(self._qt_on_selection_changed)
-        self.table.cellClicked.connect(self._qt_on_row_clicked)
+        # self.table.cellClicked.connect(self._qt_on_row_clicked)
 
         self.table.setSortingEnabled(True)
         # Sort by Agreement Score column (index 2) by default
@@ -150,9 +150,7 @@ class CompareUnitListView(ViewBase):
         item = QT.QTableWidgetItem(f'{unit_id} n={num_spikes}')
         item.setData(QT.Qt.ItemDataRole.UserRole, unit_id)
         item.setFlags(QT.Qt.ItemIsEnabled | QT.Qt.ItemIsSelectable)
-        pix = QT.QPixmap(16, 16)
-        pix.fill(self.get_unit_color(unit_id))
-        item.setIcon(QT.QIcon(pix))
+        item.setIcon(self.get_unit_icon(unit_id))
         item.unit_id = unit_id
         return item
 
@@ -191,8 +189,8 @@ class CompareUnitListView(ViewBase):
         self.table.resizeColumnsToContents()
         self._qt_select_visible_row()
 
-    def _qt_on_row_clicked(self):
-        self._qt_on_selection_changed()
+    # def _qt_on_row_clicked(self):
+    #     self._qt_on_selection_changed()
 
     def _qt_on_selection_changed(self):
         """Handle row selection and update unit visibility"""
@@ -232,6 +230,8 @@ class CompareUnitListView(ViewBase):
                 self.table.selectRow(row_idx)
                 self.table.blockSignals(False)
                 self.table.scrollToItem(self.table.item(row_idx, 0))
+                if set(visible_unit_ids) != row_unit_ids:
+                    self._qt_on_selection_changed()
                 return
         # the visible units are not one row (e.g. a non matched pair): highlight nothing
         self.table.blockSignals(True)
@@ -278,6 +278,7 @@ class CompareUnitListView(ViewBase):
             return {
                 "id": str(unit_id),
                 "color": mcolors.to_hex(self.controller.get_unit_color(unit_id)),
+                "shape": self.controller.get_unit_shape(unit_id),
                 "n": self.controller.num_spikes[unit_id],
             }
 
@@ -340,6 +341,8 @@ class CompareUnitListView(ViewBase):
 
         current_visible_units = self.controller.get_visible_unit_ids()
         self.controller.set_visible_unit_ids(visible_unit_ids)
+        # this runs twice when the row is selected from code (directly, then from the selection
+        # watcher): notifying twice refreshes the correlograms twice and they render blank
         if set(current_visible_units) != set(self.controller.get_visible_unit_ids()):
             self.notify_unit_and_channel_visibility_changed()
 
@@ -349,6 +352,8 @@ class CompareUnitListView(ViewBase):
         table_index = next(i for i, obj in enumerate(self.layout.objects) if obj is old_panel)
         self._panel_create_table()
         self.layout[table_index] = self.table
+        # visibility changes are skipped while the tab is hidden, so re-select on refresh (as in qt)
+        self._panel_on_unit_visibility_changed()
 
     def _panel_on_unit_visibility_changed(self):
         # the rows themselves do not change, only which one is highlighted
@@ -361,9 +366,13 @@ class CompareUnitListView(ViewBase):
             row_unit_ids = {
                 unit_id for unit_id in (row['_unit_id1'], row['_unit_id2']) if unit_id is not None
             }
-            if row_unit_ids == visible_unit_ids:
+            # subset, like in qt: picking one unit (e.g. from the probe view) selects its row
+            if visible_unit_ids.issubset(row_unit_ids):
                 if self.table.selection != [row_index]:
+                    # the selection watcher then makes the whole pair visible
                     self.table.selection = [row_index]
+                if visible_unit_ids != row_unit_ids:
+                    self._panel_on_selection_changed()
                 return
         # the visible units are not one row (e.g. a non matched pair): highlight nothing
         if self.table.selection != []:
