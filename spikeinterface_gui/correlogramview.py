@@ -154,12 +154,13 @@ class CorrelogramView(ViewBase):
                     # only ACGs: side by side on one row
                     self.grid.addItem(plot, row=0, col=r)
 
-        # the ACGs share the y axis (also when zooming), the plots can come from the cache
-        # with a link to a plot that is not shown anymore
-        ymax = self.get_acg_ymax(visible_unit_ids) if len(acg_plots) > 0 else None
-        for i, plot in enumerate(acg_plots):
-            plot.setYLink(None if i == 0 else acg_plots[0])
-            plot.setYRange(0, ymax, padding=0)
+        if not self.settings['show_cross_correlograms']:
+            # the ACGs share the y axis (also when zooming), the plots can come from the cache
+            # with a link to a plot that is not shown anymore
+            ymax = self.get_acg_ymax(visible_unit_ids) if len(acg_plots) > 0 else None
+            for i, plot in enumerate(acg_plots):
+                plot.setYLink(None if i == 0 else acg_plots[0])
+                plot.setYRange(0, ymax, padding=0)
     
     ## panel ##
     def _panel_make_layout(self):
@@ -186,6 +187,7 @@ class CorrelogramView(ViewBase):
         import panel as pn
         import bokeh.plotting as bpl
         from bokeh.layouts import gridplot
+        from bokeh.models import Range1d
         from .utils_panel import _bg_color
 
         if self.ccg is None:
@@ -285,11 +287,11 @@ class CorrelogramView(ViewBase):
                     figures.append([])
                 figures[0].extend(row_plots)
 
-        # the ACGs share the y axis (also when zooming), the figures can come from the cache
-        from bokeh.models import Range1d
-        acg_y_range = Range1d(0, self.get_acg_ymax(visible_unit_ids))
-        for fig in acg_figs:
-            fig.y_range = acg_y_range
+        if not self.settings['show_cross_correlograms']:
+            # the ACGs share the y axis (also when zooming), the figures can come from the cache
+            acg_y_range = Range1d(0, self.get_acg_ymax(visible_unit_ids))
+            for fig in acg_figs:
+                fig.y_range = acg_y_range
 
         grid = gridplot(figures, toolbar_location="right", sizing_mode="stretch_both")
         grid.toolbar.logo = None
