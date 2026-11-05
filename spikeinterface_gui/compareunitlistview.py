@@ -125,7 +125,6 @@ class CompareUnitListView(ViewBase):
         self.table.setSelectionBehavior(QT.QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QT.QAbstractItemView.SingleSelection)
         self.table.itemSelectionChanged.connect(self._qt_on_selection_changed)
-        # self.table.cellClicked.connect(self._qt_on_row_clicked)
 
         self.table.setSortingEnabled(True)
         # Sort by Agreement Score column (index 2) by default
@@ -188,9 +187,6 @@ class CompareUnitListView(ViewBase):
         self.table.setSortingEnabled(True)
         self.table.resizeColumnsToContents()
         self._qt_select_visible_row()
-
-    # def _qt_on_row_clicked(self):
-    #     self._qt_on_selection_changed()
 
     def _qt_on_selection_changed(self):
         """Handle row selection and update unit visibility"""
