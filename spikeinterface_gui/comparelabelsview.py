@@ -10,6 +10,8 @@ def get_categorical_properties(controller, max_categories):
     table = controller.units_table
     properties = []
     for name in controller.get_shared_unit_properties():
+        if name == "sorter":
+            continue
         column = table[name]
         if column.dtype.kind in 'if':
             continue
