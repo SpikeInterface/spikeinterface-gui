@@ -44,19 +44,23 @@ class SimilarityView(ViewBase):
         unit_ids = self.controller.unit_ids
 
         if self.settings['show_all']:
-            visible_ids = unit_ids
+            displayed_ids = unit_ids
         else:
-            visible_ids = self.get_visible_unit_ids()
-        
-        n = len(visible_ids)
-        
+            # same mask, and therefore the same order, as the sub-matrix drawn by
+            # get_similarity_data(). get_visible_unit_ids() is in selection order,
+            # which would map the click to the wrong units.
+            displayed_ids = unit_ids[self.controller.get_units_visibility_mask()]
+
+        n = len(displayed_ids)
+
         inside = (0 <= x  <= n) and (0 <= y  <= n)
 
         if not inside:
             return
-        
-        unit_id0 = unit_ids[int(np.floor(x))]
-        unit_id1 = unit_ids[int(np.floor(y))]
+
+        # clip so that a click exactly on the far edge still selects the last unit
+        unit_id0 = displayed_ids[min(int(np.floor(x)), n - 1)]
+        unit_id1 = displayed_ids[min(int(np.floor(y)), n - 1)]
         
         if reset:
             self.controller.set_all_unit_visibility_off()

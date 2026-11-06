@@ -62,6 +62,14 @@ class ViewBase:
     def notify_channel_visibility_changed(self):
         self.notifier.notify_channel_visibility_changed()
 
+    def notify_unit_and_channel_visibility_changed(self):
+        """Set the visible channels to the sparse channels of the visible units, then notify both"""
+        selected_units = self.controller.get_visible_unit_ids()
+        visible_channel_inds = self.controller.get_common_sparse_channels(selected_units)
+        self.controller.set_channel_visibility(visible_channel_inds)
+        self.notify_channel_visibility_changed()
+        self.notify_unit_visibility_changed()
+
     def notify_manual_curation_updated(self):
         self.controller.current_curation_saved = False
         self.notifier.notify_manual_curation_updated()
@@ -79,6 +87,10 @@ class ViewBase:
 
     def notify_unit_color_changed(self):
         self.notifier.notify_unit_color_changed()
+
+    def notify_agreement_threshold_changed(self):
+        # comparison mode only: the agreement threshold is shared by the comparison views
+        self.notifier.notify_agreement_threshold_changed()
 
     def on_settings_changed(self, *params):
         # what to do when one settings is changed
@@ -185,6 +197,23 @@ class ViewBase:
             # Panel: asynchronous approach with callback
             self._panel_insert_warning_with_choice(warning_msg, action, *args)
 
+    def get_unit_icon(self, unit_id):
+        """Qt icon with the unit color and shape"""
+        from .myqt import QT
+
+        pix = QT.QPixmap(16, 16)
+        pix.fill(QT.Qt.transparent)
+        painter = QT.QPainter(pix)
+        painter.setRenderHint(QT.QPainter.Antialiasing)
+        painter.setPen(QT.Qt.NoPen)
+        painter.setBrush(self.get_unit_color(unit_id))
+        if self.controller.get_unit_shape(unit_id) == "square":
+            painter.drawRect(1, 1, 14, 14)
+        else:
+            painter.drawEllipse(1, 1, 14, 14)
+        painter.end()
+        return QT.QIcon(pix)
+
     def get_unit_color(self, unit_id, alpha=1.0):
         if self.backend == "qt":
             from .myqt import QT
@@ -262,6 +291,12 @@ class ViewBase:
         elif self.backend == "panel":
             self._panel_on_unit_color_changed()
 
+    def on_agreement_threshold_changed(self):
+        if self.backend == "qt":
+            self._qt_on_agreement_threshold_changed()
+        elif self.backend == "panel":
+            self._panel_on_agreement_threshold_changed()
+
     def busy_cursor(self):
         if self.backend == "qt":
             return self._qt_busy_cursor()
@@ -312,6 +347,9 @@ class ViewBase:
         pass
 
     def _qt_on_unit_color_changed(self):
+        self.refresh()
+
+    def _qt_on_agreement_threshold_changed(self):
         self.refresh()
 
     def _qt_insert_warning(self, warning_msg):
@@ -375,6 +413,9 @@ class ViewBase:
         pass
 
     def _panel_on_unit_color_changed(self):
+        self.refresh()
+
+    def _panel_on_agreement_threshold_changed(self):
         self.refresh()
 
     def _panel_insert_warning(self, warning_msg):

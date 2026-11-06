@@ -22,13 +22,23 @@ from .spikerateview import SpikeRateView
 from .maintemplateview import MainTemplateView
 from .eventview import EventView
 
+from .compareunitlistview import CompareUnitListView
+from .agreementmatrixview import AgreementMatrixView
+from .comparemainsettingsview import CompareMainSettingsView
+from .compareunitvennview import CompareUnitVennView
+from .comparespikesview import CompareSpikesView
+from .comparelabelsview import CompareLabelsView
+from .comparemetricsview import CompareMetricsView
+
 # probe and mainsettings view are first, since they affect other views (e.g., time info)
 builtin_views = [
     ProbeView, MainSettingsView, UnitListView, SpikeRateView, MergeView,
     TraceView, TraceMapView, WaveformView, WaveformHeatMapView, ISIView,
     CorrelogramView, NDScatterView, SimilarityView, SpikeAmplitudeView,
     SpikeDepthView, SpikeRateView, CurationView, MetricsView, SpikeListView,
-    AmplitudeScalingsView, MainTemplateView, EventView
+    AmplitudeScalingsView, MainTemplateView, EventView,
+    CompareMainSettingsView, CompareUnitListView, AgreementMatrixView, CompareUnitVennView, CompareSpikesView,
+    CompareLabelsView, CompareMetricsView,
 ]
 
 def get_all_possible_views():

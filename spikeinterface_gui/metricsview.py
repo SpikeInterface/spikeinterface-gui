@@ -153,15 +153,15 @@ class MetricsView(ViewBase):
         import panel as pn
         import bokeh.plotting as bpl
         import pandas as pd
-        from .utils_panel import _bg_color
+        from .utils_panel import _bg_color, make_toggled_checkboxes
 
         # Create metrics selection widget
-        self.metrics_select = pn.widgets.MultiChoice(
-            name="Visible Metrics",
-            value=list([k for k, v in self.visible_metrics_dict.items() if v]),
+        self.metrics_toggle, self.metrics_select, metrics_box = make_toggled_checkboxes(
+            "metrics",
             options=list(self.visible_metrics_dict.keys()),
+            value=list([k for k, v in self.visible_metrics_dict.items() if v]),
+            on_change=self._panel_on_metrics_changed,
         )
-        self.metrics_select.param.watch(self._panel_on_metrics_changed, 'value')
 
         empty_fig = bpl.figure(
             sizing_mode="stretch_both",
@@ -172,7 +172,7 @@ class MetricsView(ViewBase):
         self.empty_plot_pane = pn.pane.Bokeh(empty_fig, sizing_mode="stretch_both")
 
         self.layout = pn.Column(
-            pn.Row(self.metrics_select, sizing_mode="stretch_width", height=100),
+            pn.Column(self.metrics_toggle, metrics_box, sizing_mode="stretch_width"),
             self.empty_plot_pane,
             sizing_mode="stretch_both"
         )

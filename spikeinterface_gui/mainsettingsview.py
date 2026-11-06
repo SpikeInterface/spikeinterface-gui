@@ -33,7 +33,7 @@ class MainSettingsView(ViewBase):
 
 
     def on_max_visible_units_changed(self):
-        max_visible = self.main_settings_sync['max_visible_units']
+        max_visible = self.main_settings['max_visible_units']
         self.controller.main_settings['max_visible_units'] = max_visible
 
         visible_ids = self.controller.get_visible_unit_ids()

@@ -115,6 +115,8 @@ parser.add_argument('--events', action="store_true", help='Simulate and add even
 parser.add_argument('--iterative', action="store_true", help='Run iterative curation')
 parser.add_argument('--layout', default="default", help='Layout of the GUI, default is "default"')
 parser.add_argument('--lazy', action="store_true", help='Lazy load')
+parser.add_argument('--port', default=0, type=int, help='Port for the web server')
+parser.add_argument('--no-start', action="store_true", help='Do not start the app')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -127,11 +129,11 @@ if __name__ == '__main__':
         setup_module()
 
     win = test_mainwindow(
-        start_app=True,
+        start_app=not args.no_start,
         verbose=True,
         curation=True,
         events=args.events,
-        port=0,
+        port=args.port,
         layout=args.layout,
         iterative_curation=args.iterative,
         lazy_load=args.lazy

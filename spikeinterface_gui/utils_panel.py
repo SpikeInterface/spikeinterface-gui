@@ -92,7 +92,7 @@ table_stylesheet = """
 unit_formatter = HTMLTemplateFormatter(
     template="""
     <div style="color: <%= value ? value.color : '#ffffff' %>;">
-        ● <%= value ? value.id : '' %><%= value && value.n !== undefined ? ' n=' + value.n : '' %>
+        <%= value && value.shape === 'square' ? '■' : '●' %> <%= value ? value.id : '' %><%= value && value.n !== undefined ? ' n=' + value.n : '' %>
     </div>
 """
 )
@@ -124,6 +124,24 @@ checkbox_formatter_template = """
     source.change.emit();
 ">
 """
+
+
+def make_toggled_checkboxes(name, options, value, on_change, max_height=200):
+    """
+    A toggle button that shows a list of checkboxes, hidden again when the toggle is off:
+    the panel twin of the Qt parameter tree shown by a toolbar button, and more compact than
+    a MultiChoice once several options are selected.
+
+    on_change is called with the event of the checkboxes value (event.new is the list of
+    checked options). Returns (toggle, checkboxes, box): the toggle and the box are placed in
+    the view layout, the box scrolls the checkboxes (one per row) past max_height.
+    """
+    toggle = pn.widgets.Toggle(name=name, value=False, width=100, align="end")
+    checkboxes = pn.widgets.CheckBoxGroup(options=options, value=value, sizing_mode="stretch_width")
+    box = pn.Column(checkboxes, scroll=True, max_height=max_height, visible=False, sizing_mode="stretch_width")
+    toggle.param.watch(lambda event: setattr(box, "visible", event.new), "value")
+    checkboxes.param.watch(on_change, "value")
+    return toggle, checkboxes, box
 
 
 def insert_warning(view, warning_msg):

@@ -17,6 +17,7 @@ class SignalNotifier(param.Parameterized):
     use_times_updated = param.Event()
     active_view_updated = param.Event()
     unit_color_changed = param.Event()
+    agreement_threshold_changed = param.Event()
 
     def __init__(self, view=None):
         param.Parameterized.__init__(self)
@@ -51,6 +52,9 @@ class SignalNotifier(param.Parameterized):
     def notify_unit_color_changed(self):
         self.param.trigger("unit_color_changed")
 
+    def notify_agreement_threshold_changed(self):
+        self.param.trigger("agreement_threshold_changed")
+
 
 class SignalHandler(param.Parameterized):
     def __init__(self, controller, parent=None):
@@ -73,6 +77,7 @@ class SignalHandler(param.Parameterized):
         view.notifier.param.watch(self.on_use_times_updated, "use_times_updated")
         view.notifier.param.watch(self.on_active_view_updated, "active_view_updated")
         view.notifier.param.watch(self.on_unit_color_changed, "unit_color_changed")
+        view.notifier.param.watch(self.on_agreement_threshold_changed, "agreement_threshold_changed")
 
     def on_spike_selection_changed(self, param):
         if not self._active:
@@ -140,6 +145,15 @@ class SignalHandler(param.Parameterized):
             if param.obj.view == view:
                 continue
             view.on_unit_color_changed()
+
+    def on_agreement_threshold_changed(self, param):
+        if not self._active:
+            return
+        for view in self.controller.views:
+            if param.obj.view == view:
+                continue
+            view.on_agreement_threshold_changed()
+
 
 param_type_map = {
     "float": param.Number,
@@ -259,8 +273,8 @@ class PanelMainWindow:
 
             tabs = [("📊", view.layout)]
             if view_class._settings is not None:
-                settings_param = pn.Param(view.settings._parameterized, sizing_mode="stretch_height",
-                                    name=f"{view_name.capitalize()} settings")
+                # natural height (no stretch_height): the scrolling column below scrolls it
+                settings_param = pn.Param(view.settings._parameterized, name=f"{view_name.capitalize()} settings")
                 view._panel_settings_widget = settings_param
                 if view_class._need_compute:
                     compute_button = pn.widgets.Button(name="Compute", button_type="primary")
@@ -268,6 +282,9 @@ class PanelMainWindow:
                     settings = pn.Row(settings_param, compute_button)
                 else:
                     settings = settings_param
+                # scroll inside the tab: long settings would otherwise overflow the zone, over
+                # the tabs of the zone
+                settings = pn.Column(settings, scroll=True, sizing_mode="stretch_both")
                 tabs.append(("⚙️", settings))
 
             tabs.append(("ℹ️", info))
