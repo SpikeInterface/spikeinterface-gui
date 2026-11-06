@@ -26,9 +26,9 @@ def test_mainwindow_comparison(start_app=False, verbose=True, port=0):
     analyzer2 = load_sorting_analyzer(test_folder / "sorting_analyzer_2")
 
     labels_analyzer1 = ["good"] * (len(analyzer1.unit_ids) - 10) + ["noise"] * 10
-    analyzer1.set_sorting_property("label", labels_analyzer1)
+    analyzer1.set_sorting_property("label", labels_analyzer1, save=False)
     labels_analyzer2 = ["noise"] * (len(analyzer2.unit_ids) - 10) + ["good"] * 10
-    analyzer2.set_sorting_property("label", labels_analyzer2)
+    analyzer2.set_sorting_property("label", labels_analyzer2, save=False)
 
     print(analyzer1)
     print(analyzer2)
