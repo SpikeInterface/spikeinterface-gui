@@ -6,6 +6,11 @@ on:
     branches:
       - main
 
+concurrency:
+  # one run per PR (or per branch for pushes): a new push cancels the run in progress
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
