@@ -3,6 +3,29 @@
 Release Notes
 =============
 
+.. _release0.15.0:
+
+0.15.0
+------
+
+*Release date: November 10th, 2026*
+
+New features
+~~~~~~~~~~~~
+
+* Add all-in-one run_compare_analyzers function (PR #220)
+
+Bug fixes
+~~~~~~~~~
+
+* Turn off optimize_palette in our colour selector (PR #288)
+
+Tests
+~~~~~
+
+* Unify tests and test scripts (PR #289)
+
+
 .. _release0.14.0:
 
 0.14.0
