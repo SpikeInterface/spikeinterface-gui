@@ -425,4 +425,4 @@ Main authors and maintainers:
 
 * desktop side: Samuel Garcia, CNRS, Lyon, France
 * web side: Alessio Paolo Buccino, Allen Institute for Neural Dynamics, Seattle, USA
-* maintainer: Chris Halcrow, University of Edinburgh, Scotland, UK
+* maintainer: Chris Halcrow, Sainsbury Wellcome Centre, London, UK
