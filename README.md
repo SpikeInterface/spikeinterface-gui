@@ -80,11 +80,15 @@ pip install .
 
 You'll then need to install the appropriate backends yourself (`pyqtgraph` and `PySide6` or `PyQt5` for the desktop; `panel` and `bokeh` for web).
 
-To test that your installation works, you can run any script in our `test` directory. This will run the GUI on some synthetic test data. E.g. from the `spikeinterface-gui` folder, you could run
+To test that your installation works, you can launch the GUI on some synthetic test data, built in `spikeinterface_gui/tests/datasets` on first use. From the `spikeinterface-gui` folder:
 
 ```bash
-python spikeinterface_gui/tests/test_mainwindow_qt.py
+python spikeinterface_gui/tests/run_gui.py                  # desktop
+python spikeinterface_gui/tests/run_gui.py --mode web       # web
+python spikeinterface_gui/tests/run_gui.py --comparison     # compare two sortings
 ```
+
+Run `python spikeinterface_gui/tests/run_gui.py --help` for all options. To run the test suite: `pip install -e .[test]` then `pytest`.
 
 # Main usage
 
@@ -421,4 +425,4 @@ Main authors and maintainers:
 
 * desktop side: Samuel Garcia, CNRS, Lyon, France
 * web side: Alessio Paolo Buccino, Allen Institute for Neural Dynamics, Seattle, USA
-* maintainer: Chris Halcrow, University of Edinburgh, Scotland, UK
+* maintainer: Chris Halcrow, Sainsbury Wellcome Centre, London, UK

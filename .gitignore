@@ -1,5 +1,4 @@
-spikeinterface_gui/tests/*/*
-my_dataset/*
+spikeinterface_gui/tests/datasets/
 comparison_scripts/
 
 

@@ -60,12 +60,18 @@ web = [
 test = [
     "pytest",
     "PySide6",
+    "pyqtgraph",
+    "panel",
+    "bokeh",
 ]
 
 docs = [
     "sphinx>=5.0",
     "sphinx_rtd_theme",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["spikeinterface_gui/tests"]
 
 [tool.codespell]
 # Ref: https://github.com/codespell-project/codespell#using-a-config-file

@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  # one run per PR (or per branch for pushes): a new push cancels the run in progress
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Install Qt system libraries
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0
+      - name: Install package, test dependencies and the plugin example
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test] ./plugin_example
+      - name: Cache test datasets
+        uses: actions/cache@v4
+        with:
+          path: spikeinterface_gui/tests/datasets
+          key: test-datasets-${{ hashFiles('spikeinterface_gui/tests/testingtools.py') }}
+      - name: Test with pytest
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest spikeinterface_gui/tests -v

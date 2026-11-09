@@ -9,12 +9,17 @@ import spikeinterface.full as si
 import probeinterface
 
 
+DATASETS_FOLDER = Path(__file__).parent / "datasets"
+
+_job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
+
+
 def clean_all(test_folder):
     folder = Path(test_folder)
     if not folder.exists():
         return
-    # Release lingering memmap handles (e.g. the binary_folder waveforms  extension) 
-    # before deleting. On NFS, unlinking a still-open file creates a ".nfs*" file, which 
+    # Release lingering memmap handles (e.g. the binary_folder waveforms  extension)
+    # before deleting. On NFS, unlinking a still-open file creates a ".nfs*" file, which
     # makes shutil.rmtree raise an error when it tries to rmdir the parent too quickly.
     for attempt in range(5):
         gc.collect() # force release of memmap handles
@@ -29,7 +34,68 @@ def clean_all(test_folder):
     shutil.rmtree(folder, ignore_errors=True)
 
 
+def get_dataset_folder(case="small", comparison=False, regenerate=False):
+    """
+    Folder of a test dataset in tests/datasets, generated if it does not exist yet.
+
+    The main datasets contain "sorting_analyzer", the comparison ones
+    "sorting_analyzer_1" and "sorting_analyzer_2".
+    """
+    if comparison:
+        folder = DATASETS_FOLDER / f"comparison_{case}"
+        # the last folder written: a folder without it is an interrupted build
+        complete = (folder / "sorting_analyzer_2").is_dir()
+    else:
+        folder = DATASETS_FOLDER / case
+        complete = (folder / "sorting_analyzer").is_dir()
+
+    if regenerate or not complete:
+        if comparison:
+            make_comparison_analyzer_folders(folder, case=case, unit_dtype="int")
+        else:
+            make_analyzer_folder(folder, case=case, unit_dtype="str")
+    return folder
+
+
+def _generate_gt(durations, num_channels, num_units, seed):
+    recording, sorting = si.generate_ground_truth_recording(
+        durations=durations,
+        num_channels=num_channels,
+        num_units=num_units,
+        sampling_frequency=30000.0,
+        generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
+        generate_unit_locations_kwargs=dict(
+            margin_um=5.0,
+            minimum_z=5.0,
+            maximum_z=20.0,
+        ),
+        generate_templates_kwargs=dict(
+            unit_params=dict(
+                alpha=(100.0, 500.0),
+            )
+        ),
+        noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
+        seed=seed,
+    )
+    # The NumpySorting injected in the recording is flagged as not picklable, so the analyzer
+    # would not save the recording and the trace views would be lost on reload. It pickles
+    # fine and its spike vector is small.
+    # shortcut: private flag, drop it if spikeinterface makes NumpySorting picklable again
+    recording._kwargs["sorting"]._serializability["pickle"] = True
+    return recording, sorting
+
+
+def _create_analyzer(sorting, recording, folder, extensions):
+    """extensions: list of (name or list of names, params), computed in order"""
+    sorting_analyzer = si.create_sorting_analyzer(sorting, recording, format="binary_folder",
+                                                  folder=folder, **_job_kwargs)
+    for names, params in extensions:
+        sorting_analyzer.compute(names, **params)
+    return sorting_analyzer
+
+
 def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
+    test_folder = Path(test_folder)
     clean_all(test_folder)
 
     if case ==  'small':
@@ -55,45 +121,21 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
     else:
         raise ValueError(f"Wrong dataset type {case}")
 
-
-    
-    job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
-
     recordings = []
     sortings = []
     probes = []
     for i in range(num_probe):
-        recording, sorting = si.generate_ground_truth_recording(
-            durations=durations,
-            num_channels=num_channels,
-            num_units=num_units,
-            
-            sampling_frequency=30000.0,
-            
-            generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
-            generate_unit_locations_kwargs=dict(
-                margin_um=5.0,
-                minimum_z=5.0,
-                maximum_z=20.0,
-            ),
-            generate_templates_kwargs=dict(
-                unit_params=dict(
-                    alpha=(100.0, 500.0),
-                )
-            ),
-            noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
-            seed=2205+i,
-        )
+        recording, sorting = _generate_gt(durations, num_channels, num_units, seed=2205 + i)
 
         if num_probe > 1:
             probe = recording.get_probe()
             probe.move([i*200, 0])
             recording = recording.set_probe(probe)
-            
+
             recordings.append(recording)
             sortings.append(sorting)
             probes.append(probe.copy())
-        
+
         if 'split' in case:
             # create an intermediate analyzer to make a simulated split
             analyzer_pre_split = si.create_sorting_analyzer(sorting, recording)
@@ -104,11 +146,10 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
                 min_snr=10,
                 splitting_probability=0.2
             )
-        
+
         sorting.set_property(key='my_own_property', values=np.array([f"yep{i}" for i in range(sorting.unit_ids.size)]))
-    
+
     if num_probe > 1:
-        #
         recording = si.aggregate_channels(recordings)
         probegroup = probeinterface.ProbeGroup()
         count = 0
@@ -116,7 +157,6 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
             n = probe.get_contact_count()
             probe.device_channel_indices = np.arange(count, count+n)
             probe.set_contact_ids(probe.device_channel_indices.astype('S'))
-            # print(probe.contact_ids)
             probegroup.add_probe(probe)
             count += n
         recording = recording.set_probegroup(probegroup)
@@ -124,25 +164,21 @@ def make_analyzer_folder(test_folder, case="small", unit_dtype="str"):
         sorting = si.aggregate_units(sortings)
 
     sorting = sorting.rename_units(sorting.unit_ids.astype(unit_dtype))
-    
-    sorting_analyzer = si.create_sorting_analyzer(sorting, recording,
-                                                  format="binary_folder",
-                                                  folder=test_folder / "sorting_analyzer",
-                                                #   format="zarr",
-                                                #   folder=test_folder / "sorting_analyzer.zarr",
-                                                  **job_kwargs)
-    sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
-    sorting_analyzer.compute("waveforms", **job_kwargs)
-    sorting_analyzer.compute("templates", **job_kwargs)
-    sorting_analyzer.compute("noise_levels", **job_kwargs)
-    sorting_analyzer.compute("unit_locations")
-    sorting_analyzer.compute("isi_histograms", window_ms=50., bin_ms=1., method="numba")
-    sorting_analyzer.compute("correlograms", window_ms=50., bin_ms=1.)
-    sorting_analyzer.compute("template_similarity", method="l1")
-    sorting_analyzer.compute("principal_components", n_components=3, mode='by_channel_global', whiten=True, **job_kwargs)
-    sorting_analyzer.compute(["spike_amplitudes", "spike_locations"], **job_kwargs)
-    sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
-    sorting_analyzer.compute("template_metrics")
+
+    _create_analyzer(sorting, recording, test_folder / "sorting_analyzer", [
+        ("random_spikes", dict(method="uniform", max_spikes_per_unit=500)),
+        ("waveforms", _job_kwargs),
+        ("templates", _job_kwargs),
+        ("noise_levels", _job_kwargs),
+        ("unit_locations", {}),
+        ("isi_histograms", dict(window_ms=50., bin_ms=1., method="numba")),
+        ("correlograms", dict(window_ms=50., bin_ms=1.)),
+        ("template_similarity", dict(method="l1")),
+        ("principal_components", dict(n_components=3, mode='by_channel_global', whiten=True, **_job_kwargs)),
+        (["spike_amplitudes", "spike_locations"], _job_kwargs),
+        ("quality_metrics", dict(metric_names=["snr", "firing_rate"])),
+        ("template_metrics", {}),
+    ])
 
 
 def make_comparison_analyzer_folders(test_folder, case="small", unit_dtype="str",
@@ -158,6 +194,7 @@ def make_comparison_analyzer_folders(test_folder, case="small", unit_dtype="str"
     are then dropped at random. The shared units therefore agree strongly but not
     perfectly, which is closer to a real comparison than an agreement of exactly 1.
     """
+    test_folder = Path(test_folder)
     clean_all(test_folder)
 
     if case == 'small':
@@ -171,29 +208,7 @@ def make_comparison_analyzer_folders(test_folder, case="small", unit_dtype="str"
     else:
         raise ValueError(f"Wrong dataset type {case}")
 
-    job_kwargs = dict(n_jobs=-1, progress_bar=True, chunk_duration="1s")
-
-    recording, sorting = si.generate_ground_truth_recording(
-        durations=durations,
-        num_channels=num_channels,
-        num_units=num_units,
-
-        sampling_frequency=30000.0,
-
-        generate_sorting_kwargs=dict(firing_rates=3.0, refractory_period_ms=4.0),
-        generate_unit_locations_kwargs=dict(
-            margin_um=5.0,
-            minimum_z=5.0,
-            maximum_z=20.0,
-        ),
-        generate_templates_kwargs=dict(
-            unit_params=dict(
-                alpha=(100.0, 500.0),
-            )
-        ),
-        noise_kwargs=dict(noise_levels=10.0, strategy="tile_pregenerated"),
-        seed=2205,
-    )
+    recording, sorting = _generate_gt(durations, num_channels, num_units, seed=2205)
 
     rng = np.random.default_rng(seed=2205)
 
@@ -222,19 +237,17 @@ def make_comparison_analyzer_folders(test_folder, case="small", unit_dtype="str"
                                values=np.array([f"yep{i}" for i in range(sorting_i.unit_ids.size)]))
 
         folder = test_folder / f"sorting_analyzer_{i + 1}"
-        sorting_analyzer = si.create_sorting_analyzer(sorting_i, recording,
-                                                      format="binary_folder",
-                                                      folder=folder,
-                                                      **job_kwargs)
-        sorting_analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
-        sorting_analyzer.compute("waveforms", **job_kwargs)
-        sorting_analyzer.compute("templates", **job_kwargs)
-        sorting_analyzer.compute("noise_levels", **job_kwargs)
-        sorting_analyzer.compute("unit_locations")
-        sorting_analyzer.compute("quality_metrics", metric_names=["snr", "firing_rate"])
-        sorting_analyzer.compute("template_metrics")
-        sorting_analyzer.compute(["spike_amplitudes", "spike_locations", "amplitude_scalings"], **job_kwargs)
-        sorting_analyzer.compute("correlograms")
+        _create_analyzer(sorting_i, recording, folder, [
+            ("random_spikes", dict(method="uniform", max_spikes_per_unit=500)),
+            ("waveforms", _job_kwargs),
+            ("templates", _job_kwargs),
+            ("noise_levels", _job_kwargs),
+            ("unit_locations", {}),
+            ("quality_metrics", dict(metric_names=["snr", "firing_rate"])),
+            ("template_metrics", {}),
+            (["spike_amplitudes", "spike_locations", "amplitude_scalings"], _job_kwargs),
+            ("correlograms", {}),
+        ])
         folders.append(folder)
 
     return folders
@@ -249,7 +262,7 @@ def make_curation_dict(analyzer):
             "quality":{
                 "label_options": ["good", "noise", "MUA"],
                 "exclusive": True,
-            }, 
+            },
             "putative_type":{
                 "label_options": ["excitatory", "inhibitory", "pyramidal", "mitral"],
                 "exclusive": True,
@@ -266,34 +279,56 @@ def make_curation_dict(analyzer):
     return curation_dict
 
 
-if __name__ == '__main__':
-    from pathlib import Path
+def prepare_analyzer_for_gui(analyzer, events=None, seed=None):
+    """
+    Add what the GUI scripts and tests exercise on top of the dataset, in memory only:
+    a unit property, a time shift with a gap in the middle of each segment, and
+    optionally random events.
 
-    test_folder = Path('my_dataset')
-    
-    folder = test_folder / 'sorting_analyzer'
-    
-    clean_all(test_folder)
-    make_analyzer_folder(test_folder, case="small", )
-    
-    sorting_analyzer = si.load_sorting_analyzer(folder)
-    print(sorting_analyzer)
+    events: None | "times" | "samples", the format of the events dict to build.
+    The "times" events include some outside of the recording, to test the filtering.
+
+    Returns (extra_unit_properties, events_dict).
+    """
+    rng = np.random.default_rng(seed)
+    n = analyzer.unit_ids.size
+    analyzer.sorting.set_property(key='yep', values=np.array([f"yep{i}" for i in range(n)]))
+    extra_unit_properties = dict(
+        yop=np.array([f"yop{i}" for i in range(n)]),
+        yip=np.array([f"yip{i}" for i in range(n)]),
+    )
+
+    for segment_index in range(analyzer.get_num_segments()):
+        times = analyzer.recording.get_times(segment_index) + (segment_index + 1) * 100
+        times[len(times) // 2:] += 5  # a gap in the middle
+        analyzer.recording.set_times(times, segment_index=segment_index)
+
+    events_dict = None
+    if events == "times":
+        events_dict = {"event1": {"times": []}, "event2": {"times": []}}
+        for segment_index in range(analyzer.get_num_segments()):
+            times = analyzer.recording.get_times(segment_index)
+            events_dict["event1"]["times"].append(
+                np.concatenate([rng.choice(times, 30), [times[0] - 10, times[-1] + 20]])
+            )
+            events_dict["event2"]["times"].append(
+                np.concatenate([rng.choice(times, 50), [times[0] - 5, times[-1] + 15]])
+            )
+    elif events == "samples":
+        events_dict = {"event1": {"samples": []}, "event2": {"samples": []}}
+        for segment_index in range(analyzer.get_num_segments()):
+            num_samples = analyzer.get_num_samples(segment_index)
+            events_dict["event1"]["samples"].append(rng.choice(num_samples, 30))
+            events_dict["event2"]["samples"].append(rng.choice(num_samples, 50))
+    elif events is not None:
+        raise ValueError(f"events must be None, 'times' or 'samples', not {events!r}")
+
+    return extra_unit_properties, events_dict
 
 
-
-    nlq = sorting_analyzer.get_extension('noise_levels')
-    # print(nlq.get_data())
-    
-    pc = sorting_analyzer.get_extension('principal_components')
-    # print(pc.get_data())
-    
-    sac = sorting_analyzer.get_extension('spike_amplitudes')
-    # print(sac.get_data())
-
-    qmc = sorting_analyzer.get_extension('quality_metrics')
-    # print(qmc.get_data())
-    
-    qm = sorting_analyzer.get_extension("quality_metrics").get_data()
-    print(qm.index)
-    print(qm.index.dtype)
-    print(sorting_analyzer.unit_ids.dtype)
+def set_comparison_labels(analyzer1, analyzer2):
+    """A "label" property on both analyzers, in memory only, for the comparison label views."""
+    labels1 = ["good"] * (len(analyzer1.unit_ids) - 10) + ["noise"] * 10
+    analyzer1.set_sorting_property("label", labels1, save=False)
+    labels2 = ["noise"] * (len(analyzer2.unit_ids) - 10) + ["good"] * 10
+    analyzer2.set_sorting_property("label", labels2, save=False)
