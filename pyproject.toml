@@ -60,7 +60,13 @@ web = [
 test = [
     "pytest",
     "PySide6",
+    "pyqtgraph",
+    "panel",
+    "bokeh",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["spikeinterface_gui/tests"]
 
 docs = [
     "sphinx>=5.0",
